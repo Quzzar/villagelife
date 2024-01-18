@@ -11,7 +11,7 @@ Welcome! This mod introduces AI NPCs into your Minecraft world, adding a dynamic
 
 ## Contributing
 
-We welcome contributions! If you're interested in improving the Village Life mod, please feel free to fork the repository, make your changes, and submit a pull request.
+We welcome contributions! If you're interested in improving the Villagelife mod, please feel free to fork the repository, make your changes, and submit a pull request.
 
 ---
 
