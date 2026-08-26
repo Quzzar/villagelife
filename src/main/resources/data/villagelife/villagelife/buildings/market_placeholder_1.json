@@ -1,0 +1,15 @@
+{
+  "structure": "market_placeholder_1",
+  "work_stations": [
+    { "pos": [3, 1, 2], "occupation": "MERCHANT" }
+  ],
+  "containers": [
+    [3, 1, 1]
+  ],
+  "benefits": [],
+  "cost": [
+    { "item": "minecraft:oak_log", "count": 16 },
+    { "item": "minecraft:oak_planks", "count": 24 },
+    { "item": "minecraft:cobblestone", "count": 24 }
+  ]
+}
