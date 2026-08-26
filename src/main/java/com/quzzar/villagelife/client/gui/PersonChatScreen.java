@@ -252,7 +252,7 @@ public class PersonChatScreen extends Screen {
   /** Rows the player can click, recomputed each frame so hit-testing matches what is drawn. */
   private final List<Row> rowHits = new ArrayList<>();
 
-  private record Row(int y, String itemId, boolean playerBuys) {
+  private record Row(int y, int left, int right, String itemId, boolean playerBuys) {
   }
 
   /**
@@ -320,7 +320,7 @@ public class PersonChatScreen extends Screen {
       String price = String.format("%.2f", row.unitPrice());
       graphics.drawString(this.font, name, left, y, playerBuys ? 0xFF9FD0FF : TEXT_PLAYER);
       graphics.drawString(this.font, price, right - this.font.width(price), y, 0xFFAAAAAA);
-      rowHits.add(new Row(y, row.itemId(), playerBuys));
+      rowHits.add(new Row(y, left, right, row.itemId(), playerBuys));
       y += this.font.lineHeight + 3;
     }
   }
@@ -336,7 +336,7 @@ public class PersonChatScreen extends Screen {
     if (tab == Tab.TRADE && offers != null) {
       for (Row row : rowHits) {
         if (mouseY >= row.y() - 1 && mouseY <= row.y() + 9
-            && mouseX >= panelLeft + 10 && mouseX <= panelRight - 10) {
+            && mouseX >= row.left() - 2 && mouseX <= row.right()) {
           int count = hasShiftDown() ? 8 : 1;
           PacketDistributor.sendToServer(new com.quzzar.villagelife.networking.MarketActionPacket(
               entityId, row.playerBuys(), row.itemId(), count));
