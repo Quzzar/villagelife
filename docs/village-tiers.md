@@ -125,8 +125,10 @@ emergent story the math permits on purpose, not a failure mode.
 The current tier is objective village state, not brain strategy: it becomes a proper
 `tier` field (string id, default rank-0 tier) on the Village codec — NOT a key inside the
 brain's `strategy` CompoundTag, which is reserved for the LLM focus/reason/journal. The
-field stores the high-water mark. Unknown tier ids in a save (datapack removed) fall back
-to the highest rank the ladder still contains at or below the saved rank, or rank 0.
+field stores the high-water mark. An unknown tier id in a save (the datapack renamed or
+removed it) currently loses that mark: the village is simply reclassified from its present
+population, which can move it down. Renaming a tier id is therefore a breaking datapack
+change. Storing the rank beside the id would fix it and has not been done.
 
 ## How the brain sees tiers
 
