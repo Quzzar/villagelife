@@ -1,17 +1,22 @@
 package com.quzzar.villagelife.events;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageManager;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
+import com.quzzar.villagelife.village.buildings.StructureGallery;
 
 import net.minecraft.commands.CommandSourceStack;
 
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
@@ -43,6 +48,12 @@ public class VillagelifeCommands {
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(ctx -> reportAttractiveness(ctx.getSource(),
                                                 BlockPosArgument.getBlockPos(ctx, "pos")))))
+                        .then(Commands.literal("gallery")
+                                .executes(ctx -> buildGallery(ctx.getSource(),
+                                        BlockPos.containing(ctx.getSource().getPosition())))
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                        .executes(ctx -> buildGallery(ctx.getSource(),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "pos")))))
                         .then(Commands.literal("score-site")
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .then(Commands.argument("sizeX", IntegerArgumentType.integer(1, 64))
@@ -50,7 +61,58 @@ public class VillagelifeCommands {
                                                         .executes(ctx -> reportSiteCost(ctx.getSource(),
                                                                 BlockPosArgument.getLoadedBlockPos(ctx, "pos"),
                                                                 IntegerArgumentType.getInteger(ctx, "sizeX"),
-                                                                IntegerArgumentType.getInteger(ctx, "sizeZ"))))))));
+                                                                IntegerArgumentType.getInteger(ctx, "sizeZ")))))))
+                        .then(Commands.literal("save-structure")
+                                .then(Commands.argument("from", BlockPosArgument.blockPos())
+                                        .then(Commands.argument("to", BlockPosArgument.blockPos())
+                                                .then(Commands.argument("name", StringArgumentType.word())
+                                                        .executes(ctx -> saveStructure(ctx.getSource(),
+                                                                BlockPosArgument.getLoadedBlockPos(ctx, "from"),
+                                                                BlockPosArgument.getLoadedBlockPos(ctx, "to"),
+                                                                StringArgumentType.getString(ctx, "name"))))))));
+    }
+
+    /**
+     * Captures a world region as a structure file under
+     * {@code <world>/generated/villagelife/structures/<name>.nbt}: the
+     * headless content-authoring workflow (build by commands, capture, copy
+     * into resources). Entities are deliberately not captured.
+     */
+    private static int saveStructure(CommandSourceStack source, BlockPos from, BlockPos to, String name) {
+        ServerLevel level = source.getLevel();
+        BlockPos min = new BlockPos(Math.min(from.getX(), to.getX()), Math.min(from.getY(), to.getY()),
+                Math.min(from.getZ(), to.getZ()));
+        Vec3i size = new Vec3i(Math.abs(from.getX() - to.getX()) + 1, Math.abs(from.getY() - to.getY()) + 1,
+                Math.abs(from.getZ() - to.getZ()) + 1);
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, name);
+        var template = level.getStructureManager().getOrCreate(id);
+        template.fillFromWorld(level, min, size, false, Blocks.STRUCTURE_VOID);
+        if (!level.getStructureManager().save(id)) {
+            source.sendFailure(Component.literal("Could not save structure '" + id + "'."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Saved " + size.getX() + "x" + size.getY() + "x" + size.getZ() + " as " + id
+                        + " (world generated/ folder; copy into resources to ship it)"), true);
+        return 1;
+    }
+
+    /**
+     * Places every loaded building definition on labelled plinths for review.
+     * See {@link StructureGallery}.
+     */
+    private static int buildGallery(CommandSourceStack source, BlockPos origin) {
+        ServerLevel level = source.getLevel();
+        int placed = StructureGallery.build(level, origin, new java.util.Random());
+        if (placed < 0) {
+            source.sendFailure(Component.literal("No building definitions are loaded."));
+            return 0;
+        }
+        int total = com.quzzar.villagelife.village.buildings.Buildings.allBuildings().size();
+        source.sendSuccess(() -> Component.literal(
+                "Gallery built at " + origin.toShortString() + ": " + placed + " of " + total
+                        + " definitions placed. Any skipped are missing their structure file."), true);
+        return placed;
     }
 
     private static int reportSiteCost(CommandSourceStack source, BlockPos pos, int sizeX, int sizeZ) {

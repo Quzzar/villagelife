@@ -32,3 +32,9 @@ in it, and update it in the same change that moves what it describes.
 - [building-spec.md](building-spec.md): the complete enumeration. All 37 categories with
   every variant, every level, its cost in build points, its special materials, and the
   capabilities it grants the village. Ends in the structure-file manifest used for sourcing.
+- [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
+  from. License survey of vanilla, CTOV, Towns and Towers, YUNG's, and community schematic
+  sites, each read from its own LICENSE file, plus the realistic paths forward.
+- [worker-loops.md](worker-loops.md): what a villager actually does. The three verbs a job is
+  built from, roaming versus fixed, what happens when there is nothing to work on, and the
+  performance budget that decides how targets get found.
