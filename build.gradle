@@ -19,6 +19,12 @@ group = mod_group_id
 repositories {
     mavenLocal()
     mavenCentral()
+    // Curios API, for the optional accessory-slot integration.
+    maven {
+        name = 'Illusive Soulworks'
+        url = 'https://maven.theillusivec4.top/'
+        content { includeGroup 'top.theillusivec4.curios' }
+    }
 }
 
 base {
@@ -211,6 +217,12 @@ dependencies {
     // so jlama-core is compile-only for the parent. At runtime the worker gets
     // Jlama from the shaded mod jar (prod) / the jlamaBundle jar (dev).
     compileOnly "com.github.tjake:jlama-core:${jlama_version}"
+
+    // Curios API only, never the mod: villagers notice and use accessory slots
+    // when a Curios-backed mod is installed, and behave normally when it is not
+    // (see AccessoryCompat). localRuntime so dev runs can exercise the path
+    // without publishing a dependency on it.
+    compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
 
     jlamaBundle "com.github.tjake:jlama-core:${jlama_version}"
     jlamaBundle "com.github.tjake:jlama-native:${jlama_version}:linux-x86_64"

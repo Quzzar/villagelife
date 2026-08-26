@@ -15,6 +15,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.compat.AccessoryCompat;
 import com.quzzar.villagelife.entities.genetics.StatBlock;
 import com.quzzar.villagelife.entities.genetics.StatProjection;
 import com.quzzar.villagelife.other.PersonLootTables;
@@ -633,6 +634,16 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   @Override
   protected void pickUpItem(ItemEntity itemEntity) {
     recordPickup(itemEntity);
+    // A picked-up trinket goes ON the person when an accessory mod gives them
+    // somewhere to put it (#46), so a ring thrown to a villager is worn rather
+    // than pocketed. Anything left over is ordinary inventory.
+    ItemStack leftover = AccessoryCompat.equipIfPossible(this, itemEntity.getItem());
+    if (leftover.isEmpty()) {
+      this.take(itemEntity, itemEntity.getItem().getCount());
+      itemEntity.discard();
+      return;
+    }
+    itemEntity.setItem(leftover);
     HopperBlockEntity.addItem(this.personMainInv, itemEntity);
   }
 

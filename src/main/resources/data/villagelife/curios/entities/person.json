@@ -1,0 +1,15 @@
+{
+  "entities": [
+    "villagelife:person"
+  ],
+  "slots": [
+    "head",
+    "necklace",
+    "back",
+    "hands",
+    "ring",
+    "belt",
+    "charm",
+    "body"
+  ]
+}

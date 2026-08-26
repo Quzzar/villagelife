@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.mojang.authlib.GameProfile;
 import com.quzzar.villagelife.Utils;
+import com.quzzar.villagelife.compat.AccessoryCompat;
 import com.quzzar.villagelife.entities.PersonalLogData;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
@@ -79,11 +80,15 @@ public final class PersonChatContext {
 
     // Everything on their person is ALWAYS stated, even when empty: an omitted
     // line is an invitation for the model to invent contents (dogfood finding).
-    // Accessory-mod slots (Curios etc.) are a tracked follow-up.
     system.append("You are holding: ").append(heldSummary(person)).append(".\n");
     String armor = armorSummary(person);
     if (!armor.isEmpty()) {
       system.append("You are wearing: ").append(armor).append(".\n");
+    }
+    // Accessory-mod slots, when such a mod is installed (#46).
+    List<String> accessories = AccessoryCompat.wornAccessories(person);
+    if (!accessories.isEmpty()) {
+      system.append("You also have on: ").append(String.join(", ", accessories)).append(".\n");
     }
     String pockets = pocketsSummary(person);
     system.append("Your pockets: ").append(pockets.isEmpty() ? "empty" : pockets).append(".\n");
