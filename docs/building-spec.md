@@ -172,9 +172,39 @@ being present. That is what keeps the simulation legible in ordinary Minecraft t
 with a foundry and no diamonds has exactly what a player with a crafting table and no diamonds
 has.
 
-**The village inventory is not a number.** It is literally every container in every storehouse,
-plus the village center's chest, read together. A recipe is satisfiable when those chests hold
-those items. Nothing is abstracted or tracked in parallel.
+**The village inventory is not a number.** It is literally every container inside the
+village's claim, read together, and nothing is abstracted or tracked in parallel. A recipe
+is satisfiable when those chests hold those items.
+
+**One pool for planning; real walking for work** (decided on
+[#49](https://github.com/Quzzar/villagelife/issues/49)). The union above is what the brain
+counts when it asks "can we afford this", so affordability is simple and cannot deadlock on
+geography. Workers do not get that luxury: a villager who needs an input walks to the
+nearest container that actually holds it and carries it back, and a villager with output in
+hand walks it to the nearest container with room. Goods are always in some chest, visibly,
+and moving them is a trip someone makes.
+
+The consequences that follow, and which the implementation owes:
+
+- **The storehouse is capacity, not a special inventory.** Every building's chest counts
+  toward the same pool; a storehouse is simply the building whose job is holding a lot. It
+  stays in the founding set because a camp needs somewhere to put things.
+- **A fetch can fail even when the pool says yes** — the chest holding it is unloaded, or
+  unreachable. That emits the ordinary shortage event and a personal-log entry, and the
+  worker gives up rather than spinning.
+- **A full chest is a storage shortage.** A worker with nowhere to deposit carries to the
+  next container with room; when none has room, that is an event, and it is what should make
+  a village decide to build another storehouse.
+
+**Who may take from a chest.** Any villager, for a real need: there is no ownership between
+residents. The player may freely PUT items into any village container, which is a gift and
+nothing else. The player TAKING items, or breaking a chest, is **theft, but only if a
+villager sees it happen**: awake, within about sixteen blocks, with line of sight. An
+unwitnessed theft genuinely costs nothing, because nobody knows. A witnessed one is
+recorded by the witness as a fact, and how much they hold it against you is their own
+judgement on reflection; it reaches the rest of the village only as gossip through the
+relationship web, not as an instant village-wide verdict. The consequences are detailed in
+[#64](https://github.com/Quzzar/villagelife/issues/64).
 
 | Group | Capabilities |
 | --- | --- |
