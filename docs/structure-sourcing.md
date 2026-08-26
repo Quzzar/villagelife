@@ -111,6 +111,29 @@ definition on labelled plinths, grouped by category, then variant, then level. S
 the level, and the bed and job counts. It skips any definition whose structure file is missing and
 reports how many it placed.
 
+### The review slice is local-only, and must stay that way
+
+Reviewing candidates means having their files on disk. **Those files live in
+`run/world/datapacks/ctov-review/` and must never move anywhere else.**
+
+`run/` is gitignored, so nothing there enters the repository or ships in the jar. That is not
+incidental tidiness, it is the whole basis on which we are allowed to have the files at all:
+**both CTOV and Towns and Towers are NoDerivatives**, which permits looking and forbids
+adapting or redistributing. A local datapack read by `/place template` is looking. A file in
+`src/main/resources/` is redistributing.
+
+So, plainly, for whoever finds that folder later:
+
+- It is a **reference library**, not a source. Nothing in it is ours.
+- Do not copy anything from it into `src/`, a shipped datapack, or a building definition.
+- If a specific structure is ever wanted for real, that needs the author's written permission
+  first, and then a fresh copy placed deliberately with attribution.
+
+The structures are staged with `/place template` from that datapack, which is why the mods
+themselves do not need to load. Neither CTOV build would run against NeoForge 21.1.72 anyway
+(3.6.3 crashes on a config listener, 3.5.2 fails to parse its worldgen modifiers against a
+current lithostitched), and it turned out not to matter.
+
 ### Known defect in the existing structure files
 
 The first gallery run surfaced something that had been silently true for a long time: three

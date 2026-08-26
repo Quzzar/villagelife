@@ -113,6 +113,18 @@ freeze and force-load instead. We are choosing differently on purpose: abstract 
 contradicts "everything is physical", and force-loading every village is a performance trap. It
 is a real cost and it is worth revisiting if villages feel dead on return.
 
+**Freezing is not a future decision. It is already what happens, and it has been measured.**
+Villagers in chunks that are neither force-loaded nor near a player do not tick at all. Proved
+by using potion effect durations as a tick counter: a villager in an ordinary village held at
+2400 ticks unchanged while one in a force-loaded village burned 505 ticks in 25 seconds.
+
+So the choice recorded above is really a choice *not to add* force-loading, and the
+consequences are live today:
+
+- A village the player walks away from produces nothing and ages not at all.
+- Anything that needs to be observed running needs a force-load or a player standing in it.
+- Any benchmark of villager cost must control for this or it measures nothing.
+
 ## Where a job is defined
 
 A **job-definition datapack file** keyed by occupation, loaded exactly like
@@ -135,12 +147,28 @@ the village's existing phase-staggered slow tick, building a work queue that wor
 It makes twenty lumberjacks cost roughly what one costs and gives the brain a readable "how much
 wood is in reach" number for free.
 
-**The budget that decides between them: 10 villages of 15 workers must stay under 2 ms per tick.**
+**Measured, and the answer is that we were budgeting the wrong thing.**
 
-Measured elsewhere for scale: a vanilla villager costs 4 to 5 microseconds per tick, MineColonies
-4 to 6, Ancient Warfare 2 25 to 65. At MineColonies-class efficiency, 150 workers is roughly
-0.75 ms, so the budget is achievable and the margin is real. Benchmarking is its own ticket, not a
-blocker on building the simple thing.
+[The benchmark](https://github.com/Quzzar/villagelife/issues/62) ran, and per-worker cost is not
+where the risk is:
+
+| | Cost |
+| --- | --- |
+| One villager entity | ~0.086 ms per tick |
+| An idle wanderer | under a microsecond, effectively free |
+| **One village ticking** | **~0.4 ms per tick, with P99 spikes to 38 ms at only eight villages** |
+
+So **village ticking dominates and villagers are cheap.** The original budget, ten villages of
+fifteen workers under 2 ms, framed this as a per-worker scaling question. It is not. Fifteen
+workers cost about 1.3 ms; the eight villages they live in cost more, and spike far worse.
+
+Two consequences:
+
+- **Per-worker scanning is confirmed, and the shared target index should not be built.** It
+  optimises the cheap half. Leave it designed and unbuilt, as recorded above.
+- **The real scaling work is per-village**, in whatever runs on the village tick: attractiveness,
+  the planner, job claiming, site scoring. That is where the P99 spikes come from and where a
+  future optimisation pass belongs.
 
 ## Reviewing what gets built
 

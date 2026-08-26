@@ -13,6 +13,8 @@ in it, and update it in the same change that moves what it describes.
   contract, the generate-before-spawn lifecycle, and the persona package code map.
 - [relationships.md](relationships.md): pairwise villager opinions. The one-pair-one-object
   model that keeps opinions roughly shared, the newcomer integration pass, and the code map.
+- [economy.md](economy.md): the market, emeralds, and trade. Why a market exists when chests
+  are free, the bank that floors every price, and how items get valued for modpacks.
 - [llm-brain.md](llm-brain.md): the required LLM that picks among rule-generated
   options for villagers, and the worker process that runs it with zero player setup.
   Model benchmarks, failure semantics, and why Jlama must be shaded into one flat jar.

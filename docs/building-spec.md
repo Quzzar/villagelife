@@ -100,7 +100,7 @@ is made of:
 | `plains` | oak log and planks | cobblestone |
 | `taiga` | spruce log and planks | cobblestone and stone |
 | `snowy` | spruce planks | snow block, packed ice, stone |
-| `desert` | sandstone (wood only by trade) | terracotta |
+| `desert` | sandstone (wood by trade, or a recipe that does not need it) | terracotta |
 | `savanna` | acacia log and planks | cobblestone |
 | `igloo` | snow block and packed ice throughout, and **roughly half the quantity** | none |
 | `stilt` | oak log and planks, more of it | cobblestone, less of it |
@@ -246,7 +246,7 @@ Worker: **MERCHANT**  ·  Phase 2  ·  Variants: `plains`, `desert`
 | 2 (upgrade) | market | 11x11 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool, 4 iron ingot | the village spends its own emeralds on what the biome cannot make |
 | 3 (upgrade) | trade hall | 15x15 | 48 oak log, 68 oak planks, 72 cobblestone, 12 glass, 8 wool, 12 iron ingot | better rates, wider stock |
 
-The pressure valve for a biome that cannot make something. A player can already stock a village by dropping items in its chests; the market is the version that costs something, in emeralds, both ways. At L2 the village spends its own emeralds on its own initiative.
+The village's trade organ, and the *legitimate* alternative to taking from its chests. Needs a staffed MERCHANT like any other workplace; without a market there is no trade at all, for the player or the village. Levels grant capabilities rather than numbers: L1 access, L2 initiative (trading unattended), L3 better rates. The treasury is physical emeralds in this building's chest, and a village founds broke. Full design in [economy.md](economy.md).
 
 #### `inn`
 
