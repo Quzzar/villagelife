@@ -32,6 +32,8 @@ public class VillagelifeCommands {
         event.getDispatcher().register(
                 Commands.literal("villagelife")
                         .requires(source -> source.hasPermission(2))
+                        .then(com.quzzar.villagelife.llm.LlmEvents.statusBranch())
+                        .then(com.quzzar.villagelife.llm.LlmEvents.loadBranch())
                         .then(Commands.literal("create-village")
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(ctx -> {
@@ -41,7 +43,15 @@ public class VillagelifeCommands {
                                             ctx.getSource().sendSuccess(
                                                     () -> Component.literal("Village created at " + pos.toShortString()), true);
                                             return 1;
-                                        })))
+                                        }))));
+    }
+
+    /**
+     * Village diagnostics and structure authoring, mounted under /vldev: useful
+     * to whoever is building this mod, meaningless to whoever plays it.
+     */
+    public static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.commands.CommandSourceStack> devBranch() {
+        return Commands.literal("village")
                         .then(Commands.literal("attractiveness")
                                 .executes(ctx -> reportAttractiveness(ctx.getSource(),
                                         BlockPos.containing(ctx.getSource().getPosition())))
@@ -69,7 +79,7 @@ public class VillagelifeCommands {
                                                         .executes(ctx -> saveStructure(ctx.getSource(),
                                                                 BlockPosArgument.getLoadedBlockPos(ctx, "from"),
                                                                 BlockPosArgument.getLoadedBlockPos(ctx, "to"),
-                                                                StringArgumentType.getString(ctx, "name"))))))));
+                                                                StringArgumentType.getString(ctx, "name")))))));
     }
 
     /**

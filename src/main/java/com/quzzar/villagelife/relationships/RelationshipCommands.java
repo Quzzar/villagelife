@@ -10,29 +10,24 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
  * Dev command for the relationship system (persona map issue #20):
  * /vlrel show <entity> prints every stored pair the person is part of, with
  * each side's effective opinion and the flavor line.
  */
-@EventBusSubscriber(modid = Villagelife.MODID)
 public final class RelationshipCommands {
 
     private RelationshipCommands() {
     }
 
-    @SubscribeEvent
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("vlrel")
-                .requires(source -> source.hasPermission(2))
+    /** Mounted under /vldev by {@link com.quzzar.villagelife.dev.DevCommands}. */
+    public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> branch() {
+        return Commands.literal("relationships")
                 .then(Commands.literal("show")
                         .then(Commands.argument("target", EntityArgument.entity())
                                 .executes(context -> show(context.getSource(),
-                                        EntityArgument.getEntity(context, "target"))))));
+                                        EntityArgument.getEntity(context, "target")))));
     }
 
     private static int show(CommandSourceStack source, net.minecraft.world.entity.Entity entity) {

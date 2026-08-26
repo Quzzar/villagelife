@@ -26,26 +26,33 @@ public class LlmEvents {
     }
   }
 
-  @SubscribeEvent
-  public static void onRegisterCommands(RegisterCommandsEvent event) {
-    event.getDispatcher().register(Commands.literal("vlbrain")
-        .requires(source -> source.hasPermission(2))
-        .then(Commands.literal("status").executes(context -> {
+  /** Operator command: is the villager AI working? Lives on /villagelife. */
+  public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> statusBranch() {
+    return Commands.literal("status").executes(context -> {
           LlmService llm = LlmService.get();
           String detail = llm.getStatusDetail();
           String message = "LLM status: " + llm.getStatus() + (detail.isEmpty() ? "" : " (" + detail + ")");
           context.getSource().sendSuccess(() -> Component.literal(message), false);
           return 1;
-        }))
-        .then(Commands.literal("load").executes(context -> {
+        });
+  }
+
+  /** Operator command: retry after a failure. Lives on /villagelife. */
+  public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> loadBranch() {
+    return Commands.literal("load").executes(context -> {
           if (!VillagelifeConfig.LlmEnabled) {
             context.getSource().sendFailure(Component.literal("The LLM is disabled in the villagelife config."));
             return 0;
           }
           LlmService.get().startLoading();
-          context.getSource().sendSuccess(() -> Component.literal("LLM loading started, check /vlbrain status."), false);
+          context.getSource().sendSuccess(() -> Component.literal("LLM loading started, check /villagelife status."), false);
           return 1;
-        }))
+        });
+  }
+
+  /** LLM test harness, mounted under /vldev: superseded for players by talking to a villager. */
+  public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> devBranch() {
+    return Commands.literal("llm")
         .then(Commands.literal("ask")
             .then(Commands.argument("query", StringArgumentType.greedyString()).executes(context -> {
               String query = StringArgumentType.getString(context, "query");
@@ -58,7 +65,7 @@ public class LlmEvents {
                       .getEntity(context, "target");
                   String message = StringArgumentType.getString(context, "message");
                   return chat(context.getSource(), target, message);
-                })))));
+                }))));
   }
 
   /**

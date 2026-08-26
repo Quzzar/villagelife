@@ -9,9 +9,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
  * Dev/audit commands for the persona system (persona map issue #6). Registered
@@ -21,16 +18,14 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  *                             generate-before-spawn pipeline and dump a report
  * /vlpersona show <entity>  - print the persona an existing person carries
  */
-@EventBusSubscriber(modid = Villagelife.MODID)
 public final class PersonaCommands {
 
     private PersonaCommands() {
     }
 
-    @SubscribeEvent
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(Commands.literal("vlpersona")
-                .requires(source -> source.hasPermission(2))
+    /** Mounted under /vldev by {@link com.quzzar.villagelife.dev.DevCommands}. */
+    public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> branch() {
+        return Commands.literal("persona")
                 .then(Commands.literal("audit")
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 20))
                                 .executes(context -> audit(context.getSource(),
@@ -38,7 +33,7 @@ public final class PersonaCommands {
                 .then(Commands.literal("show")
                         .then(Commands.argument("target", EntityArgument.entity())
                                 .executes(context -> show(context.getSource(),
-                                        EntityArgument.getEntity(context, "target"))))));
+                                        EntityArgument.getEntity(context, "target")))));
     }
 
     private static int audit(CommandSourceStack source, int count) {

@@ -17,9 +17,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Item;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
  * Inspection for the economy engine (docs/economy.md), so values, the bank's
@@ -32,16 +29,14 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
  * /vleconomy offers &lt;item&gt;             what the nearest village pays and charges
  * </pre>
  */
-@EventBusSubscriber(modid = Villagelife.MODID)
 public final class EconomyCommands {
 
   private EconomyCommands() {
   }
 
-  @SubscribeEvent
-  public static void onRegisterCommands(RegisterCommandsEvent event) {
-    event.getDispatcher().register(Commands.literal("vleconomy")
-        .requires(source -> source.hasPermission(2))
+  /** Mounted under /vldev by {@link com.quzzar.villagelife.dev.DevCommands}. */
+  public static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> branch() {
+    return Commands.literal("economy")
         .then(Commands.literal("value")
             .then(Commands.argument("item", ResourceLocationArgument.id())
                 .executes(context -> value(context.getSource(), ResourceLocationArgument.getId(context, "item").toString()))))
@@ -69,7 +64,7 @@ public final class EconomyCommands {
                         IntegerArgumentType.getInteger(context, "count"))))))
         .then(Commands.literal("offers")
             .then(Commands.argument("item", ResourceLocationArgument.id())
-                .executes(context -> offers(context.getSource(), ResourceLocationArgument.getId(context, "item").toString())))));
+                .executes(context -> offers(context.getSource(), ResourceLocationArgument.getId(context, "item").toString()))));
   }
 
   private static int value(CommandSourceStack source, String itemId) {
