@@ -206,6 +206,37 @@ judgement on reflection; it reaches the rest of the village only as gossip throu
 relationship web, not as an instant village-wide verdict. The consequences are detailed in
 [#64](https://github.com/Quzzar/villagelife/issues/64).
 
+### What a capability is at runtime
+
+Decided on [#55](https://github.com/Quzzar/villagelife/issues/55).
+
+**Derived, never stored.** A village's capabilities are simply the set of strings granted by
+the buildings currently standing, recomputed whenever a building is added or lost. Nothing
+persists, so nothing can desync from reality, and a datapack can invent a capability name
+without touching Java. This supersedes `Building.Benefit`, the closed enum that exists today
+and is read by nothing: it should be deleted rather than extended.
+
+`grants_if` resolves in the same derivation as a fixed point — grant everything
+unconditional, then re-evaluate the conditional grants until nothing new appears. Two
+buildings that each require the other's capability simply never grant, which is the correct
+quiet failure rather than a crash.
+
+**Capabilities gate what the village can MAKE, never what it can build.** No blacksmith
+means no iron tools; no church means no healing. Construction is gated by materials and
+space alone, so a village can always build its way toward a capability it lacks and can
+never lock itself out.
+
+**Production is opportunistic, decided by the worker.** Nobody schedules it. A blacksmith
+standing at their station looks at what the village is short of and makes it from the shared
+pool, using the same "what do we lack" reasoning the planner already applies to buildings.
+There is deliberately no request queue: a miner with a worn pickaxe does not file a demand,
+the smith simply notices the village is short of pickaxes. If that proves too vague in play,
+a demand signal is a later addition, not a prerequisite.
+
+**The brain is never told what it cannot do.** Capability filtering happens before the model
+sees anything, exactly as building options are filtered by affordability, so it chooses among
+legal moves only and cannot fixate on an unreachable ambition.
+
 | Group | Capabilities |
 | --- | --- |
 | Tools | `TOOLS_STONE` (baseline), `TOOLS_IRON`, `TOOLS_DIAMOND` |
