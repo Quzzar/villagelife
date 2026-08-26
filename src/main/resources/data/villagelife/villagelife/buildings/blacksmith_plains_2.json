@@ -1,0 +1,51 @@
+{
+  "structure": "blacksmith_plains_2",
+  "upgrades_from": "blacksmith_plains_1",
+  "beds": [
+    [
+      3,
+      1,
+      4
+    ]
+  ],
+  "work_stations": [
+    {
+      "pos": [
+        10,
+        1,
+        8
+      ],
+      "occupation": "BLACKSMITH"
+    }
+  ],
+  "containers": [
+    [
+      7,
+      1,
+      10
+    ],
+    [
+      9,
+      1,
+      11
+    ]
+  ],
+  "benefits": [
+    "REPAIR",
+    "SMELTING"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:cobblestone",
+      "count": 128
+    },
+    {
+      "item": "minecraft:oak_log",
+      "count": 64
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 128
+    }
+  ]
+}

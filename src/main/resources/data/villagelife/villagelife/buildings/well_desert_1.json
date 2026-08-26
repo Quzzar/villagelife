@@ -1,0 +1,12 @@
+{
+  "structure": "well_desert_1",
+  "benefits": [
+    "WATER"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:cobblestone",
+      "count": 32
+    }
+  ]
+}

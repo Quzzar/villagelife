@@ -1,0 +1,77 @@
+{
+  "structure": "storehouse_plains_1",
+  "containers": [
+    [
+      14,
+      1,
+      4
+    ],
+    [
+      12,
+      1,
+      4
+    ],
+    [
+      12,
+      2,
+      4
+    ],
+    [
+      12,
+      1,
+      7
+    ],
+    [
+      14,
+      1,
+      7
+    ],
+    [
+      10,
+      6,
+      7
+    ],
+    [
+      10,
+      5,
+      7
+    ],
+    [
+      10,
+      5,
+      6
+    ],
+    [
+      10,
+      5,
+      8
+    ],
+    [
+      8,
+      6,
+      9
+    ],
+    [
+      8,
+      5,
+      9
+    ]
+  ],
+  "benefits": [
+    "STORAGE"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:cobblestone",
+      "count": 128
+    },
+    {
+      "item": "minecraft:oak_log",
+      "count": 128
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 256
+    }
+  ]
+}

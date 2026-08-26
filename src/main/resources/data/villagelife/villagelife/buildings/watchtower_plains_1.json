@@ -1,0 +1,45 @@
+{
+  "structure": "watchtower_plains_1",
+  "work_stations": [
+    {
+      "pos": [
+        2,
+        1,
+        2
+      ],
+      "occupation": "GUARD"
+    },
+    {
+      "pos": [
+        2,
+        1,
+        10
+      ],
+      "occupation": "GUARD"
+    }
+  ],
+  "containers": [
+    [
+      6,
+      2,
+      4
+    ]
+  ],
+  "benefits": [
+    "PROTECTION"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:cobblestone",
+      "count": 48
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 32
+    },
+    {
+      "item": "minecraft:oak_log",
+      "count": 64
+    }
+  ]
+}

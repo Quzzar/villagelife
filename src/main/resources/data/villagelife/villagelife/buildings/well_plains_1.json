@@ -1,0 +1,16 @@
+{
+  "structure": "well_plains_1",
+  "benefits": [
+    "WATER"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 4
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 16
+    }
+  ]
+}

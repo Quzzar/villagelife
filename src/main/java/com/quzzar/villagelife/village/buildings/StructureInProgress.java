@@ -1,0 +1,421 @@
+package com.quzzar.villagelife.village.buildings;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+
+import com.google.common.collect.Lists;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.utils.VillagelifeCodecs;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.Clearable;
+import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlockContainer;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.Palette;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureEntityInfo;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.shapes.DiscreteVoxelShape;
+import net.minecraft.world.phys.shapes.BitSetDiscreteVoxelShape;
+
+public class StructureInProgress {
+
+    /** A block this project has already placed, tracked so the finishing pass can update shapes and block entities. */
+    public record PlacedBlock(long pos, boolean hasNbt) {
+        public static final Codec<PlacedBlock> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+                Codec.LONG.fieldOf("pos").forGetter(PlacedBlock::pos),
+                Codec.BOOL.fieldOf("has_nbt").forGetter(PlacedBlock::hasNbt)
+        ).apply(inst, PlacedBlock::new));
+    }
+
+    public static final Codec<StructureInProgress> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+            Building.CODEC.fieldOf("building").forGetter(s -> s.building),
+            VillagelifeCodecs.forEnum(BuildProgress.class).fieldOf("progress").forGetter(s -> s.progress),
+            Codec.INT.fieldOf("index").forGetter(s -> s.index),
+            Codec.LONG.fieldOf("location").forGetter(s -> s.location1),
+            Codec.LONG.fieldOf("location2").forGetter(s -> s.location2),
+            Rotation.CODEC.fieldOf("rotation").forGetter(s -> s.rotation),
+            Codec.INT.fieldOf("block_flags").forGetter(s -> s.magicInt),
+            Codec.LONG.listOf().optionalFieldOf("pending_liquids", List.of()).forGetter(s -> listOrEmpty(s.list1)),
+            Codec.LONG.listOf().optionalFieldOf("liquid_sources", List.of()).forGetter(s -> listOrEmpty(s.list2)),
+            PlacedBlock.CODEC.listOf().optionalFieldOf("placed_blocks", List.of()).forGetter(s -> listOrEmpty(s.list3)),
+            Codec.INT.listOf().fieldOf("bounds").forGetter(s -> List.of(s.i, s.j, s.k, s.l, s.i1, s.j1))
+    ).apply(inst, StructureInProgress::fromCodec));
+
+    private static <T> List<T> listOrEmpty(List<T> list) {
+        return list == null ? List.of() : list;
+    }
+
+    private static StructureInProgress fromCodec(Building building, BuildProgress progress, int index, long location1,
+            long location2, Rotation rotation, int magicInt, List<Long> list1, List<Long> list2,
+            List<PlacedBlock> list3, List<Integer> bounds) {
+        StructureInProgress s = new StructureInProgress(building, new Random());
+        // A project can only be saved while its transient placement state is gone, so
+        // it resumes as paused; startBuilding() rebuilds the block list from the template.
+        s.progress = progress == BuildProgress.IN_PROGRESS_WORKING ? BuildProgress.IN_PROGRESS_PAUSED : progress;
+        s.index = index;
+        s.location1 = location1;
+        s.location2 = location2;
+        s.rotation = rotation;
+        s.magicInt = magicInt;
+        s.list1 = new ArrayList<>(list1);
+        s.list2 = new ArrayList<>(list2);
+        s.list3 = new ArrayList<>(list3);
+        if (bounds.size() >= 6) {
+            s.i = bounds.get(0);
+            s.j = bounds.get(1);
+            s.k = bounds.get(2);
+            s.l = bounds.get(3);
+            s.i1 = bounds.get(4);
+            s.j1 = bounds.get(5);
+        }
+        return s;
+    }
+
+    private BuildProgress progress;
+    private int index;
+
+    private ArrayList<Long> list1;
+    private ArrayList<Long> list2;
+    private ArrayList<PlacedBlock> list3;
+    private int i;
+    private int j;
+    private int k;
+    private int l;
+    private int i1;
+    private int j1;
+
+    ///
+
+    private Building building;
+
+    private Rotation rotation;
+
+    private long location1;
+    private long location2;
+
+    private Random random;
+
+    private int magicInt;
+
+    // Runtime-only: the level this project builds in, re-attached by the owning
+    // Village whenever the project is accessed. Never persisted.
+    private ServerLevelAccessor level;
+
+    public void attach(ServerLevelAccessor level) {
+        this.level = level;
+    }
+
+    public StructureTemplate getStructureTemplate(){
+        return level.getLevel().getStructureManager()
+                .getOrCreate(ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, building.getInfo().getName()));
+    }
+
+    public StructurePlaceSettings getStructurePlaceSettings(){
+        return new StructurePlaceSettings()
+            .setRotation(this.rotation)
+            .setRandom(net.minecraft.util.RandomSource.create(this.random.nextLong()));
+    }
+
+    public StructureInProgress(Building building, Random random) {
+
+        this.building = building;
+
+        this.progress = BuildProgress.NOT_STARTED;
+        this.index = 0;
+        this.list1 = null;
+        this.list2 = null;
+        this.list3 = null;
+        this.i = Integer.MAX_VALUE;
+        this.j = Integer.MAX_VALUE;
+        this.k = Integer.MAX_VALUE;
+        this.l = Integer.MIN_VALUE;
+        this.i1 = Integer.MIN_VALUE;
+        this.j1 = Integer.MIN_VALUE;
+
+        this.random = random;
+        this.rotation = building.getRotation();
+
+        this.magicInt = 2;
+
+    }
+
+    public StructureInProgress setOriginLocation(BlockPos location){
+
+        this.building.setOriginLocation(location.asLong());
+
+        this.location1 = location.asLong();
+        this.location2 = location.asLong();
+
+        return this;
+
+    }
+
+    public BuildProgress getProgress(){
+        return this.progress;
+    }
+
+    public Rotation getRotation(){
+        return this.rotation;
+    }
+
+    public Building getBuilding(){
+        return this.building;
+    }
+
+
+    // Temp Vars (for building in progress)
+    private transient List<Palette> temp_palettesValue;
+    private transient List<StructureTemplate.StructureBlockInfo> temp_list;
+    private transient List<StructureTemplate.StructureBlockInfo> temp_structBlockInfoList;
+
+    public void startBuilding() {
+
+        if (level == null) {
+            return;
+        }
+
+        // If not started, set to started & paused
+        if(progress == BuildProgress.NOT_STARTED){
+            boolean success = buildFirstPhase();
+            if(success){
+                progress = BuildProgress.IN_PROGRESS_PAUSED;
+                // No need to setDirty() because it will be executed next
+            }
+        }
+
+        // If paused, start working again
+        if(progress == BuildProgress.IN_PROGRESS_PAUSED){
+            progress = BuildProgress.IN_PROGRESS_WORKING;
+
+            // Populate Temp Vars
+            if(temp_palettesValue == null){
+                StructureTemplate template = getStructureTemplate();
+                StructurePlaceSettings settings = getStructurePlaceSettings();
+                temp_palettesValue = template.palettes;
+                temp_list = settings.getRandomPalette(temp_palettesValue, BlockPos.of(location1)).blocks();
+                temp_structBlockInfoList = StructureTemplate.processBlockInfos(level, BlockPos.of(location1), BlockPos.of(location2), settings, temp_list, template);
+            }
+
+        }
+
+        // If complete, stop
+        if(progress == BuildProgress.COMPLETE){
+            stopBuilding();
+        }
+
+    }
+    public void updateBuilding() {
+        if(progress != BuildProgress.IN_PROGRESS_WORKING){ return; }
+        if(level == null){ return; }
+
+        if(temp_palettesValue != null){
+
+            if(index < temp_structBlockInfoList.size()){
+
+                progressMiddlePhase(temp_structBlockInfoList.get(index));
+
+                index++;
+
+            } else {
+
+                buildLastPhase();
+                stopBuilding();
+                progress = BuildProgress.COMPLETE;
+
+            }
+
+        }
+
+    }
+    public void stopBuilding() {
+        if(progress == BuildProgress.IN_PROGRESS_WORKING){
+            progress = BuildProgress.IN_PROGRESS_PAUSED;
+        }
+    }
+
+    private boolean buildFirstPhase() {
+
+        StructureTemplate template = getStructureTemplate();
+        StructurePlaceSettings settings = getStructurePlaceSettings();
+
+        // Opened up via META-INF/accesstransformer.cfg instead of reflection.
+        List<Palette> palettesValue = template.palettes;
+        List<StructureEntityInfo> entityInfoListValue = template.entityInfoList;
+        Vec3i sizeValue = template.size;
+
+        // OG code
+        if (palettesValue.isEmpty()) {
+            return false;
+        } else {
+            List<StructureTemplate.StructureBlockInfo> list = settings.getRandomPalette(palettesValue, BlockPos.of(location1))
+                    .blocks();
+            if ((!list.isEmpty() || !settings.isIgnoreEntities() && !entityInfoListValue.isEmpty())
+                    && sizeValue.getX() >= 1 && sizeValue.getY() >= 1 && sizeValue.getZ() >= 1) {
+
+                list1 = Lists.newArrayListWithCapacity(settings.shouldApplyWaterlogging() ? list.size() : 0);
+                list2 = Lists.newArrayListWithCapacity(settings.shouldApplyWaterlogging() ? list.size() : 0);
+                list3 = Lists.newArrayListWithCapacity(list.size());
+                i = Integer.MAX_VALUE;
+                j = Integer.MAX_VALUE;
+                k = Integer.MAX_VALUE;
+                l = Integer.MIN_VALUE;
+                i1 = Integer.MIN_VALUE;
+                j1 = Integer.MIN_VALUE;
+
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+    private void progressMiddlePhase(StructureTemplate.StructureBlockInfo structBlockInfo) {
+
+        ServerLevelAccessor levelAccess = this.level;
+        StructurePlaceSettings settings = getStructurePlaceSettings();
+
+        // OG code
+        BlockPos blockpos = structBlockInfo.pos();
+        if (settings.getBoundingBox() == null || settings.getBoundingBox().isInside(blockpos)) {
+            FluidState fluidstate = settings.shouldApplyWaterlogging() ? levelAccess.getFluidState(blockpos) : null;
+            BlockState blockstate = structBlockInfo.state().mirror(settings.getMirror())
+                    .rotate(settings.getRotation());
+            if (structBlockInfo.nbt() != null) {
+                BlockEntity blockentity = levelAccess.getBlockEntity(blockpos);
+                Clearable.tryClear(blockentity);
+                levelAccess.setBlock(blockpos, Blocks.BARRIER.defaultBlockState(), 20);
+            }
+
+            if (levelAccess.setBlock(blockpos, blockstate, magicInt)) {
+                i = Math.min(i, blockpos.getX());
+                j = Math.min(j, blockpos.getY());
+                k = Math.min(k, blockpos.getZ());
+                l = Math.max(l, blockpos.getX());
+                i1 = Math.max(i1, blockpos.getY());
+                j1 = Math.max(j1, blockpos.getZ());
+                list3.add(new PlacedBlock(blockpos.asLong(), structBlockInfo.nbt() != null));
+                if (structBlockInfo.nbt() != null) {
+                    BlockEntity blockentity1 = levelAccess.getBlockEntity(blockpos);
+                    if (blockentity1 != null) {
+                        if (blockentity1 instanceof RandomizableContainerBlockEntity) {
+                            structBlockInfo.nbt().putLong("LootTableSeed", random.nextLong());
+                        }
+
+                        blockentity1.loadWithComponents(structBlockInfo.nbt(), levelAccess.registryAccess());
+                    }
+                }
+
+                if (fluidstate != null) {
+                    if (blockstate.getFluidState().isSource()) {
+                        list2.add(blockpos.asLong());
+                    } else if (blockstate.getBlock() instanceof LiquidBlockContainer) {
+                        ((LiquidBlockContainer) blockstate.getBlock()).placeLiquid(levelAccess, blockpos,
+                                blockstate, fluidstate);
+                        if (!fluidstate.isSource()) {
+                            list1.add(blockpos.asLong());
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    private void buildLastPhase() {
+
+        ServerLevelAccessor levelAccess = this.level;
+        StructureTemplate template = getStructureTemplate();
+        StructurePlaceSettings settings = getStructurePlaceSettings();
+
+
+        // OG code
+        boolean flag = true;
+        Direction[] adirection = new Direction[] { Direction.UP, Direction.NORTH, Direction.EAST, Direction.SOUTH,
+                Direction.WEST };
+
+        while (flag && !list1.isEmpty()) {
+            flag = false;
+            Iterator<Long> iterator = list1.iterator();
+
+            while (iterator.hasNext()) {
+                BlockPos blockpos3 = BlockPos.of(iterator.next());
+                FluidState fluidstate2 = levelAccess.getFluidState(blockpos3);
+
+                for (int i2 = 0; i2 < adirection.length && !fluidstate2.isSource(); ++i2) {
+                    BlockPos blockpos1 = blockpos3.relative(adirection[i2]);
+                    FluidState fluidstate1 = levelAccess.getFluidState(blockpos1);
+                    if (fluidstate1.isSource() && !list2.contains(blockpos1.asLong())) {
+                        fluidstate2 = fluidstate1;
+                    }
+                }
+
+                if (fluidstate2.isSource()) {
+                    BlockState blockstate1 = levelAccess.getBlockState(blockpos3);
+                    Block block = blockstate1.getBlock();
+                    if (block instanceof LiquidBlockContainer) {
+                        ((LiquidBlockContainer) block).placeLiquid(levelAccess, blockpos3, blockstate1, fluidstate2);
+                        flag = true;
+                        iterator.remove();
+                    }
+                }
+            }
+        }
+
+        if (i <= l) {
+            if (!settings.getKnownShape()) {
+                DiscreteVoxelShape discretevoxelshape = new BitSetDiscreteVoxelShape(l - i + 1, i1 - j + 1, j1 - k + 1);
+                int k1 = i;
+                int l1 = j;
+                int j2 = k;
+
+                for (PlacedBlock placed : list3) {
+                    BlockPos blockpos2 = BlockPos.of(placed.pos());
+                    discretevoxelshape.fill(blockpos2.getX() - k1, blockpos2.getY() - l1, blockpos2.getZ() - j2);
+                }
+
+                StructureTemplate.updateShapeAtEdge(levelAccess, magicInt, discretevoxelshape, k1, l1, j2);
+            }
+
+            for (PlacedBlock placed : list3) {
+                BlockPos blockpos4 = BlockPos.of(placed.pos());
+                if (!settings.getKnownShape()) {
+                    BlockState blockstate2 = levelAccess.getBlockState(blockpos4);
+                    BlockState blockstate3 = Block.updateFromNeighbourShapes(blockstate2, levelAccess, blockpos4);
+                    if (blockstate2 != blockstate3) {
+                        levelAccess.setBlock(blockpos4, blockstate3, magicInt & -2 | 16);
+                    }
+
+                    levelAccess.blockUpdated(blockpos4, blockstate3.getBlock());
+                }
+
+                if (placed.hasNbt()) {
+                    BlockEntity blockentity2 = levelAccess.getBlockEntity(blockpos4);
+                    if (blockentity2 != null) {
+                        blockentity2.setChanged();
+                    }
+                }
+            }
+        }
+
+        if (!settings.isIgnoreEntities()) {
+            template.addEntitiesToWorld(levelAccess, BlockPos.of(location1), settings);
+        }
+
+    }
+
+}

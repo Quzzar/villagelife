@@ -1,0 +1,33 @@
+package com.quzzar.villagelife.networking;
+
+import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.client.gui.PersonChatScreen;
+
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+
+/** S2C: the villager's reply to an earlier {@link PersonChatMessagePacket}. */
+public record PersonChatReplyPacket(int entityId, String text) implements CustomPacketPayload {
+
+  public static final CustomPacketPayload.Type<PersonChatReplyPacket> TYPE = new CustomPacketPayload.Type<>(
+      ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, "person_chat_reply"));
+
+  public static final StreamCodec<ByteBuf, PersonChatReplyPacket> STREAM_CODEC = StreamCodec.composite(
+      ByteBufCodecs.VAR_INT, PersonChatReplyPacket::entityId,
+      ByteBufCodecs.stringUtf8(2048), PersonChatReplyPacket::text,
+      PersonChatReplyPacket::new);
+
+  @Override
+  public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    return TYPE;
+  }
+
+  public static void handle(PersonChatReplyPacket msg, IPayloadContext context) {
+    context.enqueueWork(() -> PersonChatScreen.onReply(msg.entityId(), msg.text()));
+  }
+
+}

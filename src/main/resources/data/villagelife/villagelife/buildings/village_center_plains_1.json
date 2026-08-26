@@ -1,0 +1,74 @@
+{
+  "structure": "village_center_plains_1",
+  "beds": [
+    [
+      17,
+      0,
+      10
+    ],
+    [
+      17,
+      0,
+      12
+    ]
+  ],
+  "work_stations": [
+    {
+      "pos": [
+        7,
+        0,
+        3
+      ],
+      "occupation": "MINER"
+    },
+    {
+      "pos": [
+        10,
+        1,
+        9
+      ],
+      "occupation": "GUARD"
+    },
+    {
+      "pos": [
+        4,
+        1,
+        11
+      ],
+      "occupation": "BUILDER"
+    }
+  ],
+  "containers": [
+    [
+      5,
+      1,
+      5
+    ],
+    [
+      5,
+      0,
+      5
+    ],
+    [
+      15,
+      1,
+      9
+    ],
+    [
+      15,
+      1,
+      13
+    ],
+    [
+      4,
+      0,
+      17
+    ]
+  ],
+  "cost": [],
+  "gathering_point": [
+    10,
+    1,
+    12
+  ]
+}

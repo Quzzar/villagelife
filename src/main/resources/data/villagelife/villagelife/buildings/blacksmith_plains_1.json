@@ -1,0 +1,45 @@
+{
+  "structure": "blacksmith_plains_1",
+  "beds": [
+    [
+      4,
+      1,
+      7
+    ]
+  ],
+  "work_stations": [
+    {
+      "pos": [
+        5,
+        1,
+        10
+      ],
+      "occupation": "BLACKSMITH"
+    }
+  ],
+  "containers": [
+    [
+      5,
+      4,
+      7
+    ]
+  ],
+  "benefits": [
+    "REPAIR",
+    "SMELTING"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:cobblestone",
+      "count": 48
+    },
+    {
+      "item": "minecraft:oak_log",
+      "count": 32
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 64
+    }
+  ]
+}

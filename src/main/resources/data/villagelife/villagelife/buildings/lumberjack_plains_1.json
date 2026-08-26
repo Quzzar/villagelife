@@ -1,0 +1,42 @@
+{
+  "structure": "lumberjack_plains_1",
+  "beds": [
+    [
+      7,
+      1,
+      7
+    ]
+  ],
+  "work_stations": [
+    {
+      "pos": [
+        17,
+        1,
+        1
+      ],
+      "occupation": "LUMBERJACK"
+    }
+  ],
+  "containers": [
+    [
+      8,
+      4,
+      7
+    ],
+    [
+      13,
+      0,
+      3
+    ]
+  ],
+  "benefits": [
+    "LOGS",
+    "PLANKS"
+  ],
+  "cost": [
+    {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    }
+  ]
+}

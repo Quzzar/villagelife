@@ -1,0 +1,17 @@
+package com.quzzar.villagelife.networking;
+
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+
+public class VillagelifeNetworking {
+
+    public static void register(final RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToServer(GuardFollowPacket.TYPE, GuardFollowPacket.STREAM_CODEC, GuardFollowPacket::handle);
+        registrar.playToServer(GuardSetPatrolPosPacket.TYPE, GuardSetPatrolPosPacket.STREAM_CODEC, GuardSetPatrolPosPacket::handle);
+        registrar.playToServer(PersonChatMessagePacket.TYPE, PersonChatMessagePacket.STREAM_CODEC, PersonChatMessagePacket::handle);
+        registrar.playToServer(PersonChatClosePacket.TYPE, PersonChatClosePacket.STREAM_CODEC, PersonChatClosePacket::handle);
+        registrar.playToClient(OpenPersonChatPacket.TYPE, OpenPersonChatPacket.STREAM_CODEC, OpenPersonChatPacket::handle);
+        registrar.playToClient(PersonChatReplyPacket.TYPE, PersonChatReplyPacket.STREAM_CODEC, PersonChatReplyPacket::handle);
+    }
+}
