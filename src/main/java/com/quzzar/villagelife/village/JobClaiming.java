@@ -30,6 +30,9 @@ public final class JobClaiming {
   /** One reconciliation-and-claiming pass every second; swaps on the slow tick. */
   public static void tick(Village village, ServerLevel level) {
     releaseInvalidAssignments(village, level);
+    if (isSlowTick(village, level)) {
+      registerMissingStations(village);
+    }
     releaseOrphanedWorkers(village, level);
     claimOpenJobs(village, level);
     maybeRunSwapPass(village, level);
@@ -58,6 +61,51 @@ public final class JobClaiming {
           person != null ? person.getFullName() : entry.getKey(), job.getOccupation(), village.getName());
       // The orphan pass this same tick returns them to idle.
     }
+  }
+
+  /**
+   * The growing half of the same reconciliation: a definition that GAINS a
+   * station under a standing building registers nothing, because stations are
+   * only ever registered when a building is first added. A datapack author
+   * editing a definition on a live world, or a building upgraded in place,
+   * would leave real work nobody could claim.
+   *
+   * Every station in the current definition must be represented exactly once,
+   * either by a booked assignment or by an open one; whatever is missing is
+   * registered as open. Additive only: shrink and reorder belong to
+   * {@link #releaseInvalidAssignments}, so between them a definition change
+   * self-heals in any direction.
+   */
+  public static void registerMissingStations(Village village) {
+    List<JobAssignment> open = village.getUnassignedJobs();
+    for (Building building : village.getBuildings()) {
+      UUID buildingId = building.getUUID();
+      int index = 0;
+      for (Occupation occupation : building.getInfo().getWorkLocations().values()) {
+        if (!isStationRepresented(village, open, buildingId, index)) {
+          open.add(new JobAssignment(null, occupation, buildingId, index));
+          Villagelife.LOGGER.info("Registered a new {} station in '{}': the building definition grew",
+              occupation, village.getName());
+        }
+        index++;
+      }
+    }
+  }
+
+  /** True when this station is already booked by someone or already on the open list. */
+  private static boolean isStationRepresented(Village village, List<JobAssignment> open, UUID buildingId,
+      int stationIndex) {
+    for (JobAssignment job : village.getJobAssignmentsView().values()) {
+      if (job.getStationIndex() == stationIndex && buildingId.equals(job.getBuildingUUID())) {
+        return true;
+      }
+    }
+    for (JobAssignment job : open) {
+      if (job.getStationIndex() == stationIndex && buildingId.equals(job.getBuildingUUID())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** True when the assignment's station index still exists and still carries its occupation. */
@@ -144,10 +192,15 @@ public final class JobClaiming {
 
   // --- The swap pass (#38): threshold-gated reorganization on a slow tick ---
 
-  private static void maybeRunSwapPass(Village village, ServerLevel level) {
+  /** Phase-staggered per village, so many villages don't all scan on one tick. */
+  private static boolean isSlowTick(Village village, ServerLevel level) {
     int interval = Math.max(10, VillagelifeConfig.JobSwapIntervalSeconds);
     long gameSeconds = level.getGameTime() / 20;
-    if ((gameSeconds + Math.floorMod(village.getID().hashCode(), interval)) % interval != 0) {
+    return (gameSeconds + Math.floorMod(village.getID().hashCode(), interval)) % interval == 0;
+  }
+
+  private static void maybeRunSwapPass(Village village, ServerLevel level) {
+    if (!isSlowTick(village, level)) {
       return;
     }
     double threshold = VillagelifeConfig.JobSwapThreshold;
