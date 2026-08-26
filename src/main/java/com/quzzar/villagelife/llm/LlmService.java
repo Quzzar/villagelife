@@ -79,6 +79,9 @@ public final class LlmService {
   private boolean personaInFlight = false; // guarded by personaQueue
 
   private LlmService() {
+    // Backstop only, for paths that never reach ServerStoppingEvent (a crash,
+    // or an integrated client closing). The server lifecycle is the real
+    // trigger: a hook cannot run while the worker is what keeps the JVM alive.
     Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown, "villagelife-llm-shutdown"));
   }
 

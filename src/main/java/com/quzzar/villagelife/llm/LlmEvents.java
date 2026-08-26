@@ -15,9 +15,20 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
 @EventBusSubscriber(modid = Villagelife.MODID)
 public class LlmEvents {
+
+  /**
+   * Stops the LLM while the server is still running, which is the only moment
+   * that works: a JVM shutdown hook runs after the JVM decides to exit, and it
+   * will not decide while the worker keeps it alive (#67).
+   */
+  @SubscribeEvent
+  public static void onServerStopping(ServerStoppingEvent event) {
+    LlmService.get().shutdown();
+  }
 
   @SubscribeEvent
   public static void onServerAboutToStart(ServerAboutToStartEvent event) {

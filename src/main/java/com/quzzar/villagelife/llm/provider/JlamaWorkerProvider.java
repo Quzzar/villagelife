@@ -2,6 +2,7 @@ package com.quzzar.villagelife.llm.provider;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +39,9 @@ public final class JlamaWorkerProvider implements LlmProvider {
 
   /** The LLM is required, so a dead worker earns a few automatic restarts. */
   private static final int MAX_AUTO_RESTARTS = 3;
+  /** How long the worker gets to exit on its own before it is terminated. */
+  private static final int GRACEFUL_EXIT_SECONDS = 5;
+  private static final int FORCED_EXIT_SECONDS = 5;
 
   private final AtomicReference<LlmService.Status> status = new AtomicReference<>(LlmService.Status.NOT_LOADED);
   private volatile String statusDetail = "";
@@ -48,6 +52,8 @@ public final class JlamaWorkerProvider implements LlmProvider {
   private final AtomicLong nextRequestId = new AtomicLong(1);
   private final Map<Long, CompletableFuture<Optional<String>>> pending = new ConcurrentHashMap<>();
   private final AtomicInteger restartAttempts = new AtomicInteger();
+  /** Set once the server is stopping, so a dying worker is not restarted. */
+  private volatile boolean shuttingDown = false;
 
   @Override
   public LlmService.Status getStatus() {
@@ -178,6 +184,9 @@ public final class JlamaWorkerProvider implements LlmProvider {
   }
 
   private void onWorkerExit(Process process) {
+    if (shuttingDown) {
+      return;
+    }
     synchronized (workerLock) {
       if (this.worker != process) {
         return; // a newer worker has replaced this one
@@ -206,16 +215,60 @@ public final class JlamaWorkerProvider implements LlmProvider {
     pending.clear();
   }
 
+  /**
+   * Stops the worker for good, and waits for it to actually be gone.
+   *
+   * This must be driven by the server lifecycle, not a JVM shutdown hook: a
+   * hook only runs once the JVM has decided to exit, and the JVM will not
+   * decide that while anything keeps it alive - so a hook-only cleanup leaves
+   * the child running and the server hanging after /stop, which is exactly
+   * what happened (#67). Ask nicely, then insist.
+   */
   @Override
   public void shutdown() {
+    shuttingDown = true;
     Process process;
+    BufferedWriter stdin;
     synchronized (workerLock) {
       process = this.worker;
+      stdin = this.workerStdin;
       this.worker = null;
       this.workerStdin = null;
     }
-    if (process != null) {
-      process.destroy();
+    if (process == null) {
+      return;
+    }
+    // Ask the worker to exit on its own, so it can finish writing anything.
+    try {
+      if (stdin != null) {
+        stdin.write("{\"op\":\"shutdown\"}\n");
+        stdin.flush();
+        stdin.close();
+      }
+    } catch (IOException ignored) {
+      // Already gone, or the pipe is broken: the kill below covers it.
+    }
+    if (waitFor(process, GRACEFUL_EXIT_SECONDS)) {
+      return;
+    }
+    process.destroy();
+    if (waitFor(process, FORCED_EXIT_SECONDS)) {
+      return;
+    }
+    // Mid-inference in native code, or wedged: stop asking.
+    Villagelife.LOGGER.warn("LLM worker did not exit after being asked and terminated; killing it");
+    process.destroyForcibly();
+    if (!waitFor(process, FORCED_EXIT_SECONDS)) {
+      Villagelife.LOGGER.error("LLM worker survived destroyForcibly; pid {} may be orphaned", process.pid());
+    }
+  }
+
+  private static boolean waitFor(Process process, int seconds) {
+    try {
+      return process.waitFor(seconds, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
     }
   }
 
