@@ -256,19 +256,36 @@ public class Village {
   }
 
   /**
-   * Where idle people gather: the lit campfire if it stands, otherwise the
+   * Where idle people gather: a standing spot BESIDE the lit campfire, or the
    * village center as fallback (the fire may be broken or doused).
+   *
+   * Never the fire block itself. Everyone who gathers walks here, idles here,
+   * and is snapped here when their travel times out, so returning the fire
+   * would burn them alive: it did, once.
    */
   public BlockPos getGatheringPoint() {
     BlockPos fire = gatheringPointPos();
     if (fire != null && level != null) {
       var state = level.getBlockState(fire);
       if (state.is(Blocks.CAMPFIRE) && state.getValue(CampfireBlock.LIT)) {
-        return fire;
+        return standingSpotBeside(fire);
       }
     }
     Building townCenter = getTownCenter();
     return townCenter != null ? BlockPos.of(townCenter.getCenterLocation()) : BlockPos.ZERO;
+  }
+
+  /** The first free neighbour of the fire a person can stand in, else the nearest air above it. */
+  private BlockPos standingSpotBeside(BlockPos fire) {
+    for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+      BlockPos side = fire.relative(direction);
+      if (level.getBlockState(side).isPathfindable(net.minecraft.world.level.pathfinder.PathComputationType.LAND)
+          && level.getBlockState(side.above()).isPathfindable(net.minecraft.world.level.pathfinder.PathComputationType.LAND)
+          && level.getBlockState(side.below()).isSolid()) {
+        return side;
+      }
+    }
+    return fire.above();
   }
 
   protected void addBuilding(Building building) {
