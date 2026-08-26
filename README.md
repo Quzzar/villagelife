@@ -1,25 +1,34 @@
+# Villagelife
 
-Installation information
-=======
+Welcome! This mod introduces AI NPCs into your Minecraft world, adding a dynamic and autonomous village-building experience.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+Now running on **Minecraft 1.21.1 / NeoForge** (ported from the original [Forge 1.18.2 version](https://github.com/Quzzar/villagelife-legacy)).
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## Features
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+- **Autonomous NPCs**: AI villagers ("people") with generated names, genders, personalities, and virtues that shape how they behave.
+- **Dynamic Villages**: Villages plan and construct their own buildings, assign jobs and beds, and keep an internal event log.
+- **Occupations**: Guards, farmers, lumberjacks, miners, builders, clerics, blacksmiths, and more — each with its own AI goals.
+- **Quests and Interaction**: Engage with the villagers, form relationships, and manage guards (work in progress!).
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+## Development
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+Requires Java 21 (the Gradle toolchain provisions it automatically). Useful tasks:
+
+```
+./gradlew build       # build the mod jar into build/libs/
+./gradlew runClient   # launch a dev client
+./gradlew runServer   # launch a dev server
+```
+
+Debug triggers while testing: placing a **diamond block** founds a new village (instantly builds a town center and spawns its first villager); placing an **emerald block** instant-builds a well with marker blocks for beds/jobs/containers.
+
+## Contributing
+
+We welcome contributions! If you're interested in improving the Villagelife mod, please feel free to fork the repository, make your changes, and submit a pull request.
+
+---
+
+With the recent developments in generative AI, I plan to revisit this mod.
+
+Villagelife is not affiliated with Mojang or Microsoft.
