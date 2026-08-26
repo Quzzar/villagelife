@@ -21,14 +21,14 @@ import com.quzzar.villagelife.entities.genetics.StatBlock;
 final class PersonaPrompts {
 
     /** Bump when the prompt meaningfully changes; recorded on each PersonaData. */
-    static final int PROMPT_VERSION = 2;
+    static final int PROMPT_VERSION = 3;
 
     static final String SYSTEM = """
             You write character sheets for villagers in a medieval village. \
             Given a villager's traits, respond with EXACTLY two lines in this format:
-            BLURB: <2-3 sentences describing the villager in third person. Mention every listed trait. Do not give them a job or occupation. If a trait is a weakness (weak, frail, clumsy, near-sighted, slow-witted), keep it a weakness; never flip it into a strength.>
+            BLURB: <2-3 sentences, third person, using every listed trait as written. No job.>
             QUIRK: <one observable habit, under 15 words>
-            Do not write anything else.""";
+            Start the first line with BLURB: and the second with QUIRK:. Write nothing else.""";
 
     static final String EXAMPLE_IN = "Name: Doria Fenn (female). Personality: cheerful. "
             + "Traits: notably strong, keen-eyed.";
@@ -36,6 +36,13 @@ final class PersonaPrompts {
     static final String EXAMPLE_OUT = """
             BLURB: Doria Fenn is a stocky, bright-tempered woman who hauls twice her share without complaint. Even at a distance she spots ripe berries before anyone else has noticed them.
             QUIRK: Waves at every passing chicken as if greeting an old friend.""";
+
+    static final String EXAMPLE_IN_2 = "Name: Orrin Blackwood (male). Personality: cranky. "
+            + "Traits: gravely frail, near-sighted, self-serving.";
+
+    static final String EXAMPLE_OUT_2 = """
+            BLURB: Orrin Blackwood is a thin, sour man whose health fails him more winters than not, and who squints at anything further than arm's reach. He looks after himself first and makes no apology for it.
+            QUIRK: Counts his firewood twice every evening before bed.""";
 
     /** Low/high phrase pair for one stat, with stronger wording at the extremes. */
     private record PhrasePair(String low, String extremeLow, String high, String extremeHigh) {

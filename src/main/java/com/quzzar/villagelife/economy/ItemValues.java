@@ -189,7 +189,7 @@ public final class ItemValues {
     return TagKey.create(Registries.ITEM, ResourceLocation.parse(id));
   }
 
-  static Optional<Item> item(String id) {
+  public static Optional<Item> item(String id) {
     ResourceLocation location = ResourceLocation.tryParse(id);
     if (location == null || !BuiltInRegistries.ITEM.containsKey(location)) {
       return Optional.empty();

@@ -677,7 +677,12 @@ public class RealPerson extends Person {
         VillagelifeAttachments.CHAT_HISTORY.get()).with(player.getUUID()).stream()
         .map(e -> new OpenPersonChatPacket.ExchangeLine(e.playerLine(), e.reply()))
         .toList();
-    PacketDistributor.sendToPlayer(player, new OpenPersonChatPacket(this.getId(), getFullName(), detail, scrollback));
+    // A merchant at a staffed market gets a Trade tab; everyone else is chat alone.
+    boolean canTrade = getOccupation() == Occupation.MERCHANT && getVillage() != null
+        && com.quzzar.villagelife.economy.Treasury.tradeBlocker(getVillage(),
+            (net.minecraft.server.level.ServerLevel) level()).isEmpty();
+    PacketDistributor.sendToPlayer(player,
+        new OpenPersonChatPacket(this.getId(), getFullName(), detail, canTrade, scrollback));
     if (scrollback.isEmpty()) {
       // Nothing to show yet: the villager opens the conversation themselves.
       com.quzzar.villagelife.chat.PersonChatDispatcher.greet(this, player);

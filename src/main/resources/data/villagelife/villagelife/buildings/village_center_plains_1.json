@@ -1,20 +1,24 @@
 {
   "structure": "village_center_plains_1",
+  "category": "village_center",
+  "variant": "plains",
+  "level": 1,
   "beds": [
-    [1, 1, 1],
-    [2, 1, 1],
-    [4, 1, 1],
-    [5, 1, 1]
+    [5, 1, 10],
+    [5, 1, 12],
+    [5, 1, 14],
+    [5, 1, 16]
   ],
   "work_stations": [
     {
-      "pos": [1, 1, 5],
+      "pos": [2, 1, 15],
       "occupation": "BUILDER"
     }
   ],
   "containers": [
-    [5, 1, 5]
+    [2, 1, 16]
   ],
+  "gathering_point": [4, 1, 4],
   "cost": [],
-  "gathering_point": [3, 1, 8]
+  "benefits": []
 }

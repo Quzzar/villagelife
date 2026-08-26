@@ -1,0 +1,52 @@
+{
+  "structure": "village_center_snowy_1",
+  "category": "village_center",
+  "variant": "snowy",
+  "level": 1,
+  "beds": [
+    [
+      5,
+      1,
+      10
+    ],
+    [
+      5,
+      1,
+      12
+    ],
+    [
+      5,
+      1,
+      14
+    ],
+    [
+      5,
+      1,
+      16
+    ]
+  ],
+  "work_stations": [
+    {
+      "pos": [
+        2,
+        1,
+        15
+      ],
+      "occupation": "BUILDER"
+    }
+  ],
+  "containers": [
+    [
+      2,
+      1,
+      16
+    ]
+  ],
+  "gathering_point": [
+    4,
+    1,
+    4
+  ],
+  "cost": [],
+  "benefits": []
+}

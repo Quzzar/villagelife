@@ -47,6 +47,14 @@ public class PersonChatScreen extends Screen {
   private final String headerName;
   private final String headerDetail;
   private final List<ChatLine> lines = new ArrayList<>();
+  /** Which face of the villager is showing. Occupations contribute tabs. */
+  private enum Tab { CHAT, TRADE }
+
+  private final boolean canTrade;
+  private Tab tab;
+  private com.quzzar.villagelife.networking.MarketOffersPacket offers;
+  private String marketNote = "";
+
   private EditBox input;
   private boolean awaitingReply;
   /** Never let a lost or unanswered reply lock the input for good. */
@@ -59,10 +67,14 @@ public class PersonChatScreen extends Screen {
   private int panelBottom;
   private int inputRowTop;
 
-  private PersonChatScreen(int entityId, String headerName, String headerDetail,
+  private PersonChatScreen(int entityId, String headerName, String headerDetail, boolean canTrade,
       List<com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine> scrollback) {
     super(Component.literal(headerName));
     this.entityId = entityId;
+    this.canTrade = canTrade;
+    // Open on what this person is FOR, if their job offers anything; talking
+    // is the fallback, and the only option for everyone else.
+    this.tab = canTrade ? Tab.TRADE : Tab.CHAT;
     this.headerName = headerName;
     this.headerDetail = headerDetail;
     for (var exchange : scrollback) {
@@ -77,9 +89,19 @@ public class PersonChatScreen extends Screen {
     this.awaitingSinceMs = System.currentTimeMillis();
   }
 
-  public static void open(int entityId, String headerName, String headerDetail,
+  public static void open(int entityId, String headerName, String headerDetail, boolean canTrade,
       List<com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine> scrollback) {
-    Minecraft.getInstance().setScreen(new PersonChatScreen(entityId, headerName, headerDetail, scrollback));
+    Minecraft.getInstance().setScreen(
+        new PersonChatScreen(entityId, headerName, headerDetail, canTrade, scrollback));
+  }
+
+  /** The stall's current state arrived; repaint the trade tab. */
+  public static void onMarketOffers(com.quzzar.villagelife.networking.MarketOffersPacket packet) {
+    if (Minecraft.getInstance().screen instanceof PersonChatScreen screen
+        && screen.entityId == packet.entityId()) {
+      screen.offers = packet;
+      screen.marketNote = packet.message();
+    }
   }
 
   public static void onReply(int entityId, String text) {
@@ -98,6 +120,14 @@ public class PersonChatScreen extends Screen {
     this.panelBottom = Math.min(this.height - 8, this.height / 2 + 110);
     this.inputRowTop = panelBottom - 30;
 
+    if (canTrade) {
+      int tabWidth = 58;
+      addRenderableWidget(new TabButton(panelLeft + 12, panelTop + 30, tabWidth, "Chat", Tab.CHAT));
+      addRenderableWidget(new TabButton(panelLeft + 14 + tabWidth, panelTop + 30, tabWidth, "Trade", Tab.TRADE));
+      PacketDistributor.sendToServer(
+          com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
+    }
+
     int iconSize = 20;
     int inputWidth = panelWidth - 24 - iconSize - 6;
     this.input = new EditBox(this.font, panelLeft + 12 + 5, inputRowTop + 6, inputWidth - 10, 12,
@@ -109,6 +139,7 @@ public class PersonChatScreen extends Screen {
 
     addRenderableWidget(new IconButton(panelLeft + 12 + inputWidth + 6, inputRowTop + 2, iconSize,
         IconButton.SEND, button -> send()));
+    this.input.visible = tab == Tab.CHAT;
     addRenderableWidget(new IconButton(panelRight - 24, panelTop + 6, 16,
         IconButton.CLOSE, button -> onClose()));
 
@@ -127,6 +158,9 @@ public class PersonChatScreen extends Screen {
     // Header divider.
     graphics.fill(panelLeft + 8, panelTop + 26, panelRight - 8, panelTop + 27, DIVIDER);
 
+    if (tab != Tab.CHAT) {
+      return;
+    }
     // Input field, framed and brightened while focused.
     boolean focused = this.input != null && this.input.isFocused();
     int fieldRight = panelRight - 12 - 26;
@@ -169,9 +203,14 @@ public class PersonChatScreen extends Screen {
         .append(Component.literal(", " + headerDetail).withStyle(ChatFormatting.GRAY));
     graphics.drawCenteredString(this.font, header, (panelLeft + panelRight) / 2, panelTop + 13, 0xFFFFFF);
 
+    if (tab == Tab.TRADE) {
+      renderTrade(graphics, mouseX, mouseY);
+      return;
+    }
+
     int textWidth = panelRight - panelLeft - 24;
     int left = panelLeft + 12;
-    int top = panelTop + 34;
+    int top = panelTop + (canTrade ? 52 : 34);
     int bottom = inputRowTop - 6;
 
     List<FormattedCharSequence> rendered = new ArrayList<>();
@@ -208,6 +247,146 @@ public class PersonChatScreen extends Screen {
   @Override
   public boolean isPauseScreen() {
     return false;
+  }
+
+  /** Rows the player can click, recomputed each frame so hit-testing matches what is drawn. */
+  private final List<Row> rowHits = new ArrayList<>();
+
+  private record Row(int y, String itemId, boolean playerBuys) {
+  }
+
+  /**
+   * The stall: what they sell on the left, what they want on the right. Their
+   * wants are the point - a village's shortages are a job board - so the two
+   * columns are given equal weight rather than burying the wanted list.
+   */
+  private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
+    rowHits.clear();
+    int left = panelLeft + 12;
+    int right = panelRight - 12;
+    int mid = (left + right) / 2;
+    int y = panelTop + 56;
+
+    if (offers == null) {
+      graphics.drawString(this.font, Component.literal("Opening the stall...")
+          .withStyle(ChatFormatting.DARK_GRAY), left, y, TEXT_PENDING);
+      return;
+    }
+
+    graphics.drawString(this.font, Component.literal(offers.villageName())
+        .withStyle(ChatFormatting.WHITE), left, y, TEXT_VILLAGER);
+    String purse = offers.treasury() + (offers.treasury() == 1 ? " emerald" : " emeralds");
+    graphics.drawString(this.font, Component.literal(purse).withStyle(ChatFormatting.GRAY),
+        right - this.font.width(purse), y, 0xFFAAAAAA);
+    y += 14;
+
+    graphics.drawString(this.font, Component.literal("For sale").withStyle(ChatFormatting.GRAY),
+        left, y, 0xFF9FD0FF);
+    graphics.drawString(this.font, Component.literal("Wanted").withStyle(ChatFormatting.GRAY),
+        mid + 6, y, TEXT_PLAYER);
+    y += 12;
+
+    int rowsTop = y;
+    drawColumn(graphics, offers.selling(), left, mid - 6, rowsTop, mouseX, mouseY, true);
+    drawColumn(graphics, offers.wanted(), mid + 6, right, rowsTop, mouseX, mouseY, false);
+
+    int bottom = inputRowTop + 8;
+    if (!marketNote.isBlank()) {
+      for (FormattedCharSequence line : this.font.split(
+          Component.literal(marketNote), panelRight - panelLeft - 24)) {
+        graphics.drawString(this.font, line, left, bottom, TEXT_VILLAGER);
+        bottom += this.font.lineHeight + 1;
+      }
+    } else {
+      graphics.drawString(this.font, Component.literal("Click to trade one, shift-click for eight.")
+          .withStyle(ChatFormatting.DARK_GRAY), left, bottom, TEXT_PENDING);
+    }
+  }
+
+  private void drawColumn(GuiGraphics graphics, List<com.quzzar.villagelife.networking.MarketOffersPacket.Row> rows,
+      int left, int right, int top, int mouseX, int mouseY, boolean playerBuys) {
+    int y = top;
+    if (rows.isEmpty()) {
+      graphics.drawString(this.font, Component.literal(playerBuys ? "nothing spare" : "nothing needed")
+          .withStyle(ChatFormatting.DARK_GRAY), left, y, TEXT_PENDING);
+      return;
+    }
+    for (var row : rows) {
+      boolean hovered = mouseX >= left && mouseX <= right && mouseY >= y - 1 && mouseY <= y + 9;
+      if (hovered) {
+        graphics.fill(left - 2, y - 2, right, y + 10, 0x22FFFFFF);
+      }
+      String name = shortName(row.itemId());
+      String price = String.format("%.2f", row.unitPrice());
+      graphics.drawString(this.font, name, left, y, playerBuys ? 0xFF9FD0FF : TEXT_PLAYER);
+      graphics.drawString(this.font, price, right - this.font.width(price), y, 0xFFAAAAAA);
+      rowHits.add(new Row(y, row.itemId(), playerBuys));
+      y += this.font.lineHeight + 3;
+    }
+  }
+
+  /** "minecraft:oak_log" reads as "oak log" on a market stall. */
+  private static String shortName(String itemId) {
+    String path = itemId.contains(":") ? itemId.substring(itemId.indexOf(':') + 1) : itemId;
+    return path.replace('_', ' ');
+  }
+
+  @Override
+  public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    if (tab == Tab.TRADE && offers != null) {
+      for (Row row : rowHits) {
+        if (mouseY >= row.y() - 1 && mouseY <= row.y() + 9
+            && mouseX >= panelLeft + 10 && mouseX <= panelRight - 10) {
+          int count = hasShiftDown() ? 8 : 1;
+          PacketDistributor.sendToServer(new com.quzzar.villagelife.networking.MarketActionPacket(
+              entityId, row.playerBuys(), row.itemId(), count));
+          return true;
+        }
+      }
+    }
+    return super.mouseClicked(mouseX, mouseY, button);
+  }
+
+  /** A quiet tab: underlined when active, no vanilla button chrome. */
+  private class TabButton extends Button {
+
+    private final Tab target;
+    private final String label;
+
+    TabButton(int x, int y, int width, String label, Tab target) {
+      super(x, y, width, 14, Component.literal(label), b -> {
+      }, DEFAULT_NARRATION);
+      this.target = target;
+      this.label = label;
+    }
+
+    @Override
+    public void onPress() {
+      tab = target;
+      if (input != null) {
+        input.visible = tab == Tab.CHAT;
+      }
+      if (target == Tab.TRADE) {
+        PacketDistributor.sendToServer(
+            com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
+      }
+    }
+
+    @Override
+    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+      boolean active = tab == target;
+      int colour = active ? ICON_HOVER : (isHovered() ? ICON_HOVER : ICON_IDLE);
+      graphics.drawCenteredString(PersonChatScreen.this.font, label,
+          getX() + width / 2, getY() + 3, colour);
+      if (active) {
+        graphics.fill(getX(), getY() + 13, getX() + width, getY() + 14, 0xFF8FBB84);
+      }
+    }
+
+    @Override
+    public void updateWidgetNarration(NarrationElementOutput output) {
+      defaultButtonNarrationText(output);
+    }
   }
 
   /**

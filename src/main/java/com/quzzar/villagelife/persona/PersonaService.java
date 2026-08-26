@@ -55,7 +55,9 @@ public final class PersonaService {
         // user message: a pasted example bleeds into outputs (villagers started
         // describing themselves as the example character, Doria Fenn).
         return LlmService.get().submitPersona(PersonaPrompts.SYSTEM, sheet,
-                java.util.List.of(new LlmService.FewShotExample(PersonaPrompts.EXAMPLE_IN, PersonaPrompts.EXAMPLE_OUT)),
+                java.util.List.of(
+                        new LlmService.FewShotExample(PersonaPrompts.EXAMPLE_IN, PersonaPrompts.EXAMPLE_OUT),
+                        new LlmService.FewShotExample(PersonaPrompts.EXAMPLE_IN_2, PersonaPrompts.EXAMPLE_OUT_2)),
                 MAX_NEW_TOKENS, TEMPERATURE)
                 .thenApply(raw -> {
                     if (raw.isEmpty()) {

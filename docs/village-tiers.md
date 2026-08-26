@@ -3,7 +3,7 @@
 **This is the decided design for village progression.** Every village has a tier — its
 classification. The ladder ships as five tiers:
 
-> **camp → hamlet → village → town → city**
+> **camp → hamlet → village → town → city → metropolis**
 
 **A tier is a read-out of emergent growth, never a gate.** It is computed from the
 village's population — the thing that actually dictates what a city is — and it
@@ -42,8 +42,22 @@ overriding files — no Java changes.
 ```
 
 - `rank` orders the ladder; `population` is the minimum population that classifies a
-  village at this tier. Example ladder (tunables): camp 0, hamlet 5, village 11, town
-  21, city 36.
+  village at this tier. The shipped ladder (all tunable datapack numbers): camp 0,
+  hamlet 8, village 24, town 64, **city 256, metropolis 512**, with 1024 as the largest
+  settlement the ladder anticipates.
+
+  These numbers are deliberately large (decided 2026-08-26). A village is not meant to
+  finish: it keeps sprawling, and a city should read as a city rather than as thirty-six
+  people. Reaching the top of the ladder does not end anything — the brain keeps choosing,
+  including choosing to do nothing, and keeps responding as buildings are damaged, workers
+  die, and shortages arise.
+
+  **A performance caveat that comes with the ambition.** The #62 benchmark measured a
+  village member at roughly 0.086 ms of tick time, so a thousand simultaneously simulated
+  residents would be far past the 50 ms budget on their own. In practice only the residents
+  in loaded chunks tick, and a settlement that large spans far more chunks than any player
+  loads at once, so the real ceiling is "how many are near you", not "how many exist". That
+  is worth measuring before anyone celebrates a metropolis.
 - `idle_cap` is the campfire reservoir size from
   [population-and-labor.md](population-and-labor.md), owned by the tier: a camp attracts
   a couple of drifters to its fire, a city a crowd. This is the one knob a tier carries,

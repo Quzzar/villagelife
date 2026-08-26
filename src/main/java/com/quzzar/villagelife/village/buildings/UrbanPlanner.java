@@ -30,8 +30,18 @@ import net.minecraft.world.item.ItemStack;
  */
 public class UrbanPlanner {
 
-  /** How many options the model is asked to choose between. */
-  private static final int OPTIONS_OFFERED = 4;
+  /**
+   * How many options the model is asked to choose between. Aaron chose breadth
+   * over a short list, so the village feels less railroaded; small local models
+   * choose worse from a long list than a large one does, which is why it is a
+   * config key rather than a constant.
+   */
+  private static int optionsOffered() {
+    return com.quzzar.villagelife.configuration.VillagelifeConfig.BuildOptionsOffered;
+  }
+
+  /** Chosen when the village would rather wait than spend what it has. */
+  private static final String WAIT_OPTION = "nothing yet: keep what we have and wait";
 
   /** A candidate building, with why the village might want it. */
   public record Candidate(BuildingInfo info, double score, String description) {}
@@ -47,13 +57,16 @@ public class UrbanPlanner {
       return CompletableFuture.completedFuture(null);
     }
 
-    List<Candidate> offered = candidates.subList(0, Math.min(OPTIONS_OFFERED, candidates.size()));
+    List<Candidate> offered = candidates.subList(0, Math.min(optionsOffered(), candidates.size()));
     Candidate ruleChoice = offered.get(0);
     if (offered.size() == 1 || !LlmService.get().isReady()) {
       return CompletableFuture.completedFuture(ruleChoice.info());
     }
 
-    List<String> options = offered.stream().map(Candidate::description).toList();
+    // Waiting is a real move: a brain that can only build will build until it
+    // physically cannot, and a village that is saving up should be able to say so.
+    List<String> options = new ArrayList<>(offered.stream().map(Candidate::description).toList());
+    options.add(WAIT_OPTION);
     return LlmService.get().decide(situationOf(village), options)
         .thenApply(decision -> pick(village, offered, ruleChoice, decision));
   }
@@ -67,7 +80,12 @@ public class UrbanPlanner {
     }
     LlmDecision chosen = decision.get();
     int index = chosen.choiceIndex();
-    if (index < 0 || index >= offered.size()) {
+    if (index == offered.size()) {
+      Villagelife.LOGGER.info("Village '{}' decided to build nothing for now: {}",
+          village.getName(), chosen.reason());
+      return null;
+    }
+    if (index < 0 || index > offered.size()) {
       return ruleChoice.info();
     }
     Candidate candidate = offered.get(index);

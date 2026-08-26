@@ -98,6 +98,8 @@ public class Village {
   }
 
   private final int CHECK_PROJECT_PROGRESS = 60; // 60 // seconds
+  /** Longest a stalled village waits between planning attempts. */
+  private static final int MAX_PLANNING_BACKOFF = 600; // seconds
 
   private int time = 0;
 
@@ -115,6 +117,9 @@ public class Village {
   private transient long lastShortageLogTime = -1_000_000_000L;
   // True while the brain is deciding what to build; keeps one decision in flight.
   private transient boolean projectDecisionPending;
+  /** No planning until this second: a village that cannot build must not keep asking. */
+  private transient int planningQuietUntil;
+  private transient int planningBackoffSeconds;
 
   private HashSet<Long> claimGrid = new HashSet<>();
 
@@ -338,7 +343,7 @@ public class Village {
       // and the brain picks among them, which may take a moment or never
       // answer. One decision is in flight at a time; the project starts when
       // the answer lands.
-      if (projectDecisionPending) {
+      if (projectDecisionPending || time < planningQuietUntil) {
         return;
       }
       projectDecisionPending = true;
@@ -355,10 +360,11 @@ public class Village {
           }
           if (chosen == null) {
             maybeLogShortage(UrbanPlanner.firstUnaffordableMaterial(this));
+            backOffPlanning();
             return;
           }
-          if (currentProject == null) {
-            startProject(chosen);
+          if (currentProject == null && !startProject(chosen)) {
+            backOffPlanning();
           }
         });
       });
@@ -367,7 +373,7 @@ public class Village {
   }
 
   /** Places a chosen building on the best free site, or logs why it could not. */
-  private void startProject(BuildingInfo buildingInfo) {
+  private boolean startProject(BuildingInfo buildingInfo) {
       Building building = new Building(buildingInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]);
       StructureInProgress project = new StructureInProgress(building, random);
       project.attach(level);
@@ -394,10 +400,27 @@ public class Village {
           }
         }
 
+        planningBackoffSeconds = 0;
+        return true;
+
       } else {
         Villagelife.LOGGER.debug("Failed to find a valid location for the new building.");
+        return false;
       }
 
+  }
+
+  /**
+   * Doubles the wait before the next planning attempt. A village with no room
+   * and no materials would otherwise spend an LLM call every
+   * {@link #CHECK_PROJECT_PROGRESS} seconds forever, starving persona
+   * generation and every other queued request behind it.
+   */
+  private void backOffPlanning() {
+    planningBackoffSeconds = planningBackoffSeconds == 0
+        ? CHECK_PROJECT_PROGRESS
+        : Math.min(planningBackoffSeconds * 2, MAX_PLANNING_BACKOFF);
+    planningQuietUntil = time + planningBackoffSeconds;
   }
 
   public void update(ServerLevel level) { // Every 1 second

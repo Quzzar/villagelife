@@ -13,5 +13,7 @@ public class VillagelifeNetworking {
         registrar.playToServer(PersonChatClosePacket.TYPE, PersonChatClosePacket.STREAM_CODEC, PersonChatClosePacket::handle);
         registrar.playToClient(OpenPersonChatPacket.TYPE, OpenPersonChatPacket.STREAM_CODEC, OpenPersonChatPacket::handle);
         registrar.playToClient(PersonChatReplyPacket.TYPE, PersonChatReplyPacket.STREAM_CODEC, PersonChatReplyPacket::handle);
+        registrar.playToServer(MarketActionPacket.TYPE, MarketActionPacket.STREAM_CODEC, MarketActionPacket::handle);
+        registrar.playToClient(MarketOffersPacket.TYPE, MarketOffersPacket.STREAM_CODEC, MarketOffersPacket::handle);
     }
 }

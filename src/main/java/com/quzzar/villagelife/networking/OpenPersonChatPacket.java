@@ -15,7 +15,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * (name; occupation + village, or a future title) and sends the persisted
  * scrollback for this player, so reopening a chat resumes it (#45).
  */
-public record OpenPersonChatPacket(int entityId, String headerName, String headerDetail,
+public record OpenPersonChatPacket(int entityId, String headerName, String headerDetail, boolean canTrade,
     java.util.List<ExchangeLine> scrollback) implements CustomPacketPayload {
 
   /** One prior exchange, for the screen's seeded history. */
@@ -33,6 +33,7 @@ public record OpenPersonChatPacket(int entityId, String headerName, String heade
       ByteBufCodecs.VAR_INT, OpenPersonChatPacket::entityId,
       ByteBufCodecs.STRING_UTF8, OpenPersonChatPacket::headerName,
       ByteBufCodecs.STRING_UTF8, OpenPersonChatPacket::headerDetail,
+      ByteBufCodecs.BOOL, OpenPersonChatPacket::canTrade,
       ExchangeLine.STREAM_CODEC.apply(ByteBufCodecs.list()), OpenPersonChatPacket::scrollback,
       OpenPersonChatPacket::new);
 
@@ -44,7 +45,7 @@ public record OpenPersonChatPacket(int entityId, String headerName, String heade
   public static void handle(OpenPersonChatPacket msg, IPayloadContext context) {
     // Lambda body defers loading the client-only screen class until a client
     // actually receives the packet.
-    context.enqueueWork(() -> PersonChatScreen.open(msg.entityId(), msg.headerName(), msg.headerDetail(),
+    context.enqueueWork(() -> PersonChatScreen.open(msg.entityId(), msg.headerName(), msg.headerDetail(), msg.canTrade(),
         msg.scrollback()));
   }
 
