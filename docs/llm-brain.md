@@ -5,11 +5,19 @@ runs locally in a worker process (Jlama, pure Java — no external install) and 
 multiple-choice questions; deterministic game logic decides *what the options are*, the
 model only picks among them and supplies an in-character reason.
 
-**The LLM is REQUIRED** (decided 2026-08-26): the mod does not maintain a parallel
-rule-based decision system. If the worker is unavailable, villages stop progressing and
-the player is told loudly why — the server itself must never crash over it. An individual
-failed or timed-out decision means *defer*: the brain keeps its previous focus and asks
-again next cycle, it never picks randomly. State the system requirements on the mod page:
+**The rules decide what is legal; the model decides which** (revised 2026-08-26 after an
+audit found the decision call had no production caller). The first real consumer is the
+urban planner: `UrbanPlanner.rankCandidates` filters the whole catalogue down to buildings
+this village can legally and affordably start and scores them against what it actually
+lacks, then `decide()` offers the top few to the model, which picks one and says why. The
+model never sees an illegal option, so it cannot invent an unaffordable or nonsensical
+project.
+
+That makes the LLM **strongly wanted, not structurally required**: when it is absent,
+slow, or gives an unusable answer, the rules' own top-scoring option stands in and the
+village keeps building. What is lost is the character of the choice, not the ability to
+choose. Villages never stall waiting for a model, and a decision already in flight is
+never duplicated. State the system requirements on the mod page:
 ~1.5 GB RAM beyond the server's needs (default 1B model; ~600 MB on the 0.5B), internet
 on first boot for the model download.
 
@@ -85,8 +93,11 @@ jarJar or FML would load them next to Minecraft's copies.
 
 Failure modes are deliberate: if the host forbids child processes the status turns
 `FAILED` with a clear detail, and if the worker dies (e.g. OOM-killed on a memory-capped
-shared host) it is **not** auto-restarted — no crash-looping; `/vlbrain load` retries
-manually. Villagers always fall back to rule-based logic.
+shared host) it is auto-restarted at most three times with escalating backoff (the counter resets on
+every successful `READY`), after which `/vlbrain load` retries
+manually. Villagers always fall back to rule-based logic: every caller of `decide()` must
+supply the option it would have taken on its own, and use it when the answer does not
+arrive.
 
 **Hosting guidance:** the worker adds its heap (`LLM worker heap MB`, default 1024) plus
 the model's resident size on top of the server's memory. Budget ~1.5 GB extra for the

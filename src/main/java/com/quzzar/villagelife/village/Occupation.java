@@ -10,6 +10,7 @@ public enum Occupation {
     @Deprecated
     NITWIT,
     LIBRARIAN,
+    MERCHANT,
     LUMBERJACK,
     BUILDER,
     MINER,

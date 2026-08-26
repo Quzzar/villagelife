@@ -93,7 +93,6 @@ public class InstantBuildStructure {
 
         for(int x = bounds.minX(); x <= bounds.maxX(); x++){
           for(int z = bounds.minZ(); z <= bounds.maxZ(); z++){
-            this.levelAccess.setBlock(location.offset(x, 0, z), Blocks.CLAY.defaultBlockState(), 2); // TODO, remove
             claimGrid.add(BlockPos.asLong(location.getX()+x, 0, location.getZ()+z));
           }
         }

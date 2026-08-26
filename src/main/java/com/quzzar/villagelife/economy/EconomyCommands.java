@@ -8,7 +8,11 @@ import com.quzzar.villagelife.village.VillageManager;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+
 import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -47,6 +51,22 @@ public final class EconomyCommands {
                     .executes(context -> bank(context.getSource(),
                         ResourceLocationArgument.getId(context, "give").toString(),
                         ResourceLocationArgument.getId(context, "want").toString())))))
+        .then(Commands.literal("devmarket")
+            .executes(context -> devMarket(context.getSource())))
+        .then(Commands.literal("treasury")
+            .executes(context -> treasury(context.getSource())))
+        .then(Commands.literal("sell")
+            .then(Commands.argument("item", ResourceLocationArgument.id())
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 2304))
+                    .executes(context -> transact(context.getSource(), true,
+                        ResourceLocationArgument.getId(context, "item").toString(),
+                        IntegerArgumentType.getInteger(context, "count"))))))
+        .then(Commands.literal("buy")
+            .then(Commands.argument("item", ResourceLocationArgument.id())
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 2304))
+                    .executes(context -> transact(context.getSource(), false,
+                        ResourceLocationArgument.getId(context, "item").toString(),
+                        IntegerArgumentType.getInteger(context, "count"))))))
         .then(Commands.literal("offers")
             .then(Commands.argument("item", ResourceLocationArgument.id())
                 .executes(context -> offers(context.getSource(), ResourceLocationArgument.getId(context, "item").toString())))));
@@ -119,5 +139,65 @@ public final class EconomyCommands {
         Bank.buyPrice(item.get(), server).orElse(0.0),
         Bank.sellPrice(item.get(), server).orElse(0.0))), false);
     return 1;
+  }
+
+  /** Dev only: drops the placeholder market into the nearest village so the
+   * treasury and trade paths can be exercised before a real market exists. */
+  private static int devMarket(CommandSourceStack source) {
+    Village village = nearestVillage(source);
+    if (village == null) {
+      source.sendFailure(Component.literal("No village near here."));
+      return 0;
+    }
+    boolean placed = village.devPlaceBuilding("market_placeholder_1");
+    source.sendSuccess(() -> Component.literal(placed
+        ? "Placed a placeholder market in '" + village.getName() + "'."
+        : "Could not place it (no site, or no such building definition)."), false);
+    return placed ? 1 : 0;
+  }
+
+  private static int treasury(CommandSourceStack source) {
+    Village village = nearestVillage(source);
+    if (village == null) {
+      source.sendFailure(Component.literal("No village near here."));
+      return 0;
+    }
+    ServerLevel level = source.getLevel();
+    String status = Treasury.tradeBlocker(village, level).map(why -> "cannot trade (" + why + ")")
+        .orElse("open for business");
+    source.sendSuccess(() -> Component.literal(String.format("'%s': %d emeralds, %s",
+        village.getName(), Treasury.balance(village, level), status)), false);
+    return 1;
+  }
+
+  /** Player-facing trade, until the market screen exists. */
+  private static int transact(CommandSourceStack source, boolean playerSells, String itemId, int count) {
+    Optional<Item> item = ItemValues.item(itemId);
+    if (item.isEmpty()) {
+      source.sendFailure(Component.literal("No such item: " + itemId));
+      return 0;
+    }
+    if (!(source.getEntity() instanceof ServerPlayer player)) {
+      source.sendFailure(Component.literal("Only a player can trade: this moves real items."));
+      return 0;
+    }
+    Village village = nearestVillage(source);
+    if (village == null) {
+      source.sendFailure(Component.literal("No village near here."));
+      return 0;
+    }
+    Trade.Result result = playerSells
+        ? Trade.villageBuys(village, source.getLevel(), player, item.get(), count)
+        : Trade.villageSells(village, source.getLevel(), player, item.get(), count);
+    if (result.ok()) {
+      source.sendSuccess(() -> Component.literal(result.message()), false);
+      return 1;
+    }
+    source.sendFailure(Component.literal(result.message()));
+    return 0;
+  }
+
+  private static Village nearestVillage(CommandSourceStack source) {
+    return VillageManager.get(source.getLevel()).getNearestVillage(BlockPos.containing(source.getPosition()));
   }
 }

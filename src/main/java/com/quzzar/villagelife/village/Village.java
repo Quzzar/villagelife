@@ -113,6 +113,8 @@ public class Village {
   private transient VillageAttractiveness attractiveness;
   // Sentinel far in the past, but safe from overflow in (now - last) arithmetic.
   private transient long lastShortageLogTime = -1_000_000_000L;
+  // True while the brain is deciding what to build; keeps one decision in flight.
+  private transient boolean projectDecisionPending;
 
   private HashSet<Long> claimGrid = new HashSet<>();
 
@@ -288,6 +290,27 @@ public class Village {
     return fire.above();
   }
 
+  /**
+   * Instantly places a building next to the town centre, for dev testing only:
+   * the planner normally decides what gets built and pays for it. Mirrors the
+   * founding placement path.
+   */
+  public boolean devPlaceBuilding(String buildingName) {
+    if (level == null || getTownCenter() == null) {
+      return false;
+    }
+    BlockPos near = BlockPos.of(getTownCenter().getCenterLocation()).offset(16, 0, 16);
+    BlockPos ground = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, near);
+    InstantBuildStructure struct = new InstantBuildStructure(
+        new Building(buildingName, Rotation.NONE), random, level)
+        .setOriginLocation(ground, claimGrid);
+    if (!struct.buildInstantly()) {
+      return false;
+    }
+    addBuilding(struct.getBuilding());
+    return true;
+  }
+
   protected void addBuilding(Building building) {
     this.buildings.put(building.getUUID(), building);
     this.brain.processNewBuilding(building, unassignedBeds, unassignedJobs);
@@ -311,16 +334,40 @@ public class Village {
       }
     } else {
 
-      Villagelife.LOGGER.debug("No current project, getting new one.");
-
-      BuildingInfo buildingInfo = UrbanPlanner.getNextProject(this);
-      if (buildingInfo == null) {
-        maybeLogShortage(UrbanPlanner.firstUnaffordableMaterial(this));
+      // Choosing is asynchronous: the rules filter to legal, affordable options
+      // and the brain picks among them, which may take a moment or never
+      // answer. One decision is in flight at a time; the project starts when
+      // the answer lands.
+      if (projectDecisionPending) {
         return;
       }
+      projectDecisionPending = true;
+      UrbanPlanner.chooseNextProject(this).whenComplete((chosen, error) -> {
+        if (level == null) {
+          projectDecisionPending = false;
+          return;
+        }
+        level.getServer().execute(() -> {
+          projectDecisionPending = false;
+          if (error != null) {
+            Villagelife.LOGGER.error("Village '{}' failed to choose a project", name, error);
+            return;
+          }
+          if (chosen == null) {
+            maybeLogShortage(UrbanPlanner.firstUnaffordableMaterial(this));
+            return;
+          }
+          if (currentProject == null) {
+            startProject(chosen);
+          }
+        });
+      });
+    }
 
-      Villagelife.LOGGER.debug("Found new project: " + buildingInfo.getName());
+  }
 
+  /** Places a chosen building on the best free site, or logs why it could not. */
+  private void startProject(BuildingInfo buildingInfo) {
       Building building = new Building(buildingInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]);
       StructureInProgress project = new StructureInProgress(building, random);
       project.attach(level);
@@ -343,30 +390,13 @@ public class Village {
 
         for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
           for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
-            level.setBlock(projectLocation.offset(x, 0, z), Blocks.CLAY.defaultBlockState(), 2); // TODO, remove
             claimGrid.add(BlockPos.asLong(projectLocation.getX() + x, 0, projectLocation.getZ() + z));
           }
-        }
-
-        // TODO, test blocks for locations
-        for (long loc : project.getBuilding().getInfo().getBedLocations()) {
-          level.setBlock(BlockPos.of(project.getBuilding().getOriginLocation())
-              .offset(BlockPos.of(loc).rotate(building.getRotation())), Blocks.EMERALD_BLOCK.defaultBlockState(), 2);
-        }
-        for (long loc : project.getBuilding().getInfo().getWorkLocations().keySet()) {
-          level.setBlock(BlockPos.of(project.getBuilding().getOriginLocation())
-              .offset(BlockPos.of(loc).rotate(building.getRotation())), Blocks.IRON_BLOCK.defaultBlockState(), 2);
-        }
-        for (long loc : project.getBuilding().getInfo().getContainerLocations()) {
-          level.setBlock(BlockPos.of(project.getBuilding().getOriginLocation())
-              .offset(BlockPos.of(loc).rotate(building.getRotation())), Blocks.GOLD_BLOCK.defaultBlockState(), 2);
         }
 
       } else {
         Villagelife.LOGGER.debug("Failed to find a valid location for the new building.");
       }
-
-    }
 
   }
 
@@ -593,6 +623,11 @@ public class Village {
   private boolean isPending(UUID person) {
     return pendingArrivals.stream().anyMatch(p -> p.personId().equals(person))
         || pendingDepartures.stream().anyMatch(p -> p.personId().equals(person));
+  }
+
+  /** Every bed the village knows of, taken or free. */
+  public int getTotalBeds() {
+    return bedAssignments.size() + unassignedBeds.size();
   }
 
   /** True if this person is on the roster (a resident, not a mid-walk traveler). */

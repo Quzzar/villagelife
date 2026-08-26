@@ -103,7 +103,6 @@ public class LocationManager {
             return (Container) entity;
         }
 
-        person.level().setBlock(location, Blocks.EMERALD_BLOCK.defaultBlockState(), 2);
         Villagelife.LOGGER.debug(location.toShortString());
 
         Villagelife.LOGGER.debug("No container at location");

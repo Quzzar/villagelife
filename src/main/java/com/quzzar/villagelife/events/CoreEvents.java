@@ -148,60 +148,6 @@ public class CoreEvents {
   }
 
   @SubscribeEvent
-  public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
-
-    if (event.getLevel() instanceof ServerLevelAccessor) {
-
-      if (event.getPlacedBlock().getBlock().equals(Blocks.DIAMOND_BLOCK)) {
-
-        ServerLevelAccessor levelAccess = (ServerLevelAccessor) event.getLevel();
-
-        VillageManager.get(levelAccess.getLevel()).registerVillage(levelAccess, event.getPos());
-
-      }
-
-      if (event.getPlacedBlock().getBlock().equals(Blocks.EMERALD_BLOCK)) {
-
-        BuildingInfo BUILDING = Buildings.getByName("well_plains_1");
-        if (BUILDING == null) {
-          Villagelife.LOGGER.error("No 'well_1' building definition loaded; is the datapack intact?");
-          return;
-        }
-
-        ServerLevelAccessor levelAccess = (ServerLevelAccessor) event.getLevel();
-
-        Random random = new Random();
-        Building building = new Building(BUILDING.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]);
-        InstantBuildStructure buildingStruct = new InstantBuildStructure(building, random, levelAccess)
-            .setOriginLocation(event.getPos(), new HashSet<Long>());
-        buildingStruct.buildInstantly();
-
-        for (long loc : buildingStruct.getBuilding().getInfo().getBedLocations()) {
-          levelAccess.setBlock(
-              BlockPos.of(buildingStruct.getBuilding().getOriginLocation())
-                  .offset(BlockPos.of(loc).rotate(buildingStruct.getBuilding().getRotation())),
-              Blocks.REDSTONE_BLOCK.defaultBlockState(), 2);
-        }
-        for (long loc : buildingStruct.getBuilding().getInfo().getWorkLocations().keySet()) {
-          levelAccess.setBlock(
-              BlockPos.of(buildingStruct.getBuilding().getOriginLocation())
-                  .offset(BlockPos.of(loc).rotate(buildingStruct.getBuilding().getRotation())),
-              Blocks.IRON_BLOCK.defaultBlockState(), 2);
-        }
-        for (long loc : buildingStruct.getBuilding().getInfo().getContainerLocations()) {
-          levelAccess.setBlock(
-              BlockPos.of(buildingStruct.getBuilding().getOriginLocation())
-                  .offset(BlockPos.of(loc).rotate(buildingStruct.getBuilding().getRotation())),
-              Blocks.GOLD_BLOCK.defaultBlockState(), 2);
-        }
-
-      }
-
-    }
-
-  }
-
-  @SubscribeEvent
   public static void onBellInteract(PlayerInteractEvent.RightClickBlock event) {
     if (!event.isCanceled() && !event.getLevel().isClientSide
         && event.getLevel().getBlockState(event.getPos()).getBlock().equals(Blocks.BELL)) {
