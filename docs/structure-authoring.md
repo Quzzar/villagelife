@@ -11,8 +11,18 @@ commands. This is the loop the current `village_center_plains_1` was built with.
    obvious.
 2. **Build with fill and setblock**, driving RCON from a script rather than typing. Work
    from one origin corner and offset every coordinate from it, so the whole build is a
-   list of relative positions that can be re-run after a mistake. Block states go in
-   quotes: `setblock X Y Z "minecraft:red_bed[facing=north,part=head]"`.
+   list of relative positions that can be re-run after a mistake.
+
+   **Never quote a block id.** `setblock X Y Z minecraft:red_bed[facing=north,part=head]`
+   is correct; wrapping it in quotes makes the command parser reject it. Any shell
+   escaping belongs outside the command text, not inside it. This exact mistake silently
+   emptied the first village center: every stateful block (beds, chest, campfire, bell,
+   door, torches) failed while the plain walls and floor succeeded, so the build looked
+   finished and was a shell.
+
+   **A build script's own success count proves nothing.** Failed setblocks come back as
+   ordinary command output, not as errors a naive filter catches. Verify the world, then
+   verify the capture (step 7).
 3. **Capture it**: `/villagelife save-structure <from> <to> <name>`, where the two
    positions are opposite corners INCLUSIVE. The file lands in
    `<world>/generated/villagelife/structures/<name>.nbt`. Entities are deliberately not
@@ -26,6 +36,19 @@ commands. This is the loop the current `village_center_plains_1` was built with.
    gathering point are all origin offsets.
 6. **Look at it**: `/villagelife gallery <pos>` places every loaded definition on labelled
    plinths. `/reload` picks up JSON edits without a restart; a new `.nbt` needs a restart.
+7. **Verify the palette**, always, before shipping. The decompressed NBT contains every
+   block id as plain text, so a raw string search answers "did this block actually make
+   it in" without an NBT library:
+
+   ```
+   python3 -c "import gzip,sys;t=gzip.open(sys.argv[1],'rb').read().decode('latin-1');
+   print([b for b in ['red_bed','chest','campfire','bell'] if 'minecraft:'+b not in t])" FILE.nbt
+   ```
+
+   It prints what is MISSING. A structure whose definition promises four beds and whose
+   palette has no bed is the failure this catches: the simulation reads bed coordinates
+   from the JSON, so attractiveness cheerfully reports four free beds while a villager
+   walks to bare floor.
 
 ## What to check before shipping one
 
