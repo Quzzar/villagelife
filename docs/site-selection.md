@@ -69,6 +69,12 @@ The rule this encodes:
 
 > **A village changes the surface of the land, never its shape.**
 
+**That rule governs the surface, and only the surface** (decided on
+[#54](https://github.com/Quzzar/villagelife/issues/54)). Underground is the miner's
+business: a mine may sink shafts and drive tunnels as deep and as far as it likes, because
+nobody is looking at the skyline from down there. One sentence covers both halves — do not
+reshape what people see, dig what you like beneath it.
+
 That line is the entire aesthetic difference between a settlement that grew into its terrain
 and a player's flat dirt platform. It is also what keeps a village from eventually turning
 its valley into a plateau over a hundred hours of unattended simulation.

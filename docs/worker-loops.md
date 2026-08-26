@@ -191,3 +191,30 @@ structures ([structure-sourcing.md](structure-sourcing.md)) and checking content
   uses a **priority ladder** where the worker's own building resolves above the warehouse, and the
   player is last.
 - **The prospector**: a miner that finds caves and follows veins rather than sweeping a pattern.
+
+## Depletion, range, and what the land looks like afterwards
+
+Decided on [#54](https://github.com/Quzzar/villagelife/issues/54). Workers harvest real
+blocks, so a village genuinely consumes its surroundings, and these are the rules that stop
+that ending badly.
+
+**The mine deepens; it never runs dry.** As the ore within reach is taken, the miner
+extends the shaft downward and outward rather than idling or producing from nothing. A
+Minecraft world is effectively infinite downward, so the mine is inexhaustible in practice
+without ever violating the rule that nothing spawns items. It also means an old village's
+mine is a real hole you can climb into and read: this is how far they got, over how long.
+
+**Underground is exempt from the surface rule.** See
+[site-selection.md](site-selection.md): a village never reshapes what you see, and may dig
+whatever it likes beneath it.
+
+**Working radius grows with the village.** A camp works what is around it; a city ranges
+much further. Range scales with the settlement rather than being a single global number, so
+a large village visibly influences a large area, and a small one does not send its only
+lumberjack half a kilometre into the wolves.
+
+**Trees are replanted; nothing else is tidied.** Lumberjacks replant what they fell, so
+forests persist and wood is genuinely renewable. Everything else stays exactly as the
+village left it: the stump field, the old quarry face, the mouth of the shaft. The
+landscape becomes a record of what this village did and for how long, which is legible in a
+way that self-repairing terrain is not.
