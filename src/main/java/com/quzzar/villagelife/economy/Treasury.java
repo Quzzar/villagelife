@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -73,6 +74,13 @@ public final class Treasury {
     }
     return Optional.empty();
   }
+
+  /**
+   * What the village counts as money. It is never merchandise: a stall that
+   * offered its own treasury would be selling the means of payment, and the
+   * price it put on a gem would not be one emerald.
+   */
+  public static final Item CURRENCY = Items.EMERALD;
 
   /** Where the market keeps its money, for inspection when a stall misbehaves. */
   public static List<BlockPos> chestPositions(Village village, ServerLevel level) {

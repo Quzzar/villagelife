@@ -46,8 +46,8 @@ public final class MarketOffers {
     Set<Item> seen = new HashSet<>();
     for (ItemStack stack : village.getVillageInventory()) {
       Item item = stack.getItem();
-      if (!seen.add(item)) {
-        continue;
+      if (item == Treasury.CURRENCY || !seen.add(item)) {
+        continue; // the treasury is money, not stock
       }
       int held = VillagePricing.countHeld(village, item);
       if (held <= 0) {

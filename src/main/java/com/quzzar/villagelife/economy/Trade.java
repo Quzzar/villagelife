@@ -35,6 +35,9 @@ public final class Trade {
 
   /** The village buys {@code count} of an item from the player. */
   public static Result villageBuys(Village village, ServerLevel level, ServerPlayer player, Item item, int count) {
+    if (item == Treasury.CURRENCY) {
+      return Result.fail("Emeralds are the money here, not goods.");
+    }
     Optional<String> blocked = Treasury.tradeBlocker(village, level);
     if (blocked.isPresent()) {
       return Result.fail("'" + village.getName() + "' cannot trade: " + blocked.get() + ".");
@@ -86,6 +89,9 @@ public final class Trade {
 
   /** The village sells {@code count} of an item to the player. */
   public static Result villageSells(Village village, ServerLevel level, ServerPlayer player, Item item, int count) {
+    if (item == Treasury.CURRENCY) {
+      return Result.fail("Emeralds are the money here, not goods.");
+    }
     Optional<String> blocked = Treasury.tradeBlocker(village, level);
     if (blocked.isPresent()) {
       return Result.fail("'" + village.getName() + "' cannot trade: " + blocked.get() + ".");
