@@ -435,6 +435,12 @@ public class Village {
 
     JobClaiming.tick(this, level);
 
+    // Ordinary life moving people slowly toward or away from each other.
+    int driftInterval = com.quzzar.villagelife.relationships.RelationshipDrift.DRIFT_INTERVAL_SECONDS;
+    if ((time + Math.floorMod(id.hashCode(), driftInterval)) % driftInterval == 0) {
+      com.quzzar.villagelife.relationships.RelationshipDrift.tick(this);
+    }
+
     // Every 100 seconds, phase-staggered per village like the attractiveness
     // recompute, so many villages don't all classify on the same tick.
     if ((time + Math.floorMod(id.hashCode(), 100)) % 100 == 0) {

@@ -200,6 +200,10 @@ public final class JobClaiming {
       worker.logIssue("Lost the " + released.getOccupation().name().toLowerCase() + " job to "
           + challenger.getFullName() + "; the village decided they were better suited.",
           java.util.Optional.of(challenger.getUUID()));
+      // Losing your work to someone is personal, and only you feel it.
+      com.quzzar.villagelife.relationships.RelationshipDrift.nudgeOneSided(village, workerId,
+          challenger.getUUID(), com.quzzar.villagelife.relationships.RelationshipDrift.DISPLACED_PENALTY,
+          "lost their job to them");
       markCooldown(village, workerId, now);
       markCooldown(village, challenger.getUUID(), now);
       Villagelife.LOGGER.info("'{}' took over the {} job from '{}' in '{}' (aptitude {} vs {})",

@@ -50,3 +50,33 @@ Chat briefings include "People in your life": the person's 3 strongest pairs by
 |effective opinion|, feeling word from the opinion band, flavor line verbatim (see the
 conversation map). Future consumers (AI goals reacting to fondness, gift preferences)
 read `opinionOf`.
+
+## What changes a relationship after generation
+
+Generation writes the web once, on the day a villager arrives. These are the forces that
+move it afterwards, and the split between them is the design:
+
+**Mutual drift** moves the pair's shared value, because both people lived the same thing.
+It runs on the village tick, so it only advances while the village is actually simulated:
+
+| Shared experience | Every pass |
+| --- | --- |
+| Working the same building | +1 |
+| Idling at the same campfire with no work | +1 |
+
+**One-sided change** moves only that person's lean, because only they experienced it. The
+other may not know it happened at all:
+
+| Moment | Change |
+| --- | --- |
+| Someone kills a mob that was hunting you | **+6** toward them |
+| You lose your job to someone better suited | **-8** toward them |
+
+Drift is deliberately weak and bounded to +/-55, so the strong feelings in a village stay
+the ones the model authored with a reason attached, and drift is the slow pressure of
+ordinary life around them. It never writes flavour text: a pair that exists only because
+two people shovelled the same field for a week has no story, and should not pretend to.
+
+Both one-sided moments also write the villager's personal log, so the next time you talk
+to them they can tell you about it themselves.
+
