@@ -297,6 +297,22 @@ public class RealPerson extends Person {
     if (this.callToBedCoolDown > 0) {
       --this.callToBedCoolDown;
     }
+    // Orphan self-heal (#59): a person pointing at a village that no longer
+    // exists, or whose roster dropped them without the goodbye completing (an
+    // emigrant whose chunks unloaded mid-walk), quietly becomes a wanderer.
+    // Mid-walk travelers are exempt: they are village-bound but not yet on
+    // the roster.
+    if (!this.level().isClientSide && this.tickCount % 200 == 137
+        && !this.entityData.get(VILLAGE_UUID).isEmpty()) {
+      Village village = getVillage();
+      if (village == null
+          || (!village.hasResident(getUUID()) && !village.isTraveler(getUUID()))) {
+        setVillage("");
+        setVillageName("");
+        Villagelife.LOGGER.debug("[{}] was orphaned from their village and now wanders",
+            this.getName().getString());
+      }
+    }
     super.aiStep();
   }
 

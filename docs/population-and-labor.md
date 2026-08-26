@@ -168,5 +168,13 @@ in per-villager opinion shaped in conversation, never in attractiveness; emigran
 persist in the world as wanderers; stat-based job matching with threshold-gated swaps
 replaced pure FIFO (FIFO remains the tiebreaker).
 
-- Whether a wanderer can later join (or found) another village, and what they do
-  meanwhile.
+- ~~Whether a wanderer can later join another village~~ — decided and **implemented**:
+  wanderers are a recruitment pool. A growing village that rolls an arrival first looks
+  for a loaded wanderer within a config radius and recruits them (they walk in exactly
+  like a fresh arrival, keeping their stats, memories, and relationships) before any new
+  persona is spawned, so the same souls circulate between villages. A config cap bounds
+  loaded wanderers: past it, an emigrant finishing their walk-out moves on beyond the
+  horizon instead of lingering. Orphans self-heal: a person pointing at a village whose
+  roster dropped them (the old half-departed gap) quietly becomes a wanderer on a slow
+  tick. Wanderer-FOUNDED camps stay deferred until site selection can support them.
+- What wanderers actively do while roaming (today: default idle goals, no destination).

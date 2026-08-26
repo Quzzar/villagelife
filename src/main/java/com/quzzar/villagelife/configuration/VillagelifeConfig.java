@@ -55,6 +55,8 @@ public class VillagelifeConfig {
     public static int ArrivalEdgeMinDistance;
     public static int TravelTimeoutSeconds;
     public static int IdleCapFallback;
+    public static int WandererRecruitRadius;
+    public static int WandererCap;
     public static double JobSwapThreshold;
     public static int JobSwapIntervalSeconds;
     public static double JobSwapCooldownDays;
@@ -90,6 +92,8 @@ public class VillagelifeConfig {
         ArrivalEdgeMinDistance = COMMON.ArrivalEdgeMinDistance.get();
         TravelTimeoutSeconds = COMMON.TravelTimeoutSeconds.get();
         IdleCapFallback = COMMON.IdleCapFallback.get();
+        WandererRecruitRadius = COMMON.WandererRecruitRadius.get();
+        WandererCap = COMMON.WandererCap.get();
         JobSwapThreshold = COMMON.JobSwapThreshold.get();
         JobSwapIntervalSeconds = COMMON.JobSwapIntervalSeconds.get();
         JobSwapCooldownDays = COMMON.JobSwapCooldownDays.get();
@@ -137,6 +141,8 @@ public class VillagelifeConfig {
         public final ModConfigSpec.IntValue ArrivalEdgeMinDistance;
         public final ModConfigSpec.IntValue TravelTimeoutSeconds;
         public final ModConfigSpec.IntValue IdleCapFallback;
+        public final ModConfigSpec.IntValue WandererRecruitRadius;
+        public final ModConfigSpec.IntValue WandererCap;
         public final ModConfigSpec.DoubleValue JobSwapThreshold;
         public final ModConfigSpec.IntValue JobSwapIntervalSeconds;
         public final ModConfigSpec.DoubleValue JobSwapCooldownDays;
@@ -177,6 +183,8 @@ public class VillagelifeConfig {
             ArrivalEdgeMinDistance = builder.comment("Minimum distance from the village center at which newcomers appear (grows with building spread).").translation(Villagelife.MODID + ".config.ArrivalEdgeMinDistance").defineInRange("Arrival edge min distance", 32, 8, 256);
             TravelTimeoutSeconds = builder.comment("Seconds a newcomer or emigrant may spend walking before the village snaps them to their destination.").translation(Villagelife.MODID + ".config.TravelTimeoutSeconds").defineInRange("Travel timeout seconds", 90, 10, 3600);
             IdleCapFallback = builder.comment("Campfire idle cap used when no village tier ladder is loaded.").translation(Villagelife.MODID + ".config.IdleCapFallback").defineInRange("Idle cap fallback", 2, 1, 64);
+            WandererRecruitRadius = builder.comment("How far (blocks) a growing village looks for an existing wanderer to recruit before spawning a new arrival.").translation(Villagelife.MODID + ".config.WandererRecruitRadius").defineInRange("Wanderer recruit radius", 128, 16, 512);
+            WandererCap = builder.comment("Loaded wanderers the world keeps. Past the cap, an emigrant finishing their walk out moves on beyond the horizon instead of lingering.").translation(Villagelife.MODID + ".config.WandererCap").defineInRange("Wanderer cap", 8, 0, 256);
             JobSwapThreshold = builder.comment("Minimum aptitude improvement (on the 3-18 stat scale) before the village reassigns a job to someone better suited. Higher = less churn.").translation(Villagelife.MODID + ".config.JobSwapThreshold").defineInRange("Job swap threshold", 3.0, 0.5, 15.0);
             JobSwapIntervalSeconds = builder.comment("Seconds between job-swap evaluation passes (phase-staggered per village).").translation(Villagelife.MODID + ".config.JobSwapIntervalSeconds").defineInRange("Job swap interval seconds", 60, 10, 3600);
             JobSwapCooldownDays = builder.comment("Game days a person is protected from further job swaps after being placed, swapped, or displaced.").translation(Villagelife.MODID + ".config.JobSwapCooldownDays").defineInRange("Job swap cooldown days", 2.0, 0.0, 30.0);

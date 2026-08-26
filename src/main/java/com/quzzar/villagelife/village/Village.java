@@ -485,6 +485,20 @@ public class Village {
     long deadline = level.getGameTime()
         + com.quzzar.villagelife.configuration.VillagelifeConfig.TravelTimeoutSeconds * 20L;
     BlockPos fire = getGatheringPoint();
+
+    // Wanderers before spawns (#59): someone already roaming the world is
+    // recruited ahead of conjuring anyone new, so the same souls circulate
+    // between villages carrying their stats, memories, and relationships.
+    RealPerson wanderer = findNearbyWanderer();
+    if (wanderer != null) {
+      wanderer.setVillage(id);
+      wanderer.setOccupation(Occupation.IDLE);
+      pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
+      Villagelife.LOGGER.info("'{}' the wanderer was drawn to village '{}' and is coming to join",
+          wanderer.getFullName(), name);
+      return;
+    }
+
     PersonaSpawner.trySpawn(level, spawnPos, person -> {
       person.setVillage(id);
       person.setOccupation(Occupation.IDLE);
@@ -492,6 +506,20 @@ public class Village {
       pendingArrivals.add(new PendingTraveler(person.getUUID(), deadline, fire.asLong()));
       Villagelife.LOGGER.info("'{}' is arriving at village '{}'", person.getFullName(), name);
     }));
+  }
+
+  /** The nearest loaded person with no village within the recruit radius, or null. */
+  @javax.annotation.Nullable
+  private RealPerson findNearbyWanderer() {
+    BlockPos center = BlockPos.of(getTownCenter().getCenterLocation());
+    int radius = com.quzzar.villagelife.configuration.VillagelifeConfig.WandererRecruitRadius;
+    net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(center).inflate(radius, 64, radius);
+    List<RealPerson> wanderers = level.getEntitiesOfClass(RealPerson.class, box,
+        p -> p.isAlive() && p.getVillage() == null);
+    return wanderers.stream()
+        .min(java.util.Comparator.comparingDouble(
+            p -> p.distanceToSqr(center.getX(), center.getY(), center.getZ())))
+        .orElse(null);
   }
 
   /** A surface point just beyond the outermost building, or null when unloaded. */
@@ -550,6 +578,23 @@ public class Village {
         || pendingDepartures.stream().anyMatch(p -> p.personId().equals(person));
   }
 
+  /** True if this person is on the roster (a resident, not a mid-walk traveler). */
+  public boolean hasResident(UUID person) {
+    return people.contains(person);
+  }
+
+  /** True if this person is mid-walk toward or away from this village. */
+  public boolean isTraveler(UUID person) {
+    return isPending(person);
+  }
+
+  /** Every loaded person with no village, across the whole level. */
+  private int loadedWandererCount() {
+    return level.getEntities(
+        net.minecraft.world.level.entity.EntityTypeTest.forClass(RealPerson.class),
+        p -> p.isAlive() && p.getVillage() == null).size();
+  }
+
   /** Shepherds everyone mid-walk: re-issues targets, confirms arrivals, completes departures. */
   private void tickTravelers() {
     if (level == null) {
@@ -593,7 +638,14 @@ public class Village {
         person.setVillageName("");
         person.reloadState();
         iterator.remove();
-        Villagelife.LOGGER.info("'{}' left '{}' and now wanders the world", person.getFullName(), name);
+        // The world holds only so many wanderers (#59): past the cap, a leaver
+        // walks over the horizon instead of lingering forever.
+        if (loadedWandererCount() > com.quzzar.villagelife.configuration.VillagelifeConfig.WandererCap) {
+          person.discard();
+          Villagelife.LOGGER.info("'{}' left '{}' and moved on beyond the horizon", person.getFullName(), name);
+        } else {
+          Villagelife.LOGGER.info("'{}' left '{}' and now wanders the world", person.getFullName(), name);
+        }
       } else {
         person.setTravelTarget(exit);
       }
