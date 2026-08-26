@@ -1,12 +1,6 @@
 {
   "structure": "lumberjack_plains_1",
-  "beds": [
-    [
-      7,
-      1,
-      7
-    ]
-  ],
+  "beds": [],
   "work_stations": [
     {
       "pos": [

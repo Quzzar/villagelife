@@ -1,13 +1,7 @@
 {
   "structure": "blacksmith_plains_2",
   "upgrades_from": "blacksmith_plains_1",
-  "beds": [
-    [
-      3,
-      1,
-      4
-    ]
-  ],
+  "beds": [],
   "work_stations": [
     {
       "pos": [

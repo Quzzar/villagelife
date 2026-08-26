@@ -33,7 +33,11 @@ Two independent caps, checked at arrival time:
 | **Idle cap** | At most N people may be idle at the campfire at once (Stronghold uses 24; ours is per-tier, owned by [village-tiers.md](village-tiers.md)'s `idle_cap`, with a config fallback of 2 when no ladder is loaded). No new arrivals while the pool is full, no matter how much housing is free. |
 | **Housing cap** | Total population may exceed total beds by up to the idle cap, and no further: the campfire reservoir is exactly where bedless newcomers wait. The village center provides the starting beds; each house adds more. |
 
-Beds are assigned on arrival from `unassignedBeds`, independent of employment. Losing a bed
+Beds are assigned on arrival from `unassignedBeds`, independent of employment — which is
+coherent because **no workplace carries a bed** ([#61](https://github.com/Quzzar/villagelife/issues/61));
+houses and the village centre are the only sources of beds. A villager keeps the first free
+bed they are given and does not move when their job changes, so commutes across a village
+are normal and expected. Losing a bed
 (house destroyed) does not despawn a person; it makes them homeless, which hurts
 attractiveness (below) until rehoused.
 

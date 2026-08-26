@@ -1,12 +1,6 @@
 {
   "structure": "church_plains_1",
-  "beds": [
-    [
-      4,
-      3,
-      5
-    ]
-  ],
+  "beds": [],
   "work_stations": [
     {
       "pos": [

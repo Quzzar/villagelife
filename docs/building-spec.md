@@ -383,6 +383,29 @@ and are probably not `Building`s at all.
 **The structure manifest below predates this cut** and still counts 173 files across 36
 categories. It needs regenerating against the 22.
 
+## Beds belong to houses
+
+Decided on [#61](https://github.com/Quzzar/villagelife/issues/61). **A workplace never
+contains a bed.** Blacksmiths smith; houses house. The one exception is `village_center`,
+because a camp is people sleeping around a fire before there are any houses, so the centre
+carries the starting beds and nobody minds that a station shares the building.
+
+This settles an incoherence that had gone unnoticed: `population-and-labor.md` assigns beds
+on arrival independently of employment, so a bed inside the blacksmith went to whichever
+newcomer arrived next rather than to the blacksmith. With workplaces bedless, arrival-order
+assignment is simply correct, and no employment-aware bed logic is needed. Villagers keep
+the first free bed they are given and do not move house when their job changes, so a
+villager may well walk across town to work.
+
+It also makes housing the real growth lever: beds are the population cap, houses are the
+only source of beds, so a village that wants to grow must build houses. And it makes both
+halves of the vanilla template library usable — the 51 bed-only templates as houses, the 87
+station-only ones as workplaces — where pairing them made most of vanilla useless to us.
+
+**The catalog's bed columns below predate this rule** and still list beds on workplaces.
+They are wrong wherever they do; the shipped definitions have already had those beds
+removed.
+
 ## The catalog
 
 ### Core and civic
