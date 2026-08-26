@@ -54,7 +54,7 @@ public class WorkOnBuildingGoal extends Goal {
 
         if(buildingPos.distSqr(person.blockPosition()) <= Math.pow(person.getVillage().getCurrentProject().getBuilding().getRadius(), 2)*PERCENT_INCREASE){
             
-            if(tickCount % 1 == 0) {// Every 1/2 second, TODO, switch back to % 10
+            if(tickCount % 10 == 0) { // Every half second, as intended
         
                 if (!person.swinging) {
                     person.swing(person.getUsedItemHand());

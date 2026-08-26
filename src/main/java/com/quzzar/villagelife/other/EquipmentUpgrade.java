@@ -52,7 +52,10 @@ public class EquipmentUpgrade {
     } else if (currentItem.getItem() instanceof FishingRodItem) {
       classType = FishingRodItem.class;
     } else {
-      return currentItem;
+      // Not a kind of gear we know how to compare: no upgrade exists, and
+      // saying so matters because callers read any non-null as "found one"
+      // and would re-equip what the villager is already holding.
+      return null;
     }
 
     float currentScore = getScore(currentItem, random);
