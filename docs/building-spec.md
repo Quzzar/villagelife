@@ -327,6 +327,42 @@ simply never grant, which is the correct and quiet failure.
 
 ---
 
+## The cut
+
+Decided on [#57](https://github.com/Quzzar/villagelife/issues/57). The catalogue below is
+**22 categories**, down from 36. The filters were the ticket's own: a category needs a work
+loop describable in one sentence, must not be another category wearing a different hat, and
+must not exist solely to feed something else. Stronghold, the stated model, shipped roughly
+25 building types.
+
+**Survivors (22).** Infrastructure: `village_center`, `house`, `well`, `storehouse`,
+`watchtower`. Extraction: `farm`, `pasture`, `lumberjack`, `quarry`, `mine`. Food:
+`hunting_lodge`, `fishery`, `bakery`, `butchery`, `brewery`. Craft: `blacksmith`, `kiln`,
+`workshop`. Civic: `market`, `church`, `inn`, `library`.
+
+**Cut, and why.** These are gone rather than deferred, so nobody re-proposes them in six
+months:
+
+- `granary` — absorbed into `storehouse` — it was a storehouse that only held food
+- `mill` — collapsed into `bakery` — the baker grinds their own grain; a step nobody watches is complexity with no audience
+- `charcoal_burner` — collapsed into `blacksmith` — the smith burns their own charcoal
+- `glassworks` — merged into `kiln` — structurally identical to pottery: turn a worthless local resource into building material
+- `weaver` — merged into `workshop` — structurally identical to the tannery: turn an animal product into goods
+- `mushroom_cellar` — a `farm` variant, not a category
+- `apiary` — no worker and no capability it uniquely grants
+- `graveyard` — its only purpose was MORALE, and there is no second happiness stat
+- `fletcher` — needs an arrow economy that does not exist
+- `armoury` — a `blacksmith` at level 3, not a separate trade
+- `alchemist` — needs a potion system that does not exist
+- `barracks` — needs a military system beyond guards; the `watchtower` carries defence for now
+- `training_yard` — a stat on a building that no longer survives
+
+Walls and gatehouses are not in the count either way: they are linear rather than footprints
+and are probably not `Building`s at all.
+
+**The structure manifest below predates this cut** and still counts 173 files across 36
+categories. It needs regenerating against the 22.
+
 ## The catalog
 
 ### Core and civic
@@ -425,16 +461,6 @@ Worker: **LIBRARIAN**  ·  Phase 3  ·  Variants: `plains`
 | 1 | scriptorium | 7x7 | 20 oak log, 28 oak planks, 32 cobblestone, 6 glass, 4 wool, 12 book | LEARNING, book production |
 | 2 (upgrade) | library | 11x11 | 28 oak log, 44 oak planks, 48 cobblestone, 8 glass, 6 wool, 24 bookshelf | LEARNING, ENCHANTING support |
 
-#### `graveyard`
-
-Worker: **none**  ·  Phase 3  ·  Variants: `plains`, `desert`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | graveyard | 5x5 | 4 oak log, 6 oak planks, 8 cobblestone | softens the ATTRACTIVENESS hit a death leaves behind |
-
-Hooks into the death events already feeding attractiveness. A village that buries its dead recovers faster than one that leaves them where they fell.
-
 ### Food
 
 #### `farm`
@@ -482,36 +508,6 @@ Worker: **FISHER**  ·  Phase 1  ·  Variants: `plains`, `marsh`
 | 2 (upgrade) | fishery | 11x11 | 16 oak log, 24 oak planks, 28 cobblestone, 4 glass, 4 wool | MEAT more, docks |
 
 Keys off adjacent water, not off a biome, so it serves coast, river, lake, and swamp alike.
-
-#### `mushroom_cellar`
-
-Worker: **FARMER**  ·  Phase 2  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | cellar | 7x7 | 8 oak log, 12 oak planks, 16 cobblestone, 2 glass | FOOD low yield |
-| 2 (upgrade) | mushroom farm | 11x11 | 12 oak log, 20 oak planks, 20 cobblestone, 4 glass, 2 wool | FOOD moderate |
-
-The floor of the food system. Low yield, buildable anywhere, and the reason a badlands or mushroom-island village is poor rather than dead.
-
-#### `apiary`
-
-Worker: **none**  ·  Phase 3  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | apiary | 5x5 | 6 oak log, 8 oak planks, 12 cobblestone | honey, nearby crop yield bonus |
-
-#### `mill`
-
-Worker: **MILLER**  ·  Phase 2  ·  Variants: `windmill`, `watermill`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | mill | 11x11 | 24 oak log, 36 oak planks, 40 cobblestone, 6 glass, 4 wool, 4 iron ingot | GRAIN to flour |
-| 2 (upgrade) | great mill | 15x15 | 36 oak log, 56 oak planks, 56 cobblestone, 8 glass, 6 wool, 8 iron ingot | flour throughput doubled |
-
-The one case where variants are unarguably different structures rather than a reskin. A windmill needs open sky, a watermill needs flowing water, and neither is the other in different blocks.
 
 #### `bakery`
 
@@ -579,20 +575,11 @@ Worker: **MINER**  ·  Phase 1  ·  Variants: `plains`
 
 Founding building, placed free, and the only job a new camp has besides its builder. Two upgrades for one capability: DIAMOND at L3 is what makes blacksmith L3 mean anything, and the pairing is deliberate. The deepest mine and the greatest forge are a village's endgame together.
 
-#### `charcoal_burner`
-
-Worker: **COLLIER**  ·  Phase 3  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | charcoal pit | 5x5 | 6 oak log, 8 oak planks, 12 cobblestone | FUEL from LOGS |
-| 2 (upgrade) | charcoal burner | 7x7 | 8 oak log, 16 oak planks, 16 cobblestone, 2 glass | FUEL more |
-
-The coal-poor answer. A forest village with no ore body still gets FUEL, paid for in the logs it would rather have built with.
-
-#### `pottery`
+#### `kiln`
 
 Worker: **POTTER**  ·  Phase 3  ·  Variants: `plains`, `desert`
+
+*Merged category: absorbs the old `glassworks`: fires clay into brick and sand into glass.*
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
@@ -600,17 +587,6 @@ Worker: **POTTER**  ·  Phase 3  ·  Variants: `plains`, `desert`
 | 2 (upgrade) | pottery | 11x11 | 20 oak log, 28 oak planks, 28 cobblestone, 4 glass, 4 wool | BRICK more, glazed and decorated |
 
 Turns clay, otherwise a worthless biome resource, into building material. Half of why a river or badlands village stops being materially poor.
-
-#### `glassworks`
-
-Worker: **GLASSBLOWER**  ·  Phase 3  ·  Variants: `desert`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | glass kiln | 7x7 | 16 oak log, 24 oak planks, 24 cobblestone, 4 glass, 2 wool | GLASS |
-| 2 (upgrade) | glassworks | 11x11 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool, 4 iron ingot | STAINED_GLASS |
-
-The other half. Consumes FUEL, and STAINED_GLASS is what a cathedral needs, so a desert village has something a forest village wants.
 
 ### Craft
 
@@ -626,54 +602,16 @@ Worker: **BLACKSMITH**  ·  Phase 2  ·  Variants: `plains`, `desert`
 
 The worked example for capability-by-level. Every level is a genuine unlock rather than throughput, and L3 additionally requires mine_3 for its diamond supply.
 
-#### `tannery`
+#### `workshop`
 
 Worker: **TANNER**  ·  Phase 3  ·  Variants: `plains`
+
+*Merged category: absorbs the old `weaver`: turns hides and wool into goods.*
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
 | 1 | tanning racks | 7x7 | 12 oak log, 20 oak planks, 20 cobblestone, 4 glass, 2 wool | worked LEATHER |
 | 2 (upgrade) | tannery | 11x11 | 20 oak log, 28 oak planks, 32 cobblestone, 6 glass, 4 wool | ARMOR_LEATHER |
-
-#### `weaver`
-
-Worker: **WEAVER**  ·  Phase 3  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | loom house | 7x7 | 16 oak log, 20 oak planks, 24 cobblestone, 4 glass, 2 wool | CLOTH: beds without shearing |
-| 2 (upgrade) | weaver's hall | 11x11 | 20 oak log, 32 oak planks, 36 cobblestone, 6 glass, 4 wool | DYED_CLOTH, banners |
-
-Matters more than its size suggests: it turns wool into beds, and beds are the housing cap. A village that can weave grows past what it can shear.
-
-#### `fletcher`
-
-Worker: **FLETCHER**  ·  Phase 4  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | fletcher's hut | 7x7 | 16 oak log, 24 oak planks, 24 cobblestone, 4 glass, 2 wool | ARROWS, bows |
-| 2 (upgrade) | fletcher | 11x11 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool, 4 iron ingot | crossbows |
-
-Needs feathers, so it needs hunting_lodge_2 upstream.
-
-#### `armoury`
-
-Worker: **ARMOURER**  ·  Phase 4  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | armoury | 11x11 | 32 oak log, 48 oak planks, 52 cobblestone, 8 glass, 6 wool, 16 iron ingot | SHIELDS, military equipment |
-| 2 (upgrade) | great armoury | 15x15 | 48 oak log, 76 oak planks, 80 cobblestone, 12 glass, 8 wool, 32 iron ingot | full sets, equipment ready for enchanting |
-
-#### `alchemist`
-
-Worker: **ALCHEMIST**  ·  Phase 4  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | alchemist's hut | 7x7 | 28 oak log, 40 oak planks, 40 cobblestone, 8 glass, 4 wool, 1 brewing stand | POTIONS |
-| 2 (upgrade) | alchemist | 11x11 | 40 oak log, 60 oak planks, 64 cobblestone, 12 glass, 8 wool, 4 iron ingot, 1 cauldron | splash and lingering POTIONS |
 
 ### Military
 
@@ -688,27 +626,6 @@ Worker: **GUARD**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `desert`
 | 3 (upgrade) | keep tower | 11x11 | 28 oak log, 40 oak planks, 40 cobblestone, 8 glass, 4 wool, 8 iron ingot | GUARD station x3, alarm bell raises the village |
 
 The only phase 1 military building. A camp with no watchpost is a camp the wolves clear out.
-
-#### `barracks`
-
-Worker: **SOLDIER**  ·  Phase 4  ·  Variants: `plains`, `desert`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | barracks | 11x11 | 36 oak log, 52 oak planks, 56 cobblestone, 8 glass, 6 wool, 12 iron ingot | SOLDIERS x3 |
-| 2 (upgrade) | great barracks | 15x15 | 52 oak log, 80 oak planks, 84 cobblestone, 16 glass, 8 wool, 24 iron ingot | SOLDIERS x6 |
-| 3 (upgrade) | garrison | 21x21 | 104 oak log, 160 oak planks, 168 cobblestone, 28 glass, 20 wool, 48 iron ingot | SOLDIERS x10, VETERANS |
-
-Recruiting a soldier consumes an idle person plus equipment, so an empty campfire means no army. That is the natural brake on militarising a starving village.
-
-#### `training_yard`
-
-Worker: **DRILLMASTER**  ·  Phase 4  ·  Variants: `plains`
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | training yard | 11x11 | 20 oak log, 28 oak planks, 32 cobblestone, 6 glass, 4 wool, 4 iron ingot | soldier quality +1 |
-| 2 (upgrade) | drill ground | 15x15 | 28 oak log, 44 oak planks, 48 cobblestone, 8 glass, 6 wool, 8 iron ingot | soldier quality +2 |
 
 #### `wall`
 
