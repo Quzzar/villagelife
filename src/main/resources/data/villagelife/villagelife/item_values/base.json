@@ -54,7 +54,6 @@
     "minecraft:rabbit": 0.4,
     "minecraft:cod": 0.35,
     "minecraft:salmon": 0.35,
-    "minecraft:wool": 0.35,
     "minecraft:leather": 0.5,
     "minecraft:feather": 0.12,
     "minecraft:string": 0.12,
@@ -76,7 +75,8 @@
     "minecraft:netherrack": 0.01,
     "minecraft:soul_sand": 0.1,
     "minecraft:blaze_rod": 2.5,
-    "minecraft:ender_pearl": 2.0
+    "minecraft:ender_pearl": 2.0,
+    "minecraft:white_wool": 0.35
   },
   "tag_values": {
     "c:ingots": 0.9,
@@ -84,6 +84,7 @@
     "c:gems": 2.0,
     "c:logs": 0.03,
     "c:stones": 0.012,
-    "c:dusts": 0.25
+    "c:dusts": 0.25,
+    "c:wools": 0.35
   }
 }

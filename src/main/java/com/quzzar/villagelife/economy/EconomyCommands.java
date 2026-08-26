@@ -2,13 +2,13 @@ package com.quzzar.villagelife.economy;
 
 import java.util.Optional;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageManager;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -39,17 +39,17 @@ public final class EconomyCommands {
     event.getDispatcher().register(Commands.literal("vleconomy")
         .requires(source -> source.hasPermission(2))
         .then(Commands.literal("value")
-            .then(Commands.argument("item", StringArgumentType.string())
-                .executes(context -> value(context.getSource(), StringArgumentType.getString(context, "item")))))
+            .then(Commands.argument("item", ResourceLocationArgument.id())
+                .executes(context -> value(context.getSource(), ResourceLocationArgument.getId(context, "item").toString()))))
         .then(Commands.literal("bank")
-            .then(Commands.argument("give", StringArgumentType.string())
-                .then(Commands.argument("want", StringArgumentType.string())
+            .then(Commands.argument("give", ResourceLocationArgument.id())
+                .then(Commands.argument("want", ResourceLocationArgument.id())
                     .executes(context -> bank(context.getSource(),
-                        StringArgumentType.getString(context, "give"),
-                        StringArgumentType.getString(context, "want"))))))
+                        ResourceLocationArgument.getId(context, "give").toString(),
+                        ResourceLocationArgument.getId(context, "want").toString())))))
         .then(Commands.literal("offers")
-            .then(Commands.argument("item", StringArgumentType.string())
-                .executes(context -> offers(context.getSource(), StringArgumentType.getString(context, "item"))))));
+            .then(Commands.argument("item", ResourceLocationArgument.id())
+                .executes(context -> offers(context.getSource(), ResourceLocationArgument.getId(context, "item").toString())))));
   }
 
   private static int value(CommandSourceStack source, String itemId) {
@@ -65,7 +65,9 @@ public final class EconomyCommands {
       return 1;
     }
     double emeralds = value.get();
-    String perEmerald = emeralds > 0 ? String.format(" (%.0f per emerald)", Math.max(1, 1.0 / emeralds)) : "";
+    // Only useful for things cheaper than an emerald; "1 per emerald" for a
+    // diamond sword is noise.
+    String perEmerald = emeralds > 0 && emeralds < 1 ? String.format(" (%.0f per emerald)", 1.0 / emeralds) : "";
     source.sendSuccess(() -> Component.literal(String.format("%s: %.3f emeralds%s%n  bank pays %.3f, charges %.3f",
         itemId, emeralds, perEmerald,
         Bank.buyPrice(item.get(), server).orElse(0.0),
