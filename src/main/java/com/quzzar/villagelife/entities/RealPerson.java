@@ -678,6 +678,10 @@ public class RealPerson extends Person {
         .map(e -> new OpenPersonChatPacket.ExchangeLine(e.playerLine(), e.reply()))
         .toList();
     PacketDistributor.sendToPlayer(player, new OpenPersonChatPacket(this.getId(), getFullName(), detail, scrollback));
+    if (scrollback.isEmpty()) {
+      // Nothing to show yet: the villager opens the conversation themselves.
+      com.quzzar.villagelife.chat.PersonChatDispatcher.greet(this, player);
+    }
   }
 
   public void refreshDisplayName() {

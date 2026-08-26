@@ -97,7 +97,26 @@ public final class PersonChatDispatcher {
     if (!IN_FLIGHT.add(player.getUUID())) {
       return; // one chat request in flight per player
     }
-    converse(person, player.getGameProfile().getName(), player.getUUID(), message)
+    dispatch(person, player, message, message);
+  }
+
+  /**
+   * The villager speaks first: sent when a chat opens with nothing to show, so
+   * a conversation never starts on an empty screen. Stored in history with an
+   * empty player line, which the screen renders as a villager-only line.
+   */
+  private static final String GREETING_CUE = "*walks up to you*";
+
+  public static void greet(RealPerson person, ServerPlayer player) {
+    if (!IN_FLIGHT.add(player.getUUID())) {
+      return;
+    }
+    dispatch(person, player, GREETING_CUE, "");
+  }
+
+  /** Shared tail: converse, execute any give, answer the player's screen. */
+  private static void dispatch(RealPerson person, ServerPlayer player, String message, String historyLine) {
+    converse(person, player.getGameProfile().getName(), player.getUUID(), message, historyLine)
         .thenAccept(reply -> player.getServer().execute(() -> {
           IN_FLIGHT.remove(player.getUUID());
           String say = reply.say();
@@ -117,6 +136,16 @@ public final class PersonChatDispatcher {
    */
   public static CompletableFuture<Reply> converse(RealPerson person, String speakerName, UUID speakerUUID,
       String message) {
+    return converse(person, speakerName, speakerUUID, message, message);
+  }
+
+  /**
+   * As above, but {@code historyLine} is what gets recorded as the player's
+   * side of the exchange: the greeting path passes an empty string, since the
+   * player has not said anything yet.
+   */
+  public static CompletableFuture<Reply> converse(RealPerson person, String speakerName, UUID speakerUUID,
+      String message, String historyLine) {
     // Refresh the open session (never create one: console/RCON chats via
     // /vlbrain chat should not make the villager stand at attention).
     SESSIONS.computeIfPresent(person.getId(), (id, session) -> session.player().equals(speakerUUID)
@@ -152,7 +181,7 @@ public final class PersonChatDispatcher {
             give = null;
             opinion = 0;
           }
-          finalizeExchange(person, speakerName, speakerUUID, message, say, give, opinion);
+          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion);
           return new Reply(say, give, opinion);
         });
   }

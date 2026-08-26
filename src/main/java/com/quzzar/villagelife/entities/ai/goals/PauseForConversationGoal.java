@@ -27,6 +27,11 @@ public class PauseForConversationGoal extends Goal {
 
   @Override
   public boolean canUse() {
+    // Self-preservation outranks politeness: a burning or drowning villager
+    // stops standing still to chat, whatever the conversation state.
+    if (person.isOnFire() || person.isInLava() || person.getAirSupply() <= 0) {
+      return false;
+    }
     return PersonChatDispatcher.isConversing(person);
   }
 
