@@ -23,7 +23,7 @@ commands. This is the loop the current `village_center_plains_1` was built with.
    **A build script's own success count proves nothing.** Failed setblocks come back as
    ordinary command output, not as errors a naive filter catches. Verify the world, then
    verify the capture (step 7).
-3. **Capture it**: `/villagelife save-structure <from> <to> <name>`, where the two
+3. **Capture it**: `/vldev village save-structure <from> <to> <name>`, where the two
    positions are opposite corners INCLUSIVE. The file lands in
    `<world>/generated/villagelife/structures/<name>.nbt`. Entities are deliberately not
    captured; the existing legacy structures carry broken item frames precisely because
@@ -34,7 +34,7 @@ commands. This is the loop the current `village_center_plains_1` was built with.
 5. **Write the definition** JSON beside it, with positions RELATIVE to the structure
    origin (the corner you passed as `from`). Beds, work stations, containers, and the
    gathering point are all origin offsets.
-6. **Look at it**: `/villagelife gallery <pos>` places every loaded definition on labelled
+6. **Look at it**: `/vldev village gallery <pos>` places every loaded definition on labelled
    plinths. `/reload` picks up JSON edits without a restart; a new `.nbt` needs a restart.
 7. **Verify the palette**, always, before shipping. The decompressed NBT contains every
    block id as plain text, so a raw string search answers "did this block actually make

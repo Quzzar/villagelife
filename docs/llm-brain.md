@@ -36,7 +36,7 @@ on first boot for the model download.
 - Inference runs in the worker process (see below), one request at a time; the worker
   loads the model at server start with a warm-up generation so broken backends fail at
   load, not mid-game. Requests time out after 60s and count as "no answer".
-- `/vlbrain status | load | ask <situation> | <opt> | <opt>` (permission level 2) exercises
+- `/villagelife status | load | ask <situation> | <opt> | <opt>` (permission level 2) exercises
   all of it in-game.
 
 ## Providers and models
@@ -94,7 +94,7 @@ jarJar or FML would load them next to Minecraft's copies.
 Failure modes are deliberate: if the host forbids child processes the status turns
 `FAILED` with a clear detail, and if the worker dies (e.g. OOM-killed on a memory-capped
 shared host) it is auto-restarted at most three times with escalating backoff (the counter resets on
-every successful `READY`), after which `/vlbrain load` retries
+every successful `READY`), after which `/villagelife load` retries
 manually. Villagers always fall back to rule-based logic: every caller of `decide()` must
 supply the option it would have taken on its own, and use it when the answer does not
 arrive.

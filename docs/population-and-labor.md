@@ -30,8 +30,8 @@ Two independent caps, checked at arrival time:
 
 | Cap | Rule |
 | --- | --- |
-| **Idle cap** | At most N people may be idle at the campfire at once (Stronghold uses 24; ours is a config value, default much smaller). No new arrivals while the pool is full, no matter how much housing is free. |
-| **Housing cap** | Total population (workers + idle) can never exceed total beds. The town center provides a few base beds; each house adds more. No beds free means no arrivals. |
+| **Idle cap** | At most N people may be idle at the campfire at once (Stronghold uses 24; ours is per-tier, owned by [village-tiers.md](village-tiers.md)'s `idle_cap`, with a config fallback of 2 when no ladder is loaded). No new arrivals while the pool is full, no matter how much housing is free. |
+| **Housing cap** | Total population may exceed total beds by up to the idle cap, and no further: the campfire reservoir is exactly where bedless newcomers wait. The village center provides the starting beds; each house adds more. |
 
 Beds are assigned on arrival from `unassignedBeds`, independent of employment. Losing a bed
 (house destroyed) does not despawn a person; it makes them homeless, which hurts
@@ -41,8 +41,8 @@ attractiveness (below) until rehoused.
 
 Stronghold's "popularity" score, renamed **attractiveness** for us: a 0 to 100 score owned by
 the village that answers "would anyone want to move here?" **Implemented** as
-`VillageAttractiveness` (computed by `Village`, cached per tick, phase-staggered across
-villages), inspectable in-game via `/villagelife attractiveness [pos]`.
+`VillageAttractiveness` (computed by `Village`, recomputed every 10 seconds and cached between, phase-staggered across
+villages), inspectable in-game via `/vldev village attractiveness [pos]`.
 
 - **Above the grow threshold (50)**: new people periodically arrive. The further above, the
   more frequent the arrivals.
@@ -95,8 +95,8 @@ works the same way: a new village spawns nobody — its first residents walk in.
 Emigration (**implemented**): while the score sits below the decline threshold, one person
 per check gives up — idle people first, then the employed. Their assignments free exactly
 as death frees them; they walk to the village edge and leave as a **wanderer** — a
-persistent, unaffiliated person in the world (recruitment of wanderers by villages is a
-future step).
+persistent, unaffiliated person in the world. Growing villages recruit these wanderers
+before spawning anyone new, so the same people circulate between settlements.
 
 ## What drives outflow: jobs claim people
 
@@ -121,8 +121,9 @@ A workplace building finishing construction registers its work stations as open
 - **Job removal returns the person**: if the building is removed but the person survives,
   they return to the campfire pool and are immediately claimable by other open jobs.
 
-Guards and any future military work the same way: recruiting consumes an idle person (plus
-equipment). An empty campfire means no recruiting, which is the natural brake on
+Guards and any future military work the same way: recruiting consumes an idle person.
+Equipment is not consumed at recruitment; gear is scavenged opportunistically afterwards.
+An empty campfire means no recruiting, which is the natural brake on
 militarizing a starving village.
 
 ## The loop, in one paragraph
@@ -159,7 +160,7 @@ All of these belong in config, not constants buried in `Village`:
 | Arrival check interval | How often inflow is evaluated | 100 s |
 | Attractiveness threshold | Score above which people arrive | 50 |
 | Emigration threshold | Score below which people leave | 25 |
-| Base beds | Beds the town center itself provides | 2 |
+| Base beds | Beds the village center itself provides | 4, from its building definition, not config |
 
 ## Open questions (not yet decided)
 

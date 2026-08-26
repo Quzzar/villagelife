@@ -22,7 +22,7 @@ in it, and update it in the same change that moves what it describes.
   → town → city) as datapack data. A tier is a read-out of population, never a gate:
   tier format, the 4-bed village center bootstrap, and why building is constrained by
   resources and space instead.
-- [buildings.md](buildings.md): the building catalog. The 37 categories a village can
+- [buildings.md](buildings.md): the building catalog. The categories a village can
   build, the three axes they vary on (category, variant, level), the production chains
   that connect them, and which biomes can support which. Proposed, not yet decided.
 - [appearance.md](appearance.md): why villagers use the player model and not the vanilla
@@ -31,7 +31,7 @@ in it, and update it in the same change that moves what it describes.
 - [site-selection.md](site-selection.md): how a village finds somewhere to build. Site cost
   instead of site validity, how far villagers may reshape ground (surface yes, shape never),
   the builder's prepare phase, and the runtime budget that keeps site search off the tick.
-- [building-spec.md](building-spec.md): the complete enumeration. All 37 categories with
+- [building-spec.md](building-spec.md): the complete enumeration. All 36 categories with
   every variant, every level, its cost in build points, its special materials, and the
   capabilities it grants the village. Ends in the structure-file manifest used for sourcing.
 - [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
@@ -41,5 +41,5 @@ in it, and update it in the same change that moves what it describes.
   built from, roaming versus fixed, what happens when there is nothing to work on, and the
   performance budget that decides how targets get found.
 - [structure-authoring.md](structure-authoring.md): how a building's structure file gets made,
-  headlessly, with commands plus `/villagelife save-structure`. The loop the current village
+  headlessly, with commands plus `/vldev village save-structure`. The loop the current village
   center was built with.

@@ -11,14 +11,15 @@ footprint in blocks moved (clear, cut, fill, or impossible) using the
 the block-entity and claim protections, and the never-scan-unloaded rule. The planner's
 site search uses it gated on cost zero, so behavior is unchanged until the builder's
 prepare phase exists; rejected candidates log their price at debug, and
-`/villagelife score-site <pos> <sizeX> <sizeZ>` prints any site's bill. The resumable
+`/vldev village score-site <pos> <sizeX> <sizeZ>` prints any site's bill. The resumable
 budgeted search, the site cache, and the prepare phase itself are later slices.
 
-## The problem with the current check
+## The problem this replaced
 
-`LocationValidator.isValidLocation` answers a yes-or-no question: is this block position
-buildable. `isValidPlacement` then samples a footprint's perimeter plus five interior points
-and rejects the site if any sample fails.
+`LocationValidator.isValidLocation` answered a yes-or-no question: is this block position
+buildable. `isValidPlacement` then sampled a footprint's perimeter plus five interior points
+and rejected the site if any sample failed. **Both methods have since been deleted** in
+favour of the cost model below; this section records why.
 
 That model cannot express the most common real case. Two saplings and a dirt hummock in an
 otherwise perfect meadow fail the check exactly as hard as a ravine does. The village then
@@ -81,9 +82,12 @@ whole mod. The rule is a whitelist, not a blacklist:
   terrain and vegetation. Anything not in the tag makes the site invalid rather than
   becoming a target.
 - Never break a block entity, ever. Not chests, not spawners, not signs.
-- Never break inside another village's claim (`Village.hasClaimed` already answers this).
+- Never break inside another village's claim (`Village.hasClaimed` answers this). **Today
+  the scorer consults only the building village's own claim**, so a neighbouring village's
+  ground is not yet protected: a real gap, not a design choice.
 - Never touch a vanilla or modded structure's bounds.
 - A config switch turns terrain modification off entirely, leaving tier 0 clearing only.
+  (Proposed; no such config key exists yet.)
 
 The whitelist is datapack content, so a pack author decides what "natural" means in a
 modded world without touching Java.

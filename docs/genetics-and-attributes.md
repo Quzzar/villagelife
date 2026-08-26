@@ -51,8 +51,11 @@ stats. That many-to-many projection is deliberate:
 ## The projection matrix
 
 Each Minecraft attribute's genetic modifier is the sum of its listed contributions, applied
-as one permanent `ADD_MULTIPLIED_BASE` modifier per attribute with a stable id
-(`villagelife:gene/<attribute>`). Starting weights: a **major** contribution is 2% per
+as permanent modifiers with stable ids of the form `villagelife:gene/<stat>` — one per
+contributing STAT, so an attribute fed by two stats carries two modifiers. Most use
+`ADD_MULTIPLIED_BASE`; knockback resistance, oxygen bonus and attack knockback use
+`ADD_VALUE`, because a percentage of zero is zero. Starting weights: a **major**
+contribution is 2% per
 point off 10, a **minor** is 1% per point. All weights are tunables.
 
 | Minecraft attribute | Major | Minor |
@@ -88,10 +91,13 @@ would be wrong. They project onto our own systems instead:
 | Stat | Consumers |
 | --- | --- |
 | INT | Learning/skill growth (future), work speed on skilled crafts (custom `villagelife:work_speed` attribute when a goal reads it) |
-| WIS | Danger sense (flee earlier, better `RunAwayGoal` thresholds), decision quality |
+| WIS | Awareness: its one numeric projection is follow range. (`RunAwayGoal` does NOT read stats; its thresholds are hardcoded, so "flees earlier" is not implemented.) |
 | CHA | Trading prices, gift reception, reputation and marriage systems |
 
-They also all feed the **LLM persona**: `LlmService` builds a situation prompt per
+They also all feed the **LLM persona**, through `PersonaPrompts` (there is no per-decision
+situation prompt carrying stats; decisions the model makes today are building choices, and
+they are village-level rather than personal). The old wording described `LlmService`
+building a situation prompt per
 decision, and the stat block belongs in it ("You are strong but slow-witted and very
 charming..."). That makes INT/WIS/CHA behaviorally real through dialogue and choices even
 before any numeric system consumes them.

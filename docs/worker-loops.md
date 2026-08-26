@@ -1,6 +1,12 @@
 # Worker loops: what a villager actually does
 
-**Decided.** Resolves [What a worker actually does](https://github.com/Quzzar/villagelife/issues/48)
+**Decided, and NOT implemented.** Nothing in this document exists in code: the tree still
+branches per occupation into 28 hand-written goal classes, which is the arrangement this
+design replaces. There is no verb enum, no job-definition datapack, no per-job tuning, and
+the "nothing to work on" contract is not wired at any work goal (a lumberjack with no trees
+simply wanders, silently). Treat every present-tense sentence below as intent.
+
+Resolves [What a worker actually does](https://github.com/Quzzar/villagelife/issues/48)
 on the [building and village progression map](https://github.com/Quzzar/villagelife/issues/47).
 This is the layer everything in [building-spec.md](building-spec.md) sits on: the catalog says a
 lumberjack gives `LOGS`, and this says how.
@@ -172,7 +178,7 @@ Two consequences:
 
 ## Reviewing what gets built
 
-`/villagelife gallery [pos]` places every loaded building definition on labelled plinths, grouped
+`/vldev village gallery [pos]` places every loaded building definition on labelled plinths, grouped
 by category and level, so a whole catalog can be walked end to end. Built for reviewing candidate
 structures ([structure-sourcing.md](structure-sourcing.md)) and checking content passes.
 

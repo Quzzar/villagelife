@@ -106,7 +106,7 @@ This is worth building regardless of sourcing, because it also serves the conten
 future structure review. It needs no third-party assets: it works on whatever definitions are
 loaded, which today is the nine we already have.
 
-**Built and verified:** `/villagelife gallery [pos]` (`StructureGallery.java`) places every loaded
+**Built and verified:** `/vldev village gallery [pos]` (`StructureGallery.java`) places every loaded
 definition on labelled plinths, grouped by category, then variant, then level. Signs carry the id,
 the level, and the bed and job counts. It skips any definition whose structure file is missing and
 reports how many it placed.
@@ -133,6 +133,17 @@ The structures are staged with `/place template` from that datapack, which is wh
 themselves do not need to load. Neither CTOV build would run against NeoForge 21.1.72 anyway
 (3.6.3 crashes on a config listener, 3.5.2 fails to parse its worldgen modifiers against a
 current lithostitched), and it turned out not to matter.
+
+### Known defect: a definition can promise what its structure does not contain
+
+`village_center_plains_1.nbt`, as first captured, held eight block types and **no bed,
+chest, campfire, bell, door or torch**, while its definition promised four beds and a
+container. Nothing detects this: the simulation reads bed and container COORDINATES from
+the JSON, so the village cheerfully reported four free beds and villagers walked to bare
+floor to sleep. The cause was an authoring bug (quoted block ids in setblock, which the
+command parser rejects, failing silently for every stateful block) and the lesson is in
+[structure-authoring.md](structure-authoring.md): verify the finished file's palette
+before shipping it, because a build script's own success count proves nothing.
 
 ### Known defect in the existing structure files
 
@@ -163,7 +174,7 @@ That leaves exactly two paths, and they are not really alternatives:
 1. **Ask.** CTOV and Towns and Towers are both small-team projects with contact channels, and a
    specific written grant costs a message. This is the only route to reusing existing work.
 2. **Build our own.** Which is now more attractive than it was, because the tooling landed anyway:
-   `/villagelife gallery` reviews a whole catalog at a glance, and `/villagelife save-structure`
+   `/vldev village gallery` reviews a whole catalog at a glance, and `/vldev village save-structure`
    captures a build in-world into a structure file. Together those are a content pipeline, and
    they turn "author 173 structures" from a wall into a repeatable process.
 

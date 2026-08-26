@@ -48,14 +48,16 @@ overriding files — no Java changes.
   [population-and-labor.md](population-and-labor.md), owned by the tier: a camp attracts
   a couple of drifters to its fire, a city a crowd. This is the one knob a tier carries,
   and it shapes *inflow pacing*, never what can be built.
-- The tier id is the file id (`villagelife:camp`). `display_name` translation key
-  defaults to `villagelife.tier.<path>`.
+- The tier id is the file id (`villagelife:camp`). The translation key is always derived as
+  `villagelife.tier.<path>`; there is no `display_name` field in the codec.
 - Attractiveness needs no explicit role here: it already governs whether population
   grows at all, so a starving village never reaches city numbers. The gate is implicit.
 
-**Tier only rises** (high-water mark, checked on the brain's slow tick). A city that
+**Tier only rises** (high-water mark, checked on the village's own slow tick; `VillageBrain`
+has no tier concept). A city that
 loses its people to a raid is still called a city — a ghost of one. Promotion is a
-celebratory journal entry once the brain lands.
+celebratory journal entry once the brain lands. Today promotion logs a line and broadcasts
+to players; no journal exists in code yet.
 
 ## The camp: how a village starts
 
@@ -105,6 +107,11 @@ buildings bigger. A cramped valley village with one enormous ever-growing house 
 emergent story the math permits on purpose, not a failure mode.
 
 ### The three progression axes
+
+**The table below is superseded.** The shipped id scheme is
+`<category>_<variant>_<level>` from [building-spec.md](building-spec.md), which the loader
+validates: `house_plains_1`, not `house_wood_s`. The axes it describes are still the
+intent; only the naming changed.
 
 |            | wood variant                    | stone variant                    |
 | ---------- | ------------------------------- | -------------------------------- |

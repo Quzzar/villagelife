@@ -1,6 +1,12 @@
 # The market, emeralds, and trade
 
-**Decided, not yet built.** The design agreed on
+**Decided; the valuation engine is built, trade is not.** Shipped: `economy/ItemValues`
+(the authored raw table plus recipe decomposition outward, memoised and cycle-guarded),
+`economy/Bank` (one spread multiplier both ways), `economy/VillagePricing` (supply and
+demand inside the band), the datapack loader, and `/vldev economy` for inspection.
+Not built: the MERCHANT occupation, the market building, the physical emerald treasury,
+any trading interface, and any actual transfer of items or emeralds — the engine prices
+things, nothing trades yet. The design agreed on
 [The market, and what emeralds are for](https://github.com/Quzzar/villagelife/issues/51);
 implementation is a separate effort. Sibling docs:
 [building-spec.md](building-spec.md) for the market building itself,

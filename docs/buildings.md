@@ -1,6 +1,9 @@
 # Buildings: the catalog
 
-**Proposed, not yet decided.** This is the full pipeline of what a village can build, laid
+**Proposed, not yet decided, and largely unbuilt.** Nine building definitions exist against
+the catalogue below; capabilities, need-routing, production chains and the ~19 new
+occupations are all absent from code. [building-spec.md](building-spec.md) supersedes this
+document wherever they differ. This is the full pipeline of what a village can build, laid
 out so the shape is visible before any of it ships. It extends the two building axes named
 in [village-tiers.md](village-tiers.md) (`category` and `upgrades_from`) into a concrete
 list. Nothing here gates on village tier: a camp may build a cathedral if it somehow
@@ -50,7 +53,7 @@ snowy, and taiga. Those are directly convertible into variants, and their existe
 strongest argument that variants are separate structures: Mojang built them that way for
 the same reason.
 
-Third-party building sets (for example the Yung's Better Villages structures) are a real
+Third-party building sets are a real
 option for filling out the catalog faster, but **only with permission from the author
 first.** Ask before any asset is copied.
 
@@ -124,7 +127,9 @@ need: STONE <-  quarry | mine
 need: FUEL  <-  mine (coal) | charcoal_burner (logs)
 ```
 
-This is what the existing `Benefit` enum already almost is. It should be split in two, since
+This is what the existing `Benefit` enum already almost is — though note that enum is
+currently **inert**: it parses from JSON, ships in 8 of 9 building files, and has zero
+readers in code. It should be split in two, since
 it is currently doing both jobs:
 
 | Kind | Meaning | Examples |
@@ -139,7 +144,9 @@ different categories, and reach for different variants of the categories they sh
 
 ## The catalog
 
-37 categories in six groups. The **Phase** column is the proposed implementation order, not
+The categories in six groups. ([building-spec.md](building-spec.md) is the authority and
+counts **36**, having absorbed `granary` into `storehouse`; where the two disagree, the spec
+wins.) The **Phase** column is the proposed implementation order, not
 a gate: phase 1 is what a village needs to not die, phase 4 is what it needs to win a war.
 
 ### 1. Core and civic

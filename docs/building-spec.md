@@ -1,6 +1,16 @@
 # Building spec: every building, variant, level, recipe, and unlock
 
-**Proposed, not yet decided.** The complete enumeration behind [buildings.md](buildings.md),
+**Proposed, not yet decided. 9 of 173 structures exist.** Reality check before reading:
+of the eleven "minimum playable" files, five exist (`village_center_plains_1`,
+`storehouse_plains_1`, `well_plains_1`, `lumberjack_plains_1`, `watchtower_plains_1`), and
+**no `house` definition exists at all**, which caps every village's population at the
+center's own beds. `grants` / `grants_if` are not parsed by anything; `upgrades_from`
+parses and validates but has no consumer, so no level-2 building can be reached. Several
+shipped files contradict the rules below (a level-1 church granting ENCHANTING alone, a
+watchtower with two guard stations, a storehouse with eleven containers). The footprint
+size classes are invented numbers and measured 1.4x to 20.5x off against real candidates.
+
+The complete enumeration behind [buildings.md](buildings.md),
 which holds the reasoning. This file is the reference: what exists, what it costs, and what the
 village can do once it stands. It is the input to sourcing structure files, so the manifest at
 the bottom is the working checklist.
@@ -29,6 +39,10 @@ deliberate: danger is the pressure that makes the first watchtower worth buildin
 already feed attractiveness, so the cost of having no guard is priced in without a rule saying so.
 
 ### The camp is placed as one plat
+
+**Not implemented as described.** Founding currently places the center and then each
+companion independently at a fixed offset, each snapped to its own heightmap, with no
+composite footprint and no site check. The intent below stands.
 
 The three buildings are not sited independently. Founding places a single composite footprint,
 roughly 20x20, with the campfire and bell at its center and the three 7x7 buildings arranged around
@@ -111,6 +125,36 @@ upgrading always costs more than putting up a second level-1 building of the sam
 is worth knowing but is **not a rule anyone implements**. Nothing tells the brain to prefer
 sprawl. A village with land finds the cheaper option in its list and takes it; a village hemmed in
 by a ravine never sees that option, because site-finding found nowhere to put it.
+
+### Upgrade prices are never derived from the structure
+
+That is not a detail, and getting it wrong silently deletes the whole sprawl-versus-tall choice.
+Measured on the real houses we picked:
+
+| | Solid blocks | Beds | Blocks per bed |
+| --- | --- | --- | --- |
+| tier 1, 7x7 | 153 | 1 | 153 |
+| tier 2, 7x13 | 270 | 2 | 135 |
+| tier 3, 7x11 | 340 | 4 | **85** |
+
+**Bigger buildings are dramatically cheaper per bed**, because one roof and four walls get reused.
+Four small houses cost 612 blocks for four beds; one big house costs 340 for the same four, 44%
+less. So a cost that tracks the block count makes upgrading strictly better, and a village would
+never sprawl.
+
+Pricing upgrades off the level-1 recipe instead:
+
+| | Cost | Gain | Sprawl alternative |
+| --- | --- | --- | --- |
+| tier 1 build | 153 | 1 bed | |
+| upgrade to 2 | 230 | +1 bed | 153 for a second small house |
+| upgrade to 3 | 459 | +2 beds | 306 for two more small houses |
+
+Four beds by sprawling costs 612. By upgrading, 842, **38% more**. The invariant holds against
+real geometry rather than assumed geometry.
+
+So: **a level-1 recipe may be derived from its structure's block count. An upgrade price may
+not.**
 
 ## Capabilities
 

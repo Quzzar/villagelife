@@ -27,10 +27,12 @@ request the persona, and only `addFreshEntity` once it arrives. A failed generat
 discards the rolled person entirely (a "skipped arrival"). Consequences:
 
 - A spawned villager with an empty persona is impossible by construction; there is no
-  fallback text, no retry sweep, and no regeneration (a persona is rolled once, ever).
+  fallback text, one retry on an unparseable answer, and no regeneration afterwards (a
+  persona is rolled once, ever).
 - While the LLM is down, villages stop growing; this matches the LLM-required design.
 - Persona requests queue behind decide() calls (`LlmService.submitPersona`): one persona
-  in flight at a time, decisions always dispatch first, so spawn bursts cannot stall
+  in flight at a time and any foreground work preempts it — decisions AND player
+  conversation — so spawn bursts cannot stall
   village decisions.
 
 ## Code map
@@ -44,7 +46,7 @@ All in `persona/` (plus one registration line in `entities/VillagelifeAttachment
 | `PersonaParser` | Lenient tagged-line parser |
 | `PersonaService` | Generation orchestration on `LlmService.submitPersona`; attach/get helpers |
 | `PersonaSpawner` | **The** generate-before-spawn pipeline: `trySpawn(level, pos, configure)` rolls, generates, spawns on success, discards on failure. Server thread in, server thread out. |
-| `PersonaCommands` | `/vlpersona audit <n>` and `/vlpersona show <entity>` (permission 2) |
+| `PersonaCommands` | `/vldev persona audit <n>` and `/vldev persona show <entity>` (permission 2) |
 | `PersonaAuditRun` | The audit command's loop: N serialized `PersonaSpawner` attempts plus a report file in `<game dir>/villagelife/` |
 
 Village arrival mechanics (campfire map) call the same `PersonaSpawner.trySpawn`, setting
@@ -52,6 +54,9 @@ village membership in the `configure` hook. One pipeline, two callers; do not fo
 
 ## Not yet built
 
-- Relationships (second pass on the persona map; model decided on its ticket).
+(Relationships were listed here and are now built; see
+[relationships.md](relationships.md).)
+
+- ~~Relationships~~ — built; see [relationships.md](relationships.md).
 - Personas feeding decide() prompts as villager context.
 - Player-facing persona UI (explicitly out of the persona map's scope).

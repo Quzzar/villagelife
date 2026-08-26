@@ -40,7 +40,7 @@ feature.
   `opinionOf(uuid)`.
 - `relationships/RelationshipService`: the two-stage pass on `LlmService.submitPersona`
   with few-shot examples.
-- `relationships/RelationshipCommands`: `/vlrel show <entity>` (permission 2).
+- `relationships/RelationshipCommands`: `/vldev relationships show <entity>` (permission 2).
 - Storage: `VillageBrain`'s codec (additive `relationships` field); accessors delegate
   through `Village` (`putRelationship`, `getRelationship`, `relationshipsOf`).
 
