@@ -75,14 +75,33 @@ Mechanism notes:
   can't afford any project (rate-limited by a config cooldown so a poor village complains
   steadily, not constantly), when paying for a building comes up short, and when a guard
   turns in for the night with no rations.
-- **Player misbehavior feeds the score through the hurt and death events; positive player
-  standing deliberately does not** (decided after playtesting, superseding an earlier
-  gift-event design). A thrown-item pickup is only a memory: the villager's personal log
-  records what was picked up and who threw it, and whether that was a gift is the
-  villager's own judgment, made in conversation, where it can move their personal opinion
-  of the thrower (the conversation map owns that opinion tool). There is no village-wide
-  positive standing, no gift event, and no Hero of the Village aura: in Aaron's words, no
-  gift mechanism, just a mechanism to like someone more.
+- **Wrongdoing is witnessed, or it did not happen** (decided on
+  [#64](https://github.com/Quzzar/villagelife/issues/64)). Theft, assault and murder all
+  work the same way: a villager must actually see it — awake, within roughly sixteen
+  blocks, with line of sight. Steal from a chest with nobody around, or kill someone alone
+  in the woods, and the village genuinely does not know: it simply has someone missing.
+  This is deliberately ruthless consistency rather than a special case for violence.
+  (Deaths that the world causes are unaffected: a villager taken by a zombie is discovered
+  as usual. The witness rule is about blame, not about mortality.)
+- **The village's mood moves by fixed weights; what a person thinks of you is judged.** A
+  witnessed offence emits the ordinary bookkeeping event, which costs attractiveness on a
+  set scale — killing worst, assault next, theft least. Separately, each witness records
+  what they saw as a fact and decides for themselves what it meant, which lands on their
+  personal opinion of you. Two mechanisms that already exist, each doing what it is good
+  at, and it means the same crime can leave one villager unforgiving and another shrugging.
+- **Standing escalates all the way to outlawry.** Prices rise as a village sours on you and
+  trade eventually closes, and past that the village turns against you outright: residents
+  flee rather than talk, and guards treat you as an enemy. Being run out of a settlement you
+  robbed is a legitimate end state.
+- **Everything fades, including murder.** Village mood decays on the bookkeeper's existing
+  schedule, and a player's personal standing with individual villagers drifts back toward
+  neutral over time as well. Consequences are real but never permanent: stay away, behave,
+  and a village will take you back. There is always a road back from outlaw.
+- **Positive player standing deliberately does not touch attractiveness.** A thrown-item
+  pickup is only a memory: the villager's personal log records what was picked up and who
+  threw it, and whether that was a gift is the villager's own judgment, made in
+  conversation. No village-wide positive standing, no gift event: in Aaron's words, no gift
+  mechanism, just a mechanism to like someone more.
 - Expected feel: a fed, housed village idles ~60-85 and steadily draws people; a single
   death dips without stalling growth; famine alone stalls; famine plus a massacre
   collapses below the decline threshold and people walk out.
