@@ -38,3 +38,6 @@ in it, and update it in the same change that moves what it describes.
 - [worker-loops.md](worker-loops.md): what a villager actually does. The three verbs a job is
   built from, roaming versus fixed, what happens when there is nothing to work on, and the
   performance budget that decides how targets get found.
+- [structure-authoring.md](structure-authoring.md): how a building's structure file gets made,
+  headlessly, with commands plus `/villagelife save-structure`. The loop the current village
+  center was built with.
