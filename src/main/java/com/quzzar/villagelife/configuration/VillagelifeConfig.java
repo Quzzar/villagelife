@@ -60,6 +60,7 @@ public class VillagelifeConfig {
     public static double JobSwapThreshold;
     public static int JobSwapIntervalSeconds;
     public static double JobSwapCooldownDays;
+    public static double BankSpread;
 
     public static void bakeCommonConfig() {
         RaidAnimals = COMMON.RaidAnimals.get();
@@ -97,6 +98,7 @@ public class VillagelifeConfig {
         JobSwapThreshold = COMMON.JobSwapThreshold.get();
         JobSwapIntervalSeconds = COMMON.JobSwapIntervalSeconds.get();
         JobSwapCooldownDays = COMMON.JobSwapCooldownDays.get();
+        BankSpread = COMMON.BankSpread.get();
     }
 
     @SubscribeEvent
@@ -146,6 +148,7 @@ public class VillagelifeConfig {
         public final ModConfigSpec.DoubleValue JobSwapThreshold;
         public final ModConfigSpec.IntValue JobSwapIntervalSeconds;
         public final ModConfigSpec.DoubleValue JobSwapCooldownDays;
+        public final ModConfigSpec.DoubleValue BankSpread;
 
         public CommonConfig(ModConfigSpec.Builder builder) {
             RaidAnimals = builder.comment("Illagers In Raids Attack Animals?").translation(Villagelife.MODID + ".config.RaidAnimals").define("Illagers in raids attack animals?", false);
@@ -188,6 +191,7 @@ public class VillagelifeConfig {
             JobSwapThreshold = builder.comment("Minimum aptitude improvement (on the 3-18 stat scale) before the village reassigns a job to someone better suited. Higher = less churn.").translation(Villagelife.MODID + ".config.JobSwapThreshold").defineInRange("Job swap threshold", 3.0, 0.5, 15.0);
             JobSwapIntervalSeconds = builder.comment("Seconds between job-swap evaluation passes (phase-staggered per village).").translation(Villagelife.MODID + ".config.JobSwapIntervalSeconds").defineInRange("Job swap interval seconds", 60, 10, 3600);
             JobSwapCooldownDays = builder.comment("Game days a person is protected from further job swaps after being placed, swapped, or displaced.").translation(Villagelife.MODID + ".config.JobSwapCooldownDays").defineInRange("Job swap cooldown days", 2.0, 0.0, 30.0);
+            BankSpread = builder.comment("How punishing the always-available exchange is: it pays value/spread for goods and charges value*spread. Higher means trading with players and other villages matters more.").translation(Villagelife.MODID + ".config.BankSpread").defineInRange("Bank spread", 4.0, 1.0, 32.0);
         }
     }
 }
