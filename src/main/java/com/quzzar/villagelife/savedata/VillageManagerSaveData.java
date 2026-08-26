@@ -82,10 +82,15 @@ public class VillageManagerSaveData extends SavedData {
     }
 
     public void registerVillage(ServerLevelAccessor levelAccess, BlockPos location) {
-        Village village = new Village("Test Village");
-        village.attach(level != null ? level : levelAccess.getLevel());
+        // Founded under a deterministic word-list name; the LLM-generated name
+        // lands async moments later and stands permanently (#60).
+        Village village = new Village("New Camp");
+        village.applyName(com.quzzar.villagelife.village.VillageNamer.fallbackName(village.getID()));
+        ServerLevel serverLevel = level != null ? level : levelAccess.getLevel();
+        village.attach(serverLevel);
         villages.put(village.getID(), village);
         village.initNew(location);
+        com.quzzar.villagelife.village.VillageNamer.nameNewVillage(serverLevel, village, location);
         setDirty();
     }
 

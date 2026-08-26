@@ -166,7 +166,10 @@ All of these belong in config, not constants buried in `Village`:
 Earlier entries here are now decided and described above: positive player standing lives
 in per-villager opinion shaped in conversation, never in attractiveness; emigrants
 persist in the world as wanderers; stat-based job matching with threshold-gated swaps
-replaced pure FIFO (FIFO remains the tiebreaker).
+replaced pure FIFO (FIFO remains the tiebreaker). Villages are also named at founding:
+the LLM names the settlement from its biome on the low-priority queue (a deterministic
+word-list name stands in first and survives if generation fails twice); the name is
+permanent, with no rename mechanism by decision.
 
 - ~~Whether a wanderer can later join another village~~ — decided and **implemented**:
   wanderers are a recruitment pool. A growing village that rolls an arrival first looks

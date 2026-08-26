@@ -583,6 +583,20 @@ public class Village {
     return people.contains(person);
   }
 
+  /** Sets the village's permanent name and sweeps it onto current residents. */
+  public void applyName(String newName) {
+    this.name = newName;
+    if (level == null) {
+      return;
+    }
+    for (UUID personId : people) {
+      RealPerson person = getPerson(level, personId);
+      if (person != null) {
+        person.setVillageName(newName);
+      }
+    }
+  }
+
   /** True if this person is mid-walk toward or away from this village. */
   public boolean isTraveler(UUID person) {
     return isPending(person);
