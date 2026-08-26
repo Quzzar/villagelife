@@ -26,7 +26,7 @@ import net.minecraft.core.UUIDUtil;
  *
  * Server-side attachment, never synced. Newest entries last; capped per kind.
  */
-public record PersonalLogData(List<Entry> entries) {
+public record PersonalLogData(List<Entry> entries, long reflectedThrough) {
 
   public static final String KIND_PICKUP = "pickup";
   public static final String KIND_ISSUE = "issue";
@@ -34,7 +34,7 @@ public record PersonalLogData(List<Entry> entries) {
   public static final int MAX_PICKUPS = 32;
   public static final int MAX_ISSUES = 16;
 
-  public static final PersonalLogData EMPTY = new PersonalLogData(List.of());
+  public static final PersonalLogData EMPTY = new PersonalLogData(List.of(), 0L);
 
   /**
    * @param kind    {@link #KIND_PICKUP} or {@link #KIND_ISSUE}
@@ -63,15 +63,33 @@ public record PersonalLogData(List<Entry> entries) {
     return new Entry(KIND_ISSUE, "", 0, text, dayTime, who);
   }
 
-  public static final Codec<PersonalLogData> CODEC = Entry.CODEC.listOf()
-      .xmap(PersonalLogData::new, PersonalLogData::entries);
+  public static final Codec<PersonalLogData> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+      Entry.CODEC.listOf().fieldOf("entries").forGetter(PersonalLogData::entries),
+      Codec.LONG.optionalFieldOf("reflected_through", 0L).forGetter(PersonalLogData::reflectedThrough)
+  ).apply(inst, PersonalLogData::new));
 
   public PersonalLogData withEntry(Entry entry) {
     List<Entry> updated = new ArrayList<>(entries);
     updated.add(entry);
     trimKind(updated, KIND_PICKUP, MAX_PICKUPS);
     trimKind(updated, KIND_ISSUE, MAX_ISSUES);
-    return new PersonalLogData(List.copyOf(updated));
+    return new PersonalLogData(List.copyOf(updated), reflectedThrough);
+  }
+
+  /**
+   * Entries the person has not yet made up their mind about, involving someone
+   * else. Reflection reads these; everything older has already been felt.
+   */
+  public List<Entry> unreflected() {
+    return entries.stream()
+        .filter(entry -> entry.dayTime() > reflectedThrough)
+        .filter(entry -> entry.who().isPresent())
+        .toList();
+  }
+
+  /** Marks everything up to this moment as considered. */
+  public PersonalLogData reflectedAt(long dayTime) {
+    return new PersonalLogData(entries, dayTime);
   }
 
   private static void trimKind(List<Entry> entries, String kind, int max) {

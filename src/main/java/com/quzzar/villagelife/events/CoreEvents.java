@@ -130,16 +130,9 @@ public class CoreEvents {
         && hunter.getTarget() instanceof RealPerson rescued
         && event.getSource().getEntity() instanceof RealPerson defender
         && !defender.getUUID().equals(rescued.getUUID())) {
-      com.quzzar.villagelife.village.Village village = rescued.getVillage();
-      if (village != null && village.hasResident(defender.getUUID())) {
-        com.quzzar.villagelife.relationships.RelationshipDrift.nudgeOneSided(village,
-            rescued.getUUID(), defender.getUUID(),
-            com.quzzar.villagelife.relationships.RelationshipDrift.DEFENDED_BONUS,
-            "was saved from a " + event.getEntity().getName().getString());
-        rescued.logIssue(defender.getFullName() + " saved me from a "
-            + event.getEntity().getName().getString() + ".",
-            java.util.Optional.of(defender.getUUID()));
-      }
+      rescued.logIssue(defender.getFullName() + " killed the "
+          + event.getEntity().getName().getString() + " that was coming for me.",
+          java.util.Optional.of(defender.getUUID()));
     }
 
     if (event.getEntity() instanceof RealPerson person) {

@@ -435,7 +435,13 @@ public class Village {
 
     JobClaiming.tick(this, level);
 
-    // Ordinary life moving people slowly toward or away from each other.
+    // Villagers making up their minds about what has happened to them lately.
+    int reflectInterval = com.quzzar.villagelife.relationships.ReflectionService.REFLECT_INTERVAL_SECONDS;
+    if ((time + Math.floorMod(id.hashCode(), reflectInterval)) % reflectInterval == 0) {
+      com.quzzar.villagelife.relationships.ReflectionService.tick(this, level);
+    }
+
+    // Familiarity: not a judgement, just the pull of sharing a workplace or a fire.
     int driftInterval = com.quzzar.villagelife.relationships.RelationshipDrift.DRIFT_INTERVAL_SECONDS;
     if ((time + Math.floorMod(id.hashCode(), driftInterval)) % driftInterval == 0) {
       com.quzzar.villagelife.relationships.RelationshipDrift.tick(this);

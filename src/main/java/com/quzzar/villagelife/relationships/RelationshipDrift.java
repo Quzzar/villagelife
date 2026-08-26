@@ -23,7 +23,9 @@ import net.minecraft.util.Mth;
  *       sitting at the same fire with nothing to do.</li>
  *   <li><b>One-sided</b> change moves only the viewer's lean, because only one
  *       of them experienced it that way: being defended, or losing a job to
- *       someone. The other person may not even know.</li>
+ *       someone. The other person may not even know. Game code never decides
+ *       these: they arrive through {@link OpinionService} as a villager's own
+ *       judgement, made in conversation or on reflection.</li>
  * </ul>
  *
  * Drift is deliberately weak and bounded. The strong opinions in a village
@@ -44,12 +46,6 @@ public final class RelationshipDrift {
 
   /** Idling at the same fire with nothing to do, every pass. */
   private static final int CAMPFIRE_STEP = 1;
-
-  /** Being defended from an attacker. One-sided and immediate. */
-  public static final int DEFENDED_BONUS = 6;
-
-  /** Losing your job to someone better suited. One-sided and immediate. */
-  public static final int DISPLACED_PENALTY = -8;
 
   private RelationshipDrift() {
   }
