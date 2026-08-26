@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.economy;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.quzzar.villagelife.Villagelife;
@@ -62,9 +63,46 @@ public final class EconomyCommands {
                     .executes(context -> transact(context.getSource(), false,
                         ResourceLocationArgument.getId(context, "item").toString(),
                         IntegerArgumentType.getInteger(context, "count"))))))
+        .then(Commands.literal("market")
+            .executes(context -> market(context.getSource())))
         .then(Commands.literal("offers")
             .then(Commands.argument("item", ResourceLocationArgument.id())
                 .executes(context -> offers(context.getSource(), ResourceLocationArgument.getId(context, "item").toString()))));
+  }
+
+  /** Prints the stall as {@link MarketOffersPacket} would send it. */
+  private static int market(CommandSourceStack source) {
+    ServerLevel level = source.getLevel();
+    Village village = nearestVillage(source);
+    if (village == null) {
+      source.sendFailure(Component.literal("No village near here."));
+      return 0;
+    }
+    Optional<String> blocker = Treasury.tradeBlocker(village, level);
+    if (blocker.isPresent()) {
+      source.sendSuccess(() -> Component.literal("'" + village.getName() + "' cannot trade: " + blocker.get()),
+          false);
+      return 1;
+    }
+    source.sendSuccess(() -> Component.literal("'" + village.getName() + "' stall, treasury "
+        + Treasury.balance(village, level) + " emeralds"), false);
+    for (BlockPos chest : Treasury.chestPositions(village, level)) {
+      source.sendSuccess(() -> Component.literal("  chest: " + chest.toShortString()), false);
+    }
+    report(source, "selling", MarketOffers.selling(village, level));
+    report(source, "wanted", MarketOffers.wanted(village, level));
+    return 1;
+  }
+
+  private static void report(CommandSourceStack source, String heading, List<MarketOffers.Offer> offers) {
+    if (offers.isEmpty()) {
+      source.sendSuccess(() -> Component.literal("  " + heading + ": nothing"), false);
+      return;
+    }
+    for (MarketOffers.Offer offer : offers) {
+      source.sendSuccess(() -> Component.literal(String.format("  %s: %s x%d at %.2f",
+          heading, MarketOffers.idOf(offer.item()), offer.quantity(), offer.unitPrice())), false);
+    }
   }
 
   private static int value(CommandSourceStack source, String itemId) {

@@ -74,6 +74,24 @@ public final class Treasury {
     return Optional.empty();
   }
 
+  /** Where the market keeps its money, for inspection when a stall misbehaves. */
+  public static List<BlockPos> chestPositions(Village village, ServerLevel level) {
+    List<BlockPos> positions = new ArrayList<>();
+    Optional<Building> market = market(village);
+    if (market.isEmpty()) {
+      return positions;
+    }
+    Building building = market.get();
+    for (long offset : building.getInfo().getContainerLocations()) {
+      BlockPos pos = BlockPos.of(building.getOriginLocation())
+          .offset(BlockPos.of(offset).rotate(building.getRotation()));
+      if (level.getBlockEntity(pos) instanceof Container) {
+        positions.add(pos);
+      }
+    }
+    return positions;
+  }
+
   /** Every container belonging to the market building. */
   public static List<Container> chests(Village village, ServerLevel level) {
     List<Container> containers = new ArrayList<>();

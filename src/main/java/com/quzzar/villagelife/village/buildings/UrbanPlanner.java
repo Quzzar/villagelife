@@ -151,7 +151,6 @@ public class UrbanPlanner {
     double workNeed = Math.max(0, idle - openJobs);
     double foodNeed = report != null && report.foodPerCapita() < 8.0 ? 8.0 - report.foodPerCapita() : 0.0;
     double safetyNeed = report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0;
-    String variant = villageVariant(village);
 
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
@@ -177,10 +176,9 @@ public class UrbanPlanner {
           score += foodNeed * 0.5;
         }
       }
-      // A village builds in its own style unless it has no choice.
-      if (variant != null && info.hasWellFormedId() && variant.equals(info.getVariant())) {
-        score += 1.5;
-      }
+      // No style preference by design (#50): a variant is just a recipe for the
+      // same building, so the village builds whichever one it can afford. The
+      // affordability filter above has already made that choice.
       // Never stack a third of the same thing while anything else is wanted.
       score -= countBuilt(village, info.getName()) * 2.0;
 
@@ -206,14 +204,6 @@ public class UrbanPlanner {
       gives.add(containers == 1 ? "a store" : containers + " stores");
     }
     return gives.isEmpty() ? "a " + name : "a " + name + " (" + String.join(", ", gives) + ")";
-  }
-
-  private static String villageVariant(Village village) {
-    Building center = village.getTownCenter();
-    if (center == null || center.getInfo() == null || !center.getInfo().hasWellFormedId()) {
-      return null;
-    }
-    return center.getInfo().getVariant();
   }
 
   private static int countBuilt(Village village, String name) {

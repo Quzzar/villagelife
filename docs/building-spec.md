@@ -106,6 +106,26 @@ one that nearly can, is [site-selection.md](site-selection.md).
 
 ### Variants substitute materials, not counts
 
+**A variant is a recipe, not an identity** (decided on
+[#50](https://github.com/Quzzar/villagelife/issues/50)). There is no village style, no biome
+lookup, and no separate variant system. Every variant of a category is simply another way to
+build the same thing out of different materials, and the village builds whichever one it can
+currently afford. That is the whole rule.
+
+Which means it is already implemented: variants are ordinary candidates in the planner's
+option list, filtered by the same affordability check as everything else. A village with
+timber builds the timber blacksmith; the same village a week later, rich in stone and short
+of wood, builds the stone one next door. Nothing tracks or enforces consistency, and a
+village does not have a single look — it has a history of what it could afford at the time,
+which is a better reason for a building to be what it is.
+
+Two things follow, both by not doing anything:
+
+- **No fallback table is needed.** A category whose variants are all unaffordable is simply
+  not built yet, exactly like any other unaffordable building.
+- **The named specials are not a special case.** A watermill is a variant with a recipe. If
+  a site cannot host one, that is site selection's business, not the variant system's.
+
 A desert cottage needs the same quantity of building as a plains cottage. What changes is what it
 is made of:
 
