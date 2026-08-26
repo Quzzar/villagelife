@@ -24,3 +24,7 @@ runs
 run-data
 
 repo
+
+.env.testing
+
+.claude
