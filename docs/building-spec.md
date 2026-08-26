@@ -206,6 +206,43 @@ judgement on reflection; it reaches the rest of the village only as gossip throu
 relationship web, not as an instant village-wide verdict. The consequences are detailed in
 [#64](https://github.com/Quzzar/villagelife/issues/64).
 
+### How upgrading works
+
+Decided on [#56](https://github.com/Quzzar/villagelife/issues/56). A level above 1 is only
+ever reached by upgrading; nothing is built fresh at level 2.
+
+**Rebuilt block by block on the same origin.** An upgrade is ordinary construction with the
+new template over the old, using the machinery that already builds everything else, so you
+watch it happen. Footprints grow between levels, so the larger footprint is fit-checked at
+upgrade time with the site-preparation scorer; no room means the upgrade is refused and the
+level-1 building simply stands. Nothing is reserved in advance.
+
+**The chest is emptied into the rest of the village before work starts.** Contents are
+carried out to other village containers, which the one-pool decision on
+[#49](https://github.com/Quzzar/villagelife/issues/49) already makes the natural move.
+Nothing is ever destroyed. If the village genuinely has nowhere to put it, that is a storage
+shortage and the upgrade waits rather than proceeding.
+
+**The worker keeps their job and waits.** The assignment is held, the station is unusable
+for the duration, and the worker idles at the campfire until it is ready. The alternative —
+returning them to the pool — would let stat-based placement quietly reshuffle the village
+on every upgrade, and a smith who was a smith yesterday should still be one tomorrow.
+
+**The building is unusable while it is being rebuilt.** That is the honest cost of the
+upgrade and the reason a village should think before starting one.
+
+**Stations must be reconciled, not assumed.** Most upgrades ADD stations (a watchtower goes
+from one guard to two), and `processNewBuilding` only ever runs at construction, so a
+definition that gains stations registers nothing. Shrinking and reordering are already safe:
+`releaseInvalidAssignments` releases held assignments whose station no longer matches and
+drops stale openings. Growing needs the additive half — walk the current definition's
+stations, count what is represented across booked and open assignments, and register the
+missing ones. Run it after any upgrade and after any datapack reload, which fixes the same
+bug in its other guise: an author editing a definition on a live world.
+
+**Demolition does not exist.** Buildings go up and improve; nothing chooses to remove one.
+That is deliberately deferred until villages actually run out of space.
+
 ### What a capability is at runtime
 
 Decided on [#55](https://github.com/Quzzar/villagelife/issues/55).
