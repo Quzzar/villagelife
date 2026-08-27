@@ -48,6 +48,7 @@ public class VillagelifeConfig {
     public static double AttractivenessDeathWeight;
     public static double AttractivenessHurtWeight;
     public static double AttractivenessShortageWeight;
+    public static double AttractivenessTheftWeight;
     public static double AttractivenessArriveThreshold;
     public static double AttractivenessEmigrateThreshold;
     public static int ShortageEventCooldownSeconds;
@@ -88,6 +89,7 @@ public class VillagelifeConfig {
         AttractivenessDeathWeight = COMMON.AttractivenessDeathWeight.get();
         AttractivenessHurtWeight = COMMON.AttractivenessHurtWeight.get();
         AttractivenessShortageWeight = COMMON.AttractivenessShortageWeight.get();
+        AttractivenessTheftWeight = COMMON.AttractivenessTheftWeight.get();
         AttractivenessArriveThreshold = COMMON.AttractivenessArriveThreshold.get();
         AttractivenessEmigrateThreshold = COMMON.AttractivenessEmigrateThreshold.get();
         ShortageEventCooldownSeconds = COMMON.ShortageEventCooldownSeconds.get();
@@ -140,6 +142,7 @@ public class VillagelifeConfig {
         public final ModConfigSpec.DoubleValue AttractivenessDeathWeight;
         public final ModConfigSpec.DoubleValue AttractivenessHurtWeight;
         public final ModConfigSpec.DoubleValue AttractivenessShortageWeight;
+        public final ModConfigSpec.DoubleValue AttractivenessTheftWeight;
         public final ModConfigSpec.DoubleValue AttractivenessArriveThreshold;
         public final ModConfigSpec.DoubleValue AttractivenessEmigrateThreshold;
         public final ModConfigSpec.IntValue ShortageEventCooldownSeconds;
@@ -184,6 +187,7 @@ public class VillagelifeConfig {
             AttractivenessDeathWeight = builder.comment("Attractiveness penalty per unit of decaying death-event impact.").translation(Villagelife.MODID + ".config.AttractivenessDeathWeight").defineInRange("Attractiveness death weight", 8.0D, 0.0D, 100.0D);
             AttractivenessHurtWeight = builder.comment("Attractiveness penalty per unit of decaying hurt-by-player impact.").translation(Villagelife.MODID + ".config.AttractivenessHurtWeight").defineInRange("Attractiveness hurt weight", 3.0D, 0.0D, 100.0D);
             AttractivenessShortageWeight = builder.comment("Attractiveness penalty per unit of decaying resource-shortage impact.").translation(Villagelife.MODID + ".config.AttractivenessShortageWeight").defineInRange("Attractiveness shortage weight", 2.0D, 0.0D, 100.0D);
+            AttractivenessTheftWeight = builder.comment("Attractiveness penalty per unit of decaying theft impact. Being robbed makes a village less appealing to move to, on the same scale as its other griefs.").translation(Villagelife.MODID + ".config.AttractivenessTheftWeight").defineInRange("Attractiveness theft weight", 1.0D, 0.0D, 100.0D);
             AttractivenessArriveThreshold = builder.comment("Score above which new villagers arrive (consumed by the arrival system).").translation(Villagelife.MODID + ".config.AttractivenessArriveThreshold").defineInRange("Attractiveness grow threshold", 50.0D, 0.0D, 100.0D);
             AttractivenessEmigrateThreshold = builder.comment("Score below which villagers leave (consumed by the emigration system).").translation(Villagelife.MODID + ".config.AttractivenessEmigrateThreshold").defineInRange("Attractiveness decline threshold", 25.0D, 0.0D, 100.0D);
             ShortageEventCooldownSeconds = builder.comment("Minimum seconds between resource-shortage events logged by a village's planner.").translation(Villagelife.MODID + ".config.ShortageEventCooldownSeconds").defineInRange("Shortage event cooldown seconds", 600, 10, 86400);

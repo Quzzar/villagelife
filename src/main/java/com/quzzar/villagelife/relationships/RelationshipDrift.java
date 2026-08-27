@@ -2,6 +2,11 @@ package com.quzzar.villagelife.relationships;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.quzzar.villagelife.entities.PersonSocialData;
+import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.VillagelifeAttachments;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
 import com.quzzar.villagelife.Villagelife;
@@ -41,6 +46,9 @@ public final class RelationshipDrift {
   /** Drift alone never carries a pair beyond this; stronger feelings are authored. */
   public static final int DRIFT_LIMIT = 55;
 
+  /** How far a grudge against an outsider fades each drift, from either side. */
+  private static final int FORGIVENESS_STEP = 1;
+
   /** Working the same building, every pass. */
   private static final int COWORKER_STEP = 1;
 
@@ -56,6 +64,8 @@ public final class RelationshipDrift {
    * actually being simulated.
    */
   public static void tick(Village village) {
+    forgiveOutsiders(village);
+
     List<UUID> residents = village.getPopulation();
     if (residents.size() < 2) {
       return;
@@ -78,6 +88,46 @@ public final class RelationshipDrift {
           nudgeMutual(village, first, second, CAMPFIRE_STEP);
         }
       }
+    }
+  }
+
+  /**
+   * Time passing (#64's last part). What a villager feels about an OUTSIDER —
+   * a player, mostly — creeps back toward indifference, one step per drift,
+   * from either direction.
+   *
+   * Village mood already decays; personal regard did not, so a player who
+   * robbed a village once was resented by everyone who saw it for the rest of
+   * the world's life, and outlawry was a state with no exit. Now staying away
+   * and behaving is a way back, which is what makes the punishment worth
+   * having: a grudge that cannot be worked off is just a permanent tax.
+   *
+   * Residents are untouched. What neighbours feel about each other is the
+   * business of living together, and drifts on its own terms above.
+   */
+  private static void forgiveOutsiders(Village village) {
+    if (village.getLevel() == null) {
+      return;
+    }
+    for (UUID residentId : village.getPopulation()) {
+      RealPerson resident = village.getPerson(village.getLevel(), residentId);
+      if (resident == null) {
+        continue;
+      }
+      PersonSocialData social = resident.getData(VillagelifeAttachments.SOCIAL.get());
+      if (social.relationships().isEmpty()) {
+        continue;
+      }
+      Map<UUID, Integer> softened = new HashMap<>();
+      for (Map.Entry<UUID, Integer> entry : social.relationships().entrySet()) {
+        if (village.hasResident(entry.getKey())) {
+          softened.put(entry.getKey(), entry.getValue());
+          continue;
+        }
+        int opinion = entry.getValue();
+        softened.put(entry.getKey(), opinion + Integer.signum(-opinion) * Math.min(Math.abs(opinion), FORGIVENESS_STEP));
+      }
+      resident.setData(VillagelifeAttachments.SOCIAL.get(), social.withRelationships(softened));
     }
   }
 

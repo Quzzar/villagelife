@@ -103,6 +103,18 @@ public class CoreEvents {
 
       if (event.getSource().getEntity() instanceof Player && person.getVillage() != null) {
         UUID damagerUUID = ((Player) event.getSource().getEntity()).getUUID();
+        // Blame needs a witness (#64), and the victim is not one: what the
+        // books record is what the SETTLEMENT knows. A villager set upon alone
+        // in a wood leaves the village none the wiser about who did it.
+        if (!(person.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)
+            || com.quzzar.villagelife.wrongdoing.Witnesses
+                .around(serverLevel, person.position(), person).isEmpty()) {
+          return;
+        }
+        com.quzzar.villagelife.wrongdoing.Wrongdoing.report(serverLevel, person.getVillage(),
+            damagerUUID, com.quzzar.villagelife.wrongdoing.Wrongdoing.Offence.ASSAULT,
+            person.position(),
+            "I saw " + person.getFullName() + " attacked");
         person.getVillage().logEvent(
             new HurtByPlayerBookkeepingEvent(
                 person.getUUID(),

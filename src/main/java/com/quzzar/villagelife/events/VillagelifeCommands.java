@@ -69,6 +69,10 @@ public class VillagelifeCommands {
                                                 .executes(ctx -> placeBuilding(ctx.getSource(),
                                                         BlockPosArgument.getBlockPos(ctx, "pos"),
                                                         StringArgumentType.getString(ctx, "building"))))))
+                        .then(Commands.literal("witnesses")
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                        .executes(ctx -> reportWitnesses(ctx.getSource(),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "pos")))))
                         .then(Commands.literal("start-project")
                                 .then(Commands.argument("building", StringArgumentType.word())
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
@@ -175,6 +179,29 @@ public class VillagelifeCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "Placed " + building + " in '" + village.getName() + "'."), true);
+        return 1;
+    }
+
+    /**
+     * Who would see something happen here. Wrongdoing turns entirely on this
+     * question (#64), and it is otherwise invisible: whether a theft counts
+     * depends on a line of sight nobody can inspect from inside the game.
+     */
+    private static int reportWitnesses(CommandSourceStack source, BlockPos pos) {
+        java.util.List<com.quzzar.villagelife.entities.RealPerson> seen =
+                com.quzzar.villagelife.wrongdoing.Witnesses.around(source.getLevel(),
+                        net.minecraft.world.phys.Vec3.atCenterOf(pos));
+        if (seen.isEmpty()) {
+            source.sendSuccess(() -> Component.literal(
+                    "Nobody can see " + pos.toShortString() + ". Anything done here never happened."), true);
+            return 1;
+        }
+        StringBuilder report = new StringBuilder("Seen from " + pos.toShortString() + " by:");
+        for (com.quzzar.villagelife.entities.RealPerson person : seen) {
+            report.append("\n  ").append(person.getFullName())
+                    .append(" (").append(person.getOccupation()).append(")");
+        }
+        source.sendSuccess(() -> Component.literal(report.toString()), true);
         return 1;
     }
 

@@ -20,6 +20,7 @@ public class BookkeepingEvent {
     case DeathBookkeepingEvent.KIND -> DeathBookkeepingEvent.CODEC;
     case HurtByPlayerBookkeepingEvent.KIND -> HurtByPlayerBookkeepingEvent.CODEC;
     case NoResourceBookkeepingEvent.KIND -> NoResourceBookkeepingEvent.CODEC;
+    case TheftBookkeepingEvent.KIND -> TheftBookkeepingEvent.CODEC;
     case PersonBookkeepingEvent.KIND -> PersonBookkeepingEvent.CODEC;
     default -> CODEC;
   });

@@ -16,16 +16,16 @@ import net.minecraft.util.Mth;
  */
 public record VillageAttractiveness(
         int population, int foodCount, int totalBeds, int freeBeds, int homelessCount,
-        float deathImpact, float hurtImpact, float shortageImpact,
+        float deathImpact, float hurtImpact, float shortageImpact, float theftImpact,
         double base, double foodComponent, double bedComponent, double homelessComponent,
-        double deathComponent, double hurtComponent, double shortageComponent) {
+        double deathComponent, double hurtComponent, double shortageComponent, double theftComponent) {
 
     public enum Status {
         GROWING, HOLDING, DECLINING
     }
 
     public static VillageAttractiveness compute(int population, int foodCount, int totalBeds, int freeBeds,
-            int homelessCount, float deathImpact, float hurtImpact, float shortageImpact) {
+            int homelessCount, float deathImpact, float hurtImpact, float shortageImpact, float theftImpact) {
 
         double base = VillagelifeConfig.AttractivenessBase;
 
@@ -42,11 +42,14 @@ public record VillageAttractiveness(
         double deathComponent = -deathImpact * VillagelifeConfig.AttractivenessDeathWeight;
         double hurtComponent = -hurtImpact * VillagelifeConfig.AttractivenessHurtWeight;
         double shortageComponent = -shortageImpact * VillagelifeConfig.AttractivenessShortageWeight;
+        // Being robbed makes a place less appealing to move to, on the same
+        // scale as its other griefs and weighted lightest of the three harms.
+        double theftComponent = -theftImpact * VillagelifeConfig.AttractivenessTheftWeight;
 
         return new VillageAttractiveness(population, foodCount, totalBeds, freeBeds, homelessCount,
-                deathImpact, hurtImpact, shortageImpact,
+                deathImpact, hurtImpact, shortageImpact, theftImpact,
                 base, foodComponent, bedComponent, homelessComponent,
-                deathComponent, hurtComponent, shortageComponent);
+                deathComponent, hurtComponent, shortageComponent, theftComponent);
     }
 
     public double total() {
@@ -80,6 +83,7 @@ public record VillageAttractiveness(
                         + "  deaths:          %+.1f  (impact sum %.2f)%n"
                         + "  player violence: %+.1f  (impact sum %.2f)%n"
                         + "  shortages:       %+.1f  (impact sum %.2f)%n"
+                        + "  theft:           %+.1f  (impact sum %.2f)%n"
                         + "  thresholds: grow above %.0f, decline below %.0f",
                 villageName, total(), status(),
                 base,
@@ -89,6 +93,7 @@ public record VillageAttractiveness(
                 deathComponent, deathImpact,
                 hurtComponent, hurtImpact,
                 shortageComponent, shortageImpact,
+                theftComponent, theftImpact,
                 VillagelifeConfig.AttractivenessArriveThreshold, VillagelifeConfig.AttractivenessEmigrateThreshold);
     }
 

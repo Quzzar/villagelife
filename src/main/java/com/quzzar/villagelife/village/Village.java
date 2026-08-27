@@ -1070,6 +1070,11 @@ public class Village {
     return this.brain.getNearestContainer(location, excluding);
   }
 
+  /** Every container this village counts as its own, for anyone asking whose it is. */
+  public java.util.Set<BlockPos> getVillageContainerPositions() {
+    return this.brain.containerPositions();
+  }
+
   public ItemStack gatherItemStackFromVillage(ItemStack itemStack) {
     return gatherItemStackFromVillage(itemStack, null);
   }
@@ -1137,7 +1142,8 @@ public class Village {
     return VillageAttractiveness.compute(population, foodCount, totalBeds, freeBeds, homelessCount,
         brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.DeathBookkeepingEvent.class),
         brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.HurtByPlayerBookkeepingEvent.class),
-        brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent.class));
+        brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent.class),
+        brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.TheftBookkeepingEvent.class));
   }
 
   public VillageAttractiveness getAttractiveness() {

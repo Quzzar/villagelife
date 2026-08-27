@@ -57,8 +57,11 @@ public class PersonChatScreen extends Screen {
   private static final int INPUT_TEXT = 0xFFFFFFFF;
   private static final int INPUT_HINT = 0xFFBCBCBC;
   /** The send glyph, dark on a live button and washed out on a dead one. */
-  private static final int SEND_ON = 0xFF1E1E1E;
-  private static final int SEND_OFF = 0xFF8E8E8E;
+  /** Six by twelve, so it divides exactly into the twenty pixel button. */
+  private static final int ARROW_GLYPH_W = 6;
+  private static final int ARROW_GLYPH_H = 12;
+  private static final int SEND_ON = 0xFFFFFFFF;
+  private static final int SEND_OFF = 0xFF8A8A8A;
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
@@ -266,7 +269,7 @@ public class PersonChatScreen extends Screen {
     // text is centred on that box: an 8px line in a 20px box starts 6px down.
     int fieldLeft = panelLeft + 8;
     int fieldRight = panelRight - 34;
-    this.input = new EditBox(this.font, fieldLeft + 4, inputRowTop + 4, fieldRight - fieldLeft - 8, 12,
+    this.input = new EditBox(this.font, fieldLeft + 4, inputRowTop + 5, fieldRight - fieldLeft - 8, 12,
         Component.translatable("villagelife.chat.say"));
     this.input.setMaxLength(PersonChatMessagePacket.MAX_TEXT_LENGTH);
     this.input.setBordered(false);
@@ -306,7 +309,7 @@ public class PersonChatScreen extends Screen {
     slot(graphics, panelLeft + 8, inputRowTop, panelRight - 34, inputRowTop + 20);
     if (input != null && input.getValue().isEmpty()) {
       graphics.drawString(this.font, Component.translatable("villagelife.chat.say"),
-          panelLeft + 20, inputRowTop + 6, INPUT_HINT, true);
+          panelLeft + 20, inputRowTop + 7, INPUT_HINT, true);
     }
   }
 
@@ -823,11 +826,10 @@ public class PersonChatScreen extends Screen {
         graphics.blitSprite(ready && hovered ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
         int lift = Math.round((1.0F - sendReveal) * 2.0F);
         int glyph = ready ? SEND_ON : SEND_OFF;
-        int size = 5;
-        int x0 = getX() + (width - size) / 2;
-        int y0 = getY() + (height - (size * 2 - 1)) / 2 + lift;
-        for (int i = 0; i < size; i++) {
-          graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + (size * 2 - 1) - i, glyph);
+        int x0 = getX() + (width - ARROW_GLYPH_W) / 2;
+        int y0 = getY() + (height - ARROW_GLYPH_H) / 2 + lift;
+        for (int i = 0; i < ARROW_GLYPH_W; i++) {
+          graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + ARROW_GLYPH_H - i, glyph);
         }
       }
     }

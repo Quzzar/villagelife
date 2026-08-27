@@ -290,6 +290,15 @@ public class VillageBrain {
     return bookkeeper.totalImpact(type);
   }
 
+  /** Where the village keeps things, as positions rather than packed longs. */
+  public java.util.Set<BlockPos> containerPositions() {
+    java.util.Set<BlockPos> positions = new java.util.HashSet<>();
+    for (Long longLoc : containerLocs) {
+      positions.add(BlockPos.of(longLoc));
+    }
+    return positions;
+  }
+
   /**
    * Forgets container positions whose block is gone: broken by a player, built
    * over, or replaced when a building was upgraded. Every reader already skips
