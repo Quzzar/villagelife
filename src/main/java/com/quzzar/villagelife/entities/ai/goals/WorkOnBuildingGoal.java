@@ -18,12 +18,16 @@ public class WorkOnBuildingGoal extends Goal {
     /** How long a builder who could not reach the site leaves it alone. */
     private static final int STAND_DOWN_TICKS = 600;
 
+    /** Give-ups in a row before the builder is stranded rather than unlucky. */
+    private static final int STRANDED_AFTER = 3;
+
     private int tickCount = 0;
 
     /** The closest the builder has come to the site on this attempt. */
     private double closestApproachSqr = Double.MAX_VALUE;
     private int ticksWithoutProgress = 0;
     private int standDownUntil = 0;
+    private int consecutiveGiveUps = 0;
 
     protected RealPerson person;
     protected BlockPos buildingPos;
@@ -80,7 +84,10 @@ public class WorkOnBuildingGoal extends Goal {
         tickCount++;
 
         if(buildingPos.distSqr(person.blockPosition()) <= Math.pow(person.getVillage().getCurrentProject().getBuilding().getRadius(), 2)*PERCENT_INCREASE){
-            
+
+            // Arriving clears the record of failed attempts.
+            consecutiveGiveUps = 0;
+
             if(tickCount % 10 == 0) { // Every half second, as intended
         
                 if (!person.swinging) {
@@ -136,6 +143,17 @@ public class WorkOnBuildingGoal extends Goal {
                 person.getFullName(), buildingPos.toShortString());
         standDownUntil = person.tickCount + STAND_DOWN_TICKS;
         ticksWithoutProgress = 0;
+
+        if (++consecutiveGiveUps >= STRANDED_AFTER) {
+            // Three in a row is not bad luck: this builder is somewhere they
+            // cannot walk out of, usually the bottom of the village's own mine.
+            // Recover them the same way a lost villager is already recovered,
+            // rather than leaving a village with a job nobody can do.
+            Villagelife.LOGGER.info("{} was stranded and has been brought back to the village center",
+                    person.getFullName());
+            person.tpToHome();
+            consecutiveGiveUps = 0;
+        }
     }
 
     protected boolean shouldInterrupt(){
