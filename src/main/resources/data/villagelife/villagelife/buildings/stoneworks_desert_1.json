@@ -1,0 +1,27 @@
+{
+  "structure": "stoneworks_desert_1",
+  "category": "stoneworks",
+  "variant": "desert",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        3,
+        1,
+        1
+      ],
+      "occupation": "MASON"
+    }
+  ],
+  "containers": [
+    [
+      4,
+      1,
+      1
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "CUT_STONE"
+  ]
+}

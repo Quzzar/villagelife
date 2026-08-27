@@ -4,12 +4,13 @@
 this document count the full map of the possible, not the shipping set — see
 [The cut](#the-cut) for which categories stand and why the rest went.
 
-**Proposed, not yet decided. 49 of 191 structures exist.** Reality check before reading:
+**Proposed, not yet decided. 54 of 203 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, eight exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,
 and `farm` ships in all five variants at all three levels. `mine` ships at level 1 in all five variants, so the
-founding set above is buildable for the first time. Still missing: `quarry`,
-`hunting_lodge`, `fishery`, and levels 2 and 3 of `mine`.
+founding set above is buildable for the first time. `stoneworks` ships at level 1 in all five variants,
+with a real MASON occupation behind it. Still missing: `hunting_lodge`, `fishery`,
+and levels 2 and 3 of both `mine` and `stoneworks`.
 
 **A mine cannot ship its shaft.** A structure's y=0 lands on the topmost solid block
 (`InstantBuildStructure.setOriginLocation` subtracts one from the WORLD_SURFACE
@@ -90,7 +91,7 @@ letting founding pay preparation cost that ordinary placement would refuse.
 36 categories is a map of the possible, not a plan. The practical core is much smaller, and it
 is the only part that has to exist for the game to be a game:
 
-> `village_center`, `house`, `storehouse`, `mine`, `lumberjack`, `quarry`, `farm`,
+> `village_center`, `house`, `storehouse`, `mine`, `lumberjack`, `stoneworks`, `farm`,
 > `hunting_lodge`, `fishery`, `well`, `watchtower`, `blacksmith`, `market`
 
 Thirteen categories, and a village that founds, feeds, houses, gathers, arms, defends, and trades.
@@ -397,7 +398,7 @@ must not exist solely to feed something else. Stronghold, the stated model, ship
 25 building types.
 
 **Survivors (22).** Infrastructure: `village_center`, `house`, `well`, `storehouse`,
-`watchtower`. Extraction: `farm`, `pasture`, `lumberjack`, `quarry`, `mine`. Food:
+`watchtower`. Extraction: `farm`, `pasture`, `lumberjack`, `stoneworks`, `mine`. Food:
 `hunting_lodge`, `fishery`, `bakery`, `butchery`, `brewery`. Craft: `blacksmith`, `kiln`,
 `workshop`. Civic: `market`, `church`, `inn`, `library`.
 
@@ -637,15 +638,28 @@ Worker: **LUMBERJACK**  ·  Phase 1  ·  Variants: `plains`, `taiga`
 
 PLANKS at L2 is a real gate, not throughput: without it a village builds in logs and stone only.
 
-#### `quarry`
+#### `stoneworks`
 
-Worker: **MASON**  ·  Phase 1  ·  Variants: `plains`
+Worker: **MASON**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert`, `savanna`
+
+*Replaces the old `quarry`.* A quarry was a second hole competing with the mine for
+the same cobblestone, which is not a building, it is a duplicate. **The mason does not
+dig.** The mine brings raw stone up; the mason turns it into what a village actually
+builds with. That chain is load-bearing rather than flavour: `stone_bricks` are the
+single most-used crafted block across every structure shipped so far, and nothing
+gathers them.
+
+The conversion needs no new mechanic. `ProcessItemGoal` is general (input stack,
+output stack, sound) and already does this work elsewhere: the lumberjack turns
+stripped logs into planks, the farmer turns pumpkins into seeds. The mason is
+registered the same way, which is also why this needs no separate "sawmill"-style
+building of its own.
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | digging pit | 7x7 | 12 oak log, 16 oak planks, 16 cobblestone, 4 glass, 2 wool | STONE (cobble) |
-| 2 (upgrade) | quarry | 11x11 | 16 oak log, 24 oak planks, 28 cobblestone, 4 glass, 4 wool, 4 iron ingot | CUT_STONE |
-| 3 (upgrade) | stoneworks | 15x15 | 32 oak log, 48 oak planks, 52 cobblestone, 8 glass, 6 wool, 8 iron ingot | CUT_STONE, pillars and decorative stone |
+| 1 | stone yard | 7x7 | 12 oak log, 16 oak planks, 16 cobblestone, 4 glass, 2 wool | STONE, CUT_STONE |
+| 2 (upgrade) | stoneworks | 11x11 | 16 oak log, 24 oak planks, 28 cobblestone, 4 glass, 4 wool, 4 iron ingot | CUT_STONE more, sandstone |
+| 3 (upgrade) | masonry | 15x15 | 32 oak log, 48 oak planks, 52 cobblestone, 8 glass, 6 wool, 8 iron ingot | pillars and decorative stone |
 
 #### `mine`  (founding building)
 
@@ -744,13 +758,13 @@ Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
 | Set | What it buys | Structures |
 | --- | --- | --- |
 | **Minimum playable** | One level-1 building per phase 1 category, plains variant only. A village that founds, feeds, houses, and defends itself. | **11** |
-| Phase 1 | A village survives in any biome, at every level | 99 |
+| Phase 1 | A village survives in any biome, at every level | 111 |
 | Phase 2 | It thrives: processed food, iron, faith, trade | 38 |
 | Phase 3 | It deepens: brewing, cloth, brick, glass, learning | 25 |
 | Phase 4 | It fights: soldiers, walls, arrows, potions | 29 |
-| | **Total** | **191** |
+| | **Total** | **203** |
 
-36 categories, 73 category-variant pairs, 191 structures. That total is the honest number and it
+36 categories, 77 category-variant pairs, 203 structures. That total is the honest number and it
 is large. Two things make it tractable:
 
 - **The minimum playable set is 11 structures.** One level-1 plains building per phase 1 category.
@@ -775,7 +789,7 @@ is large. Two things make it tractable:
   hunting_lodge_plains_1
   fishery_plains_1
   lumberjack_plains_1
-  quarry_plains_1
+  stoneworks_plains_1
   mine_plains_1
   watchtower_plains_1
 ```
@@ -807,7 +821,11 @@ hunting_lodge_taiga_1         hunting_lodge_taiga_2         fishery_plains_1
 fishery_plains_2              fishery_marsh_1               fishery_marsh_2
 lumberjack_plains_1           lumberjack_plains_2           lumberjack_plains_3
 lumberjack_taiga_1            lumberjack_taiga_2            lumberjack_taiga_3
-quarry_plains_1               quarry_plains_2               quarry_plains_3
+stoneworks_plains_1           stoneworks_plains_2           stoneworks_plains_3
+stoneworks_taiga_1            stoneworks_taiga_2            stoneworks_taiga_3
+stoneworks_snowy_1            stoneworks_snowy_2            stoneworks_snowy_3
+stoneworks_desert_1           stoneworks_desert_2           stoneworks_desert_3
+stoneworks_savanna_1          stoneworks_savanna_2          stoneworks_savanna_3
 mine_plains_1                 mine_plains_2                 mine_plains_3
 mine_taiga_1                  mine_taiga_2                  mine_taiga_3
 mine_snowy_1                  mine_snowy_2                  mine_snowy_3
