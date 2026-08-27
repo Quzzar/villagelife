@@ -49,6 +49,9 @@ public class WorkAtMarketGoal extends Goal {
   /** Ticks of walking without getting closer before the trip is given up. */
   private static final int STALL_TICKS = 100;
 
+  /** How many dead container positions to walk past before giving up entirely. */
+  private static final int MAX_STALE_CHESTS = 8;
+
   private double closestApproachSqr = Double.MAX_VALUE;
   private int ticksWithoutProgress = 0;
 
@@ -94,6 +97,14 @@ public class WorkAtMarketGoal extends Goal {
     BlockPos station = LocationManager.getJobLocation(person);
     this.target = station.equals(BlockPos.ZERO) ? null : station;
     return this.target != null;
+  }
+
+  @Override
+  public void start() {
+    // One line per trip: which of the merchant's two jobs this is, and where.
+    Villagelife.LOGGER.debug("{} at the market: {} at {}", person.getFullName(),
+        this.carrying ? "delivering" : "clearing the till or minding the stall",
+        this.target == null ? "nowhere" : this.target.toShortString());
   }
 
   @Override
@@ -180,9 +191,23 @@ public class WorkAtMarketGoal extends Goal {
     if (!(person.level() instanceof ServerLevel level)) {
       return null;
     }
-    BlockPos found = village.getNearestContainer(person.blockPosition(),
-        Treasury.chestPositions(village, level));
-    return found.equals(BlockPos.ZERO) ? null : found;
+    // A village keeps container positions long after the block itself is gone —
+    // a chest broken, built over, or replaced by an upgrade. Readers skip those
+    // harmlessly, but a merchant aiming at one arrives, finds nothing to put
+    // anything in, and starts the whole trip again: 313 times, in the run that
+    // showed this up. Skip past them here instead.
+    List<BlockPos> skip = new java.util.ArrayList<>(Treasury.chestPositions(village, level));
+    for (int attempt = 0; attempt < MAX_STALE_CHESTS; attempt++) {
+      BlockPos found = village.getNearestContainer(person.blockPosition(), skip);
+      if (found.equals(BlockPos.ZERO)) {
+        return null;
+      }
+      if (level.getBlockEntity(found) instanceof Container) {
+        return found;
+      }
+      skip.add(found);
+    }
+    return null;
   }
 
   /** True when the pack holds anything the merchant should be shelving. */
