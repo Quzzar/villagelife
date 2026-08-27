@@ -14,6 +14,15 @@ the village's own dirt. A site that needs work enters `PREPARING` and places not
 the ground is ready. When fill runs out the village emits the ordinary shortage event and
 the builder says so in their own log, rather than spinning.
 
+**Candidates are snapped to the real surface before scoring**, which is mitigation 1 below
+and was for a long time simply absent. Sites used to be scored at the village centre's
+elevation plus a blind vertical offset, and the levelling budget then rejected anything that
+was not within about a block of the actual terrain — so in a live world every candidate came
+back impossible and no village could build anything at all. Snapping also removes the
+nine-elevation loop, so a search reads roughly a ninth of the blocks it used to, and
+candidates in unloaded chunks are skipped before any scan rather than being scored as
+impossible one at a time.
+
 The planner now takes ground that needs work: a free site always wins, and otherwise the
 cheapest preparable site is chosen. Still unbuilt from the sections below: the resumable
 budgeted search, the site cache, and heightmap-first screening.

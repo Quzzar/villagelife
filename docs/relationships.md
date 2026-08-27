@@ -92,6 +92,12 @@ happened and stops:
 | "I lost the miner job to Isolde; the village said she was better suited." | whether that is resentment or fair enough |
 | "Quzzar threw me 3 diamonds." | whether that was a gift, a bribe, or litter |
 
+**The clamp on a judgement is load-bearing, not decoration.** On its first live outing the
+model was asked for a number between -15 and 15 and answered 100. `OpinionService` caps a
+single judgement at 15 either way, which is the only reason one dramatic evening does not
+rewrite a relationship. Do not remove it because the prompt says a range: the prompt says a
+range and the model exceeds it in practice.
+
 Reflection is where the deciding happens: every few minutes one villager per village reads
 the log entries they have not yet felt anything about, and their brain answers with a
 change per person and a short reason. The answer is applied through `OpinionService`, which

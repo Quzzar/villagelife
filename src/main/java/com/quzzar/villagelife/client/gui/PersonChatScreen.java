@@ -50,6 +50,15 @@ public class PersonChatScreen extends Screen {
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
 
+  /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
+  private static final int PANEL_WIDTH = 276;
+  private static final int PANEL_HEIGHT = 196;
+  /** slot, arrow, slot: the width the two slots of one trade occupy. */
+  private static final int TRADE_WIDTH = 56;
+  /** A trade plus the name of the goods, which is what fills a column. */
+  private static final int COLUMN_WIDTH = 130;
+  private static final int ROW_HEIGHT = 20;
+
   private static final int LINE_GAP = 2;
 
   private record ChatLine(String speaker, String text, boolean player) {
@@ -126,11 +135,15 @@ public class PersonChatScreen extends Screen {
 
   @Override
   protected void init() {
-    int panelWidth = Math.min(380, this.width - 24);
+    // A fixed, compact window, the way every vanilla screen is sized. Scaling
+    // to the viewport stretched this into a near-fullscreen grey rectangle
+    // with its content marooned at the edges.
+    int panelWidth = Math.min(PANEL_WIDTH, this.width - 16);
+    int panelHeight = Math.min(PANEL_HEIGHT, this.height - 16);
     this.panelLeft = (this.width - panelWidth) / 2;
     this.panelRight = panelLeft + panelWidth;
-    this.panelTop = Math.max(8, this.height / 2 - 110);
-    this.panelBottom = Math.min(this.height - 8, this.height / 2 + 110);
+    this.panelTop = (this.height - panelHeight) / 2;
+    this.panelBottom = panelTop + panelHeight;
     this.inputRowTop = panelBottom - 30;
 
     if (canTrade) {
@@ -307,30 +320,37 @@ public class PersonChatScreen extends Screen {
    */
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int left = panelLeft + 10;
-    int right = panelRight - 10;
-    int mid = (left + right) / 2;
-    int y = panelTop + 52;
+    int y = panelTop + 44;
 
     if (offers == null) {
-      graphics.drawString(this.font, Component.literal("Opening the stall..."), left, y, TEXT_PENDING, false);
+      centred(graphics, "Opening the stall...", (panelLeft + panelRight) / 2, y, TEXT_PENDING);
       return;
     }
     if (!marketNote.isBlank()) {
       for (FormattedCharSequence line : this.font.split(
-          Component.literal(marketNote), panelRight - panelLeft - 20)) {
-        graphics.drawString(this.font, line, left, y, TEXT_LABEL, false);
-        y += this.font.lineHeight + 1;
+          Component.literal(marketNote), panelRight - panelLeft - 24)) {
+        graphics.drawString(this.font, line, panelLeft + 12, y, TEXT_LABEL, false);
+        y += this.font.lineHeight + 2;
       }
       return;
     }
 
-    graphics.drawString(this.font, Component.literal("For sale"), left, y, TEXT_LABEL, false);
-    graphics.drawString(this.font, Component.literal("Looking for"), mid + 6, y, TEXT_LABEL, false);
-    y += 12;
+    // Each column is centred in its own half, so a two-slot trade does not
+    // sit marooned against the panel edge with a canyon between the columns.
+    int gap = Math.max(8, (panelRight - panelLeft) - COLUMN_WIDTH * 2 - 12);
+    int leftColumn = panelLeft + 6;
+    int rightColumn = leftColumn + COLUMN_WIDTH + gap;
 
-    drawColumn(graphics, offers.selling(), left, mid - 6, y, mouseX, mouseY, true);
-    drawColumn(graphics, offers.wanted(), mid + 6, right, y, mouseX, mouseY, false);
+    graphics.drawString(this.font, "For sale", leftColumn, y, TEXT_LABEL, false);
+    graphics.drawString(this.font, "Looking for", rightColumn, y, TEXT_LABEL, false);
+    y += 14;
+
+    drawColumn(graphics, offers.selling(), leftColumn, y, mouseX, mouseY, true);
+    drawColumn(graphics, offers.wanted(), rightColumn, y, mouseX, mouseY, false);
+  }
+
+  private void centred(GuiGraphics graphics, String text, int centreX, int y, int colour) {
+    graphics.drawString(this.font, text, centreX - this.font.width(text) / 2, y, colour, false);
   }
 
   /**
@@ -338,33 +358,42 @@ public class PersonChatScreen extends Screen {
    * reads: buying costs emeralds and yields goods, selling is the reverse.
    */
   private void drawColumn(GuiGraphics graphics, List<com.quzzar.villagelife.networking.MarketOffersPacket.Row> rows,
-      int left, int right, int top, int mouseX, int mouseY, boolean playerBuys) {
+      int left, int top, int mouseX, int mouseY, boolean playerBuys) {
     int y = top;
     if (rows.isEmpty()) {
-      graphics.drawString(this.font, Component.literal(playerBuys ? "nothing spare" : "nothing needed"),
+      graphics.drawString(this.font, playerBuys ? "nothing spare" : "nothing needed",
           left, y + 5, TEXT_PENDING, false);
       return;
     }
+    int right = left + TRADE_WIDTH;
     for (var row : rows) {
       ItemStack goods = stackOf(row.itemId(), row.itemCount());
       ItemStack coins = new ItemStack(Items.EMERALD, row.emeralds());
       ItemStack from = playerBuys ? coins : goods;
       ItemStack into = playerBuys ? goods : coins;
 
-      boolean hovered = mouseX >= left && mouseX <= right && mouseY >= y && mouseY <= y + 18;
-      if (hovered) {
-        graphics.fill(left, y, right, y + 18, ROW_HOVER);
+      if (mouseX >= left && mouseX <= left + COLUMN_WIDTH && mouseY >= y && mouseY <= y + 18) {
+        graphics.fill(left - 2, y - 1, left + COLUMN_WIDTH, y + 19, ROW_HOVER);
       }
       slot(graphics, left, y, left + 18, y + 18);
-      slot(graphics, left + 40, y, left + 58, y + 18);
+      slot(graphics, right - 18, y, right, y + 18);
       graphics.renderItem(from, left + 1, y + 1);
       graphics.renderItemDecorations(this.font, from, left + 1, y + 1);
-      graphics.renderItem(into, left + 41, y + 1);
-      graphics.renderItemDecorations(this.font, into, left + 41, y + 1);
-      arrow(graphics, left + 22, y + 7);
+      graphics.renderItem(into, right - 17, y + 1);
+      graphics.renderItemDecorations(this.font, into, right - 17, y + 1);
+      arrow(graphics, left + 23, y + 7);
 
-      rowHits.add(new Row(y, left, right, row.itemId(), playerBuys));
-      y += 21;
+      // Icons alone do not distinguish an oak log from a spruce one.
+      int nameLeft = right + 5;
+      int nameRoom = left + COLUMN_WIDTH - nameLeft;
+      String name = goods.getHoverName().getString();
+      if (this.font.width(name) > nameRoom) {
+        name = this.font.plainSubstrByWidth(name, nameRoom - this.font.width("..")) + "..";
+      }
+      graphics.drawString(this.font, name, nameLeft, y + 5, TEXT_LABEL, false);
+
+      rowHits.add(new Row(y, left, left + COLUMN_WIDTH, row.itemId(), playerBuys));
+      y += ROW_HEIGHT;
     }
   }
 
