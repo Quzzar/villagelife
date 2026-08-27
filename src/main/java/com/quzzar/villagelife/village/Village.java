@@ -336,6 +336,8 @@ public class Village {
 
   /** How far below the plane founding will fill a dip before giving up on it. */
   private static final int FOUNDING_MAX_FILL = 6;
+  /** How far above the plane founding will cut a mound before leaving the rest: a cliff, not a plat. */
+  private static final int FOUNDING_MAX_CUT = 24;
 
   /**
    * Flattens the camp footprint to a single plane: clears whatever stands above
@@ -348,12 +350,26 @@ public class Village {
     BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
     for (int x = plat.minX(); x <= plat.maxX(); x++) {
       for (int z = plat.minZ(); z <= plat.maxZ(); z++) {
-        for (int y = planeY; y < planeY + SitePreparation.CLEARANCE_HEIGHT; y++) {
+        // Cut everything above the plane, following the real surface up rather
+        // than a fixed height: a mound taller than one building's headroom must
+        // still come off, or the buildings raise INTO it and end up buried. A
+        // sane ceiling stops a column under a mountain from running away.
+        int clearTo = planeY + SitePreparation.CLEARANCE_HEIGHT;
+        int surface = planeY;
+        while (surface < planeY + FOUNDING_MAX_CUT
+            && !level.getBlockState(pos.set(x, surface, z)).isAir()) {
+          surface++;
+        }
+        int top = Math.max(clearTo, surface);
+        for (int y = planeY; y < top; y++) {
           pos.set(x, y, z);
           if (!level.getBlockState(pos).isAir() && level.getBlockEntity(pos) == null) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
           }
         }
+        // Fill everything below the plane down to solid, following the surface
+        // DOWN the same way, so the low side of a slope does not leave a
+        // building floating over a gap. Bounded so a void does not fill forever.
         for (int y = planeY - 1; y >= planeY - FOUNDING_MAX_FILL; y--) {
           pos.set(x, y, z);
           var state = level.getBlockState(pos);
