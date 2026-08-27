@@ -16,10 +16,12 @@ import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.InstantBuildStructure;
+import com.quzzar.villagelife.wrongdoing.Witnesses;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Creeper;
@@ -167,8 +169,33 @@ public class CoreEvents {
 
       }
 
+      // A villager's neighbours remember seeing them die, so they can speak of
+      // it afterwards - the chat briefing reads the same issue log. Only what
+      // was actually witnessed is recorded, the line-of-sight rule wrongdoing
+      // uses. A death dealt by a player is a murder, which the wrongdoing system
+      // witnesses on its own terms, so it is left out of this path.
+      if (person.level() instanceof ServerLevel serverLevel
+          && !(event.getSource().getEntity() instanceof Player)) {
+        String memory = deathMemory(person, event.getSource().getEntity());
+        for (RealPerson witness : Witnesses.around(serverLevel, person.getEyePosition(), person)) {
+          witness.logIssue(memory, java.util.Optional.empty());
+        }
+      }
+
     }
 
+  }
+
+  /** How a witness remembers seeing a villager die, in their own voice. */
+  private static String deathMemory(RealPerson person, Entity killer) {
+    String name = person.getFullName();
+    if (killer instanceof RealPerson villager) {
+      return "I saw " + name + " killed by " + villager.getFullName() + ".";
+    }
+    if (killer != null) {
+      return "I saw " + name + " killed by a " + killer.getName().getString() + ".";
+    }
+    return "I saw " + name + " die.";
   }
 
   @SubscribeEvent
