@@ -210,6 +210,11 @@ public class UrbanPlanner {
       if (isFoundingOnly(info) || hasMaterialsToConstruct(stock, info)) {
         continue;
       }
+      // A goal the village has nowhere to put is not a goal, it is a wait until
+      // the timeout - the same reason withinReach exists below.
+      if (hasNoRoomFor(village, info)) {
+        continue;
+      }
       // An upgrade it cannot pay for yet is exactly the kind of thing worth
       // saving toward, so it belongs here on the same terms as a new building.
       Building standing = BuildingUpgrade.standingSource(village, info);
@@ -335,6 +340,9 @@ public class UrbanPlanner {
       if (!hasMaterialsToConstruct(stock, info)) {
         continue;
       }
+      if (hasNoRoomFor(village, info)) {
+        continue;
+      }
       Building standing = BuildingUpgrade.standingSource(village, info);
       if (standing != null) {
         candidates.add(new Candidate(info, upgradeScore(village, info, standing, needs),
@@ -419,6 +427,21 @@ public class UrbanPlanner {
       }
     }
     return count;
+  }
+
+  /**
+   * Whether the village already knows nothing this size will fit.
+   *
+   * An upgrade is exempt: it is rebuilt on the ground it already occupies, and
+   * its fit was checked by {@link BuildingUpgrade#fits} when the option was
+   * offered. Only a NEW building needs somewhere to go.
+   */
+  private static boolean hasNoRoomFor(Village village, BuildingInfo info) {
+    if (info.getUpgradesFrom() != null || village.getLevel() == null) {
+      return false;
+    }
+    return village.getSiteMemory().ruledOut(
+        SiteMemory.footprintOf(village.getLevel(), info.getName()), village.getVillageTime());
   }
 
   /**

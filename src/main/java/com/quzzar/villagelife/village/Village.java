@@ -113,6 +113,9 @@ public class Village {
   private transient ServerLevel level;
   private transient Random random = new Random();
   private transient VillageAttractiveness attractiveness;
+  // What the village has learned about its own room. Never persisted.
+  private transient final com.quzzar.villagelife.village.buildings.SiteMemory siteMemory =
+      new com.quzzar.villagelife.village.buildings.SiteMemory();
   // Sentinel far in the past, but safe from overflow in (now - last) arithmetic.
   private transient long lastShortageLogTime = -1_000_000_000L;
   // True while the brain is deciding what to build; keeps one decision in flight.
@@ -334,6 +337,14 @@ public class Village {
     this.buildings.put(building.getUUID(), building);
     this.brain.processNewBuilding(building, unassignedBeds, unassignedJobs);
     this.capabilities = null;
+    // Raising something changes what will fit next, so what the village had
+    // learned about its room no longer applies.
+    this.siteMemory.clear();
+  }
+
+  /** What the village has learned about its own room (never persisted). */
+  public com.quzzar.villagelife.village.buildings.SiteMemory getSiteMemory() {
+    return this.siteMemory;
   }
 
   /**
@@ -452,7 +463,11 @@ public class Village {
           BlockPos.of(getTownCenter().getCenterLocation()).below(), bounds, this, random);
 
       if (projectLocation == BlockPos.ZERO) {
-        Villagelife.LOGGER.debug("Failed to find a valid location for the new building.");
+        // Remember it, or the planner will keep choosing this and failing here
+        // for as long as the village stands hemmed in.
+        siteMemory.noSiteFor(bounds, time);
+        Villagelife.LOGGER.debug("No site for '{}' ({}x{}); the village will not offer it again for now",
+            buildingInfo.getName(), bounds.getXSpan(), bounds.getZSpan());
         return false;
       }
       return beginProject(project, bounds, projectLocation);
