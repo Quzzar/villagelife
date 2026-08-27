@@ -117,7 +117,7 @@ public class PersonChatScreen
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
   private static final int PANEL_WIDTH = 286;
-  private static final int PANEL_HEIGHT = 204;
+  private static final int PANEL_HEIGHT = 180;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = com.quzzar.villagelife.menu.MarketMenu.HEAD;
   /** Where the rule under the tabs sits, measured from the panel top. */
@@ -134,7 +134,7 @@ public class PersonChatScreen
   private static final int LIST_ROW = 20;
   private static final int LIST_WIDTH = 88;
   /** Rows the vanilla list shows before it must scroll. */
-  private static final int LIST_ROWS = 7;
+  private static final int LIST_ROWS = 6;
   /** Its player inventory: 3x9 from (108, 84), hotbar at y 142. */
   private static final int INV_LEFT = 108;
   private static final int INV_TOP = 84;
@@ -665,7 +665,7 @@ public class PersonChatScreen
     int head = com.quzzar.villagelife.menu.MarketMenu.HEAD;
     int listLeft = panelLeft + 8;
     int listTop = panelTop + head;
-    int listBottom = panelTop + head + 128 + 18;
+    int listBottom = panelTop + head + 104 + 18;
     int rightLeft = panelLeft + com.quzzar.villagelife.menu.MarketMenu.PACK_X;
     int rightWidth = 9 * 18;
 
@@ -712,13 +712,13 @@ public class PersonChatScreen
     graphics.blitSprite(overflow == 0 ? SCROLLER_DISABLED : SCROLLER,
         trackLeft + 1, trackTop + handle, 6, 27);
 
-    slotArt(graphics, rightLeft + 28, panelTop + head + 30);
-    slotArt(graphics, rightLeft + 54, panelTop + head + 30);
-    bigArrow(graphics, rightLeft + 80, panelTop + head + 32, offers.blocked());
-    slotArt(graphics, rightLeft + 112, panelTop + head + 30);
+    slotArt(graphics, rightLeft + 28, panelTop + head + 8);
+    slotArt(graphics, rightLeft + 54, panelTop + head + 8);
+    bigArrow(graphics, rightLeft + 80, panelTop + head + 10, offers.blocked());
+    slotArt(graphics, rightLeft + 112, panelTop + head + 8);
 
-    graphics.drawString(this.font, "Inventory", rightLeft, panelTop + head + 58, TEXT_LABEL, false);
-    drawInventory(graphics, rightLeft, panelTop + head + 70, mouseX, mouseY);
+    graphics.drawString(this.font, "Inventory", rightLeft, panelTop + head + 34, TEXT_LABEL, false);
+    drawInventory(graphics, rightLeft, panelTop + head + 46, mouseX, mouseY);
   }
 
   /** One trade: what you hand over, what you get back. */
@@ -806,7 +806,7 @@ public class PersonChatScreen
       }
     }
     // The hotbar sits where the menu put it, not at an offset of our own.
-    int hotbarY = panelTop + com.quzzar.villagelife.menu.MarketMenu.HEAD + 128;
+    int hotbarY = panelTop + com.quzzar.villagelife.menu.MarketMenu.HEAD + 104;
     for (int column = 0; column < 9; column++) {
       slotArt(graphics, left + column * 18, hotbarY);
     }
@@ -988,11 +988,13 @@ public class PersonChatScreen
         // line up reads as a bug, because it is one. The arrow is centred in
         // both states and the waking is carried by the glyph and the face.
         int glyph = SEND_ON;
-        // A chevron: two strokes rather than a filled shape.
+        // 14 wide by 8 tall, which divides exactly into a 20x20 button. The
+        // previous form let its height fall out of the stroke loop, so it sat
+        // a pixel low and no amount of eyeballing the loop would have said why.
         int reach = 7;
         int thick = 2;
         int cx = getX() + width / 2;
-        int y0 = getY() + (height - reach) / 2 + 1;
+        int y0 = getY() + (height - (reach + 1)) / 2;
         for (int i = 0; i < reach; i++) {
           graphics.fill(cx - i - 1, y0 + i, cx - i - 1 + thick, y0 + i + thick, glyph);
           graphics.fill(cx + i - 1, y0 + i, cx + i - 1 + thick, y0 + i + thick, glyph);
