@@ -82,7 +82,7 @@ public class PersonChatScreen extends Screen {
   private static final ResourceLocation TRADE_ARROW =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow");
   private static final int PANEL_WIDTH = 300;
-  private static final int PANEL_HEIGHT = 214;
+  private static final int PANEL_HEIGHT = 196;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = 58;
   /** Where the rule under the tabs sits, measured from the panel top. */
@@ -99,7 +99,7 @@ public class PersonChatScreen extends Screen {
   private static final int LIST_ROW = 20;
   private static final int LIST_WIDTH = 88;
   /** Rows the vanilla list shows before it must scroll. */
-  private static final int LIST_ROWS = 7;
+  private static final int LIST_ROWS = 6;
   /** Its player inventory: 3x9 from (108, 84), hotbar at y 142. */
   private static final int INV_LEFT = 108;
   private static final int INV_TOP = 84;
