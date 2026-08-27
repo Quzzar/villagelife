@@ -113,3 +113,20 @@ Village standing is **derived from its residents' opinions**, never stored separ
 nothing can drift out of sync. It shifts the prices you are offered, and at hostile the
 village refuses to trade with you at all — which is what gives theft and violence a lasting
 cost you feel on every visit.
+
+**The ladder, live, and every rung a config number.** Standing is the average of what the
+village's residents think of you, from -100 to 100 — an average rather than a sum, so a town
+is not automatically angrier than a hamlet about the same theft, and one furious neighbour
+does not speak for everybody.
+
+| At or below | The village | Default |
+| --- | --- | --- |
+| disliked | charges you over the odds, rising the further you fall, to a worst markup | -10 |
+| unwelcome | closes its market to you | -30 |
+| shunned | will not talk to you — villagers turn away when you try | -50 |
+| hostile | sets its fighters on you | -70 |
+
+Each rung keeps the ones above it, and **every rung is escapable**: what a villager feels
+about an outsider fades toward indifference on its own, so staying away and behaving is a
+way back. A grudge that cannot be worked off is a permanent tax rather than a punishment.
+`/vldev village standing` reports the number and what it currently costs you.

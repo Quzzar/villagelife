@@ -824,10 +824,14 @@ public class PersonChatScreen extends Screen {
         // screen, and on this panel it reads as a black hole. The same button
         // with a washed-out glyph says "not yet" without shouting.
         graphics.blitSprite(ready && hovered ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
-        int lift = Math.round((1.0F - sendReveal) * 2.0F);
+        // No lift. It was meant to make the arrow rise as it woke up, but the
+        // offset was 2 at rest when dormant and 0 when live, so the two resting
+        // states sat at different heights: an animation whose endpoints do not
+        // line up reads as a bug, because it is one. The arrow is centred in
+        // both states and the waking is carried by the glyph and the face.
         int glyph = ready ? SEND_ON : SEND_OFF;
         int x0 = getX() + (width - ARROW_GLYPH_W) / 2;
-        int y0 = getY() + (height - ARROW_GLYPH_H) / 2 + lift;
+        int y0 = getY() + (height - ARROW_GLYPH_H) / 2;
         for (int i = 0; i < ARROW_GLYPH_W; i++) {
           graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + ARROW_GLYPH_H - i, glyph);
         }

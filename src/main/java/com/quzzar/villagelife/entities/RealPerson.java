@@ -670,6 +670,17 @@ public class RealPerson extends Person {
    * When titles exist, the title replaces the occupation + village line.
    */
   public void openChat(ServerPlayer player) {
+    // Somebody the village has stopped speaking to gets nothing to open. This
+    // is the cost of standing being real: it is felt on arrival, before you can
+    // explain yourself (docs/economy.md, #64).
+    if (getVillage() != null && level() instanceof net.minecraft.server.level.ServerLevel serverLevel
+        && com.quzzar.villagelife.wrongdoing.Standing.tierOf(getVillage(), serverLevel, player.getUUID())
+            .atLeastAsBadAs(com.quzzar.villagelife.wrongdoing.Standing.Tier.SHUNNED)) {
+      player.displayClientMessage(Component.literal(
+          getFullName() + " turns away from you."), true);
+      return;
+    }
+
     String detail = Utils.capitalize(getOccupation().name().toLowerCase());
     if (getVillage() != null) {
       detail = detail + " of " + getVillage().getName();
@@ -815,6 +826,15 @@ public class RealPerson extends Person {
       this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Mob.class, 5, true, true, (mob) -> {
         return mob instanceof Enemy && !(mob instanceof Creeper) && !(mob instanceof EnderMan);
       }));
+
+      // The bottom rung of standing: a village whose people loathe you sets its
+      // fighters on you (#64). Nothing about this is permanent — opinions of
+      // outsiders fade — so it is a state you can leave by leaving.
+      this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
+          (target) -> getVillage() != null
+              && level() instanceof net.minecraft.server.level.ServerLevel serverLevel
+              && com.quzzar.villagelife.wrongdoing.Standing
+                  .tierOf(getVillage(), serverLevel, target.getUUID()) == com.quzzar.villagelife.wrongdoing.Standing.Tier.HOSTILE));
 
       // this.targetSelector.addGoal(3, new FollowLeaderHurtTargetGoal(this));
       this.targetSelector.addGoal(5, new DefendOthersFromPlayerGoal(this));

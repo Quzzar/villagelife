@@ -42,7 +42,13 @@ public final class Trade {
     if (blocked.isPresent()) {
       return Result.fail("'" + village.getName() + "' cannot trade: " + blocked.get() + ".");
     }
-    Optional<Double> unit = VillagePricing.villageBuys(village, item, level.getServer());
+    Optional<String> refused = standingRefusal(village, level, player);
+    if (refused.isPresent()) {
+      return Result.fail("'" + village.getName() + "' will not trade with you: " + refused.get() + ".");
+    }
+    Optional<Double> unit = VillagePricing.villageBuys(village, item, level.getServer())
+        // Standing moves the price against you before it closes the door (#64).
+        .map(value -> value / standingMarkup(village, level, player));
     if (unit.isEmpty()) {
       return Result.fail("The village will not trade in that.");
     }
@@ -96,7 +102,12 @@ public final class Trade {
     if (blocked.isPresent()) {
       return Result.fail("'" + village.getName() + "' cannot trade: " + blocked.get() + ".");
     }
-    Optional<Double> unit = VillagePricing.villageSells(village, item, level.getServer());
+    Optional<String> refused = standingRefusal(village, level, player);
+    if (refused.isPresent()) {
+      return Result.fail("'" + village.getName() + "' will not trade with you: " + refused.get() + ".");
+    }
+    Optional<Double> unit = VillagePricing.villageSells(village, item, level.getServer())
+        .map(value -> value * standingMarkup(village, level, player));
     if (unit.isEmpty()) {
       return Result.fail("The village will not trade in that.");
     }
@@ -122,6 +133,25 @@ public final class Trade {
 
     return new Result(true, "Bought " + taken + " " + item.getDescriptionId()
         + " from '" + village.getName() + "' for " + owed + " emeralds.");
+  }
+
+  /**
+   * Why this village will not deal with this person, if it will not. Standing
+   * closes the market before it sets guards on anyone, so being unwelcome is
+   * the first consequence a player actually feels (docs/economy.md).
+   */
+  private static Optional<String> standingRefusal(Village village, ServerLevel level, ServerPlayer player) {
+    com.quzzar.villagelife.wrongdoing.Standing.Tier tier =
+        com.quzzar.villagelife.wrongdoing.Standing.tierOf(village, level, player.getUUID());
+    return tier.atLeastAsBadAs(com.quzzar.villagelife.wrongdoing.Standing.Tier.UNWELCOME)
+        ? Optional.of(com.quzzar.villagelife.wrongdoing.Standing.refusalReason(tier))
+        : Optional.empty();
+  }
+
+  /** How much worse than ordinary this village's prices are for this person. */
+  private static double standingMarkup(Village village, ServerLevel level, ServerPlayer player) {
+    return com.quzzar.villagelife.wrongdoing.Standing.priceMultiplier(
+        com.quzzar.villagelife.wrongdoing.Standing.of(village, level, player.getUUID()));
   }
 
   private static int countInInventory(ServerPlayer player, Item item) {

@@ -69,6 +69,9 @@ public class VillagelifeCommands {
                                                 .executes(ctx -> placeBuilding(ctx.getSource(),
                                                         BlockPosArgument.getBlockPos(ctx, "pos"),
                                                         StringArgumentType.getString(ctx, "building"))))))
+                        .then(Commands.literal("standing")
+                                .executes(ctx -> reportStanding(ctx.getSource(),
+                                        BlockPos.containing(ctx.getSource().getPosition()))))
                         .then(Commands.literal("witnesses")
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(ctx -> reportWitnesses(ctx.getSource(),
@@ -179,6 +182,33 @@ public class VillagelifeCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "Placed " + building + " in '" + village.getName() + "'."), true);
+        return 1;
+    }
+
+    /**
+     * Where the caller stands with the nearest village, and what that costs
+     * them. Standing is derived rather than stored, so this is the only way to
+     * see the number every consequence is reading.
+     */
+    private static int reportStanding(CommandSourceStack source, BlockPos pos) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        if (!(source.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)) {
+            source.sendFailure(Component.literal(
+                    "Standing is personal: run this as a player, not from the console."));
+            return 0;
+        }
+        int standing = com.quzzar.villagelife.wrongdoing.Standing.of(village, source.getLevel(), player.getUUID());
+        com.quzzar.villagelife.wrongdoing.Standing.Tier tier =
+                com.quzzar.villagelife.wrongdoing.Standing.tierFor(standing);
+        double markup = com.quzzar.villagelife.wrongdoing.Standing.priceMultiplier(standing);
+        source.sendSuccess(() -> Component.literal(String.format(
+                "You stand at %d with '%s': %s.%s", standing, village.getName(),
+                tier.name().toLowerCase(),
+                markup > 1.0D ? String.format(" They charge you %.1fx the ordinary price.", markup) : "")), true);
         return 1;
     }
 
