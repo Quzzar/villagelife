@@ -28,4 +28,9 @@ public class VillagelifeAttachments {
                     .builder(() -> com.quzzar.villagelife.chat.ChatHistoryData.EMPTY)
                     .serialize(com.quzzar.villagelife.chat.ChatHistoryData.CODEC).build());
 
+    /** The matters a villager is seeing through (docs/undertakings.md). */
+    public static final Supplier<AttachmentType<UndertakingData>> UNDERTAKINGS = ATTACHMENT_TYPES.register(
+            "undertakings",
+            () -> AttachmentType.builder(() -> UndertakingData.EMPTY).serialize(UndertakingData.CODEC).build());
+
 }
