@@ -20,7 +20,16 @@
       5
     ]
   ],
-  "cost": [],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 2
+    },
+    {
+      "item": "minecraft:sandstone",
+      "count": 17
+    }
+  ],
   "grants": [
     "MEAT",
     "LEATHER"

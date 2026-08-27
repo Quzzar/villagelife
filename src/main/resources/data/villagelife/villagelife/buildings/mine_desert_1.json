@@ -25,7 +25,16 @@
       0
     ]
   ],
-  "cost": [],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 2
+    },
+    {
+      "item": "minecraft:sandstone",
+      "count": 20
+    }
+  ],
   "grants": [
     "ORES",
     "FUEL"

@@ -136,6 +136,38 @@ These are two separate questions and the spec keeps them separate.
 already uses. Nothing abstract, no points, no derived unit. The recipes below are the plains
 variant of each building.
 
+**Every building is now priced.** The recipes in the tables below are the original
+sketch; what actually ships is derived from each structure's own block count, and
+three rules hold it together. Each is a way a catalogue quietly becomes
+unbuildable:
+
+- **Only name what a worker puts into storage.** The miner (stone pickaxe) yields
+  cobblestone, sand, sandstone and iron; the lumberjack yields logs and oak
+  planks; the mason turns cobblestone into stone and stone brick. **Nothing
+  produces glass, wool, or non-oak planks**, so a recipe naming them can never be
+  paid however honestly it describes the building.
+- **Never price a building in what it alone produces.** The lumberjack is the only
+  source of planks, so it costs cobblestone and nothing else: a village that has
+  only founded, and so has only a miner, must be able to build it. The stoneworks
+  likewise costs cobblestone in *every* variant, including the snowy and desert
+  ones built from the very blocks it exists to make.
+- **Price the size once, then split it by biome.** A wood-poor village pays mostly
+  in stone and pays no more overall. A level-1 house costs 47 units in plains,
+  taiga and savanna, 48 in snowy and desert — the same building, different
+  materials, never an easier one.
+
+Which gives the bootstrap order a village actually follows: found (centre, mine,
+storehouse, free) → miner digs cobblestone → **lumberjack**, in cobblestone alone
+→ logs and planks → everything timber → **stoneworks**, in cobblestone → stone
+brick and worked sandstone → the snowy and desert variants. Desert is the one
+exception that needs no mason: a desert mine cuts straight through sand and
+sandstone.
+
+**Upgrading costs more than sprawling**, by construction. Two level-1 houses come
+to 94 units for two beds where one level-2 costs 120; four level-1s cost 188
+where a level-3 costs 253. Building wide stays the cheaper move, which is what
+[village-tiers.md](village-tiers.md) asks for.
+
 **Space is a fit check.** How much room a building needs comes from its own dimensions, not from
 any number in this file. Whether a site can take those dimensions, and what it would cost to clear
 one that nearly can, is [site-selection.md](site-selection.md).

@@ -33,5 +33,14 @@
       8
     ]
   ],
-  "cost": []
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 32
+    },
+    {
+      "item": "minecraft:stone_bricks",
+      "count": 190
+    }
+  ]
 }

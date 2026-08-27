@@ -25,7 +25,16 @@
       0
     ]
   ],
-  "cost": [],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 8
+    },
+    {
+      "item": "minecraft:cobblestone",
+      "count": 10
+    }
+  ],
   "grants": [
     "ORES",
     "FUEL"

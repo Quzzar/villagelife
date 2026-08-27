@@ -31,7 +31,16 @@
       1
     ]
   ],
-  "cost": [],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 3
+    },
+    {
+      "item": "minecraft:sandstone",
+      "count": 22
+    }
+  ],
   "grants": [
     "GRAIN"
   ]

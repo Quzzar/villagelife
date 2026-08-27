@@ -17,5 +17,14 @@
       4
     ]
   ],
-  "cost": []
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 14
+    },
+    {
+      "item": "minecraft:cobblestone",
+      "count": 19
+    }
+  ]
 }

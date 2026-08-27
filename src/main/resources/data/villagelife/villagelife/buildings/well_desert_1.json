@@ -2,8 +2,12 @@
   "structure": "well_desert_1",
   "cost": [
     {
+      "item": "minecraft:oak_log",
+      "count": 7
+    },
+    {
       "item": "minecraft:cobblestone",
-      "count": 32
+      "count": 10
     }
   ],
   "grants": [

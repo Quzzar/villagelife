@@ -20,7 +20,16 @@
       2
     ]
   ],
-  "cost": [],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 15
+    },
+    {
+      "item": "minecraft:cobblestone",
+      "count": 20
+    }
+  ],
   "grants": [
     "MEAT",
     "WATER"
