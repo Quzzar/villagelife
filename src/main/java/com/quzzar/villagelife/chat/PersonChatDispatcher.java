@@ -377,6 +377,15 @@ public final class PersonChatDispatcher {
       return null;
     }
     person.setData(VillagelifeAttachments.UNDERTAKINGS.get(), result.data());
+    if (result.resolvedNegative()) {
+      // A wrong the player has now put right raises the villager's standing with
+      // them (docs/undertakings.md), through the same capped opinion channel a
+      // chat opinion delta uses, so one conversation cannot swing standing wildly.
+      int bump = applyOpinion(person, playerUUID, RIGHTED_WRONG_BONUS);
+      if (bump != 0) {
+        return result.action() + " (standing +" + bump + ")";
+      }
+    }
     return result.action();
   }
 
@@ -443,6 +452,8 @@ public final class PersonChatDispatcher {
   /** Largest total swing one conversation window may produce (#44's cap). */
   private static final int OPINION_CONVERSATION_CAP = 15;
   private static final long OPINION_WINDOW_MS = 10 * 60 * 1000;
+  /** Standing gained when the player makes a wrong right (a resolved NEGATIVE matter). */
+  private static final int RIGHTED_WRONG_BONUS = 8;
 
   private record OpinionBudget(long windowStartMs, int spent) {
   }

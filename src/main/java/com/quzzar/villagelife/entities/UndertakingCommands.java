@@ -85,6 +85,16 @@ public final class UndertakingCommands {
                         && resolved.undertakings().get(0).state() == State.RESOLVED
                         && resolved.undertakings().get(0).resolution().isPresent());
 
+        // the standing-bump trigger: a resolved NEGATIVE matter reports it, a positive one does not.
+        check(source, pass, fail, "resolvedNegative fires on a righted wrong", r3.resolvedNegative());
+        var posDone = UndertakingService.apply(
+                UndertakingData.EMPTY.with(new Undertaking(UUID.randomUUID(), Valence.POSITIVE, State.ACTIVE,
+                        UndertakingData.Origin.PLAYER, "Bring the promised apples", Optional.of(player),
+                        List.of(), Optional.empty(), Optional.empty(), 40L, 41L)),
+                new Op("resolve", "", "", "All delivered", ""), player, true, 42L);
+        check(source, pass, fail, "resolvedNegative stays false on a kept promise",
+                posDone.changed() && !posDone.resolvedNegative());
+
         // drop: an op the model invented.
         var bad = UndertakingService.apply(d, new Op("obliterate", "x", "negative", "", ""), player, true, 106L);
         check(source, pass, fail, "invented op is dropped", !bad.changed());

@@ -223,9 +223,14 @@ screen next to Chat and Trade — is a later slice, not the first one. The
 container screen already supports tabs, so it is cheap when wanted.
 
 **In mood and standing.** A RESOLVED negative undertaking (a wrong righted)
-raises standing; an ABANDONED positive one (a promise broken) lowers it. This
-routes through the existing opinion/standing system rather than inventing a
-second currency.
+raises standing, and this is wired: `UndertakingService.Result.resolvedNegative()`
+flags the transition, and `PersonChatDispatcher.applyUndertaking` bumps the
+player's opinion by `RIGHTED_WRONG_BONUS` through the same capped `applyOpinion`
+channel a chat opinion delta uses, so it routes through the existing
+opinion/standing system rather than inventing a second currency, and one
+conversation cannot swing standing wildly. The mirror case, an ABANDONED positive
+undertaking (a promise broken) lowering standing, waits on the self-abandon path
+(there is no ABANDONED transition wired yet), so it is not hooked up.
 
 ## Persistence
 

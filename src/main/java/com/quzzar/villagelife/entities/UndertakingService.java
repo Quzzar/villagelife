@@ -52,10 +52,25 @@ public final class UndertakingService {
         }
     }
 
-    /** What an apply did, so a caller and a harness can both see the outcome. */
-    public record Result(UndertakingData data, boolean changed, String action) {
+    /**
+     * What an apply did, so a caller and a harness can both see the outcome.
+     * {@code affected} is the matter that was opened, advanced, or resolved (empty
+     * when nothing changed), so the call site can react to it, e.g. raise standing
+     * on a resolved wrong, without re-deriving which record moved.
+     */
+    public record Result(UndertakingData data, boolean changed, String action, Optional<Undertaking> affected) {
         static Result unchanged(UndertakingData data, String why) {
-            return new Result(data, false, "dropped: " + why);
+            return new Result(data, false, "dropped: " + why, Optional.empty());
+        }
+
+        /**
+         * True when this apply resolved a NEGATIVE matter: a wrong the player has
+         * now put right, which raises the villager's standing with them. The one
+         * transition the chat wiring turns into an opinion bump.
+         */
+        public boolean resolvedNegative() {
+            return affected.map(u -> u.state() == State.RESOLVED && u.valence() == Valence.NEGATIVE)
+                    .orElse(false);
         }
     }
 
@@ -99,7 +114,7 @@ public final class UndertakingService {
                 List.of(),
                 op.note().isBlank() ? Optional.empty() : Optional.of(op.note()),
                 Optional.empty(), dayTime, dayTime);
-        return new Result(data.with(created), true, "opened: " + op.summary());
+        return new Result(data.with(created), true, "opened: " + op.summary(), Optional.of(created));
     }
 
     private static Result advance(UndertakingData data, Op op, UUID player, boolean withPlayer, long dayTime) {
@@ -119,7 +134,7 @@ public final class UndertakingService {
         }
         Undertaking moved = new Undertaking(u.id(), u.valence(), State.ACTIVE, u.origin(),
                 u.summary(), u.withWhom(), steps, note, u.resolution(), u.openedDay(), dayTime);
-        return new Result(data.with(moved), true, "advanced: " + u.summary());
+        return new Result(data.with(moved), true, "advanced: " + u.summary(), Optional.of(moved));
     }
 
     private static Result resolve(UndertakingData data, Op op, UUID player, boolean withPlayer, long dayTime) {
@@ -133,7 +148,7 @@ public final class UndertakingService {
         Undertaking done = new Undertaking(u.id(), u.valence(), State.RESOLVED, u.origin(),
                 u.summary(), u.withWhom(), u.steps(), u.progressNote(),
                 Optional.of(resolution), u.openedDay(), dayTime);
-        return new Result(data.with(done), true, "resolved: " + u.summary());
+        return new Result(data.with(done), true, "resolved: " + u.summary(), Optional.of(done));
     }
 
     /**
