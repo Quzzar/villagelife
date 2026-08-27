@@ -1,5 +1,9 @@
 # Building spec: every building, variant, level, recipe, and unlock
 
+**The catalogue below enumerates 36 categories; 22 of them survived the cut.** The totals in
+this document count the full map of the possible, not the shipping set — see
+[The cut](#the-cut) for which categories stand and why the rest went.
+
 **Proposed, not yet decided. 49 of 191 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, eight exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,

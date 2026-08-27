@@ -34,9 +34,11 @@ in it, and update it in the same change that moves what it describes.
 - [site-selection.md](site-selection.md): how a village finds somewhere to build. Site cost
   instead of site validity, how far villagers may reshape ground (surface yes, shape never),
   the builder's prepare phase, and the runtime budget that keeps site search off the tick.
-- [building-spec.md](building-spec.md): the complete enumeration. All 36 categories with
-  every variant, every level, its cost in build points, its special materials, and the
-  capabilities it grants the village. Ends in the structure-file manifest used for sourcing.
+- [building-spec.md](building-spec.md): the complete enumeration. Every variant, every level,
+  its cost in build points, its special materials, and the capabilities it grants the village.
+  The enumeration maps 36 categories, of which 22 survived the cut — see its "The cut"
+  section for the survivors and the casualties. Ends in the structure-file manifest used for
+  sourcing.
 - [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
   from. License survey of vanilla, CTOV, Towns and Towers, YUNG's, and community schematic
   sites, each read from its own LICENSE file, plus the realistic paths forward.
