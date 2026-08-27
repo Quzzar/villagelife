@@ -67,6 +67,7 @@ import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
 import com.quzzar.villagelife.entities.ai.goals.UseBonemealGoal;
 import com.quzzar.villagelife.entities.ai.goals.DepositHaulGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkInMineGoal;
+import com.quzzar.villagelife.entities.ai.goals.WorkAtMarketGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnBuildingGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnMakingPathsGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnWoodcuttingGoal;
@@ -849,6 +850,9 @@ public class RealPerson extends Person {
     if (getOccupation() == Occupation.BUILDER) {
       this.goalSelector.addGoal(4, new WorkOnBuildingGoal(this));
       this.goalSelector.addGoal(8, new WorkOnMakingPathsGoal(this));
+    }
+    if (getOccupation() == Occupation.MERCHANT) {
+      this.goalSelector.addGoal(4, new WorkAtMarketGoal(this));
     }
     if (getOccupation() == Occupation.LUMBERJACK) {
       this.goalSelector.addGoal(3, new DepositHaulGoal(this));

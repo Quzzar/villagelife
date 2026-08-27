@@ -96,12 +96,25 @@ public class VillageBrain {
   }
 
   public BlockPos getNearestContainer(BlockPos location) {
+    return getNearestContainer(location, java.util.List.of());
+  }
+
+  /**
+   * The nearest village container that is not one of {@code excluding}. The
+   * exclusion is what lets a merchant carry goods OUT of the market: the
+   * market's own chests are village storage like any other, so the nearest one
+   * to a merchant standing at their stall is the chest they are emptying.
+   */
+  public BlockPos getNearestContainer(BlockPos location, java.util.Collection<BlockPos> excluding) {
 
     double smallestDist = Double.MAX_VALUE;
     BlockPos smallestLoc = BlockPos.ZERO;
 
     for (Long longLoc : containerLocs) {
       BlockPos containerLoc = BlockPos.of(longLoc);
+      if (excluding.contains(containerLoc)) {
+        continue;
+      }
       double distance = location.distSqr(containerLoc);
       if (distance < smallestDist) {
         smallestDist = distance;

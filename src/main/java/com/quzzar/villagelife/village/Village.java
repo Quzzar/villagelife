@@ -1046,6 +1046,11 @@ public class Village {
     return this.brain.getNearestContainer(location);
   }
 
+  /** The nearest village container that is not one of the given positions. */
+  public BlockPos getNearestContainer(BlockPos location, java.util.Collection<BlockPos> excluding) {
+    return this.brain.getNearestContainer(location, excluding);
+  }
+
   public ItemStack gatherItemStackFromVillage(ItemStack itemStack) {
     return gatherItemStackFromVillage(itemStack, null);
   }
