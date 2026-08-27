@@ -51,6 +51,8 @@ import com.quzzar.villagelife.entities.ai.goals.work.HarvestStep;
 import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
+import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
+import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.DefendOthersFromPlayerGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
@@ -68,9 +70,7 @@ import com.quzzar.villagelife.entities.ai.goals.RangedCrossbowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
-import com.quzzar.villagelife.entities.ai.goals.WorkInMineGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkAtMarketGoal;
-import com.quzzar.villagelife.entities.ai.goals.WorkOnBuildingGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnMakingPathsGoal;
 import com.quzzar.villagelife.other.EquipmentUpgrade;
 
@@ -882,10 +882,10 @@ public class RealPerson extends Person {
     if (getOccupation() == Occupation.MINER) {
       // Ahead of the work goal: a full pack is worth a trip before more digging.
       this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
-      this.goalSelector.addGoal(4, new WorkInMineGoal(this));
+      this.goalSelector.addGoal(4, new WorkLoopGoal(this, new MineStep()));
     }
     if (getOccupation() == Occupation.BUILDER) {
-      this.goalSelector.addGoal(4, new WorkOnBuildingGoal(this));
+      this.goalSelector.addGoal(4, new WorkLoopGoal(this, new BuildStep()));
       this.goalSelector.addGoal(8, new WorkOnMakingPathsGoal(this));
     }
     if (getOccupation() == Occupation.MERCHANT) {

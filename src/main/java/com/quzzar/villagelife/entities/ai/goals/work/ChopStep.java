@@ -119,7 +119,7 @@ public final class ChopStep implements WorkStep {
   }
 
   @Override
-  public double reachSqr() {
+  public double reachSqr(RealPerson person) {
     return 6.0D; // as the goal this replaces used
   }
 

@@ -68,7 +68,7 @@ public final class HaulStep implements WorkStep {
   }
 
   @Override
-  public double reachSqr() {
+  public double reachSqr(RealPerson person) {
     return 6.0D;
   }
 

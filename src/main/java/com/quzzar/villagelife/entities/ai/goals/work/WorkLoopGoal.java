@@ -84,6 +84,9 @@ public class WorkLoopGoal extends Goal {
   public final void start() {
     this.ticksInReach = 0;
     this.approach.begin();
+    if (this.target != null) {
+      this.step.acquired(this.person, this.target);
+    }
   }
 
   @Override
@@ -107,7 +110,7 @@ public class WorkLoopGoal extends Goal {
       return; // canContinueToUse ends us on the next pass
     }
 
-    if (this.person.blockPosition().distSqr(this.target) > this.step.reachSqr()) {
+    if (this.person.blockPosition().distSqr(this.target) > this.step.reachSqr(this.person)) {
       // A worker who cannot reach their work holds the job forever otherwise:
       // the navigator only calls a path stalled if it found one, and a path it
       // never found cannot stall.

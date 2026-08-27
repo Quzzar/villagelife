@@ -48,6 +48,13 @@ public interface WorkStep {
   String describe();
 
   /**
+   * Called once when the loop takes a target on, before the worker sets off.
+   * Somewhere to tell a subsystem that work has started on it.
+   */
+  default void acquired(RealPerson person, BlockPos target) {
+  }
+
+  /**
    * Called whenever the loop lets a target go - finished, abandoned, or the
    * whole goal stopping. Somewhere to drop per-target state and undo anything
    * shown to players, such as the block-cracking overlay, which otherwise
@@ -56,8 +63,13 @@ public interface WorkStep {
   default void released(RealPerson person, BlockPos target) {
   }
 
-  /** How close counts as arrived. Three blocks, which is arm's length plus slack. */
-  default double reachSqr() {
+  /**
+   * How close counts as arrived. Three blocks by default, which is arm's length
+   * plus slack. Takes the worker because some reaches are not fixed: a builder
+   * counts as being at a building site once inside its radius, and that radius
+   * is a property of whatever they are currently raising.
+   */
+  default double reachSqr(RealPerson person) {
     return 9.0D;
   }
 
