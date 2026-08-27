@@ -116,8 +116,8 @@ public class PersonChatScreen
   /** Vanilla's struck-out arrow, used when the whole stall cannot trade. */
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
-  private static final int PANEL_WIDTH = 276;
-  private static final int PANEL_HEIGHT = 224;
+  private static final int PANEL_WIDTH = 286;
+  private static final int PANEL_HEIGHT = 232;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = com.quzzar.villagelife.menu.MarketMenu.HEAD;
   /** Where the rule under the tabs sits, measured from the panel top. */
@@ -653,10 +653,10 @@ public class PersonChatScreen
     // the container draws a slot's CONTENTS at its position, and art placed by
     // any other rule ends up beside the items rather than under them.
     int head = com.quzzar.villagelife.menu.MarketMenu.HEAD;
-    int listLeft = panelLeft + 3;
+    int listLeft = panelLeft + 8;
     int listTop = panelTop + head;
     int listBottom = panelTop + head + 142 + 18;
-    int rightLeft = panelLeft + 108;
+    int rightLeft = panelLeft + com.quzzar.villagelife.menu.MarketMenu.PACK_X;
     int rightWidth = 9 * 18;
 
     if (offers == null) {
@@ -675,10 +675,10 @@ public class PersonChatScreen
     }
     allDeals = deals;
 
-    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + head - 12);
+    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + head - 14);
     if (!offers.villageName().isBlank()) {
       centred(graphics, offers.villageName() + " Market", rightLeft + rightWidth / 2,
-          panelTop + head - 12);
+          panelTop + head - 14);
     }
 
     slot(graphics, listLeft, listTop - 2, listLeft + WELL_WIDTH, listBottom + 2);
@@ -702,10 +702,10 @@ public class PersonChatScreen
     graphics.blitSprite(overflow == 0 ? SCROLLER_DISABLED : SCROLLER,
         trackLeft + 1, trackTop + handle, 6, 27);
 
-    slotArt(graphics, panelLeft + 136, panelTop + head + 37);
-    slotArt(graphics, panelLeft + 162, panelTop + head + 37);
-    bigArrow(graphics, panelLeft + 188, panelTop + head + 39, offers.blocked());
-    slotArt(graphics, panelLeft + 220, panelTop + head + 37);
+    slotArt(graphics, rightLeft + 28, panelTop + head + 37);
+    slotArt(graphics, rightLeft + 54, panelTop + head + 37);
+    bigArrow(graphics, rightLeft + 80, panelTop + head + 39, offers.blocked());
+    slotArt(graphics, rightLeft + 112, panelTop + head + 37);
 
     graphics.drawString(this.font, "Inventory", rightLeft, panelTop + head + 72, TEXT_LABEL, false);
     drawInventory(graphics, rightLeft, panelTop + head + 84, mouseX, mouseY);
