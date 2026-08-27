@@ -71,6 +71,29 @@ public final class LlmService {
   /** Foreground (chat + decide) requests in flight; personas wait on zero. */
   private final AtomicInteger activeForeground = new AtomicInteger();
 
+  // A player talking to a villager outranks everything the villages are
+  // thinking about ([#65] latency). The villagers share one model with the
+  // player, so a village deciding what to build or writing someone's life
+  // story lands on the same server a chat reply needs - and a player feels
+  // every millisecond of a reply while nobody waits on a village's private
+  // deliberation. So while a conversation is live, the village work holds.
+  private final AtomicInteger activeChat = new AtomicInteger();
+  private volatile long chatWindowUntilMs = 0L;
+
+  /**
+   * Village seconds of quiet a chat buys. Covers the gaps BETWEEN a player's
+   * turns, not just the in-flight reply: without it a village decision started
+   * in the pause after "hello" would collide with the answer to their next
+   * line. Refreshed on every chat, so a conversation holds the villages off
+   * for its whole length and lets them resume a few seconds after it ends.
+   */
+  private static final long CHAT_PRIORITY_WINDOW_MS = 6000L;
+
+  /** Whether a player is mid-conversation right now, or was moments ago. */
+  private boolean playerTalking() {
+    return activeChat.get() > 0 || System.currentTimeMillis() < chatWindowUntilMs;
+  }
+
   /** Persona/flavor requests wait here so foreground work always jumps the line. */
   private record QueuedPersona(String system, String user, List<FewShotExample> examples,
       int maxNewTokens, double temperature, CompletableFuture<Optional<String>> future) {
@@ -178,6 +201,13 @@ public final class LlmService {
     if (!isReady() || options.isEmpty()) {
       return CompletableFuture.completedFuture(Optional.empty());
     }
+    // A build choice waits behind a live conversation. decide already treats an
+    // empty answer as "keep the current plan and ask again next cycle", so a
+    // village simply re-decides once the player has stopped talking - no work
+    // is lost, and a player's reply is not slowed by a village thinking.
+    if (playerTalking()) {
+      return CompletableFuture.completedFuture(Optional.empty());
+    }
 
     StringBuilder user = new StringBuilder();
     user.append("Situation: ").append(situation).append("\n\nOptions:\n");
@@ -204,8 +234,16 @@ public final class LlmService {
   /** As above, pushing the model off tokens it has just used (see PersonChatDispatcher). */
   public CompletableFuture<Optional<String>> submitChat(String system, String user,
       List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
+    // Mark a conversation live so village work yields, and keep the window open
+    // a few seconds past this reply for the player's next line.
+    activeChat.incrementAndGet();
+    chatWindowUntilMs = System.currentTimeMillis() + CHAT_PRIORITY_WINDOW_MS;
     return foregroundComplete(
-        new CompletionRequest(system, user, examples, maxNewTokens, temperature, frequencyPenalty));
+        new CompletionRequest(system, user, examples, maxNewTokens, temperature, frequencyPenalty))
+        .whenComplete((result, error) -> {
+          activeChat.decrementAndGet();
+          chatWindowUntilMs = System.currentTimeMillis() + CHAT_PRIORITY_WINDOW_MS;
+        });
   }
 
   /**
@@ -259,7 +297,8 @@ public final class LlmService {
   private void tryDispatchPersona() {
     QueuedPersona next;
     synchronized (personaQueue) {
-      if (personaInFlight || !isReady() || activeForeground.get() > 0 || personaQueue.isEmpty()) {
+      if (personaInFlight || !isReady() || activeForeground.get() > 0
+          || playerTalking() || personaQueue.isEmpty()) {
         return;
       }
       next = personaQueue.poll();

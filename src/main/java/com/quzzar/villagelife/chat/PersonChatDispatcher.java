@@ -199,6 +199,7 @@ public final class PersonChatDispatcher {
    */
   public static CompletableFuture<Reply> converse(RealPerson person, String speakerName, UUID speakerUUID,
       String message, String historyLine) {
+    long askedAtMs = System.currentTimeMillis();
     // Refresh the open session (never create one: console/RCON chats via
     // /vlbrain chat should not make the villager stand at attention).
     SESSIONS.computeIfPresent(person.getId(), (id, session) -> session.player().equals(speakerUUID)
@@ -249,7 +250,8 @@ public final class PersonChatDispatcher {
             give = null;
             opinion = 0;
           }
-          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion);
+          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion,
+              System.currentTimeMillis() - askedAtMs);
           return new Reply(say, give, opinion);
         });
   }
@@ -317,7 +319,7 @@ public final class PersonChatDispatcher {
    * are invisible to RCON sources, so headless capture reads the log.
    */
   private static void finalizeExchange(RealPerson person, String speakerName, UUID speakerUUID,
-      String playerLine, String reply, String give, int requestedOpinion) {
+      String playerLine, String reply, String give, int requestedOpinion, long elapsedMs) {
     var server = person.getServer();
     if (server == null) {
       return;
@@ -328,7 +330,7 @@ public final class PersonChatDispatcher {
           person.getData(VillagelifeAttachments.CHAT_HISTORY.get())
               .withExchange(speakerUUID,
                   new ChatHistoryData.Exchange(playerLine, reply, person.level().getDayTime())));
-      Villagelife.LOGGER.info("[chat] {} -> {}: \"{}\"{}{}", speakerName, person.getFullName(), reply,
+      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}", elapsedMs, speakerName, person.getFullName(), reply,
           give != null ? " [give: " + give + "]" : "",
           applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "");
     });
