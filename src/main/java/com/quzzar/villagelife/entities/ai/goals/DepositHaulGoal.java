@@ -37,6 +37,10 @@ public class DepositHaulGoal extends Goal {
   private static final double SPEED = 0.5D;
 
   private final RealPerson person;
+
+  /** Whether walking is getting anywhere, and what to do when it is not (#75). */
+  private final ApproachWatch approach;
+
   private BlockPos target;
 
   public DepositHaulGoal(RealPerson person) {
@@ -44,14 +48,16 @@ public class DepositHaulGoal extends Goal {
     // running alongside the work goal that also moves them (#74).
     this.setFlags(EnumSet.of(Flag.MOVE));
     this.person = person;
+    this.approach = new ApproachWatch(person, "anywhere to put what I am carrying");
   }
 
   @Override
   public boolean canUse() {
-    if (usedSlots() < SLOTS_BEFORE_TRIP) {
+    if (usedSlots() < SLOTS_BEFORE_TRIP || this.approach.standingDown()) {
       return false;
     }
     this.target = workplaceContainer();
+    this.approach.begin();
     return this.target != null;
   }
 
@@ -71,11 +77,18 @@ public class DepositHaulGoal extends Goal {
       return;
     }
     if (this.person.blockPosition().distSqr(this.target) > REACH_SQR) {
+      // A worker who cannot reach the chest carries the haul for ever
+      // otherwise, and their gathering stops mattering (#75).
+      if (this.approach.giveUp(this.target)) {
+        this.target = null;
+        return;
+      }
       this.person.getNavigation().moveTo(
           this.target.getX() + 0.5D, this.target.getY(), this.target.getZ() + 0.5D, SPEED);
       return;
     }
 
+    this.approach.arrived();
     this.person.getLookControl().setLookAt(
         this.target.getX(), this.target.getY(), this.target.getZ(), 30.0F, 30.0F);
 

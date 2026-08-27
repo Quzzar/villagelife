@@ -25,6 +25,9 @@ public class WorkOnWoodcuttingGoal extends Goal {
     protected final float STRIP_PERCENT = 0.3F;
 
     protected RealPerson person;
+
+    /** Whether walking is getting anywhere, and what to do when it is not (#75). */
+    private final ApproachWatch approach;
     protected BlockPos workLocation;
 
     protected int breakTime;
@@ -32,6 +35,7 @@ public class WorkOnWoodcuttingGoal extends Goal {
     protected boolean hasAcquiredWood;
 
     public WorkOnWoodcuttingGoal(RealPerson person) {
+        this.approach = new ApproachWatch(person, "the trees");
         // This goal walks the villager somewhere, so it must compete for movement
         // rather than run alongside every other goal that does the same (#74).
         this.setFlags(EnumSet.of(Flag.MOVE));
@@ -41,6 +45,9 @@ public class WorkOnWoodcuttingGoal extends Goal {
 
     @Override
     public boolean canUse() {
+        if (this.approach.standingDown()) {
+            return false;
+        }
 
         BlockState blockstate = person.level().getBlockState(workLocation);
         if(blockstate.isAir() && person.level().getBlockState(workLocation.below()).is(BlockTags.DIRT)){
@@ -76,9 +83,15 @@ public class WorkOnWoodcuttingGoal extends Goal {
 
 
         if(this.workLocation.distSqr(person.blockPosition()) > 6.0D){
+            // A lumberjack who cannot reach their own stand holds the job
+            // forever otherwise: the navigator never calls that stuck (#75).
+            if (this.approach.giveUp(this.workLocation)) {
+                return;
+            }
             this.person.getNavigation().moveTo(this.workLocation.getX(), this.workLocation.getY(), this.workLocation.getZ(), 0.5D);
             return;
         } else {
+            this.approach.arrived();
             this.person.getNavigation().stop();
             this.person.getLookControl().setLookAt(this.workLocation.getX(), this.workLocation.getY(), this.workLocation.getZ(), 30.0F, 30.0F);
         }

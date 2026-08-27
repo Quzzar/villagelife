@@ -28,6 +28,9 @@ public class WorkInMineGoal extends Goal {
     protected boolean hasBrokenBlock = false;
 
     protected RealPerson person;
+
+    /** Whether walking is getting anywhere, and what to do when it is not (#75). */
+    private final ApproachWatch approach;
     protected final BlockPos workLocation;
     protected final Rotation workRotation;
 
@@ -36,6 +39,7 @@ public class WorkInMineGoal extends Goal {
     private int inwardOffset = 1;
 
     public WorkInMineGoal(RealPerson person) {
+        this.approach = new ApproachWatch(person, "the mine");
         // This goal walks the villager somewhere, so it must compete for movement
         // rather than run alongside every other goal that does the same (#74).
         this.setFlags(EnumSet.of(Flag.MOVE));
@@ -51,7 +55,8 @@ public class WorkInMineGoal extends Goal {
     @Override
     public boolean canUse() {
         locateNextBlock();
-        return this.block != null && this.currentOffset != null && !shouldInterrupt();
+        return this.block != null && this.currentOffset != null && !shouldInterrupt()
+                && !this.approach.standingDown();
     }
 
     @Override
@@ -78,9 +83,15 @@ public class WorkInMineGoal extends Goal {
 
         final BlockPos blockPos = getBlockPos();
         if(this.workLocation.distSqr(person.blockPosition()) > 10.0D){
+            // A miner who cannot walk to their own shaft holds the job forever
+            // otherwise: the navigator never calls that stuck (#75).
+            if (this.approach.giveUp(this.workLocation)) {
+                return;
+            }
             this.person.getNavigation().moveTo(this.workLocation.getX(), this.workLocation.getY(), this.workLocation.getZ(), 0.5D);
             return;
         } else {
+            this.approach.arrived();
             this.person.getLookControl().setLookAt(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 30.0F, 30.0F);
         }
         
