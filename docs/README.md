@@ -13,6 +13,9 @@ in it, and update it in the same change that moves what it describes.
   contract, the generate-before-spawn lifecycle, and the persona package code map.
 - [relationships.md](relationships.md): pairwise villager opinions. The one-pair-one-object
   model that keeps opinions roughly shared, the newcomer integration pass, and the code map.
+- [ui-preview.md](ui-preview.md): how to photograph a client screen without playing the
+  game. Required reading before changing anything under `client/gui/`, because every
+  version of the villager screen written without looking at it was wrong.
 - [economy.md](economy.md): the market, emeralds, and trade. Why a market exists when chests
   are free, the bank that floors every price, and how items get valued for modpacks.
 - [llm-brain.md](llm-brain.md): the required LLM that picks among rule-generated
