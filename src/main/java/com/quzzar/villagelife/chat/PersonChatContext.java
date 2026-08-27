@@ -9,6 +9,7 @@ import com.mojang.authlib.GameProfile;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.compat.AccessoryCompat;
 import com.quzzar.villagelife.entities.PersonalLogData;
+import com.quzzar.villagelife.entities.UndertakingData;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService.FewShotExample;
@@ -34,13 +35,57 @@ public final class PersonChatContext {
   public record Turn(String playerLine, String villagerLine) {
   }
 
-  private static final String RULES = "Rules: Answer in one or two short sentences, always in character. "
+  private static final String RULES_BODY = "Rules: Answer in one or two short sentences, always in character. "
       + "Never invent events, people, places, or items that are not in your briefing above. "
       + "You may hand an item from your pockets to the player with \"give\", but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
       + "When this moment genuinely changes how you feel about them, add \"opinion\": a whole number "
-      + "from -10 to 10; omit it when your feeling is unchanged. "
+      + "from -10 to 10; omit it when your feeling is unchanged. ";
+
+  private static final String RULES = RULES_BODY
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
       + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"opinion\": <number>}.";
+
+  /**
+   * The undertaking clause, added to the rules ONLY when a matter is plausibly
+   * in play (undertakings map #24, 7b). It is gated rather than always present
+   * for the reason the give tool taught: offered on every turn, a small model
+   * reaches for it on turns that do not warrant it - the "goodnight" and
+   * "lovely weather" false opens the audit measured. Gated to amends, promises,
+   * and turns where a matter already stands, the false-fire class disappears
+   * (audit: gated precision 100%, 0 false fires) while the few-shot examples
+   * below lift the model's recall on the moments that do warrant it.
+   */
+  private static final String RULES_WITH_UNDERTAKING = RULES_BODY
+      + "A lasting matter between you and this person can be recorded with \"undertaking\", but ONLY on the turn it "
+      + "actually happens - most replies have none. When they make amends or promise something that will take time, "
+      + "open it: {\"op\": \"open\", \"summary\": \"<what is to be done, in a few words>\", \"valence\": \"positive\" for a kindness or \"negative\" for a wrong to right}. "
+      + "When an existing matter moves forward, {\"op\": \"advance\", \"note\": \"<what moved>\"}. "
+      + "When it is settled, {\"op\": \"resolve\", \"note\": \"<how it ended>\"}. You never name which matter - the game knows. "
+      + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", or \"undertaking\" only when it applies.";
+
+  /**
+   * Whether the player's line plausibly opens a NEW matter - amends, a promise,
+   * a debt. An existing open matter opens the gate on its own (see assemble),
+   * so this only has to catch the moments that START one; the strong signals
+   * are apology, owing, and promising. Delivery words ("here's the last of it")
+   * are deliberately absent: they only mean anything when a matter already
+   * stands, and that case is already gated in structurally.
+   */
+  private static boolean opensACommitment(String playerLine) {
+    String line = playerLine.toLowerCase(java.util.Locale.ROOT);
+    for (String marker : COMMITMENT_MARKERS) {
+      if (line.contains(marker)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static final String[] COMMITMENT_MARKERS = {
+      "sorry", "apolog", "make it right", "make up for", "my fault", "forgive", "make amends",
+      "owe", "repay", "pay you back", "i'll get you", "i will get you", "i'll bring", "i will bring",
+      "promise", "i swear", "you have my word"
+  };
 
   /**
    * Collapses a run of turns where the villager gave the same answer down to
@@ -90,6 +135,34 @@ public final class PersonChatContext {
           "{\"say\": \"I recall no such thing, Steve.\"}"),
       new FewShotExample("Steve says: \"Could I have one of your torches? You've always been kind to me.\"\nYour JSON answer:",
           "{\"say\": \"Take it, and mind the dark.\", \"give\": \"minecraft:torch\", \"opinion\": 2}"));
+
+  /**
+   * The worked open/advance/resolve turns, shown ONLY when the undertaking gate
+   * is open. The model under-triggered without these (audit recall 40%) for the
+   * same reason the give tool needed its torch example: it had never seen what
+   * emitting the field looks like. One of each op, on the amends arc the schema
+   * was written around.
+   */
+  private static final List<FewShotExample> UNDERTAKING_EXAMPLES = List.of(
+      new FewShotExample("Steve says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
+          "{\"say\": \"Bring back the ten wheat you took and we're square.\", "
+          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", \"valence\": \"negative\"}}"),
+      new FewShotExample("Steve says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
+          "{\"say\": \"Four - a start. Six more and we're even.\", "
+          + "\"undertaking\": {\"op\": \"advance\", \"note\": \"Four of the ten wheat brought back\"}}"),
+      new FewShotExample("Steve says: \"That's the last of the ten wheat.\"\nYour JSON answer:",
+          "{\"say\": \"Then we're square, Steve. No hard feelings.\", "
+          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"));
+
+  /** The base examples, plus the undertaking few-shots when the gate is open. */
+  private static List<FewShotExample> examplesFor(boolean undertakingGate) {
+    if (!undertakingGate) {
+      return EXAMPLES;
+    }
+    List<FewShotExample> all = new ArrayList<>(EXAMPLES);
+    all.addAll(UNDERTAKING_EXAMPLES);
+    return all;
+  }
 
   private PersonChatContext() {
   }
@@ -157,7 +230,23 @@ public final class PersonChatContext {
     if (thrownBySpeaker > 0) {
       system.append(", who has thrown you items before");
     }
-    system.append(". ").append(opinionLine(person, playerName, playerUUID)).append('\n').append(RULES);
+    system.append(". ").append(opinionLine(person, playerName, playerUUID)).append('\n');
+
+    // The undertaking tool is offered only when a matter is plausibly in play:
+    // an open one already stands with this person, or their line opens a new
+    // commitment. On any other turn the field is not even mentioned, so the
+    // model cannot reach for it (undertakings map #24). Open matters are stated
+    // so the model knows what an advance or resolve would move.
+    List<UndertakingData.Undertaking> openMatters =
+        person.getData(VillagelifeAttachments.UNDERTAKINGS.get()).openWith(playerUUID);
+    boolean undertakingGate = !openMatters.isEmpty() || opensACommitment(playerLine);
+    if (!openMatters.isEmpty()) {
+      system.append("Still between you and ").append(playerName).append(": ")
+          .append(openMatters.stream().map(UndertakingData.Undertaking::summary)
+              .collect(java.util.stream.Collectors.joining("; ")))
+          .append(". If one moves forward or is settled now, mark it.\n");
+    }
+    system.append(undertakingGate ? RULES_WITH_UNDERTAKING : RULES);
 
     StringBuilder user = new StringBuilder();
     List<Turn> transcript = withoutRepeats(history);
@@ -170,7 +259,7 @@ public final class PersonChatContext {
     }
     user.append(playerName).append(" says: \"").append(playerLine).append("\"\nYour JSON answer:");
 
-    return new AssembledChat(system.toString(), user.toString(), EXAMPLES);
+    return new AssembledChat(system.toString(), user.toString(), examplesFor(undertakingGate));
   }
 
   private static String tierName(Village village) {
