@@ -127,6 +127,9 @@ public class Village {
   private transient long lastShortageLogTime = -1_000_000_000L;
   // True while the brain is deciding what to build; keeps one decision in flight.
   private transient boolean projectDecisionPending;
+  // True while the brain is deciding who takes an open post; keeps one job
+  // decision in flight (JobClaiming), the same discipline as the project one.
+  private transient boolean jobDecisionPending;
   // What the village can do, derived from its buildings (#55). Never persisted:
   // recomputed on building change and on the slow tick, because supply-gated
   // grants depend on what the chests hold right now.
@@ -1204,6 +1207,15 @@ public class Village {
 
   public List<JobAssignment> getUnassignedJobs() {
     return unassignedJobs;
+  }
+
+  /** True while a brain pick for an open post is in flight (see {@link JobClaiming}). */
+  public boolean isJobDecisionPending() {
+    return jobDecisionPending;
+  }
+
+  public void setJobDecisionPending(boolean pending) {
+    this.jobDecisionPending = pending;
   }
 
   /** Beds nobody sleeps in yet. Returned live: reconciliation adds to it. */

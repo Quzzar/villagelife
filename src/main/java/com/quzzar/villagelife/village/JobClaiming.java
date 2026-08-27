@@ -1,13 +1,20 @@
 package com.quzzar.villagelife.village;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.VillagelifeAttachments;
+import com.quzzar.villagelife.llm.LlmDecision;
+import com.quzzar.villagelife.llm.LlmService;
+import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.buildings.Building;
 
 import net.minecraft.core.BlockPos;
@@ -16,15 +23,37 @@ import net.minecraft.server.level.ServerLevel;
 
 /**
  * Job placement and reorganization for the campfire model (campfire map #18,
- * upgraded by #38): the brain places the best-suited idle person into each
- * open job (aptitude per {@link JobAptitudes}, FIFO as the tiebreaker), and a
- * slow-tick swap pass reorganizes workers only when the improvement clears the
- * configured threshold, with a per-person cooldown so villages don't churn.
- * Rules place; the LLM never picks. Runs from {@link Village#update}.
+ * upgraded by #38): each open job is filled from the idle campfire pool by
+ * aptitude ({@link JobAptitudes}, FIFO as the tiebreaker), and a slow-tick swap
+ * pass reorganizes workers only when the improvement clears the configured
+ * threshold, with a per-person cooldown so villages don't churn.
+ *
+ * <p>The rules gate to competence and the model picks within it: when two or
+ * more idle people are near-equally suited to an open post ({@link #PICK_DELTA}
+ * apart) and the brain is ready, it chooses among them on character and says
+ * why (the {@code decide()} pattern of {@code llm-brain.md}); an uncontested
+ * post, or an absent or slow brain, falls straight to the aptitude best. One
+ * decision is in flight per village, mirroring the project planner. The swap
+ * pass stays purely rule-based. Runs from {@link Village#update}.
  */
 public final class JobClaiming {
 
   private JobClaiming() {
+  }
+
+  /**
+   * How close in aptitude two people must be to count as near-equally suited, on
+   * the 3-18 stat scale. Within this the brain picks among them on character;
+   * beyond it the better-suited person simply takes the post, no call spent. A
+   * tunable worth moving to config if it stays (as the swap threshold already is).
+   */
+  private static final double PICK_DELTA = 2.0;
+
+  /** The most applicants offered to the brain at once, to keep the prompt small. */
+  private static final int MAX_APPLICANTS = 4;
+
+  /** A loaded idle person and their aptitude score for the post under consideration. */
+  private record Applicant(RealPerson person, double score) {
   }
 
   /** One reconciliation-and-claiming pass every second; swaps on the slow tick. */
@@ -183,8 +212,16 @@ public final class JobClaiming {
     }
   }
 
-  /** Oldest open job first; the best-suited loaded idle person takes it (FIFO breaks ties). */
+  /**
+   * Oldest open job first. The single best-suited idle person takes an
+   * uncontested post on the spot (FIFO breaks ties); a post two or more people
+   * are near-equally suited to is offered to the brain, which picks among them
+   * and pauses claiming until the answer lands.
+   */
   private static void claimOpenJobs(Village village, ServerLevel level) {
+    if (village.isJobDecisionPending()) {
+      return; // a pick is in flight; the post it is deciding stays open until it lands
+    }
     while (!village.getUnassignedJobs().isEmpty()) {
       JobAssignment job = village.getUnassignedJobs().get(0);
       if (!isStationValid(village, job)) {
@@ -194,28 +231,164 @@ public final class JobClaiming {
             job.getOccupation(), village.getName());
         continue;
       }
-      RealPerson best = null;
-      double bestScore = -1;
-      for (UUID idleId : village.idlePeople()) {
-        RealPerson person = village.getPerson(level, idleId);
-        if (person == null) {
-          continue; // not loaded right now; the next pass will see them
-        }
-        double score = JobAptitudes.score(person.getStatBlock(), job.getOccupation());
-        if (score > bestScore) {
-          best = person;
-          bestScore = score;
-        }
-      }
-      if (best == null) {
+      List<Applicant> shortlist = shortlistFor(village, level, job);
+      if (shortlist.isEmpty()) {
         return; // nobody claimable is loaded; try again next pass
       }
-      village.assignJob(best.getUUID(), job);
-      startJob(village, best, job);
-      markCooldown(village, best.getUUID(), level.getGameTime());
-      Villagelife.LOGGER.debug("{} claimed the open {} job (aptitude {})", best.getFullName(),
-          job.getOccupation(), String.format("%.1f", bestScore));
+      if (shortlist.size() >= 2 && LlmService.get().isReady()) {
+        askBrainToPick(village, level, job, shortlist);
+        return; // one decision in flight; the rest of the queue waits for a later pass
+      }
+      Applicant best = shortlist.get(0);
+      assignJob(village, level, best.person(), job, best.score());
     }
+  }
+
+  /**
+   * The loaded idle people best suited to a post: scored by aptitude, sorted
+   * best first (a stable sort keeps arrival order among equals, so FIFO still
+   * breaks ties), and cut to those within {@link #PICK_DELTA} of the top score.
+   * A clear winner yields a shortlist of one and no deliberation; a genuine
+   * near-tie yields the handful the brain then chooses among.
+   */
+  private static List<Applicant> shortlistFor(Village village, ServerLevel level, JobAssignment job) {
+    List<Applicant> applicants = new ArrayList<>();
+    for (UUID idleId : village.idlePeople()) {
+      RealPerson person = village.getPerson(level, idleId);
+      if (person == null) {
+        continue; // not loaded right now; the next pass will see them
+      }
+      applicants.add(new Applicant(person, JobAptitudes.score(person.getStatBlock(), job.getOccupation())));
+    }
+    if (applicants.isEmpty()) {
+      return List.of();
+    }
+    applicants.sort(Comparator.comparingDouble(Applicant::score).reversed());
+    double best = applicants.get(0).score();
+    List<Applicant> shortlist = new ArrayList<>();
+    for (Applicant applicant : applicants) {
+      if (best - applicant.score() > PICK_DELTA || shortlist.size() >= MAX_APPLICANTS) {
+        break;
+      }
+      shortlist.add(applicant);
+    }
+    return shortlist;
+  }
+
+  /**
+   * Offers the shortlist to the brain and applies its pick when it lands. The
+   * aptitude best is the fallback for every unusable answer (no reply, a
+   * timeout, an out-of-range index). The world can move in the up-to-60s the
+   * call takes, so the pick is re-validated against live state before it is
+   * applied; if it and the fallback have both left the pool, the next claiming
+   * pass simply starts over.
+   */
+  private static void askBrainToPick(Village village, ServerLevel level, JobAssignment job,
+      List<Applicant> shortlist) {
+    village.setJobDecisionPending(true);
+    Applicant ruleChoice = shortlist.get(0);
+    List<String> options = shortlist.stream().map(applicant -> describeApplicant(applicant.person())).toList();
+    LlmService.get().decide(situationOf(village, job), options)
+        .whenComplete((decision, error) -> {
+          if (level == null) {
+            village.setJobDecisionPending(false);
+            return;
+          }
+          level.getServer().execute(() -> {
+            village.setJobDecisionPending(false);
+            applyPick(village, level, job, shortlist, ruleChoice, decision, error);
+          });
+        });
+  }
+
+  private static void applyPick(Village village, ServerLevel level, JobAssignment job,
+      List<Applicant> shortlist, Applicant ruleChoice, Optional<LlmDecision> decision, Throwable error) {
+    if (!village.getUnassignedJobs().contains(job) || !isStationValid(village, job)) {
+      return; // the post was filled, dropped, or redefined while we waited
+    }
+    Applicant chosen = resolveChoice(village, job, shortlist, ruleChoice, decision, error);
+    RealPerson person = liveClaimant(village, level, chosen);
+    if (person == null) {
+      chosen = ruleChoice; // the pick left the pool; the aptitude best is the safety net
+      person = liveClaimant(village, level, chosen);
+    }
+    if (person == null) {
+      return; // even the fallback is gone; let the next pass start fresh
+    }
+    assignJob(village, level, person, job, chosen.score());
+  }
+
+  /**
+   * Maps the brain's answer back to an applicant, logging its reason on a real
+   * pick. Empty, errored, or out-of-range answers fall back to the aptitude best
+   * the shortlist was built around.
+   */
+  private static Applicant resolveChoice(Village village, JobAssignment job, List<Applicant> shortlist,
+      Applicant ruleChoice, Optional<LlmDecision> decision, Throwable error) {
+    if (error != null) {
+      Villagelife.LOGGER.error("'{}' failed to choose who takes the {} post",
+          village.getName(), job.getOccupation(), error);
+      return ruleChoice;
+    }
+    if (decision == null || decision.isEmpty()) {
+      return ruleChoice; // no answer; the best suited by the rules takes it
+    }
+    int index = decision.get().choiceIndex();
+    if (index < 0 || index >= shortlist.size()) {
+      return ruleChoice;
+    }
+    Applicant chosen = shortlist.get(index);
+    Villagelife.LOGGER.info("'{}' chose {} for the {} post: {}", village.getName(),
+        chosen.person().getFullName(), job.getOccupation(), decision.get().reason());
+    return chosen;
+  }
+
+  /**
+   * The live entity for an applicant if it is still a loaded, idle, unassigned
+   * claimant, otherwise null. Re-fetched rather than trusting the reference the
+   * shortlist captured up to a minute earlier, which may be a stale instance if
+   * the person unloaded and came back in the meantime.
+   */
+  private static RealPerson liveClaimant(Village village, ServerLevel level, Applicant applicant) {
+    UUID id = applicant.person().getUUID();
+    RealPerson person = village.getPerson(level, id);
+    if (person == null || village.getJobAssignment(id) != null || !person.getOccupation().isIdle()) {
+      return null;
+    }
+    return person;
+  }
+
+  /** The post to fill, in the model's own terms. The numbered options are the applicants. */
+  private static String situationOf(Village village, JobAssignment job) {
+    String occupation = job.getOccupation().name().toLowerCase(Locale.ROOT);
+    return "You are the collective judgement of " + village.getName()
+        + ", deciding who from the campfire takes up a trade. The " + occupation
+        + "'s post stands open, and these idle folk are all well suited to it. Choose who should"
+        + " take it, in keeping with who they are, and give your reason in a few words.";
+  }
+
+  /**
+   * An applicant as the model sees them: their name, and their persona blurb
+   * when they have one, so the choice can turn on character. Competence is
+   * already guaranteed (the shortlist is only ever the near-equally suited), so
+   * what is left to weigh is who each person is.
+   */
+  private static String describeApplicant(RealPerson person) {
+    PersonaData persona = person.getData(VillagelifeAttachments.PERSONA.get());
+    if (persona != null && !persona.isEmpty() && !persona.blurb().isBlank()) {
+      return person.getFullName() + ": " + persona.blurb();
+    }
+    return person.getFullName();
+  }
+
+  /** Books the assignment, sends the worker off to the post, marks the cooldown. */
+  private static void assignJob(Village village, ServerLevel level, RealPerson person, JobAssignment job,
+      double score) {
+    village.assignJob(person.getUUID(), job);
+    startJob(village, person, job);
+    markCooldown(village, person.getUUID(), level.getGameTime());
+    Villagelife.LOGGER.debug("{} claimed the open {} job (aptitude {})", person.getFullName(),
+        job.getOccupation(), String.format("%.1f", score));
   }
 
   /** Occupation, visible commute to the workplace, goal refresh. */

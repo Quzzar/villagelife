@@ -163,15 +163,27 @@ A workplace building finishing construction registers its work stations as open
 `JobAssignment`s (this part already exists: `VillageBrain.processNewBuilding` fills
 `unassignedJobs`). From there:
 
-- An open job claims an idle person from the campfire pool automatically. The brain picks
-  the **best-suited** camper: aptitude is a weighted sum over the genetics stat block, with
-  per-occupation weights as datapack JSON (`data/villagelife/villagelife/aptitude/`); FIFO
-  breaks ties, and unprofiled occupations stay effectively FIFO.
+- An open job claims an idle person from the campfire pool automatically. Aptitude is a
+  weighted sum over the genetics stat block, with per-occupation weights as datapack JSON
+  (`data/villagelife/villagelife/aptitude/`); FIFO breaks ties, and unprofiled occupations
+  stay effectively FIFO.
+- **The rules gate to competence; the model picks within it.** When one camper is clearly
+  best suited, they take the post on the spot, no model call spent. When two or more are
+  near-equally suited (within `PICK_DELTA`, 2 points on the 3-18 scale) and the brain is
+  ready, those near-equals are offered to `decide()`, which picks among them on character
+  (each is described by name and persona blurb) and gives its reason. Competence is never
+  traded away: the shortlist is only ever the near-equally suited, so the character pick
+  cannot seat someone materially worse. An absent, slow, or unusable answer falls straight
+  to the aptitude best, and one such decision is in flight per village at a time (the
+  project planner's discipline, `JobClaiming` + `Village.jobDecisionPending`). This is the
+  first job-facing consumer of the LLM brain; see [llm-brain.md](llm-brain.md).
 - A slow-tick **swap pass** reorganizes only when the improvement clears the configured
   threshold (default 3 points on the 3-18 scale): a markedly better idle candidate takes
   over a job (the displaced worker returns to the pool and remembers it in their personal
   log), or one beneficial two-worker exchange per pass. A per-person cooldown (default 2
-  game days) prevents churn. Rules place; the journal narrates; the LLM never picks.
+  game days) prevents churn. The swap pass stays **purely rule-based**: reorganization is a
+  mechanical aptitude optimization, and only the initial claim of a contested post is
+  handed to the model.
 - The person walks from the campfire to the workplace, takes on the `Occupation` of the
   station, and holds it until the job stops existing.
 - **Vacancy refills**: a worker dying or the building being removed puts the

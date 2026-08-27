@@ -13,6 +13,16 @@ lacks, then `decide()` offers the top few to the model, which picks one and says
 model never sees an illegal option, so it cannot invent an unaffordable or nonsensical
 project.
 
+A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
+and when two or more idle people are near-equally suited by aptitude (within a small
+`PICK_DELTA`) it offers those near-equals to `decide()` to choose among on character, each
+described by name and persona blurb. The shape is identical to the planner's: the rules
+build a competent shortlist, the model picks within it and gives its reason, and the
+aptitude best stands in whenever the model is absent, slow, or unusable, so a contested
+post is the only thing ever handed over and competence is never traded for character. See
+[population-and-labor.md](population-and-labor.md). The swap pass that reorganizes existing
+workers stays purely rule-based.
+
 That makes the LLM **strongly wanted, not structurally required**: when it is absent,
 slow, or gives an unusable answer, the rules' own top-scoring option stands in and the
 village keeps building. What is lost is the character of the choice, not the ability to
