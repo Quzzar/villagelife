@@ -71,7 +71,9 @@ public class VillagelifeCommands {
                                                         StringArgumentType.getString(ctx, "building"))))))
                         .then(Commands.literal("standing")
                                 .executes(ctx -> reportStanding(ctx.getSource(),
-                                        BlockPos.containing(ctx.getSource().getPosition()))))
+                                        BlockPos.containing(ctx.getSource().getPosition())))
+                                .then(Commands.literal("ladder")
+                                        .executes(ctx -> reportStandingLadder(ctx.getSource()))))
                         .then(Commands.literal("witnesses")
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(ctx -> reportWitnesses(ctx.getSource(),
@@ -182,6 +184,24 @@ public class VillagelifeCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "Placed " + building + " in '" + village.getName() + "'."), true);
+        return 1;
+    }
+
+    /**
+     * The whole ladder at once, for tuning it. Every rung is a config number
+     * and the markup between two of them is a curve, so reading the thresholds
+     * out of the file tells you less than seeing what they do.
+     */
+    private static int reportStandingLadder(CommandSourceStack source) {
+        StringBuilder ladder = new StringBuilder("What a village does at each standing:");
+        for (int standing = 100; standing >= -100; standing -= 10) {
+            com.quzzar.villagelife.wrongdoing.Standing.Tier tier =
+                    com.quzzar.villagelife.wrongdoing.Standing.tierFor(standing);
+            double markup = com.quzzar.villagelife.wrongdoing.Standing.priceMultiplier(standing);
+            ladder.append(String.format("%n %+4d  %-9s %s", standing, tier.name().toLowerCase(),
+                    markup > 1.0D ? String.format("%.2fx price", markup) : ""));
+        }
+        source.sendSuccess(() -> Component.literal(ladder.toString()), true);
         return 1;
     }
 
