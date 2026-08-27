@@ -14,6 +14,7 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.llm.provider.ClaudeProvider;
 import com.quzzar.villagelife.llm.provider.JlamaWorkerProvider;
+import com.quzzar.villagelife.llm.provider.LocalRuntimeProvider;
 import com.quzzar.villagelife.llm.provider.LlmProvider;
 import com.quzzar.villagelife.llm.provider.LlmProvider.CompletionRequest;
 import com.quzzar.villagelife.llm.provider.OpenAiCompatibleProvider;
@@ -128,6 +129,10 @@ public final class LlmService {
           () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
       case "deepseek" -> new OpenAiCompatibleProvider(OpenAiCompatibleProvider.DEEPSEEK,
           () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
+      // Fetches llama.cpp and runs it itself: nothing to install, and several
+      // times faster than the in-process Java model.
+      case "llamacpp" -> new LocalRuntimeProvider();
+      // Someone else's already-running server on this machine.
       case "local" -> new OpenAiCompatibleProvider(
           OpenAiCompatibleProvider.local(VillagelifeConfig.LlmLocalUrl, VillagelifeConfig.LlmCloudModel),
           () -> "", () -> VillagelifeConfig.LlmCloudModel);
