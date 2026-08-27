@@ -415,6 +415,8 @@ public class Village {
 
       if (projectLocation != BlockPos.ZERO) {
         // Beginning construction of new project.
+        Villagelife.LOGGER.info("Village '{}' is building {} at {}",
+            name, buildingInfo.getName(), projectLocation.toShortString());
 
         UrbanPlanner.payForBuilding(this, project.getBuilding().getInfo());
 

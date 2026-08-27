@@ -51,8 +51,15 @@ public final class ReflectionService {
       + "For each person whose standing with you genuinely changed, give a whole number "
       + "from -15 to 15: negative if you think worse of them, positive if better. "
       + "Most events change nothing; leave those people out entirely. "
-      + "Answer with ONLY a JSON array like "
-      + "[{\"person\": 1, \"change\": 6, \"why\": \"<a few words>\"}] and nothing else.";
+      + "Answer with ONLY a JSON array and nothing else.\n"
+      // Two examples, opposite signs, both with a real reason. One example
+      // teaches the shape of the answer; two teach which way the number goes,
+      // which is what the model got backwards. A skeleton example with a
+      // placeholder reason taught it to echo the placeholder.
+      + "Person 1 shared their food with you when you had none:\n"
+      + "[{\"person\": 1, \"change\": 8, \"why\": \"she fed me when I had nothing\"}]\n"
+      + "Person 2 attacked you:\n"
+      + "[{\"person\": 2, \"change\": -12, \"why\": \"he attacked me\"}]";
 
   private ReflectionService() {
   }

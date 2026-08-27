@@ -27,6 +27,25 @@ The planner now takes ground that needs work: a free site always wins, and other
 cheapest preparable site is chosen. Still unbuilt from the sections below: the resumable
 budgeted search, the site cache, and heightmap-first screening.
 
+**Where a village looks.** Candidates are drawn from a square ring around the town centre.
+The ring's outer edge grows with the village — one search radius, plus another for every
+four buildings standing — but it never shrinks to nothing, and candidates always stand off
+the centre rather than starting on it. Both halves of that rule were learned by breaking
+them: a radius proportional to the building count alone is zero for a young village, so
+every candidate lands on the town centre's own footprint, is skipped as claimed ground, and
+the village decides there is nowhere to build. A candidate that does land on the centre is
+pushed out along one axis only, so a building can sit due north or east of the fire instead
+of only on the diagonals.
+
+A village only searches while its ground is loaded. Nothing can be sited in a chunk nobody
+is near, and asking the brain to choose would spend a model call on an answer no site search
+could act on, so an unwatched village waits rather than planning.
+
+Every search leaves one debug line saying what it saw: how many candidates were scored, how
+many sat on claimed ground, how many were in unloaded chunks. A search that skips every
+candidate before scoring is otherwise indistinguishable from one where every site was
+genuinely bad, and that ambiguity hid the zero-radius bug above for as long as it existed.
+
 Earlier slice: `SitePreparation.score` prices any candidate
 footprint in blocks moved (clear, cut, fill, or impossible) using the
 `villagelife:clearable` whitelist tag, the per-column and average levelling budgets below,
