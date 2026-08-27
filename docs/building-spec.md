@@ -30,8 +30,9 @@ One consequence worth keeping: `TillSoilGoal` treats bare farmland as somewhere 
 so melon and pumpkin need a fruiting lane the farmer will leave alone. Podzol is that lane
 — it is valid ground for fruit and is the one dirt-family block absent from `TILLABLES`.
 
-`upgrades_from` parses and validates but has no consumer, so no level-2 building can be
-reached. Several
+`upgrades_from` is live: a village offers an upgrade of something it owns alongside new
+buildings, rebuilds it in place, and keeps the building's identity so its workers keep their
+jobs — see [How upgrading works](#how-upgrading-works). Several
 shipped files contradict the rules below (a level-1 church granting ENCHANTING alone, a
 watchtower with two guard stations, a storehouse with eleven containers). The footprint
 size classes are invented numbers and measured 1.4x to 20.5x off against real candidates.
