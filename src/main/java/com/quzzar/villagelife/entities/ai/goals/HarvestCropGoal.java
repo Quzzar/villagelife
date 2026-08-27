@@ -43,6 +43,11 @@ public class HarvestCropGoal extends Goal {
 
   private static final double SPEED = 0.5D;
 
+  /** Ticks between looking for work, so a fruitless search is not run every tick. */
+  private static final int SEARCH_INTERVAL = 20;
+
+  private int nextSearchTick = 0;
+
   private int tickCount = 0;
 
   private BlockPos cropPos = BlockPos.ZERO;
@@ -70,11 +75,33 @@ public class HarvestCropGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    return !shouldInterrupt() && !this.approach.standingDown();
+    if (shouldInterrupt() || this.approach.standingDown()) {
+      return false;
+    }
+    // Only take movement when there is actually something to harvest. This
+    // goal used to answer yes always and never end, so a farmer held the
+    // movement flag for life and could not even be strolled away by anything
+    // of lower priority: they stood exactly where they were put.
+    if (this.person.tickCount < this.nextSearchTick) {
+      return false;
+    }
+    this.nextSearchTick = this.person.tickCount + SEARCH_INTERVAL;
+    this.cropPos = this.findNearestCrop(getRelativeLocation());
+    return this.cropPos != BlockPos.ZERO;
+  }
+
+  @Override
+  public boolean canContinueToUse() {
+    return this.cropPos != BlockPos.ZERO && !shouldInterrupt() && !this.approach.standingDown();
   }
 
   @Override
   public void start() {
+    this.approach.begin();
+  }
+
+  @Override
+  public void stop() {
     this.cropPos = BlockPos.ZERO;
   }
 
@@ -87,15 +114,7 @@ public class HarvestCropGoal extends Goal {
     tickCount++;
 
     if (this.cropPos == BlockPos.ZERO) {
-      if (tickCount % 20 != 0) { // Looking for work is a once-a-second job
-        return;
-      }
-      this.cropPos = this.findNearestCrop(getRelativeLocation());
-      if (this.cropPos == BlockPos.ZERO) {
-        stop();
-        return;
-      }
-      this.approach.begin();
+      return; // canUse finds the work; without one the goal has already ended
     }
 
     // The farmer goes to the crop. Before this they harvested whatever was

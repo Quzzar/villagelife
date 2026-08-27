@@ -48,6 +48,11 @@ public class TillSoilGoal extends Goal {
 
   private static final double SPEED = 0.5D;
 
+  /** Ticks between looking for work, so a fruitless search is not run every tick. */
+  private static final int SEARCH_INTERVAL = 20;
+
+  private int nextSearchTick = 0;
+
   private int tickCount = 0;
 
   private BlockPos soilPos = BlockPos.ZERO;
@@ -75,11 +80,36 @@ public class TillSoilGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    return !shouldInterrupt() && !this.approach.standingDown();
+    if (shouldInterrupt() || this.approach.standingDown()) {
+      return false;
+    }
+    // Only take movement when there is ground worth breaking. This goal used
+    // to answer yes always and never end, so a farmer held the movement flag
+    // for life and stood exactly where they were put.
+    if (this.person.tickCount < this.nextSearchTick) {
+      return false;
+    }
+    this.nextSearchTick = this.person.tickCount + SEARCH_INTERVAL;
+    if (findPlantableItem() == null) {
+      return false;
+    }
+    this.soilPos = this.findUntilledSoil(getRelativeLocation());
+    return this.soilPos != BlockPos.ZERO;
+  }
+
+  @Override
+  public boolean canContinueToUse() {
+    return this.soilPos != BlockPos.ZERO && !shouldInterrupt() && !this.approach.standingDown();
   }
 
   @Override
   public void start() {
+    this.approach.begin();
+    this.tickCount = 0;
+  }
+
+  @Override
+  public void stop() {
     this.soilPos = BlockPos.ZERO;
   }
 
@@ -92,17 +122,7 @@ public class TillSoilGoal extends Goal {
     tickCount++;
 
     if (this.soilPos == BlockPos.ZERO) {
-      if (tickCount % 20 != 0) { // Looking for ground to break is a once-a-second job
-        return;
-      }
-      if (findPlantableItem() == null) {
-        stop(); return;
-      }
-      this.soilPos = this.findUntilledSoil(getRelativeLocation());
-      if (this.soilPos == BlockPos.ZERO) {
-        stop(); return;
-      }
-      this.approach.begin();
+      return; // canUse finds the work; without one the goal has already ended
     }
 
     // The farmer goes to the ground they are breaking. Before this they tilled
