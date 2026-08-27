@@ -298,6 +298,14 @@ public class PersonChatScreen
   private long awaitingSinceMs;
   private static final long AWAIT_RELEASE_MS = 30_000;
 
+  // The newest reply is revealed a character at a time, like the villager is
+  // saying it, rather than appearing whole. Only a FRESH reply reveals; history
+  // reloaded from the server shows at once. -1 when nothing is revealing.
+  private int revealingLine = -1;
+  private long revealStartMs;
+  /** Reveal rate: about 45 characters a second, near an easy reading pace. */
+  private static final double REVEAL_CHARS_PER_MS = 0.045D;
+
   private int panelLeft;
   private int panelRight;
   private int panelTop;
@@ -337,6 +345,7 @@ public class PersonChatScreen
     screen.awaitingReply = screen.lines.isEmpty();
     screen.awaitingSinceMs = System.currentTimeMillis();
     screen.chatScrollUp = 0;
+    screen.revealingLine = -1; // reloaded history is not new; show it at once
   }
 
   /** The stall's current state arrived; repaint the trade tab. */
@@ -350,6 +359,9 @@ public class PersonChatScreen
 
   public static void onReply(int entityId, String text) {
     if (Minecraft.getInstance().screen instanceof PersonChatScreen screen && screen.entityId == entityId) {
+      // Start revealing this line as it is added: its index is the current size.
+      screen.revealingLine = screen.lines.size();
+      screen.revealStartMs = System.currentTimeMillis();
       screen.lines.add(new ChatLine(screen.headerName, text, false));
       screen.chatScrollUp = 0;
       screen.awaitingReply = false;
@@ -563,11 +575,30 @@ public class PersonChatScreen
     int bottom = wellBottom - 5;
 
     List<Line> rendered = new ArrayList<>();
-    for (ChatLine line : lines) {
+    for (int idx = 0; idx < lines.size(); idx++) {
+      ChatLine line = lines.get(idx);
       int colour = line.player() ? CHAT_PLAYER : CHAT_VILLAGER;
-      Component full = Component.empty()
+      String shown = line.text();
+      boolean revealing = false;
+      if (idx == revealingLine) {
+        int chars = (int) ((System.currentTimeMillis() - revealStartMs) * REVEAL_CHARS_PER_MS);
+        if (chars < shown.length()) {
+          shown = shown.substring(0, Math.max(0, chars));
+          revealing = true;
+        } else {
+          revealingLine = -1; // fully shown; stop tracking it
+        }
+      }
+      net.minecraft.network.chat.MutableComponent full = Component.empty()
           .append(Component.literal(line.speaker() + ": ").withStyle(ChatFormatting.BOLD))
-          .append(Component.literal(line.text()));
+          .append(Component.literal(shown));
+      // A cursor blinking at the end while the words are still arriving, so a
+      // mid-reveal pause reads as 'still speaking' rather than as a short reply
+      // that has finished. Underscore is the game's own text-cursor glyph and
+      // is always in the font; a block character risks a missing-glyph box.
+      if (revealing && (System.currentTimeMillis() / 450L) % 2L == 0L) {
+        full.append(Component.literal("_").withStyle(ChatFormatting.GRAY));
+      }
       boolean first = true;
       for (FormattedCharSequence part : this.font.split(full, textWidth)) {
         rendered.add(new Line(part, colour, first));
