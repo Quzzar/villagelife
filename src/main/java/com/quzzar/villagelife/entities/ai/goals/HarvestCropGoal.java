@@ -38,6 +38,11 @@ public class HarvestCropGoal extends Goal {
 
   private static final int SEARCH_RADIUS = 2;
 
+  /** Close enough to put a hand on it: three blocks. */
+  private static final double REACH_SQR = 9.0D;
+
+  private static final double SPEED = 0.5D;
+
   private int tickCount = 0;
 
   private BlockPos cropPos = BlockPos.ZERO;
@@ -46,12 +51,16 @@ public class HarvestCropGoal extends Goal {
   protected boolean useWorkLoc;
   protected BlockPos workLocation;
 
+  /** Whether walking is getting anywhere, and what to do when it is not (#75). */
+  private final ApproachWatch approach;
+
   public HarvestCropGoal(RealPerson person, boolean useWorkLoc) {
     // This goal walks the villager somewhere, so it must compete for movement
     // rather than run alongside every other goal that does the same (#74).
     this.setFlags(EnumSet.of(Flag.MOVE));
     this.person = person;
     this.useWorkLoc = useWorkLoc;
+    this.approach = new ApproachWatch(person, "the field");
 
     this.workLocation = BlockPos.ZERO;
     if (useWorkLoc) {
@@ -61,7 +70,7 @@ public class HarvestCropGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    return !shouldInterrupt();
+    return !shouldInterrupt() && !this.approach.standingDown();
   }
 
   @Override
@@ -77,26 +86,43 @@ public class HarvestCropGoal extends Goal {
 
     tickCount++;
 
-    if (tickCount % 20 == 0) {// Every 1 second
-
+    if (this.cropPos == BlockPos.ZERO) {
+      if (tickCount % 20 != 0) { // Looking for work is a once-a-second job
+        return;
+      }
+      this.cropPos = this.findNearestCrop(getRelativeLocation());
       if (this.cropPos == BlockPos.ZERO) {
-        this.cropPos = this.findNearestCrop(getRelativeLocation());
-      }
-
-      if (this.cropPos != BlockPos.ZERO) {
-
-        if (!this.person.swinging) {
-          this.person.swing(this.person.getUsedItemHand());
-        }
-
-        harvestCrop(this.cropPos);
-
-        this.cropPos = BlockPos.ZERO;
-
-      } else {
         stop();
+        return;
       }
+      this.approach.begin();
+    }
 
+    // The farmer goes to the crop. Before this they harvested whatever was
+    // within five blocks of their STATION from wherever they happened to be
+    // standing, so a field was worked by a villager who had never been in it —
+    // and only when ambient wandering left them close enough to their post for
+    // the search to find anything at all.
+    if (this.person.blockPosition().distSqr(this.cropPos) > REACH_SQR) {
+      if (this.approach.giveUp(this.cropPos)) {
+        this.cropPos = BlockPos.ZERO;
+        return;
+      }
+      this.person.getNavigation().moveTo(
+          this.cropPos.getX() + 0.5D, this.cropPos.getY(), this.cropPos.getZ() + 0.5D, SPEED);
+      return;
+    }
+
+    this.approach.arrived();
+    this.person.getLookControl().setLookAt(
+        this.cropPos.getX(), this.cropPos.getY(), this.cropPos.getZ(), 30.0F, 30.0F);
+
+    if (tickCount % 20 == 0) {// Every 1 second
+      if (!this.person.swinging) {
+        this.person.swing(this.person.getUsedItemHand());
+      }
+      harvestCrop(this.cropPos);
+      this.cropPos = BlockPos.ZERO;
     }
 
   }

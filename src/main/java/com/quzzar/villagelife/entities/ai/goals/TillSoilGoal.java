@@ -43,6 +43,11 @@ public class TillSoilGoal extends Goal {
 
   private static final int SEARCH_RADIUS = 2;
 
+  /** Close enough to put a hand on it: three blocks. */
+  private static final double REACH_SQR = 9.0D;
+
+  private static final double SPEED = 0.5D;
+
   private int tickCount = 0;
 
   private BlockPos soilPos = BlockPos.ZERO;
@@ -51,7 +56,11 @@ public class TillSoilGoal extends Goal {
   protected boolean useWorkLoc;
   protected BlockPos workLocation;
 
+  /** Whether walking is getting anywhere, and what to do when it is not (#75). */
+  private final ApproachWatch approach;
+
   public TillSoilGoal(RealPerson person, boolean useWorkLoc) {
+    this.approach = new ApproachWatch(person, "the field");
     // This goal walks the villager somewhere, so it must compete for movement
     // rather than run alongside every other goal that does the same (#74).
     this.setFlags(EnumSet.of(Flag.MOVE));
@@ -66,7 +75,7 @@ public class TillSoilGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    return !shouldInterrupt();
+    return !shouldInterrupt() && !this.approach.standingDown();
   }
 
   @Override
@@ -82,31 +91,48 @@ public class TillSoilGoal extends Goal {
     
     tickCount++;
 
-    if (tickCount % 20 == 0) {// Every 1 second
-
-      Item plantableItem = findPlantableItem();
-      if(plantableItem == null){
+    if (this.soilPos == BlockPos.ZERO) {
+      if (tickCount % 20 != 0) { // Looking for ground to break is a once-a-second job
+        return;
+      }
+      if (findPlantableItem() == null) {
         stop(); return;
       }
-
+      this.soilPos = this.findUntilledSoil(getRelativeLocation());
       if (this.soilPos == BlockPos.ZERO) {
-        this.soilPos = this.findUntilledSoil(getRelativeLocation());
-      }
-
-      if (this.soilPos != BlockPos.ZERO) {
-
-        if (!this.person.swinging) {
-          this.person.swing(this.person.getUsedItemHand());
-        }
-
-        tillSoil(this.soilPos, plantableItem);
-
-        this.soilPos = BlockPos.ZERO;
-
-      } else {
         stop(); return;
       }
+      this.approach.begin();
+    }
 
+    // The farmer goes to the ground they are breaking. Before this they tilled
+    // and sowed whatever lay within five blocks of their STATION from wherever
+    // they happened to be standing, which is a field worked by someone who was
+    // never in it.
+    if (this.person.blockPosition().distSqr(this.soilPos) > REACH_SQR) {
+      if (this.approach.giveUp(this.soilPos)) {
+        this.soilPos = BlockPos.ZERO;
+        return;
+      }
+      this.person.getNavigation().moveTo(
+          this.soilPos.getX() + 0.5D, this.soilPos.getY(), this.soilPos.getZ() + 0.5D, SPEED);
+      return;
+    }
+
+    this.approach.arrived();
+    this.person.getLookControl().setLookAt(
+        this.soilPos.getX(), this.soilPos.getY(), this.soilPos.getZ(), 30.0F, 30.0F);
+
+    if (tickCount % 20 == 0) {// Every 1 second
+      Item plantableItem = findPlantableItem();
+      if (plantableItem == null) {
+        stop(); return;
+      }
+      if (!this.person.swinging) {
+        this.person.swing(this.person.getUsedItemHand());
+      }
+      tillSoil(this.soilPos, plantableItem);
+      this.soilPos = BlockPos.ZERO;
     }
 
   }
