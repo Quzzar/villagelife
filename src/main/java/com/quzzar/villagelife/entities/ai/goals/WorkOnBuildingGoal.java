@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
+import java.util.EnumSet;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.buildings.BuildProgress;
@@ -17,6 +18,9 @@ public class WorkOnBuildingGoal extends Goal {
     protected BlockPos buildingPos;
 
     public WorkOnBuildingGoal(RealPerson person) {
+        // This goal walks the villager somewhere, so it must compete for movement
+        // rather than run alongside every other goal that does the same (#74).
+        this.setFlags(EnumSet.of(Flag.MOVE));
         this.person = person;
         this.buildingPos = null;
     }

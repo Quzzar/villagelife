@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
+import java.util.EnumSet;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.quzzar.villagelife.Villagelife;
@@ -51,6 +52,9 @@ public class TillSoilGoal extends Goal {
   protected BlockPos workLocation;
 
   public TillSoilGoal(RealPerson person, boolean useWorkLoc) {
+    // This goal walks the villager somewhere, so it must compete for movement
+    // rather than run alongside every other goal that does the same (#74).
+    this.setFlags(EnumSet.of(Flag.MOVE));
     this.person = person;
     this.useWorkLoc = useWorkLoc;
 

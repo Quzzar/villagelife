@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
+import java.util.EnumSet;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -38,6 +39,9 @@ public class WorkOnMakingPathsGoal extends Goal {
   protected BlockPos centerB;
 
   public WorkOnMakingPathsGoal(RealPerson person) {
+    // This goal walks the villager somewhere, so it must compete for movement
+    // rather than run alongside every other goal that does the same (#74).
+    this.setFlags(EnumSet.of(Flag.MOVE));
     this.person = person;
     this.isConstructing = false;
     this.buildingA = null;
@@ -63,10 +67,10 @@ public class WorkOnMakingPathsGoal extends Goal {
   }
 
   /**
-   * Paths are what a builder does when there is nothing to build. Neither work
-   * goal declares a movement flag, so without this check both run at once and
-   * take turns calling moveTo on the same villager, who then walks to neither
-   * target and lays no path at all.
+   * Paths are what a builder does when there is nothing to build. The movement
+   * flag alone would let this goal take over the moment construction paused for
+   * a tick; refusing outright while a project stands keeps the two duties in
+   * the order the village cares about.
    */
   private boolean hasSomethingToBuild() {
     return person.getVillage().getCurrentProject() != null;

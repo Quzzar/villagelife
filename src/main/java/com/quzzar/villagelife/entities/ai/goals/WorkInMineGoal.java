@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
+import java.util.EnumSet;
 import java.util.List;
 
 import com.google.common.collect.ImmutableSet;
@@ -35,6 +36,9 @@ public class WorkInMineGoal extends Goal {
     private int inwardOffset = 1;
 
     public WorkInMineGoal(RealPerson person) {
+        // This goal walks the villager somewhere, so it must compete for movement
+        // rather than run alongside every other goal that does the same (#74).
+        this.setFlags(EnumSet.of(Flag.MOVE));
         this.person = person;
         this.workLocation = LocationManager.getJobLocation(person);
         if(this.workLocation != BlockPos.ZERO){

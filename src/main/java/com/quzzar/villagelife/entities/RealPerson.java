@@ -895,7 +895,11 @@ public class RealPerson extends Person {
     // this.goalSelector.addGoal(6, new RunToClericGoal(this)); Don't need it seems
     this.goalSelector.addGoal(6, new ArmorerRepairPersonArmorGoal(this));
 
-    this.goalSelector.addGoal(4, new StrollAroundVillage(this, 0.5D));
+    // Below the work goals, which sit at 4: a goal can only take movement from
+    // one with a strictly higher priority number, so at equal priority a
+    // villager who happened to start strolling could not be pulled back to
+    // work until the stroll ran itself out.
+    this.goalSelector.addGoal(5, new StrollAroundVillage(this, 0.5D));
     // this.goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.5D));
     // Don't need it seems
     this.goalSelector.addGoal(8, new ReturnBackToVillageGoal(this));

@@ -30,6 +30,7 @@ public class StrollAroundVillage extends RandomStrollGoal {
     private final RealPerson person;
 
     public StrollAroundVillage(RealPerson person, double speedModifier) {
+        // RandomStrollGoal already declares the movement flag for us.
         super(person, speedModifier, 240, false);
         this.person = person;
     }
