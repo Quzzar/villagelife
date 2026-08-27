@@ -137,6 +137,10 @@ public class PersonChatScreen extends Screen {
   private static final int ROW_HEIGHT = 21;
 
   private static final int LINE_GAP = 2;
+  /** Air between one message and the next, so the log is not a wall. */
+  private static final int MESSAGE_GAP = 5;
+  /** Breathing room between the tab rule and the first line of talk. */
+  private static final int CHAT_TOP = 52;
 
   private record ChatLine(String speaker, String text, boolean player) {
   }
@@ -153,6 +157,13 @@ public class PersonChatScreen extends Screen {
 
   /** Stand-in pack for the preview harness, which renders with no player. */
   static final java.util.Map<Integer, ItemStack> previewInventory = new java.util.HashMap<>();
+
+  /** Preview only: opens with text already typed, so the arrow is shown. */
+  static void previewTyping(String text) {
+    previewTyped = text;
+  }
+
+  private static String previewTyped;
 
   static void previewChatTab() {
     previewTab = Tab.CHAT;
@@ -218,6 +229,7 @@ public class PersonChatScreen extends Screen {
   public static void onReply(int entityId, String text) {
     if (Minecraft.getInstance().screen instanceof PersonChatScreen screen && screen.entityId == entityId) {
       screen.lines.add(new ChatLine(screen.headerName, text, false));
+      screen.chatScrollUp = 0;
       screen.awaitingReply = false;
     }
   }
@@ -259,6 +271,10 @@ public class PersonChatScreen extends Screen {
         IconButton.SEND, button -> send()));
     applyTabVisibility();
 
+    if (previewTyped != null) {
+      this.input.setValue(previewTyped);
+      sendReveal = 1.0F;
+    }
     setInitialFocus(this.input);
   }
 
@@ -346,6 +362,7 @@ public class PersonChatScreen extends Screen {
       return;
     }
     lines.add(new ChatLine("You", text, true));
+    chatScrollUp = 0;
     awaitingReply = true;
     awaitingSinceMs = System.currentTimeMillis();
     this.input.setValue("");
@@ -355,6 +372,11 @@ public class PersonChatScreen extends Screen {
   @Override
   public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
     super.render(graphics, mouseX, mouseY, partialTick);
+
+    // The send arrow arrives when there is something to send rather than
+    // sitting there greyed out, which is how a chat box tells you it is ready.
+    boolean ready = tab == Tab.CHAT && input != null && !input.getValue().isBlank();
+    sendReveal = Math.max(0.0F, Math.min(1.0F, sendReveal + (ready ? 0.2F : -0.25F)));
 
     if (awaitingReply && System.currentTimeMillis() - awaitingSinceMs > AWAIT_RELEASE_MS) {
       awaitingReply = false; // let the player speak again rather than wait forever
@@ -389,33 +411,56 @@ public class PersonChatScreen extends Screen {
       return;
     }
 
-    int textWidth = panelRight - panelLeft - 24;
-    int left = panelLeft + 12;
-    int top = panelTop + (canTrade ? 44 : 24);
-    int bottom = inputRowTop - 6;
+    int textWidth = panelRight - panelLeft - 28;
+    int left = panelLeft + 14;
+    int top = panelTop + (canTrade ? CHAT_TOP : 26);
+    int bottom = inputRowTop - 8;
 
-    List<FormattedCharSequence> rendered = new ArrayList<>();
-    List<Integer> colours = new ArrayList<>();
+    // Speaker in bold, what they said in plain, and a gap between messages
+    // rather than one undifferentiated wall: a wrapped line belongs to the
+    // message above it, and should not read like a new one.
+    List<Line> rendered = new ArrayList<>();
     for (ChatLine line : lines) {
       int colour = line.player() ? TEXT_PLAYER : TEXT_VILLAGER;
-      for (FormattedCharSequence part : this.font.split(
-          Component.literal(line.speaker() + ": " + line.text()), textWidth)) {
-        rendered.add(part);
-        colours.add(colour);
+      Component full = Component.empty()
+          .append(Component.literal(line.speaker() + ": ").withStyle(ChatFormatting.BOLD))
+          .append(Component.literal(line.text()));
+      boolean first = true;
+      for (FormattedCharSequence part : this.font.split(full, textWidth)) {
+        rendered.add(new Line(part, colour, first));
+        first = false;
       }
     }
     if (awaitingReply) {
-      rendered.add(Component.literal(headerName + " …").getVisualOrderText());
-      colours.add(TEXT_PENDING);
+      rendered.add(new Line(Component.literal(headerName + " …").getVisualOrderText(),
+          TEXT_PENDING, true));
     }
 
-    int maxLines = Math.max(1, (bottom - top) / (this.font.lineHeight + LINE_GAP));
-    int start = Math.max(0, rendered.size() - maxLines);
+    int step = this.font.lineHeight + LINE_GAP;
+    int visible = Math.max(1, (bottom - top) / step);
+    int overflow = Math.max(0, rendered.size() - visible);
+    chatScrollUp = Math.min(chatScrollUp, overflow);
+    chatOverflow = overflow;
+    // A conversation that fits starts at the top; one that does not shows its
+    // newest lines, which is where a reply you are waiting for arrives.
+    int startLine = Math.max(0, overflow - chatScrollUp);
+
     int y = top;
-    for (int i = start; i < rendered.size(); i++) {
-      graphics.drawString(this.font, rendered.get(i), left, y, colours.get(i), false);
-      y += this.font.lineHeight + LINE_GAP;
+    for (int i = startLine; i < rendered.size() && y + step <= bottom + step; i++) {
+      Line line = rendered.get(i);
+      if (line.first() && i > startLine) {
+        y += MESSAGE_GAP;
+      }
+      if (y + this.font.lineHeight > bottom) {
+        break;
+      }
+      graphics.drawString(this.font, line.seq(), left, y, line.colour(), false);
+      y += step;
     }
+  }
+
+  /** One laid-out line of conversation. {@code first} starts a new message. */
+  private record Line(FormattedCharSequence seq, int colour, boolean first) {
   }
 
   @Override
@@ -436,6 +481,11 @@ public class PersonChatScreen extends Screen {
   private List<Deal> shown = new ArrayList<>();
   /** First trade shown, once the stall offers more than the well holds. */
   private int scrollOff;
+  /** Lines the conversation is scrolled back from its newest. */
+  private int chatScrollUp;
+  private int chatOverflow;
+  /** 0 while there is nothing to send, easing to 1 as the arrow arrives. */
+  private float sendReveal;
   private int overflowRows;
 
   private record Row(int y, int left, int right, String itemId, boolean playerBuys) {
@@ -656,6 +706,10 @@ public class PersonChatScreen extends Screen {
       scrollOff = Math.max(0, Math.min(overflowRows, scrollOff - (int) Math.signum(deltaY)));
       return true;
     }
+    if (tab == Tab.CHAT && chatOverflow > 0) {
+      chatScrollUp = Math.max(0, Math.min(chatOverflow, chatScrollUp + (int) Math.signum(deltaY)));
+      return true;
+    }
     return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
   }
 
@@ -752,17 +806,15 @@ public class PersonChatScreen extends Screen {
         graphics.drawCenteredString(PersonChatScreen.this.font, "✕",
             getX() + width / 2, getY() + (height - 8) / 2, colour);
       } else {
-        // Flat and quiet with nothing to send; a raised button once there is a
-        // message, so the screen tells you it is ready rather than waiting to
-        // be guessed at.
-        boolean ready = input != null && !input.getValue().isBlank();
-        if (ready) {
-          panel(graphics, getX(), getY(), getX() + width, getY() + height);
+        if (sendReveal <= 0.01F) {
+          return; // nothing to send, nothing to show
         }
-        int glyph = ready ? ICON_HOVER : (hovered ? ICON_HOVER : ICON_IDLE);
-        int size = 5;
+        // Rises into place as it appears, rather than blinking on.
+        int lift = Math.round((1.0F - sendReveal) * 4.0F);
+        int size = Math.max(1, Math.round(5.0F * sendReveal));
         int x0 = getX() + (width - size) / 2;
-        int y0 = getY() + (height - (size * 2 - 1)) / 2;
+        int y0 = getY() + (height - (size * 2 - 1)) / 2 + lift;
+        int glyph = hovered ? ICON_HOVER : ICON_IDLE;
         for (int i = 0; i < size; i++) {
           graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + (size * 2 - 1) - i, glyph);
         }

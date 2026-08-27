@@ -85,12 +85,15 @@ public final class UiPreview {
     }
 
     private static void openSample(Minecraft client) {
-        boolean trade = !"chat".equalsIgnoreCase(MODE);
+        boolean trade = !"chat".equalsIgnoreCase(MODE) && !"typing".equalsIgnoreCase(MODE);
         // "blocked" renders the trade tab with the market unable to deal.
         // Always a merchant: the tabs and the chat input only ever share a
         // screen on someone who has both, so that is the case worth seeing.
         if (!trade) {
             PersonChatScreen.previewChatTab();
+            if ("typing".equalsIgnoreCase(MODE)) {
+                PersonChatScreen.previewTyping("How much for the bread?");
+            }
         }
         PersonChatScreen.open(0, "Fallon Moody", "Merchant of Larkspur Creek", true,
                 List.of(
