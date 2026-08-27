@@ -28,7 +28,7 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
  * A full chest is not an error. Whatever did not fit stays in the pack and goes
  * again later, which reads as a village that has outgrown its storage.
  */
-public final class HaulStep implements WorkStep {
+public final class HaulStep implements BlockWorkStep {
 
   /** Of 36 slots. Below this a trip costs more time than it banks. */
   private static final int SLOTS_BEFORE_TRIP = 18;

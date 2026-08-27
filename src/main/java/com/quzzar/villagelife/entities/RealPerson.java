@@ -53,6 +53,9 @@ import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
+import com.quzzar.villagelife.entities.ai.goals.work.MarketStep;
+import com.quzzar.villagelife.entities.ai.goals.work.HealStep;
+import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.DefendOthersFromPlayerGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
@@ -62,7 +65,6 @@ import com.quzzar.villagelife.entities.ai.goals.PersonMeleeGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunToEatGoal;
 import com.quzzar.villagelife.entities.ai.goals.SearchForItemsGoal;
 import com.quzzar.villagelife.entities.ai.goals.SetRunningToEatGoal;
-import com.quzzar.villagelife.entities.ai.goals.HealPersonAndPlayerGoal;
 import com.quzzar.villagelife.entities.ai.goals.PanicToBedGoal;
 import com.quzzar.villagelife.entities.ai.goals.RaiseShieldGoal;
 import com.quzzar.villagelife.entities.ai.goals.RangedBowAttackPassiveGoal;
@@ -70,8 +72,6 @@ import com.quzzar.villagelife.entities.ai.goals.RangedCrossbowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
-import com.quzzar.villagelife.entities.ai.goals.WorkAtMarketGoal;
-import com.quzzar.villagelife.entities.ai.goals.WorkOnMakingPathsGoal;
 import com.quzzar.villagelife.other.EquipmentUpgrade;
 
 import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
@@ -874,30 +874,30 @@ public class RealPerson extends Person {
     }
 
     if (getOccupation() == Occupation.CLERIC) {
-      this.goalSelector.addGoal(2, new HealPersonAndPlayerGoal(this, 1, 7, 7.0F));
+      this.goalSelector.addGoal(2, new WorkLoopGoal<>(this, new HealStep(1, 7, 7.0F)));
     }
     if (getOccupation() == Occupation.GUARD) {
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
     if (getOccupation() == Occupation.MINER) {
       // Ahead of the work goal: a full pack is worth a trip before more digging.
-      this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
-      this.goalSelector.addGoal(4, new WorkLoopGoal(this, new MineStep()));
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MineStep()));
     }
     if (getOccupation() == Occupation.BUILDER) {
-      this.goalSelector.addGoal(4, new WorkLoopGoal(this, new BuildStep()));
-      this.goalSelector.addGoal(8, new WorkOnMakingPathsGoal(this));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new BuildStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new PathStep()));
     }
     if (getOccupation() == Occupation.MERCHANT) {
-      this.goalSelector.addGoal(4, new WorkAtMarketGoal(this));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MarketStep()));
     }
     if (getOccupation() == Occupation.LUMBERJACK) {
-      this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
-      this.goalSelector.addGoal(4, new WorkLoopGoal(this,
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new BonemealStep(true)));
-      this.goalSelector.addGoal(4, new WorkLoopGoal(this,
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new ChopStep()));
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),
           8,
@@ -907,47 +907,47 @@ public class RealPerson extends Person {
       // The mason does not dig. The mine brings cobblestone up; this is the
       // chain that turns it into something a village can build with, which is
       // why stone_bricks are the most-used crafted block in the catalogue.
-      this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.COBBLESTONE, 8),
           new ItemStack(Items.STONE, 8),
           8,
           SoundEvents.FURNACE_FIRE_CRACKLE)));
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STONE, 4),
           new ItemStack(Items.STONE_BRICKS, 4),
           6,
           SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.SAND, 4),
           new ItemStack(Items.SANDSTONE, 1),
           6,
           SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.SANDSTONE, 4),
           new ItemStack(Items.CUT_SANDSTONE, 4),
           6,
           SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
     }
     if (getOccupation() == Occupation.FARMER) {
-      this.goalSelector.addGoal(4, new WorkLoopGoal(this,
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new BonemealStep(true)));
-      this.goalSelector.addGoal(4, new WorkLoopGoal(this, new HarvestStep(true)));
-      this.goalSelector.addGoal(6, new WorkLoopGoal(this, new TillStep(true)));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HarvestStep(true)));
+      this.goalSelector.addGoal(6, new WorkLoopGoal<>(this, new TillStep(true)));
 
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.MELON_SLICE, 16),
           new ItemStack(Items.MELON_SEEDS, 16),
           4,
           SoundEvents.PUMPKIN_CARVE)));
-      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.PUMPKIN, 4),
           new ItemStack(Items.PUMPKIN_SEEDS, 16),
           4,
           SoundEvents.PUMPKIN_CARVE)));
 
       for (Item seed : TillStep.PLANTABLES.keySet()) {
-        this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
+        this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
             new ItemStack(seed, 64),
             new ItemStack(Items.BONE_MEAL, 3), // ~2.74
             4,

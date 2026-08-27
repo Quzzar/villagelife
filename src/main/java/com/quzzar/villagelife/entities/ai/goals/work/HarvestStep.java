@@ -29,7 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * strip their own field to bare earth. Melons and pumpkins are neither: they
  * regrow from the stem that produced them, so they simply come away.
  */
-public final class HarvestStep implements WorkStep {
+public final class HarvestStep implements BlockWorkStep {
 
   private static final int SEARCH_RADIUS = 2;
 

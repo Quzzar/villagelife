@@ -32,7 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * Every one of those was in the surround, and none of them can be expressed
  * here. What is left is the act, which was always correct.
  */
-public final class BonemealStep implements WorkStep {
+public final class BonemealStep implements BlockWorkStep {
 
   /**
    * How far around the station to look. The old goal searched two blocks and

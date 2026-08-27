@@ -36,7 +36,7 @@ import net.minecraft.world.level.block.Rotation;
  * possible. Targeting the block itself would have every miner fail to path,
  * stall, and eventually be teleported home as stranded.
  */
-public final class MineStep implements WorkStep {
+public final class MineStep implements BlockWorkStep {
 
   private static final int RADIUS = 2;
 

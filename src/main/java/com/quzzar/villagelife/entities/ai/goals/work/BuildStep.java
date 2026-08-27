@@ -26,7 +26,7 @@ import net.minecraft.world.item.Items;
  * Every framework needs one of these. Naming it is what stops the other five
  * verbs quietly growing special cases until they become it.
  */
-public final class BuildStep implements WorkStep {
+public final class BuildStep implements BlockWorkStep {
 
   /** A builder counts as on site once inside the building's radius, plus a little. */
   private static final double RADIUS_SLACK = 1.1D;

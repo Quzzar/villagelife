@@ -32,7 +32,7 @@ import net.minecraft.world.item.ItemStack;
  * tried to stop by calling {@code stop()} from inside {@code tick()}, which the
  * engine ignores.
  */
-public final class CraftStep implements WorkStep {
+public final class CraftStep implements BlockWorkStep {
 
   private final ItemStack input;
   private final ItemStack output;

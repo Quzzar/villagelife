@@ -23,7 +23,7 @@ import net.minecraft.core.BlockPos;
  * So an implementation of this interface cannot make those mistakes: it does
  * not get a lifecycle to get wrong, and it is never asked to move anybody.
  */
-public interface WorkStep {
+public interface WorkStep<T> {
 
   /**
    * Where the work is right now, or null when there is none.
@@ -33,7 +33,7 @@ public interface WorkStep {
    * is the ONLY way this loop ends on its own.
    */
   @Nullable
-  BlockPos select(RealPerson person);
+  T select(RealPerson person);
 
   /**
    * Do one slice of the work, called on the act cadence once the worker is in
@@ -42,7 +42,14 @@ public interface WorkStep {
    *
    * Never navigates and never ends the goal - both belong to the loop.
    */
-  boolean act(RealPerson person, BlockPos target);
+  boolean act(RealPerson person, T target);
+
+  /**
+   * Where a target is, asked every tick rather than once, because some targets
+   * move: a blacksmith walks to a villager whose armour needs mending, and that
+   * villager does not stand still to be found.
+   */
+  BlockPos positionOf(T target);
 
   /** What the worker calls this, for the issue they log when they cannot reach it. */
   String describe();
@@ -51,7 +58,7 @@ public interface WorkStep {
    * Called once when the loop takes a target on, before the worker sets off.
    * Somewhere to tell a subsystem that work has started on it.
    */
-  default void acquired(RealPerson person, BlockPos target) {
+  default void acquired(RealPerson person, T target) {
   }
 
   /**
@@ -60,7 +67,7 @@ public interface WorkStep {
    * shown to players, such as the block-cracking overlay, which otherwise
    * stays on a block the worker walked away from.
    */
-  default void released(RealPerson person, BlockPos target) {
+  default void released(RealPerson person, T target) {
   }
 
   /**
@@ -86,6 +93,18 @@ public interface WorkStep {
   /** How fast to walk to it. */
   default double speed() {
     return 0.5D;
+  }
+
+  /**
+   * Whether the act runs while still walking rather than on arrival.
+   *
+   * Almost all work happens at a target. Laying a path does not: the builder
+   * wears the route by walking it, so the act belongs to the journey and the
+   * destination is only where it ends. May vary with the step's own state - a
+   * path-layer walks to one end quietly and lays on the way to the other.
+   */
+  default boolean actWhileTravelling() {
+    return false;
   }
 
   /**

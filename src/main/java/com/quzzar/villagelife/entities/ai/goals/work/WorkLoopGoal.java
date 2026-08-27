@@ -41,17 +41,17 @@ import net.minecraft.world.entity.ai.goal.Goal;
  * cannot both steer one villager.</li>
  * </ul>
  */
-public class WorkLoopGoal extends Goal {
+public class WorkLoopGoal<T> extends Goal {
 
   private final RealPerson person;
-  private final WorkStep step;
+  private final WorkStep<T> step;
   private final ApproachWatch approach;
 
-  private BlockPos target;
+  private T target;
   private int nextSelectTick;
   private int ticksInReach;
 
-  public WorkLoopGoal(RealPerson person, WorkStep step) {
+  public WorkLoopGoal(RealPerson person, WorkStep<T> step) {
     // Every work loop walks somewhere, so every work loop competes for
     // movement rather than running alongside everything else that does.
     this.setFlags(EnumSet.of(Flag.MOVE));
@@ -110,25 +110,32 @@ public class WorkLoopGoal extends Goal {
       return; // canContinueToUse ends us on the next pass
     }
 
-    if (this.person.blockPosition().distSqr(this.target) > this.step.reachSqr(this.person)) {
+    // Asked fresh each tick: a target that walks away has to be followed.
+    BlockPos where = this.step.positionOf(this.target);
+    this.ticksInReach++;
+
+    if (this.person.blockPosition().distSqr(where) > this.step.reachSqr(this.person)) {
       // A worker who cannot reach their work holds the job forever otherwise:
       // the navigator only calls a path stalled if it found one, and a path it
       // never found cannot stall.
-      if (this.approach.giveUp(this.target)) {
+      if (this.approach.giveUp(where)) {
         release();
         return;
       }
       this.person.getNavigation().moveTo(
-          this.target.getX() + 0.5D, this.target.getY(), this.target.getZ() + 0.5D, this.step.speed());
-      return;
+          where.getX() + 0.5D, where.getY(), where.getZ() + 0.5D, this.step.speed());
+      // Most work happens on arrival. Laying a path happens on the way.
+      if (!this.step.actWhileTravelling()) {
+        return;
+      }
+    } else {
+      this.approach.arrived();
+      this.person.getNavigation().stop();
+      this.person.getLookControl().setLookAt(
+          where.getX(), where.getY(), where.getZ(), 30.0F, 30.0F);
     }
 
-    this.approach.arrived();
-    this.person.getNavigation().stop();
-    this.person.getLookControl().setLookAt(
-        this.target.getX(), this.target.getY(), this.target.getZ(), 30.0F, 30.0F);
-
-    if (++this.ticksInReach % this.step.actEveryTicks() != 0) {
+    if (this.ticksInReach % this.step.actEveryTicks() != 0) {
       return;
     }
     if (!this.person.swinging) {

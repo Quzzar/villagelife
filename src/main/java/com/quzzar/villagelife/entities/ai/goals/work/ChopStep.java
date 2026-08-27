@@ -36,7 +36,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * never became. So the intended loop - fell it, plant a sapling, wait for it to
  * grow back - is what happens now, and wood is finite.
  */
-public final class ChopStep implements WorkStep {
+public final class ChopStep implements BlockWorkStep {
 
   /** Ticks of chopping a log takes. */
   private static final int CHOP_TICKS = 100;

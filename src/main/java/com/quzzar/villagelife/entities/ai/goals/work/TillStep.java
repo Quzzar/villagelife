@@ -30,7 +30,7 @@ import net.minecraft.world.level.block.Blocks;
  * tuning decision for the job definitions to carry, not something to change
  * quietly inside a port.
  */
-public final class TillStep implements WorkStep {
+public final class TillStep implements BlockWorkStep {
 
   public static final Map<Block, Block> TILLABLES = Maps.newHashMap(ImmutableMap.of(
       Blocks.GRASS_BLOCK, Blocks.FARMLAND,
