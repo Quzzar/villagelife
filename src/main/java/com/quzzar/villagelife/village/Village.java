@@ -1136,6 +1136,11 @@ public class Village {
     return level != null && this.brain.hasItemStackInVillage(level, itemStack);
   }
 
+  /** What the village holds, tallied in one sweep of its storage (#65). */
+  public java.util.Map<net.minecraft.world.item.Item, Integer> stockTally() {
+    return level == null ? new java.util.HashMap<>() : this.brain.stockTally(level);
+  }
+
   public ArrayList<ItemStack> getVillageInventory() {
     if (level == null) {
       return new ArrayList<>();

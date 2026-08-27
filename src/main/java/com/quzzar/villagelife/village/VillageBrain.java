@@ -2,6 +2,7 @@ package com.quzzar.villagelife.village;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 import java.util.Map.Entry;
@@ -22,6 +23,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -192,6 +194,33 @@ public class VillageBrain {
 
     return false;
 
+  }
+
+  /**
+   * Everything the village holds, counted once ([#65](https://github.com/Quzzar/villagelife/issues/65)).
+   *
+   * Planning used to ask "can we afford this?" one material at a time, and
+   * every question that ended in NO walked every container and every slot to
+   * conclude it. Across the whole catalogue, twice - once to rank what is
+   * buildable and once to gather what is worth saving for - that is upwards of
+   * two hundred full sweeps of village storage for a single decision. One
+   * sweep answers all of them.
+   */
+  public Map<Item, Integer> stockTally(ServerLevelAccessor levelAccess) {
+    Map<Item, Integer> tally = new HashMap<>();
+    for (Long longLoc : containerLocs) {
+      Container container = containerAt(levelAccess, longLoc);
+      if (container == null) {
+        continue;
+      }
+      for (int i = 0; i < container.getContainerSize(); i++) {
+        ItemStack stack = container.getItem(i);
+        if (stack != null && !stack.isEmpty()) {
+          tally.merge(stack.getItem(), stack.getCount(), Integer::sum);
+        }
+      }
+    }
+    return tally;
   }
 
   public ArrayList<ItemStack> getVillageInventory(ServerLevelAccessor levelAccess) {

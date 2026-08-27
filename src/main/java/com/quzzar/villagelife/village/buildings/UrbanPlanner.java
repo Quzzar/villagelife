@@ -2,6 +2,7 @@ package com.quzzar.villagelife.village.buildings;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -107,6 +108,9 @@ public class UrbanPlanner {
   public static CompletableFuture<BuildingInfo> chooseNextProject(Village village) {
     // A village that is saving does not deliberate: it spends on the thing it
     // named, the moment it can, and otherwise waits. That is what saving is.
+    // One sweep of village storage answers every affordability question below.
+    Map<Item, Integer> stock = village.stockTally();
+
     String goal = VillageGoal.current(village);
     if (goal != null) {
       if (VillageGoal.hasExpired(village, village.getVillageTime())) {
@@ -115,7 +119,7 @@ public class UrbanPlanner {
         BuildingInfo wanted = Buildings.getByName(goal);
         if (wanted == null) {
           VillageGoal.clear(village, "the definition is gone");
-        } else if (hasMaterialsToConstruct(village, wanted)) {
+        } else if (hasMaterialsToConstruct(stock, wanted)) {
           VillageGoal.clear(village, "affordable at last");
           Villagelife.LOGGER.info("Village '{}' saved up and is building {}",
               village.getName(), wanted.getName());
@@ -126,14 +130,14 @@ public class UrbanPlanner {
       }
     }
 
-    List<Candidate> candidates = rankCandidates(village);
+    List<Candidate> candidates = rankCandidates(village, stock);
     List<Candidate> offered = candidates.subList(0, Math.min(optionsOffered(), candidates.size()));
 
     // Things worth wanting but out of reach today, offered as goals rather
     // than as builds. A village with nothing affordable is exactly the village
     // that most needs to name something and save for it, so these are gathered
     // even when there is nothing to build.
-    List<Candidate> goals = outOfReach(village);
+    List<Candidate> goals = outOfReach(village, stock);
     if (offered.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
@@ -178,7 +182,7 @@ public class UrbanPlanner {
    * goal, it is a wait until the timeout: a plains village that names a snowy
    * farm saves for stone brick it cannot make, expires, and names another.
    */
-  private static boolean withinReach(Village village, BuildingInfo info) {
+  private static boolean withinReach(Village village, Map<Item, Integer> stock, BuildingInfo info) {
     for (ItemStack cost : info.getMaterialCost()) {
       String capability = MATERIAL_SOURCE.get(cost.getItem());
       if (capability == null || village.canDo(capability)) {
@@ -186,7 +190,7 @@ public class UrbanPlanner {
       }
       // Some already in store counts: whoever put it there can get more, and a
       // village part-way to a goal should be allowed to finish it.
-      if (village.hasItemStackInVillage(new ItemStack(cost.getItem(), 1))) {
+      if (stock.getOrDefault(cost.getItem(), 0) > 0) {
         continue;
       }
       return false;
@@ -199,11 +203,11 @@ public class UrbanPlanner {
    * whether it can actually work toward them first, then by the same need
    * scoring, so what it saves for is something it both lacks and can reach.
    */
-  private static List<Candidate> outOfReach(Village village) {
+  private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
     Needs needs = Needs.of(village);
     List<Candidate> unaffordable = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
-      if (isFoundingOnly(info) || hasMaterialsToConstruct(village, info)) {
+      if (isFoundingOnly(info) || hasMaterialsToConstruct(stock, info)) {
         continue;
       }
       // An upgrade it cannot pay for yet is exactly the kind of thing worth
@@ -222,7 +226,14 @@ public class UrbanPlanner {
     // Reach first, then need. Ranking by need alone had plains villages saving
     // for desert and snowy farms, whose sandstone and stone brick they had no
     // mason to make, cycling through unreachable goals a timeout at a time.
-    Comparator<Candidate> byReach = Comparator.comparing((Candidate c) -> withinReach(village, c.info()));
+    // Decided once per candidate rather than inside the comparator: a sort
+    // calls its key function O(n log n) times, and this one used to read the
+    // whole of village storage on every call (#65).
+    Map<BuildingInfo, Boolean> reachable = new HashMap<>();
+    for (Candidate c : unaffordable) {
+      reachable.computeIfAbsent(c.info(), info -> withinReach(village, stock, info));
+    }
+    Comparator<Candidate> byReach = Comparator.comparing((Candidate c) -> reachable.get(c.info()));
     unaffordable.sort(byReach.reversed()
         .thenComparing(Comparator.comparingDouble(Candidate::score).reversed()));
     return unaffordable.subList(0, Math.min(GOALS_OFFERED, unaffordable.size()));
@@ -310,6 +321,10 @@ public class UrbanPlanner {
    * level's own cost, and the larger footprint has somewhere to grow into.
    */
   public static List<Candidate> rankCandidates(Village village) {
+    return rankCandidates(village, village.stockTally());
+  }
+
+  private static List<Candidate> rankCandidates(Village village, Map<Item, Integer> stock) {
     Needs needs = Needs.of(village);
 
     List<Candidate> candidates = new ArrayList<>();
@@ -317,7 +332,7 @@ public class UrbanPlanner {
       if (isFoundingOnly(info)) {
         continue;
       }
-      if (!hasMaterialsToConstruct(village, info)) {
+      if (!hasMaterialsToConstruct(stock, info)) {
         continue;
       }
       Building standing = BuildingUpgrade.standingSource(village, info);
@@ -406,9 +421,16 @@ public class UrbanPlanner {
     return count;
   }
 
-  private static boolean hasMaterialsToConstruct(Village village, BuildingInfo build){
+  /**
+   * Whether the village can pay for this, answered from a tally taken once for
+   * the whole decision rather than by re-reading storage per material (#65).
+   * Each cost is checked independently, as it always was: a definition listing
+   * the same item twice is a datapack quirk, not something to change here
+   * under cover of a performance fix.
+   */
+  private static boolean hasMaterialsToConstruct(Map<Item, Integer> stock, BuildingInfo build){
     for(ItemStack itemCost : build.getMaterialCost()){
-      if(!village.hasItemStackInVillage(itemCost)){
+      if(stock.getOrDefault(itemCost.getItem(), 0) < itemCost.getCount()){
         return false;
       }
     }
@@ -436,12 +458,13 @@ public class UrbanPlanner {
    * Used to log a shortage when planning stalls.
    */
   public static ItemStack firstUnaffordableMaterial(Village village){
+    Map<Item, Integer> stock = village.stockTally();
     for(BuildingInfo build : Buildings.allBuildings().values()){
       if (isFoundingOnly(build) || build.getUpgradesFrom() != null) {
         continue;
       }
       for(ItemStack itemCost : build.getMaterialCost()){
-        if(!village.hasItemStackInVillage(itemCost)){
+        if(stock.getOrDefault(itemCost.getItem(), 0) < itemCost.getCount()){
           return itemCost;
         }
       }
