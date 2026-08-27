@@ -1,0 +1,28 @@
+{
+  "structure": "tannery_taiga_1",
+  "category": "tannery",
+  "variant": "taiga",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        13,
+        0,
+        4
+      ],
+      "occupation": "TANNER"
+    }
+  ],
+  "containers": [
+    [
+      5,
+      5,
+      3
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "MEAT",
+    "LEATHER"
+  ]
+}

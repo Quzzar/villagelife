@@ -4,13 +4,20 @@
 this document count the full map of the possible, not the shipping set — see
 [The cut](#the-cut) for which categories stand and why the rest went.
 
-**Proposed, not yet decided. 54 of 203 structures exist.** Reality check before reading:
+**Proposed, not yet decided. 59 of 212 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, eight exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,
 and `farm` ships in all five variants at all three levels. `mine` ships at level 1 in all five variants, so the
 founding set above is buildable for the first time. `stoneworks` ships at level 1 in all five variants,
-with a real MASON occupation behind it. Still missing: `hunting_lodge`, `fishery`,
-and levels 2 and 3 of both `mine` and `stoneworks`.
+with a real MASON occupation behind it, and `tannery` likewise with TANNER. Still
+missing: `hunting_lodge`, `fishery`, and levels 2 and 3 of `mine`, `stoneworks` and
+`tannery`.
+
+**Three occupations exist only as names in these tables**: HUNTER, FISHER and
+HERDER are not in the Occupation enum, and a definition naming one fails the codec
+outright, so such a building cannot load at all. MASON and TANNER were added when
+their buildings shipped. Anything below that names a worker should be checked
+against the enum before it is authored.
 
 **A mine cannot ship its shaft.** A structure's y=0 lands on the topmost solid block
 (`InstantBuildStructure.setOriginLocation` subtracts one from the WORLD_SURFACE
@@ -560,17 +567,30 @@ Worker: **FARMER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `dese
 
 The desert variant is terraced and irrigated: it costs more for the same yield, which is exactly what farming a desert should feel like.
 
-#### `pasture`
+#### `tannery`
 
-Worker: **HERDER**  ·  Phase 2  ·  Variants: `plains`, `savanna`
+Worker: **TANNER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert`, `savanna`
+
+*Absorbs the old `pasture`.* Keeping cattle and taking beef and leather off them is
+one job, not two buildings. **There is no separate "turn hides into worked leather"
+step**, because a cow in Minecraft drops leather outright: a processing stage there
+would be busywork with no material change behind it, unlike the mason, who turns
+cobblestone into a block that genuinely does not otherwise exist.
+
+The station is the water cauldron, vanilla's own leatherworker block, which reads as
+the tanning vat; the smoker beside it cures the beef.
+
+This is the settled half of the animal split. The other half is `hunting_lodge`,
+which is deliberately the opposite shape: a hunter roams out after wild animals,
+where the tanner cultivates a herd that stays put.
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | paddock | 11x11 | 16 oak log, 24 oak planks, 24 cobblestone, 4 glass, 2 wool | MEAT, LEATHER, wool |
-| 2 (upgrade) | pasture | 15x15 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool | MEAT more, LEATHER more |
+| 1 | tannery | 15x7 | 16 oak log, 24 oak planks, 24 cobblestone, 4 glass, 2 wool | MEAT, LEATHER |
+| 2 (upgrade) | stockyard | 15x15 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool | MEAT more, LEATHER more |
 | 3 (upgrade) | ranch | 21x21 | 48 oak log, 68 oak planks, 72 cobblestone, 12 glass, 8 wool | breeding: the herd grows on its own |
 
-Wool from here is the bottleneck on beds, via the weaver. Quietly one of the most important buildings in the catalog.
+Wool still matters as the bottleneck on beds, and nothing produces it yet.
 
 #### `hunting_lodge`
 
@@ -706,6 +726,10 @@ Worker: **TANNER**  ·  Phase 3  ·  Variants: `plains`
 
 *Merged category: absorbs the old `weaver`: turns hides and wool into goods.*
 
+**The leather half of this is now redundant** and should probably be cut: `tannery`
+yields leather directly, because cows drop it. What is left worth having here is the
+wool half, which is the real bottleneck on beds.
+
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
 | 1 | tanning racks | 7x7 | 12 oak log, 20 oak planks, 20 cobblestone, 4 glass, 2 wool | worked LEATHER |
@@ -758,13 +782,13 @@ Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
 | Set | What it buys | Structures |
 | --- | --- | --- |
 | **Minimum playable** | One level-1 building per phase 1 category, plains variant only. A village that founds, feeds, houses, and defends itself. | **11** |
-| Phase 1 | A village survives in any biome, at every level | 111 |
-| Phase 2 | It thrives: processed food, iron, faith, trade | 38 |
+| Phase 1 | A village survives in any biome, at every level | 126 |
+| Phase 2 | It thrives: processed food, iron, faith, trade | 32 |
 | Phase 3 | It deepens: brewing, cloth, brick, glass, learning | 25 |
 | Phase 4 | It fights: soldiers, walls, arrows, potions | 29 |
-| | **Total** | **203** |
+| | **Total** | **212** |
 
-36 categories, 77 category-variant pairs, 203 structures. That total is the honest number and it
+36 categories, 80 category-variant pairs, 212 structures. That total is the honest number and it
 is large. Two things make it tractable:
 
 - **The minimum playable set is 11 structures.** One level-1 plains building per phase 1 category.
@@ -844,8 +868,11 @@ market_desert_1               market_desert_2               market_desert_3
 church_plains_1               church_plains_2               church_plains_3
 church_taiga_1                church_taiga_2                church_taiga_3
 church_desert_1               church_desert_2               church_desert_3
-pasture_plains_1              pasture_plains_2              pasture_plains_3
-pasture_savanna_1             pasture_savanna_2             pasture_savanna_3
+tannery_plains_1              tannery_plains_2              tannery_plains_3
+tannery_taiga_1               tannery_taiga_2               tannery_taiga_3
+tannery_snowy_1               tannery_snowy_2               tannery_snowy_3
+tannery_desert_1              tannery_desert_2              tannery_desert_3
+tannery_savanna_1             tannery_savanna_2             tannery_savanna_3
 mushroom_cellar_plains_1      mushroom_cellar_plains_2      mill_windmill_1
 mill_windmill_2               mill_watermill_1              mill_watermill_2
 bakery_plains_1               bakery_plains_2               bakery_plains_3
