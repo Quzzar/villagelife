@@ -180,8 +180,17 @@ sequence, each fixing the last one's residue:
    distinction in completion language ("four toward" vs "the last of").
 
 The audit scores the EFFECTIVE (post-coercion) op and mirrors the live two-state
-gate, so its number is what ships. Resolve-vs-advance is the remaining pure-prompt
-signal, and what re-running the audit now measures.
+gate, so its number is what ships. Measured after tuning: precision 60-100%,
+recall 60-80%, with open-firing and false-fires both fixed. Resolve is the one op
+the 3B cannot reliably separate from advance (a near-verbatim resolve few-shot
+still reads as advance): it sits at the model's ceiling and is shipped
+**best-effort, by decision**. The failure is safe by construction. A completion
+the model reads as advance leaves the matter's `progressNote` showing it all but
+done while the matter stays open, so no data is lost and a later turn can still
+resolve it. The one genuinely wrong outcome, false-closing a still-partial matter,
+is the direction the tuning deliberately does NOT push toward, which is why more
+resolve examples were not added. Lifting resolve later would mean escalating only
+resolve-candidate turns to a stronger model; out of scope for this slice.
 
 ## How they surface
 
