@@ -1,0 +1,38 @@
+{
+  "structure": "farm_taiga_2",
+  "category": "farm",
+  "variant": "taiga",
+  "upgrades_from": "farm_taiga_1",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        11,
+        1,
+        1
+      ],
+      "occupation": "FARMER"
+    }
+  ],
+  "containers": [
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      2
+    ],
+    [
+      2,
+      1,
+      1
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "GRAIN"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "structure": "farm_plains_2",
+  "category": "farm",
+  "variant": "plains",
+  "upgrades_from": "farm_plains_1",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        11,
+        1,
+        1
+      ],
+      "occupation": "FARMER"
+    }
+  ],
+  "containers": [
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      1,
+      1,
+      2
+    ],
+    [
+      2,
+      1,
+      1
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "GRAIN"
+  ]
+}
