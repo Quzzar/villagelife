@@ -71,6 +71,11 @@ neoForge {
             // The UI preview needs a real player now that the screen is a
             // container, so it runs on the join-local configuration.
             systemProperty 'villagelife.uipreview', (findProperty('uipreview') ?: '')
+            // Its OWN game directory. Sharing run/ with a live dev server puts
+            // two processes on one config file, and they correct each other's
+            // corrections forever: the client never finishes connecting and the
+            // log fills with "is not correct. Correcting" twice a second.
+            gameDirectory = project.file('run-preview')
         }
 
         server {

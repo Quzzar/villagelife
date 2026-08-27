@@ -39,7 +39,7 @@ public class MarketMenu extends AbstractContainerMenu {
   public static final int COST_B = 1;
   public static final int RESULT = 2;
   /** Height of the strip above the container: the villager's name and tabs. */
-  public static final int HEAD = 44;
+  public static final int HEAD = 56;
   private static final int TRADE_SLOTS = 3;
   private static final int PACK_START = TRADE_SLOTS;
   private static final int PACK_END = PACK_START + 36;

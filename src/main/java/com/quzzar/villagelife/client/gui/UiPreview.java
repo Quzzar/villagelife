@@ -60,25 +60,23 @@ public final class UiPreview {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (ticks < 0) {
-            // Not TitleScreen specifically: a first launch shows accessibility
-            // onboarding first, and waiting for a title that never comes is how
-            // this sat idle forever. Any screen, once the loading overlay is
-            // gone, means the client is drawing and the atlases are ready.
-            // A container screen needs a real Inventory, which needs a real player,
-        // so the harness now has to be IN a world rather than at the title
-        // screen. That is a cost of the conversion and also a gain: it exercises
-        // the path the screen actually opens through.
-        if (client.player == null || client.level == null) {
+        // A container screen needs an Inventory, which needs a Player, which
+        // needs a world, so this harness cannot run at the title screen any
+        // more. Worse for isolation, better for truth: it now exercises the
+        // path the screen actually opens through.
+        if (client.player == null || client.level == null || client.getOverlay() != null) {
             return;
         }
-        if (client.getOverlay() == null) {
-                Villagelife.LOGGER.info("UI preview: opening {} over {}", MODE,
-                        client.screen.getClass().getSimpleName());
-                openSample(client);
-                ticks = 0;
-            }
+        if (ticks < 0) {
+            Villagelife.LOGGER.info("UI preview: opening {} in world", MODE);
+            openSample(client);
+            ticks = 0;
             return;
+        }
+        // Joining a server can drop the pause menu over us the moment the
+        // window loses focus, and the first run photographed exactly that.
+        if (!(client.screen instanceof PersonChatScreen)) {
+            openSample(client);
         }
         if (++ticks < SETTLE_TICKS) {
             return;
@@ -87,7 +85,6 @@ public final class UiPreview {
         Screenshot.grab(client.gameDirectory, "ui-" + MODE + ".png",
                 client.getMainRenderTarget(),
                 message -> Villagelife.LOGGER.info("UI preview saved: {}", message.getString()));
-        // One frame is the whole job; lingering only burns a GPU and a window.
         client.execute(client::stop);
     }
 

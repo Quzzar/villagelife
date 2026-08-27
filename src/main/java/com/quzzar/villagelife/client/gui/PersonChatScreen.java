@@ -117,7 +117,7 @@ public class PersonChatScreen
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
   private static final int PANEL_WIDTH = 276;
-  private static final int PANEL_HEIGHT = 212;
+  private static final int PANEL_HEIGHT = 224;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = com.quzzar.villagelife.menu.MarketMenu.HEAD;
   /** Where the rule under the tabs sits, measured from the panel top. */
@@ -563,8 +563,14 @@ public class PersonChatScreen
     boolean playerHurt = !Float.isNaN(lastPlayerHealth) && playerHealth < lastPlayerHealth;
     boolean personHurt = !Float.isNaN(lastPersonHealth) && !Float.isNaN(personHealth)
         && personHealth < lastPersonHealth;
-    // A villager who has died or unloaded is no longer someone to talk to.
-    boolean personGone = person == null || (person instanceof LivingEntity living && !living.isAlive());
+    // Only once we have actually SEEN them. The client may not be tracking the
+    // entity yet when the screen opens, and treating "not found" as "gone"
+    // slammed the screen shut the instant it appeared.
+    if (person instanceof LivingEntity living && living.isAlive()) {
+      sawPerson = true;
+    }
+    boolean personGone = sawPerson
+        && (person == null || (person instanceof LivingEntity living && !living.isAlive()));
 
     lastPlayerHealth = playerHealth;
     lastPersonHealth = personHealth;
@@ -612,6 +618,8 @@ public class PersonChatScreen
   /** Health both sides had last tick; NaN until the first tick has seen them. */
   private float lastPlayerHealth = Float.NaN;
   private float lastPersonHealth = Float.NaN;
+  /** Set once the villager has been seen alive, so absence before that is not death. */
+  private boolean sawPerson;
   private int overflowRows;
 
   private record Row(int y, int left, int right, String itemId, boolean playerBuys) {
@@ -641,8 +649,15 @@ public class PersonChatScreen
 
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int listLeft = panelLeft + 8;
-    int listTop = panelTop + HEAD_STRIP;
+    // Every coordinate here is the menu's own, so art and slots cannot drift:
+    // the container draws a slot's CONTENTS at its position, and art placed by
+    // any other rule ends up beside the items rather than under them.
+    int head = com.quzzar.villagelife.menu.MarketMenu.HEAD;
+    int listLeft = panelLeft + 5;
+    int listTop = panelTop + head;
+    int listBottom = panelTop + head + 160 + 2;
+    int rightLeft = panelLeft + 108;
+    int rightWidth = 9 * 18;
 
     if (offers == null) {
       graphics.drawString(this.font, "Opening the stall...", listLeft, listTop, TEXT_PENDING, false);
@@ -658,20 +673,14 @@ public class PersonChatScreen
       deals.add(new Deal(stackOf(row.itemId(), row.itemCount()),
           new ItemStack(Items.EMERALD, row.emeralds()), row.itemId(), false));
     }
+    allDeals = deals;
 
-    // Both column headings are centred over their column, the way vanilla
-    // centres the trader's name over its half of the screen.
-    int rightLeft = panelLeft + RIGHT_COLUMN;
-    int rightWidth = (panelRight - 8) - rightLeft;
-    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + HEAD_STRIP - 13);
+    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + head - 12);
     if (!offers.villageName().isBlank()) {
-      centred(graphics, offers.villageName() + " Market",
-          rightLeft + rightWidth / 2, panelTop + HEAD_STRIP - 13);
+      centred(graphics, offers.villageName() + " Market", rightLeft + rightWidth / 2,
+          panelTop + head - 12);
     }
 
-    // The recessed well the trade buttons sit in, with the scrollbar's own
-    // track sunk into its right edge.
-    int listBottom = listTop + LIST_ROWS * LIST_ROW + 4;
     slot(graphics, listLeft, listTop, listLeft + WELL_WIDTH, listBottom);
     int trackLeft = listLeft + WELL_WIDTH - 10;
     slot(graphics, trackLeft, listTop + 2, trackLeft + 8, listBottom - 2);
@@ -693,30 +702,13 @@ public class PersonChatScreen
     graphics.blitSprite(overflow == 0 ? SCROLLER_DISABLED : SCROLLER,
         trackLeft + 1, trackTop + handle, 6, 27);
 
-    // The trade under the cursor, shown the way vanilla shows a selected one.
-    allDeals = deals;
-    selected = Math.min(selected, Math.max(0, deals.size() - 1));
-    Deal under = deals.isEmpty() ? null : deals.get(selected);
-    int previewWidth = 18 + 8 + 18 + 8 + ARROW_W + 6 + 26;
-    int previewLeft = rightLeft + (rightWidth - previewWidth) / 2;
-    int previewTop = listTop + 10;
-    slot(graphics, previewLeft, previewTop, previewLeft + 18, previewTop + 18);
-    slot(graphics, previewLeft + 26, previewTop, previewLeft + 44, previewTop + 18);
-    bigArrow(graphics, previewLeft + 52, previewTop + 2, offers.blocked());
-    // The result slot is 26 wide, not 18: vanilla gives what you receive more
-    // room than what it costs.
-    resultLeft = previewLeft + previewWidth - 26;
-    resultTop = previewTop - 4;
-    slot(graphics, resultLeft, previewTop - 4, resultLeft + 26, previewTop + 22);
-    // Slot art only. Slots 0, 1 and 2 belong to the menu and it renders what
-    // is in them; the staged payment and the result are whatever the SERVER
-    // says they are, which is the point of having a container at all.
-    int gridLeft = rightLeft + (rightWidth - 9 * 18) / 2;
-    // The pack's last row lands on the well's last row: the two columns end
-    // together, which is what makes the layout read as one block.
-    int invTop = listBottom - (3 * 18 + HOTBAR_GAP + 18);
-    graphics.drawString(this.font, "Inventory", gridLeft, invTop - 11, TEXT_LABEL, false);
-    drawInventory(graphics, gridLeft, invTop, mouseX, mouseY);
+    slotArt(graphics, panelLeft + 136, panelTop + head + 37);
+    slotArt(graphics, panelLeft + 162, panelTop + head + 37);
+    bigArrow(graphics, panelLeft + 188, panelTop + head + 39, offers.blocked());
+    slotArt(graphics, panelLeft + 220, panelTop + head + 37);
+
+    graphics.drawString(this.font, "Inventory", rightLeft, panelTop + head + 72, TEXT_LABEL, false);
+    drawInventory(graphics, rightLeft, panelTop + head + 84, mouseX, mouseY);
   }
 
   /** One trade: what you hand over, what you get back. */
@@ -798,15 +790,23 @@ public class PersonChatScreen
     // Slot backgrounds only. The container renders what is IN them, and drawing
     // the contents here as well would paint every stack twice, from two sources
     // that disagree the moment anything moves.
-    for (int index = 0; index < 36; index++) {
-      int column = index % 9;
-      int rowIndex = index < 9 ? 3 : (index / 9) - 1;
-      int x = left + column * 18;
-      int y = top + rowIndex * 18 + (index < 9 ? HOTBAR_GAP : 0);
-      slot(graphics, x, y, x + 18, y + 18);
+    for (int row = 0; row < 3; row++) {
+      for (int column = 0; column < 9; column++) {
+        slotArt(graphics, left + column * 18, top + row * 18);
+      }
+    }
+    // The hotbar sits where the menu put it, not at an offset of our own.
+    int hotbarY = panelTop + com.quzzar.villagelife.menu.MarketMenu.HEAD + 142;
+    for (int column = 0; column < 9; column++) {
+      slotArt(graphics, left + column * 18, hotbarY);
     }
   }
 
+
+  /** The sunken box behind one 16x16 slot, drawn where the menu put it. */
+  private static void slotArt(GuiGraphics graphics, int itemX, int itemY) {
+    slot(graphics, itemX - 1, itemY - 1, itemX + 17, itemY + 17);
+  }
 
   /**
    * The long arrow between cost and result. It is baked into villager.png
