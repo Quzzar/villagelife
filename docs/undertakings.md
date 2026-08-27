@@ -5,14 +5,45 @@ a beginning, some progress, and an end. One generic system used for everything
 from "make it up to me by bringing wheat" to "help me clear the lava in my mine"
 to "I am saving toward a bigger house."
 
-This is the design, and it is built end to end. The record, its persistence, the
-validation-and-apply, and a measuring harness live in `entities/UndertakingData`,
-`UndertakingService`, and `UndertakingCommands`; the production chat wiring lives
-in `PersonChatDispatcher`. In a real conversation the model emits an `undertaking`
-field (gated, with the few-shot examples in `PersonChatContext`), the dispatcher
-parses it, applies it to the villager, and persists it, which closes the loop the
-briefing's read side (`openWith` for the gate and the "Matters between you"
-section) depends on. The schema below is locked against the code.
+> **Status: PARKED (2026-08-27).** The machinery below is built and unit-tested;
+> the feature does NOT work in live play yet, and the reason is not fixable by
+> tweaking the prompt. Parked pending a stronger local model or the redesign in
+> the next paragraph. Do not describe this as shipped.
+>
+> What works: the record, persistence, `UndertakingService.apply` (open/advance/
+> resolve, the open→advance coercion), the standing bump on a resolved negative,
+> and the dispatcher write path are all built and pass `/vldev undertaking
+> selftest` (10/10). Inspect live state with `/vldev undertaking show <target>`
+> and raw model behavior with `/vldev undertaking probe <target> <line>`.
+>
+> What does NOT work, measured in-world (not just the isolated audit): a villager
+> almost never records its own matters. Two blockers, both structural:
+> 1. **The trigger is debt-shaped.** `assemble` offers the record-new tool only
+>    when `opensACommitment(playerLine)` fires, i.e. the PLAYER says a commitment
+>    word (sorry/promise/owe/...). A villager's own goal or problem surfacing in
+>    normal talk is never offered the tool. The whole trigger was built for the
+>    make-amends "first slice," not the general self-tracking that is the actual
+>    purpose (the villager remembering and tracking ITS own matters).
+> 2. **The 3B can't drive the decision on the full prompt.** Even when the tool is
+>    forced open, on the long persona/situation prompt the model emits only by
+>    mirroring a close few-shot (debt line → ~33%/wrong content; self-matter with
+>    self-matter examples → 0/6). It copies, it does not judge "worth recording."
+>
+> The likely redesign when this is picked back up: stop asking the chat model to
+> DECIDE to record. Open matters from real game events (the doc's EVENT origin —
+> the villager hits lava, runs out of materials), deterministically, and let the
+> model only narrate and discuss what is already tracked (the read side, which
+> works). That anchors tracking in what actually happens instead of the small
+> model's unreliable judgment.
+
+This is the design. The record, its persistence, the validation-and-apply, and a
+measuring harness live in `entities/UndertakingData`, `UndertakingService`, and
+`UndertakingCommands`; the production chat wiring lives in `PersonChatDispatcher`.
+In a conversation the model emits an `undertaking` field (gated, with the few-shot
+examples in `PersonChatContext`), the dispatcher parses it, applies it, and
+persists it, which closes the loop the briefing's read side (`openWith` for the
+gate and the "Matters between you" section) depends on. The schema below is
+locked against the code.
 
 ## Why, and what is already here
 
