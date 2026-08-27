@@ -51,18 +51,41 @@ public final class LlamaServerLauncher {
   }
 
   /**
-   * Benchmarked on the mod's own decide prompt, ten runs each, scored on whether
-   * the answer parsed AND named a real option whose text it copied correctly:
+   * Benchmarked on the four jobs the mod actually gives a model, using the real
+   * system prompts, few-shot turns and temperatures from each call site. Ten
+   * runs per task, scored on whether the CONTENT was usable rather than on
+   * whether it parsed: every model parses nearly everything, so parse rate
+   * cannot separate them.
    *
-   *   Gemma-2-2B     1.7G  10/10   734 ms
-   *   Qwen2.5-3B     2.1G  10/10   749 ms
-   *   Llama-3.2-3B   2.0G   8/10   810 ms
-   *   Qwen2.5-1.5B   1.1G   8/10   438 ms
-   *   Phi-3.5-mini   2.4G  10/10  2276 ms
+   *                  decide  chat  relation | persona
+   *   Qwen2.5-3B     10/10  9/10    10/10   |  6/10
+   *   Gemma-2-2B     10/10 10/10    10/10   |  6/10
+   *   Llama-3.2-3B    8/10 10/10    10/10   |  1/10
+   *   Qwen2.5-1.5B    8/10  9/10    10/10   |  3/10
    *
-   * Gemma is the default: it is the smallest and quickest of the models that
-   * never got a choice wrong. Speed alone would have picked the 1.5B, and a
-   * village acting on a mis-parsed answer builds the wrong thing.
+   * Median latency, measured alone on an M-series Mac with nothing else running:
+   *
+   *                  decide  chat  persona  relation   size
+   *   Qwen2.5-1.5B    454ms  299ms   597ms    561ms    1.1G
+   *   Gemma-2-2B      642ms  742ms  1215ms   1442ms    1.7G
+   *   Qwen2.5-3B      743ms  611ms  1142ms   1022ms    2.1G
+   *   Llama-3.2-3B    766ms  580ms  1261ms   1020ms    2.0G
+   *
+   * Qwen2.5-3B is the default. It and Gemma are the two that never misjudge a
+   * build decision, and of those two it answers a player roughly 130ms quicker,
+   * which is the latency a person actually feels: nobody waits on a village
+   * deciding what to build, and everybody waits on a villager replying.
+   *
+   * The persona column is NOT trustworthy and is kept only to show that the
+   * task is the weak one for every model. It asks whether the blurb used each
+   * listed trait, which is scored by keyword and cannot recognise "a mountain
+   * of a man" as "a true giant". Hand reading the failures shows real defects
+   * underneath (Qwen2.5-1.5B rendered "never ill" as "often sick", inverting
+   * it) but the number overstates them. Scoring persona properly needs a judge
+   * model, not a word list.
+   *
+   * Three call sites are still unmeasured: relationship SELECTION, reflection,
+   * and village naming.
    */
   public static final Model GEMMA_2B = new Model(
       "bartowski/gemma-2-2b-it-GGUF", "gemma-2-2b-it-Q4_K_M.gguf", "Gemma-2-2B-it");
@@ -72,8 +95,6 @@ public final class LlamaServerLauncher {
       "Qwen/Qwen2.5-1.5B-Instruct-GGUF", "qwen2.5-1.5b-instruct-q4_k_m.gguf", "Qwen2.5-1.5B-Instruct");
   public static final Model LLAMA_3B = new Model(
       "bartowski/Llama-3.2-3B-Instruct-GGUF", "Llama-3.2-3B-Instruct-Q4_K_M.gguf", "Llama-3.2-3B-Instruct");
-  public static final Model PHI_3_5 = new Model(
-      "bartowski/Phi-3.5-mini-instruct-GGUF", "Phi-3.5-mini-instruct-Q4_K_M.gguf", "Phi-3.5-mini");
 
   /** What the config's model name may say, and what it gets. */
   public static Model byName(String name) {
@@ -87,10 +108,10 @@ public final class LlamaServerLauncher {
     if (key.contains("llama")) {
       return LLAMA_3B;
     }
-    if (key.contains("phi")) {
-      return PHI_3_5;
+    if (key.contains("gemma")) {
+      return GEMMA_2B;
     }
-    return GEMMA_2B;
+    return QWEN_3B;
   }
 
   private static final HttpClient HTTP = HttpClient.newBuilder()
