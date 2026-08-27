@@ -124,6 +124,12 @@ every time a radius empties.
 - **Cycles stay slow and real.** A fell-replant-grow cycle takes what it takes. A village that
   wants more wood hires another lumberjack. That is the pressure the whole economy runs on, and
   compressing output would remove it.
+- **A villager walks toward one thing at a time, and work outranks wandering.** Goals that
+  navigate compete for movement rather than running side by side. This is not a detail: every
+  work goal used to run simultaneously with ambient strolling and with each other, each
+  issuing its own destination between placements, so villagers made slow progress toward
+  everything and arrived at nothing. Slow cycles are a design choice; a worker who never
+  reaches the work is a bug.
 - **Work stops at night.** Per job, with exceptions: guards patrol, an innkeeper stays open.
   Night work is a field on the job definition, not a global rule.
 - **Unloaded chunks freeze.** A village only lives while someone is watching. Its brain waits
