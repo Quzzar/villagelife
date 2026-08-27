@@ -67,10 +67,12 @@ public final class PersonChatContext {
    * Only "open" is offered.
    */
   private static final String RULES_NEW_MATTER = RULES_BODY
-      + "This person is making amends, or promising something that will take time, and no such matter yet stands "
-      + "between you. If their words truly begin one, record it: \"undertaking\": {\"op\": \"open\", "
-      + "\"summary\": \"<what is to be done, in a few words>\", \"valence\": \"positive\" for a kindness or "
-      + "\"negative\" for a wrong to right}. Most turns begin nothing - leave it out unless this one does. "
+      + "Something worth seeing through over time has come up - a task you mean to tackle, a problem to sort out, a "
+      + "goal you are working toward, or something this person will do for you or put right - and no such matter yet "
+      + "stands. If this turn truly begins one, record it so you remember it later: \"undertaking\": {\"op\": "
+      + "\"open\", \"summary\": \"<what is to be seen through, in a few words>\", \"valence\": \"positive\" for a hope "
+      + "or a kindness, \"negative\" for a problem or a wrong to right}. Most turns begin nothing - leave it out "
+      + "unless this one does. "
       + SHAPE_UNDERTAKING;
 
   /**
@@ -164,39 +166,38 @@ public final class PersonChatContext {
           "{\"say\": \"Take it, and mind the dark.\", \"give\": \"minecraft:torch\", \"opinion\": 2}"));
 
   /**
-   * Shown when a NEW matter may open: one per valence, since the audit found the
-   * 3B under-fired on open. A wrong to right (negative) and an offer of a
-   * kindness (positive), so both shapes of "this begins a matter" are seen - the
-   * offer-to-help case in particular never fired on the apology example alone.
+   * Shown when a NEW matter may open. Both are the villager's OWN matters - a
+   * problem to sort (negative) and a goal in progress (positive) - because the
+   * point of undertakings is a villager tracking its own things over time, not
+   * only what a player owes. Kept clear of any one test scenario (roof, ox) so a
+   * match on a different matter is generalisation, not the 3B copying the example
+   * wholesale (the failure the live test caught with the old debt-only examples).
    */
   private static final List<FewShotExample> OPEN_EXAMPLES = List.of(
-      new FewShotExample("Steve says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
-          "{\"say\": \"Bring back the ten wheat you took and we're square.\", "
-          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", \"valence\": \"negative\"}}"),
-      new FewShotExample("Steve says: \"I'm sorry you're short on oak. I'll bring you a stack tomorrow.\"\nYour JSON answer:",
-          "{\"say\": \"That would see my roof done. I'd be in your debt, Steve.\", "
-          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Steve to bring a stack of oak for the roof\", \"valence\": \"positive\"}}"));
+      new FewShotExample("Steve says: \"That roof of yours is still letting the rain in, isn't it?\"\nYour JSON answer:",
+          "{\"say\": \"It is, and it's past time I patched it properly.\", "
+          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Patch the leaking roof over my house\", \"valence\": \"negative\"}}"),
+      new FewShotExample("Steve says: \"I hear you've been setting coin aside for something.\"\nYour JSON answer:",
+          "{\"say\": \"Bit by bit, toward a second ox to work the field.\", "
+          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Save up for a second ox for the plough\", \"valence\": \"positive\"}}"));
 
   /**
-   * Shown when a matter STANDS. Four turns the audit's failures shaped: a
-   * neutral turn that emits NOTHING (advance was firing on every turn once the
-   * tool was offered), a partial delivery (advance), and two completions (both
-   * resolve, one per valence). One resolve example proved too thin for the 3B to
-   * separate final from partial, so the completion pair leans hard on "the last
-   * of it", "the whole", "every rail", "done".
+   * Shown when a matter STANDS, all on the villager's OWN matter so progress
+   * tracking is taught the same way opening is: a neutral turn that records
+   * NOTHING (advance was firing on every turn once the tool was offered), a step
+   * of progress (advance), and a completion (resolve). Completion leans on "at
+   * last", "done" so the 3B separates a final step from a partial one. Kept off
+   * any one test scenario so a match is generalisation, not copying.
    */
   private static final List<FewShotExample> PROGRESS_EXAMPLES = List.of(
       new FewShotExample("Steve says: \"Just passing through, don't mind me.\"\nYour JSON answer:",
-          "{\"say\": \"Mind yourself, Steve. The roads are dark this hour.\"}"),
-      new FewShotExample("Steve says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
-          "{\"say\": \"Four - a start. Six more and we're even.\", "
-          + "\"undertaking\": {\"op\": \"advance\", \"note\": \"Four of the ten wheat brought back\"}}"),
-      new FewShotExample("Steve says: \"Here's the last of it - that's the whole ten wheat now.\"\nYour JSON answer:",
-          "{\"say\": \"Then we're square, Steve. No hard feelings.\", "
-          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"),
-      new FewShotExample("Steve says: \"That's your fence done - every rail back in place.\"\nYour JSON answer:",
-          "{\"say\": \"Fine work, and quicker than I'd hoped. We're square.\", "
-          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The fence is fully mended\"}}"));
+          "{\"say\": \"Mind yourself, the roads are dark this hour.\"}"),
+      new FewShotExample("Steve says: \"How's that roof coming along?\"\nYour JSON answer:",
+          "{\"say\": \"Half the shingles are back on. The rest tomorrow.\", "
+          + "\"undertaking\": {\"op\": \"advance\", \"note\": \"Half the roof re-shingled\"}}"),
+      new FewShotExample("Steve says: \"Looks like you've got that roof finished at last.\"\nYour JSON answer:",
+          "{\"say\": \"Every last shingle, and dry beneath it now.\", "
+          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The roof is fully patched\"}}"));
 
   /** Which undertaking state a turn is in - drives both the rules and examples. */
   private enum UndertakingMode { NONE, NEW_MATTER, OPEN_MATTER }
