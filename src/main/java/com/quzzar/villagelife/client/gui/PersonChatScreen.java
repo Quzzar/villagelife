@@ -50,9 +50,34 @@ public class PersonChatScreen extends Screen {
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
 
-  /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
-  private static final int PANEL_WIDTH = 264;
-  private static final int PANEL_HEIGHT = 216;
+  /**
+   * Vanilla's own villager container art, and its exact dimensions, because
+   * approximating a Minecraft screen by hand never looks like a Minecraft
+   * screen. Everything on the trade tab sits at the coordinates MerchantScreen
+   * uses, so the recessed trade list, the slots and the inventory are the real
+   * ones rather than rectangles that resemble them.
+   */
+  private static final ResourceLocation VILLAGER_GUI =
+      ResourceLocation.withDefaultNamespace("textures/gui/container/villager.png");
+  private static final ResourceLocation TRADE_ARROW =
+      ResourceLocation.withDefaultNamespace("container/villager/trade_arrow");
+  private static final int PANEL_WIDTH = 276;
+  private static final int PANEL_HEIGHT = 166;
+  /** MerchantScreen's trade buttons: 89x20 at (5, 16 + n*20). */
+  private static final int LIST_LEFT = 5;
+  private static final int LIST_TOP = 16;
+  private static final int LIST_ROW = 20;
+  private static final int LIST_WIDTH = 89;
+  /** Its player inventory: 3x9 from (108, 84), hotbar at y 142. */
+  private static final int INV_LEFT = 108;
+  private static final int INV_TOP = 84;
+  private static final int HOTBAR_TOP = 142;
+  /** Width of the strip the two tabs sit on, above the window. */
+  private static final int TAB_STRIP = 122;
+  /** MerchantScreen's own trade preview: cost at 136, result at 220, y 37. */
+  private static final int PREVIEW_COST = 136;
+  private static final int PREVIEW_RESULT = 220;
+  private static final int PREVIEW_TOP = 37;
   /** slot, arrow, slot: the width the two slots of one trade occupy. */
   private static final int TRADE_WIDTH = 54;
   /** Left edge to left edge of the two trade columns. */
@@ -169,8 +194,8 @@ public class PersonChatScreen extends Screen {
 
     if (canTrade) {
       int tabWidth = 58;
-      addRenderableWidget(new TabButton(panelLeft + 10, panelTop + 24, tabWidth, "Chat", Tab.CHAT));
-      addRenderableWidget(new TabButton(panelLeft + 12 + tabWidth, panelTop + 24, tabWidth, "Trade", Tab.TRADE));
+      addRenderableWidget(new TabButton(panelLeft + 8, panelTop - 12, tabWidth, "Chat", Tab.CHAT));
+      addRenderableWidget(new TabButton(panelLeft + 10 + tabWidth, panelTop - 12, tabWidth, "Trade", Tab.TRADE));
       toServer(
           com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
     }
@@ -188,7 +213,7 @@ public class PersonChatScreen extends Screen {
 
     this.sendButton = addRenderableWidget(new IconButton(panelRight - 30, inputRowTop, 20,
         IconButton.SEND, button -> send()));
-    addRenderableWidget(new IconButton(panelRight - 20, panelTop + 3, 16,
+    addRenderableWidget(new IconButton(panelRight - 20, panelTop + 2, 16,
         IconButton.CLOSE, button -> onClose()));
     applyTabVisibility();
 
@@ -199,6 +224,14 @@ public class PersonChatScreen extends Screen {
   public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
     // super gives the blurred, darkened world behind the panel.
     super.renderBackground(graphics, mouseX, mouseY, partialTick);
+    if (canTrade) {
+      panel(graphics, panelLeft + 4, panelTop - 14, panelLeft + 4 + TAB_STRIP, panelTop + 2);
+    }
+    if (tab == Tab.TRADE) {
+      graphics.blit(VILLAGER_GUI, panelLeft, panelTop, 0, 0.0F, 0.0F,
+          PANEL_WIDTH, PANEL_HEIGHT, 512, 256);
+      return;
+    }
     panel(graphics, panelLeft, panelTop, panelRight, panelBottom);
     graphics.fill(panelLeft + 6, panelTop + 20, panelRight - 6, panelTop + 21, DIVIDER);
 
@@ -297,7 +330,7 @@ public class PersonChatScreen extends Screen {
     }
     String header = headerName + detail;
     graphics.drawString(this.font, header,
-        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 8, TEXT_LABEL, false);
+        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 5, TEXT_LABEL, false);
 
     if (tab == Tab.TRADE) {
       hoveredStack = ItemStack.EMPTY;
@@ -377,28 +410,19 @@ public class PersonChatScreen extends Screen {
    */
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int left = panelLeft + 8;
-    int y = panelTop + 40;
-
     if (offers == null) {
-      graphics.drawString(this.font, "Opening the stall...", left, y, TEXT_PENDING, false);
+      graphics.drawString(this.font, "Opening the stall...",
+          panelLeft + LIST_LEFT, panelTop + LIST_TOP + 4, TEXT_PENDING, false);
       return;
     }
     if (!marketNote.isBlank()) {
       for (FormattedCharSequence line : this.font.split(
-          Component.literal(marketNote), panelRight - panelLeft - 16)) {
-        graphics.drawString(this.font, line, left, y, TEXT_LABEL, false);
-        y += this.font.lineHeight + 2;
+          Component.literal(marketNote), LIST_WIDTH + 40)) {
+        graphics.drawString(this.font, line, panelLeft + LIST_LEFT, panelTop + LIST_TOP + 4,
+            TEXT_LABEL, false);
       }
       return;
     }
-
-    // Everything lines up on the inventory grid, which is the widest fixed
-    // thing on the screen; the trades hang off its left edge rather than
-    // floating at their own margin.
-    int gridLeft = panelLeft + (panelRight - panelLeft - GRID_WIDTH) / 2;
-    graphics.drawString(this.font, "Trades", gridLeft, y, TEXT_LABEL, false);
-    y += 11;
 
     List<Deal> deals = new ArrayList<>();
     for (var row : offers.selling()) {
@@ -411,73 +435,76 @@ public class PersonChatScreen extends Screen {
     }
 
     if (deals.isEmpty()) {
-      graphics.drawString(this.font, "Nothing to trade today.", left, y + 4, TEXT_PENDING, false);
-      return;
+      graphics.drawString(this.font, "Nothing to trade.",
+          panelLeft + LIST_LEFT, panelTop + LIST_TOP + 4, TEXT_PENDING, false);
+    }
+    int visible = Math.min(deals.size(), 7);
+    for (int i = 0; i < visible; i++) {
+      drawDeal(graphics, deals.get(i), panelLeft + LIST_LEFT, panelTop + LIST_TOP + i * LIST_ROW,
+          mouseX, mouseY);
     }
 
-    // Two columns only because a stall offers more than fits in one; each
-    // entry is the same shape either way, unlike the old buy/sell split.
-    // The inventory is not negotiable: reserve its space first and give the
-    // trades whatever is left. The panel is clamped to the viewport at high GUI
-    // scales, so a layout with fixed heights spills its bottom row off the
-    // panel on exactly the setups that can least afford it.
-    int reserved = 11 + GRID_HEIGHT + 8;
-    int rowsFit = Math.max(1, ((panelBottom - reserved) - y) / ROW_HEIGHT);
-    int shown = Math.min(deals.size(), Math.min(TRADE_ROWS, rowsFit) * 2);
-    int perColumn = Math.max(1, (int) Math.ceil(shown / 2.0D));
-    for (int i = 0; i < shown; i++) {
-      int rowLeft = gridLeft + (i / perColumn) * TRADE_COLUMN;
-      int rowTop = y + (i % perColumn) * ROW_HEIGHT;
-      drawDeal(graphics, deals.get(i), rowLeft, rowTop, TRADE_WIDTH, mouseX, mouseY);
-    }
+    drawInventory(graphics, panelLeft + INV_LEFT, panelTop + INV_TOP, mouseX, mouseY);
 
-    int inventoryTop = y + perColumn * ROW_HEIGHT + 6;
-    graphics.drawString(this.font, "Inventory", gridLeft, inventoryTop, TEXT_LABEL, false);
-    drawInventory(graphics, gridLeft, inventoryTop + 11, mouseX, mouseY);
+    Deal shown = hoveredDeal(deals, visible, mouseX, mouseY);
+    if (shown != null) {
+      graphics.renderItem(shown.from(), panelLeft + PREVIEW_COST, panelTop + PREVIEW_TOP);
+      graphics.renderItemDecorations(this.font, shown.from(),
+          panelLeft + PREVIEW_COST, panelTop + PREVIEW_TOP);
+      graphics.renderItem(shown.into(), panelLeft + PREVIEW_RESULT, panelTop + PREVIEW_TOP);
+      graphics.renderItemDecorations(this.font, shown.into(),
+          panelLeft + PREVIEW_RESULT, panelTop + PREVIEW_TOP);
+    }
+  }
+
+  /** The trade under the cursor, which is what the preview slots show. */
+  private Deal hoveredDeal(List<Deal> deals, int visible, int mouseX, int mouseY) {
+    for (int i = 0; i < visible; i++) {
+      int top = panelTop + LIST_TOP + i * LIST_ROW;
+      if (mouseX >= panelLeft + LIST_LEFT && mouseX < panelLeft + LIST_LEFT + LIST_WIDTH
+          && mouseY >= top && mouseY < top + LIST_ROW) {
+        return deals.get(i);
+      }
+    }
+    return null;
   }
 
   /** One trade: what you hand over, what you get back. */
   private record Deal(ItemStack from, ItemStack into, String itemId, boolean playerBuys) {
   }
 
-  private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int width,
-      int mouseX, int mouseY) {
-    int right = left + width;
-    boolean hovered = mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= top + SLOT_SIZE;
+  private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int mouseX, int mouseY) {
+    boolean hovered = mouseX >= left && mouseX < left + LIST_WIDTH
+        && mouseY >= top && mouseY < top + LIST_ROW;
     if (hovered) {
-      graphics.fill(left, top, right, top + SLOT_SIZE, ROW_HOVER);
+      graphics.fill(left, top, left + LIST_WIDTH, top + LIST_ROW, ROW_HOVER);
     }
-    slot(graphics, left, top, left + SLOT_SIZE, top + SLOT_SIZE);
-    int intoLeft = left + SLOT_SIZE + 14;
-    slot(graphics, intoLeft, top, intoLeft + SLOT_SIZE, top + SLOT_SIZE);
     graphics.renderItem(deal.from(), left + 2, top + 2);
     graphics.renderItemDecorations(this.font, deal.from(), left + 2, top + 2);
-    graphics.renderItem(deal.into(), intoLeft + 2, top + 2);
-    graphics.renderItemDecorations(this.font, deal.into(), intoLeft + 2, top + 2);
-    arrow(graphics, left + SLOT_SIZE + 2, top + 8);
-    rowHits.add(new Row(top, left, right, deal.itemId(), deal.playerBuys()));
+    graphics.blitSprite(TRADE_ARROW, left + 34, top + 5, 10, 9);
+    graphics.renderItem(deal.into(), left + 60, top + 2);
+    graphics.renderItemDecorations(this.font, deal.into(), left + 60, top + 2);
+    rowHits.add(new Row(top, left, left + LIST_WIDTH, deal.itemId(), deal.playerBuys()));
   }
 
   /** The player's own pack, so a trade can be judged without closing the screen. */
   private void drawInventory(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-    // No player when the preview harness renders this, and none either if the
-    // screen outlives a disconnect; an empty grid is the honest drawing.
+    // No player under the preview harness, and none after a disconnect either.
     var player = Minecraft.getInstance().player;
     for (int index = 0; index < 36; index++) {
       int column = index % 9;
-      // The hotbar reads as the bottom row, the way every other screen shows it.
-      int rowIndex = index < 9 ? 3 : (index / 9) - 1;
       int x = left + column * 18;
-      int slotY = top + rowIndex * 18 + (index < 9 ? 4 : 0);
-      slot(graphics, x, slotY, x + 18, slotY + 18);
+      // The hotbar is its own row on the texture, below a gap.
+      int y = index < 9 ? panelTop + HOTBAR_TOP : top + ((index / 9) - 1) * 18;
       ItemStack stack = player != null ? player.getInventory().getItem(index)
           : previewInventory.getOrDefault(index, ItemStack.EMPTY);
-      if (!stack.isEmpty()) {
-        graphics.renderItem(stack, x + 1, slotY + 1);
-        graphics.renderItemDecorations(this.font, stack, x + 1, slotY + 1);
-        if (mouseX >= x && mouseX < x + 18 && mouseY >= slotY && mouseY < slotY + 18) {
-          hoveredStack = stack;
-        }
+      if (stack.isEmpty()) {
+        continue;
+      }
+      graphics.renderItem(stack, x, y);
+      graphics.renderItemDecorations(this.font, stack, x, y);
+      if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
+        hoveredStack = stack;
       }
     }
   }

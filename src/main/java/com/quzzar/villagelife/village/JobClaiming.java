@@ -32,6 +32,7 @@ public final class JobClaiming {
     releaseInvalidAssignments(village, level);
     if (isSlowTick(village, level)) {
       registerMissingStations(village);
+      registerMissingBeds(village);
     }
     releaseOrphanedWorkers(village, level);
     claimOpenJobs(village, level);
