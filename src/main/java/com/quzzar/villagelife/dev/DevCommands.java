@@ -42,6 +42,7 @@ public final class DevCommands {
         .then(EconomyCommands.branch())
         .then(PersonaCommands.branch())
         .then(RelationshipCommands.branch())
+        .then(com.quzzar.villagelife.entities.UndertakingCommands.branch())
         .then(com.quzzar.villagelife.llm.LlmEvents.devBranch())
         .then(com.quzzar.villagelife.events.VillagelifeCommands.devBranch()));
     Villagelife.LOGGER.info("Developer commands are ON (/vldev). Turn them off before shipping.");
