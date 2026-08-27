@@ -292,6 +292,9 @@ public class PersonChatScreen extends Screen {
         IconButton.SEND, button -> send()));
     applyTabVisibility();
 
+    if (previewTab == Tab.TRADE || previewTab == null) {
+      staged = 0; // a freshly opened stall has nothing staged until you pick one
+    }
     if (previewTyped != null) {
       this.input.setValue(previewTyped);
       sendReveal = 1.0F;
@@ -573,6 +576,10 @@ public class PersonChatScreen extends Screen {
   private int resultTop;
   /** Whether the picked trade can actually be paid for out of the pack. */
   private boolean affordable;
+  /** Cost items staged into the trade, as vanilla stages a payment. */
+  private int staged;
+  /** Every trade on the stall this frame, so a click can name the one picked. */
+  private List<Deal> allDeals = new ArrayList<>();
   /** Cost items shown as moved into the trade, so the pack reads as vanilla's does. */
   private java.util.Map<Integer, Integer> reserved = new java.util.HashMap<>();
   /** Lines the conversation is scrolled back from its newest. */
@@ -665,6 +672,7 @@ public class PersonChatScreen extends Screen {
         trackLeft + 1, trackTop + handle, 6, 27);
 
     // The trade under the cursor, shown the way vanilla shows a selected one.
+    allDeals = deals;
     selected = Math.min(selected, Math.max(0, deals.size() - 1));
     Deal under = deals.isEmpty() ? null : deals.get(selected);
     int previewWidth = 18 + 8 + 18 + 8 + ARROW_W + 6 + 26;
@@ -682,11 +690,9 @@ public class PersonChatScreen extends Screen {
     reserved.clear();
     if (under != null) {
       int need = under.from().getCount();
-      int have = countHeld(under.from().getItem());
-      affordable = have >= need && !offers.blocked();
-      // Vanilla moves what it can and leaves the rest empty; it never invents
-      // items you do not own to fill the slot with.
-      int moved = Math.min(have, need);
+      staged = Math.min(staged, countHeld(under.from().getItem()));
+      affordable = staged >= need && !offers.blocked();
+      int moved = staged;
       reserve(under.from().getItem(), moved);
       if (moved > 0) {
         ItemStack cost = new ItemStack(under.from().getItem(), moved);
@@ -863,17 +869,37 @@ public class PersonChatScreen extends Screen {
 
   @Override
   public boolean mouseClicked(double mouseX, double mouseY, int button) {
-    // A struck-out arrow has to mean it: no request goes out while the market
-    // cannot deal, or the screen says one thing and does another.
-    if (tab == Tab.TRADE && offers != null && !offers.blocked()) {
-      for (Row row : rowHits) {
-        if (mouseY >= row.y() && mouseY <= row.y() + 18
-            && mouseX >= row.left() && mouseX <= row.right()) {
-          int count = hasShiftDown() ? 8 : 1;
-          toServer(new com.quzzar.villagelife.networking.MarketActionPacket(
-              entityId, row.playerBuys(), row.itemId(), count));
+    if (tab == Tab.TRADE && offers != null) {
+      // Picking a trade stages the payment out of your pack, the way vanilla's
+      // tryMoveItems does: as much of the cost item as it can find, up to a
+      // stack, not merely the amount this one trade needs.
+      for (int i = 0; i < rowHits.size(); i++) {
+        Row row = rowHits.get(i);
+        if (mouseY >= row.y() && mouseY < row.y() + LIST_ROW
+            && mouseX >= row.left() && mouseX < row.right()) {
+          selected = i + scrollOff;
+          Deal deal = selected < allDeals.size() ? allDeals.get(selected) : null;
+          staged = deal == null ? 0
+              : Math.min(countHeld(deal.from().getItem()), deal.from().getItem().getDefaultMaxStackSize());
           return true;
         }
+      }
+      // Taking from the result slot is the trade. Nothing there, nothing to take.
+      boolean onResult = mouseX >= resultLeft && mouseX < resultLeft + 26
+          && mouseY >= resultTop && mouseY < resultTop + 26;
+      if (onResult && affordable && selected < allDeals.size()) {
+        Deal deal = allDeals.get(selected);
+        int cost = deal.from().getCount();
+        // Shift-take empties the staged payment, one trade at a time, as
+        // shift-clicking a result slot does in vanilla.
+        int times = hasShiftDown() ? Math.max(1, staged / Math.max(1, cost)) : 1;
+        int goods = deal.playerBuys() ? deal.into().getCount() : deal.from().getCount();
+        for (int n = 0; n < times; n++) {
+          toServer(new com.quzzar.villagelife.networking.MarketActionPacket(
+              entityId, deal.playerBuys(), deal.itemId(), goods));
+        }
+        staged = Math.max(0, staged - cost * times);
+        return true;
       }
     }
     return super.mouseClicked(mouseX, mouseY, button);
