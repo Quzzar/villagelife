@@ -117,7 +117,7 @@ public class PersonChatScreen
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
   private static final int PANEL_WIDTH = 286;
-  private static final int PANEL_HEIGHT = 186;
+  private static final int PANEL_HEIGHT = 192;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = com.quzzar.villagelife.menu.MarketMenu.HEAD;
   /** Where the rule under the tabs sits, measured from the panel top. */
@@ -665,7 +665,7 @@ public class PersonChatScreen
     int head = com.quzzar.villagelife.menu.MarketMenu.HEAD;
     int listLeft = panelLeft + 8;
     int listTop = panelTop + head;
-    int listBottom = panelTop + head + 104 + 18;
+    int listBottom = listTop + LIST_ROWS * LIST_ROW;
     int rightLeft = panelLeft + com.quzzar.villagelife.menu.MarketMenu.PACK_X;
     int rightWidth = 9 * 18;
 
@@ -703,11 +703,11 @@ public class PersonChatScreen
     for (int i = 0; i < visible; i++) {
       Deal deal = deals.get(i + scrollOff);
       shown.add(deal);
-      drawDeal(graphics, deal, listLeft + 2, listTop + 3 + i * LIST_ROW, mouseX, mouseY,
+      drawDeal(graphics, deal, listLeft + 2, listTop + i * LIST_ROW, mouseX, mouseY,
           i + scrollOff == selected);
     }
-    int trackTop = listTop + 1;
-    int trackRun = (listBottom - 1) - trackTop - 27;
+    int trackTop = listTop;
+    int trackRun = listBottom - trackTop - 27;
     int handle = overflow == 0 ? 0 : Math.round((float) scrollOff / overflow * trackRun);
     graphics.blitSprite(overflow == 0 ? SCROLLER_DISABLED : SCROLLER,
         trackLeft + 1, trackTop + handle, 6, 27);
