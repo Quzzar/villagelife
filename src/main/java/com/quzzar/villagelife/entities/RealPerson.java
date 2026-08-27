@@ -64,7 +64,6 @@ import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
 import com.quzzar.villagelife.entities.ai.goals.TillSoilGoal;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
-import com.quzzar.villagelife.entities.ai.goals.UseBonemealGoal;
 import com.quzzar.villagelife.entities.ai.goals.DepositHaulGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkInMineGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkAtMarketGoal;
@@ -892,7 +891,8 @@ public class RealPerson extends Person {
     }
     if (getOccupation() == Occupation.LUMBERJACK) {
       this.goalSelector.addGoal(3, new DepositHaulGoal(this));
-      this.goalSelector.addGoal(4, new UseBonemealGoal(this, true));
+      this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
+          new com.quzzar.villagelife.entities.ai.goals.work.BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkOnWoodcuttingGoal(this));
       this.goalSelector.addGoal(8, new ProcessItemGoal(this,
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
@@ -927,7 +927,8 @@ public class RealPerson extends Person {
           SoundEvents.UI_STONECUTTER_TAKE_RESULT));
     }
     if (getOccupation() == Occupation.FARMER) {
-      this.goalSelector.addGoal(4, new UseBonemealGoal(this, true));
+      this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
+          new com.quzzar.villagelife.entities.ai.goals.work.BonemealStep(true)));
       this.goalSelector.addGoal(4, new HarvestCropGoal(this, true));
       this.goalSelector.addGoal(6, new TillSoilGoal(this, true));
 
