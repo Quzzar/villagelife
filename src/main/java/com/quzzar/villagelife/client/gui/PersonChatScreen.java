@@ -36,15 +36,17 @@ public class PersonChatScreen extends Screen {
   // Minecraft's own GUI palette: the grey panel, its bevel, and the inset
   // slot. Matching these is what makes a modded screen read as part of the
   // game rather than as something bolted on.
-  private static final int PANEL_FACE = 0xFFD0D0D0;
+  private static final int PANEL_FACE = 0xFFC6C6C6;
   private static final int PANEL_LIGHT = 0xFFFFFFFF;
   private static final int PANEL_DARK = 0xFF555555;
   private static final int PANEL_EDGE = 0xFF000000;
   private static final int SLOT_FACE = 0xFF8B8B8B;
   private static final int SLOT_DARK = 0xFF373737;
   /** The grey villager.png paints its long arrow in, sampled from the file. */
-  private static final int ARROW_GREY = 0xFF8B8B8B;
-  private static final int ARROW_BLOCKED = 0xFFAA3333;
+  private static final int ARROW_W = 22;
+  private static final int ARROW_H = 15;
+  /** The stroke of a closed-for-trade cross, in the panel's own dark grey. */
+  private static final int CROSS = 0xFF4A4A4A;
   private static final int DIVIDER = 0xFF8B8B8B;
   private static final int TEXT_LABEL = 0xFF1C1C1C;
   private static final int TEXT_VILLAGER = 0xFF1C1C1C;
@@ -360,7 +362,8 @@ public class PersonChatScreen extends Screen {
     // trader's name here, and the equivalent for a village market is the
     // market itself. The villager's own name belongs on the tab where you
     // are actually talking to them.
-    Component header = Component.literal(headerName).withStyle(ChatFormatting.BOLD)
+    Component header = Component.empty()
+        .append(Component.literal(headerName).withStyle(ChatFormatting.BOLD))
         .append(Component.literal(", " + headerDetail));
     int headerLeft = panelLeft + 8;
     int room = (panelRight - 8) - headerLeft;
@@ -513,12 +516,12 @@ public class PersonChatScreen extends Screen {
         break;
       }
     }
-    int previewWidth = 18 + 8 + 18 + 29 + 26;
+    int previewWidth = 18 + 8 + 18 + 8 + ARROW_W + 6 + 26;
     int previewLeft = rightLeft + (rightWidth - previewWidth) / 2;
     int previewTop = listTop + 10;
     slot(graphics, previewLeft, previewTop, previewLeft + 18, previewTop + 18);
     slot(graphics, previewLeft + 26, previewTop, previewLeft + 44, previewTop + 18);
-    bigArrow(graphics, previewLeft + 51, previewTop + 8, offers.blocked());
+    bigArrow(graphics, previewLeft + 52, previewTop + 2, offers.blocked());
     // The result slot is 26 wide, not 18: vanilla gives what you receive more
     // room than what it costs.
     int resultLeft = previewLeft + previewWidth - 26;
@@ -551,8 +554,10 @@ public class PersonChatScreen extends Screen {
     // Struck out while the market cannot trade at all. Individual trades are
     // never blocked: a village that runs low just prices the item up until it
     // stops listing it, which the numbers say on their own.
-    graphics.blitSprite(offers != null && offers.blocked() ? TRADE_ARROW_BLOCKED : TRADE_ARROW,
-        left + 55, itemY + 3, 10, 9);
+    graphics.blitSprite(TRADE_ARROW, left + 55, itemY + 3, 10, 9);
+    if (offers != null && offers.blocked()) {
+      cross(graphics, left + 56, itemY + 3, 7);
+    }
     graphics.renderItem(deal.into(), left + 68, itemY);
     graphics.renderItemDecorations(this.font, deal.into(), left + 68, itemY);
     rowHits.add(new Row(top, left, left + LIST_WIDTH, deal.itemId(), deal.playerBuys()));
@@ -588,10 +593,21 @@ public class PersonChatScreen extends Screen {
    * shaft, in the mid grey the texture uses.
    */
   private static void bigArrow(GuiGraphics graphics, int x, int y, boolean blocked) {
-    int colour = blocked ? ARROW_BLOCKED : ARROW_GREY;
-    graphics.fill(x, y, x + 17, y + 3, colour);
-    for (int i = 0; i < 5; i++) {
-      graphics.fill(x + 14 + i, y - 5 + i, x + 15 + i, y + 8 - i, colour);
+    graphics.blit(VILLAGER_GUI, x, y, 0, 186.0F, 38.0F, ARROW_W, ARROW_H, 512, 256);
+    if (blocked) {
+      cross(graphics, x + 4, y + 1, ARROW_H - 2);
+    }
+  }
+
+  /**
+   * A cross drawn over an arrow that cannot be taken. The arrow keeps its own
+   * colour: recolouring it red read as an error state rather than as a closed
+   * shop, and the X alone says the same thing more quietly.
+   */
+  private static void cross(GuiGraphics graphics, int x, int y, int size) {
+    for (int i = 0; i < size; i++) {
+      graphics.fill(x + i, y + i, x + i + 2, y + i + 2, CROSS);
+      graphics.fill(x + i, y + size - i, x + i + 2, y + size - i + 2, CROSS);
     }
   }
 
@@ -665,7 +681,6 @@ public class PersonChatScreen extends Screen {
         // A raised stub that breaks the rule beneath it, tinted so the chosen
         // tab is not the same grey as everything else on the window.
         panel(graphics, getX() - 2, getY() - 3, getX() + width + 2, getY() + height + 2);
-        graphics.fill(getX() - 1, getY() - 2, getX() + width + 1, getY() + height + 1, TAB_ACTIVE);
       }
       int colour = active ? ICON_HOVER : (isHovered() ? ICON_HOVER : ICON_IDLE);
       // drawCenteredString always shadows; on a light panel that reads as
