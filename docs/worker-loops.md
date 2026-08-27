@@ -50,6 +50,27 @@ cleric       SELECT hurt person TRAVEL  ACT heal
 
 The blacksmith's walk to the mine's chest falls out of this for free rather than being bolted on.
 
+**Derived from the code, 2026-08-27.** All 30 goal classes were read to check this design against
+what actually exists ([the derivation](https://claude.ai/code/artifact/fd012989-aa95-4656-882d-24145f7a8aa7)).
+The three verbs hold. Three corrections came out of it:
+
+- **Scope is 13 classes, not 28.** Only 13 of the 30 goals are work at all (2,163 of 3,461 lines).
+  The other 17 are eating, sleeping, fleeing, strolling and fighting; they are not worker loops and
+  stay as they are.
+- **`ACT` has six kinds in the code, and one is missing above.** `BREAK` (destroy a block, take
+  drops), `PLACE` (put a block down, paying stock), `APPLY` (consume an item to change a target that
+  survives), `CONVERT` (items to items on a timer), `CARRY` (move items between inventories), and
+  **`ADVANCE`** — attend a site and tick a named subsystem, which is what `WorkOnBuildingGoal` already
+  does in 111 lines whose act is a single call into `StructureInProgress`. `ADVANCE` belongs in the
+  verb list rather than being discovered later: unnamed, every awkward job gets forced into `BREAK`
+  and `PLACE` until the framework is three verbs plus twelve special cases.
+- **The value is in `SELECT` and `TRAVEL`, not in `ACT`.** Each act is ten to twenty lines and
+  correct. The surround is duplicated thirteen times and is where every worker bug has lived: nine
+  byte-identical copies of `shouldInterrupt()`, three goals with no `canContinueToUse` (the farmer
+  freeze), five that call `stop()` from `tick()` where it cannot end a goal, two that never navigate
+  at all, and only six carrying the stranded-worker recovery. Build the loop skeleton first; the
+  verbs are the easy half.
+
 **Prior art agrees, twice.** All four surveyed mods converge on acquire, travel, act, deposit
 ([research](https://github.com/Quzzar/villagelife/issues/52)). More usefully, Millenaire's own
 9.0 rewrite collapsed 53 goal classes into 25 plus **one data-driven goal covering 405 work types
