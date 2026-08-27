@@ -1,0 +1,85 @@
+{
+  "structure": "market_plains_3",
+  "work_stations": [
+    {
+      "pos": [
+        4,
+        1,
+        2
+      ],
+      "occupation": "MERCHANT"
+    },
+    {
+      "pos": [
+        4,
+        1,
+        14
+      ],
+      "occupation": "MERCHANT"
+    },
+    {
+      "pos": [
+        12,
+        1,
+        2
+      ],
+      "occupation": "MERCHANT"
+    },
+    {
+      "pos": [
+        12,
+        1,
+        14
+      ],
+      "occupation": "MERCHANT"
+    }
+  ],
+  "containers": [
+    [
+      3,
+      1,
+      2
+    ],
+    [
+      3,
+      1,
+      14
+    ],
+    [
+      13,
+      1,
+      2
+    ],
+    [
+      13,
+      1,
+      14
+    ]
+  ],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 40
+    },
+    {
+      "item": "minecraft:cobblestone",
+      "count": 30
+    },
+    {
+      "item": "minecraft:white_wool",
+      "count": 8
+    },
+    {
+      "item": "minecraft:red_wool",
+      "count": 4
+    },
+    {
+      "item": "minecraft:iron_ingot",
+      "count": 4
+    }
+  ],
+  "grants": [
+    "TRADE",
+    "TRADE_INITIATIVE"
+  ]
+}
