@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.economy.Treasury;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
@@ -45,6 +46,12 @@ public class WorkAtMarketGoal extends Goal {
   /** How long the merchant minds the stall before yielding to everything else. */
   private static final int MIND_TICKS = 200;
 
+  /** Ticks of walking without getting closer before the trip is given up. */
+  private static final int STALL_TICKS = 100;
+
+  private double closestApproachSqr = Double.MAX_VALUE;
+  private int ticksWithoutProgress = 0;
+
   private final RealPerson person;
 
   @Nullable
@@ -68,8 +75,17 @@ public class WorkAtMarketGoal extends Goal {
     if (village == null || shouldInterrupt()) {
       return false;
     }
-    this.carrying = false;
     this.mindingTicks = 0;
+    this.closestApproachSqr = Double.MAX_VALUE;
+    this.ticksWithoutProgress = 0;
+    // Anything already in the pack gets delivered before anything else is
+    // lifted. Without this a merchant interrupted mid-trip goes back for
+    // another stack and hoards the shop in their pockets.
+    this.carrying = packHoldsGoods();
+    if (this.carrying) {
+      this.target = deliveryChest(village);
+      return this.target != null;
+    }
     this.target = fullTillChest(village);
     if (this.target != null) {
       return true;
@@ -96,7 +112,17 @@ public class WorkAtMarketGoal extends Goal {
     if (this.target == null) {
       return;
     }
-    if (person.blockPosition().distSqr(this.target) > REACH_SQR) {
+    double distance = person.blockPosition().distSqr(this.target);
+    if (distance > REACH_SQR) {
+      // A chest the merchant cannot actually walk to — a stall that landed on a
+      // rise, a path that no longer exists — must not hold their legs for ever.
+      if (distance < this.closestApproachSqr - 0.5D) {
+        this.closestApproachSqr = distance;
+        this.ticksWithoutProgress = 0;
+      } else if (++this.ticksWithoutProgress > STALL_TICKS) {
+        this.target = null;
+        return;
+      }
       person.getNavigation().moveTo(
           this.target.getX() + 0.5D, this.target.getY(), this.target.getZ() + 0.5D, SPEED);
       return;
@@ -131,14 +157,44 @@ public class WorkAtMarketGoal extends Goal {
       person.swing(person.getUsedItemHand());
     }
     this.carrying = true;
-    this.target = village.getNearestContainer(person.blockPosition(),
-        Treasury.chestPositions(village, (ServerLevel) person.level()));
+    this.closestApproachSqr = Double.MAX_VALUE;
+    this.ticksWithoutProgress = 0;
+    this.target = deliveryChest(village);
     if (this.target == null) {
       // Nowhere else in the village to put it: give it back rather than walk it
       // around, and let the shortage show as a market that stays full.
       putBack(till, taken);
       this.carrying = false;
+      Villagelife.LOGGER.debug("Village '{}' has nowhere but the market to store {}",
+          village.getName(), taken.getItem());
     }
+  }
+
+  /**
+   * Somewhere in the village that is not the market's own chests. The village
+   * returns {@link BlockPos#ZERO} rather than null when it has nowhere, which
+   * is a real answer for a village whose only container is its till.
+   */
+  @Nullable
+  private BlockPos deliveryChest(Village village) {
+    if (!(person.level() instanceof ServerLevel level)) {
+      return null;
+    }
+    BlockPos found = village.getNearestContainer(person.blockPosition(),
+        Treasury.chestPositions(village, level));
+    return found.equals(BlockPos.ZERO) ? null : found;
+  }
+
+  /** True when the pack holds anything the merchant should be shelving. */
+  private boolean packHoldsGoods() {
+    Container pack = person.personMainInv;
+    for (int slot = 0; slot < pack.getContainerSize(); slot++) {
+      ItemStack stack = pack.getItem(slot);
+      if (!stack.isEmpty() && stack.getItem() != Treasury.CURRENCY) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** The first market chest holding something that is not money. */
