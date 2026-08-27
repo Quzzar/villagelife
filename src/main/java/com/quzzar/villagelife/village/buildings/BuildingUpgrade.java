@@ -43,6 +43,35 @@ public final class BuildingUpgrade {
    * fits around, so a village with two farms upgrades the one with room.
    */
   @Nullable
+  /**
+   * What a building actually costs to raise HERE, now. A fresh build costs its
+   * whole recipe; an upgrade costs only what the new tier ADDS over the one it
+   * replaces, because the standing structure is reused rather than rebuilt.
+   *
+   * This is what makes upgrading a genuine good deal: extending a warehouse
+   * costs the few materials the extension needs, not a second warehouse's worth,
+   * so a village prefers the upgrade on plain cost rather than on any thumb on
+   * the scale.
+   */
+  public static List<ItemStack> effectiveCost(Village village, BuildingInfo info) {
+    Building standing = standingSource(village, info);
+    if (standing == null || standing.getInfo() == null) {
+      return info.getMaterialCost();
+    }
+    java.util.Map<net.minecraft.world.item.Item, Integer> already = new java.util.HashMap<>();
+    for (ItemStack held : standing.getInfo().getMaterialCost()) {
+      already.merge(held.getItem(), held.getCount(), Integer::sum);
+    }
+    List<ItemStack> delta = new ArrayList<>();
+    for (ItemStack cost : info.getMaterialCost()) {
+      int extra = cost.getCount() - already.getOrDefault(cost.getItem(), 0);
+      if (extra > 0) {
+        delta.add(new ItemStack(cost.getItem(), extra));
+      }
+    }
+    return delta;
+  }
+
   public static Building standingSource(Village village, BuildingInfo info) {
     String from = info.getUpgradesFrom();
     if (from == null) {

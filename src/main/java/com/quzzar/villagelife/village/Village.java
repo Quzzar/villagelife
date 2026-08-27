@@ -1318,7 +1318,11 @@ public class Village {
     }
     Map<Item, Integer> inChests = brain.stockTally(level);
     Map<Item, Integer> inPacks = null; // computed lazily, and only once
-    for (ItemStack cost : project.getBuilding().getInfo().getMaterialCost()) {
+    // The delta for an upgrade, the whole recipe otherwise: an upgrade is not
+    // "materially impossible" just because the village lacks a second building's
+    // worth, only if it lacks what the upgrade still adds.
+    for (ItemStack cost : com.quzzar.villagelife.village.buildings.BuildingUpgrade
+        .effectiveCost(this, project.getBuilding().getInfo())) {
       int have = inChests.getOrDefault(cost.getItem(), 0);
       if (have >= cost.getCount()) {
         continue; // the chests alone cover this one; no pack scan needed

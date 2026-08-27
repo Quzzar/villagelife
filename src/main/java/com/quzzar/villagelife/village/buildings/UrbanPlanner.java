@@ -101,8 +101,6 @@ public class UrbanPlanner {
     if (info.getGrants().contains("STORAGE")) {
       score += needs.storage();
     }
-    // Never stack a third of the same thing while anything else is wanted.
-    score -= countBuilt(village, info.getName()) * 2.0;
     return score;
   }
 
@@ -125,7 +123,7 @@ public class UrbanPlanner {
         BuildingInfo wanted = Buildings.getByName(goal);
         if (wanted == null) {
           VillageGoal.clear(village, "the definition is gone");
-        } else if (hasMaterialsToConstruct(stock, wanted)) {
+        } else if (hasMaterialsToConstruct(village, stock, wanted)) {
           VillageGoal.clear(village, "affordable at last");
           Villagelife.LOGGER.info("Village '{}' saved up and is building {}",
               village.getName(), wanted.getName());
@@ -189,7 +187,7 @@ public class UrbanPlanner {
    * farm saves for stone brick it cannot make, expires, and names another.
    */
   private static boolean withinReach(Village village, Map<Item, Integer> stock, BuildingInfo info) {
-    for (ItemStack cost : info.getMaterialCost()) {
+    for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
       String capability = MATERIAL_SOURCE.get(cost.getItem());
       if (capability == null || village.canDo(capability)) {
         continue;
@@ -213,7 +211,7 @@ public class UrbanPlanner {
     Needs needs = Needs.of(village);
     List<Candidate> unaffordable = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
-      if (isFoundingOnly(info) || hasMaterialsToConstruct(stock, info)) {
+      if (isFoundingOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
         continue;
       }
       // A goal the village has nowhere to put is not a goal, it is a wait until
@@ -343,7 +341,7 @@ public class UrbanPlanner {
       if (isFoundingOnly(info)) {
         continue;
       }
-      if (!hasMaterialsToConstruct(stock, info)) {
+      if (!hasMaterialsToConstruct(village, stock, info)) {
         continue;
       }
       if (hasNoRoomFor(village, info)) {
@@ -425,15 +423,6 @@ public class UrbanPlanner {
     return gives.isEmpty() ? "a " + name : "a " + name + " (" + String.join(", ", gives) + ")";
   }
 
-  private static int countBuilt(Village village, String name) {
-    int count = 0;
-    for (Building building : village.getBuildings()) {
-      if (name.equals(building.getName())) {
-        count++;
-      }
-    }
-    return count;
-  }
 
   /**
    * Whether the village already knows nothing this size will fit.
@@ -457,8 +446,11 @@ public class UrbanPlanner {
    * the same item twice is a datapack quirk, not something to change here
    * under cover of a performance fix.
    */
-  private static boolean hasMaterialsToConstruct(Map<Item, Integer> stock, BuildingInfo build){
-    for(ItemStack itemCost : build.getMaterialCost()){
+  private static boolean hasMaterialsToConstruct(Village village, Map<Item, Integer> stock, BuildingInfo build){
+    // Effective cost: the delta for an upgrade, the whole recipe for a fresh
+    // build, so an upgrade becomes affordable as soon as its ADDITIONS are in
+    // store rather than a second building's worth.
+    for(ItemStack itemCost : BuildingUpgrade.effectiveCost(village, build)){
       if(stock.getOrDefault(itemCost.getItem(), 0) < itemCost.getCount()){
         return false;
       }

@@ -201,12 +201,11 @@ public class StructureInProgress {
      * attempt; after it returns true, construction owes nothing and any builder
      * can finish it.
      */
-    public boolean commitFromBuilder(net.minecraft.world.Container pack) {
+    public boolean commitFromBuilder(net.minecraft.world.Container pack,
+            java.util.List<net.minecraft.world.item.ItemStack> recipe) {
         if (this.progress != BuildProgress.GATHERING) {
             return false;
         }
-        java.util.List<net.minecraft.world.item.ItemStack> recipe =
-                this.building.getInfo().getMaterialCost();
         for (net.minecraft.world.item.ItemStack cost : recipe) {
             if (com.quzzar.villagelife.Utils.getAmountOfItemType(pack, cost.getItem()) < cost.getCount()) {
                 return false; // the recipe is not all here yet

@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
+import com.quzzar.villagelife.village.buildings.BuildingUpgrade;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 
 import net.minecraft.core.BlockPos;
@@ -76,7 +77,7 @@ public final class GatherStep implements BlockWorkStep {
       return false; // re-select: more chests, or the site to commit
     }
     // Not a container: this is the build site, and the pack should be full.
-    project.commitFromBuilder(person.personMainInv);
+    project.commitFromBuilder(person.personMainInv, recipe(person, project));
     return false;
   }
 
@@ -90,10 +91,15 @@ public final class GatherStep implements BlockWorkStep {
     return 6.0D;
   }
 
+  /** The recipe still owed to raise this project: delta for an upgrade, whole otherwise. */
+  private List<ItemStack> recipe(RealPerson person, StructureInProgress project) {
+    return BuildingUpgrade.effectiveCost(person.getVillage(), project.getBuilding().getInfo());
+  }
+
   /** Whether the pack is still short of any recipe item. */
   private boolean stillNeeds(RealPerson person, StructureInProgress project) {
     Container pack = person.personMainInv;
-    for (ItemStack cost : project.getBuilding().getInfo().getMaterialCost()) {
+    for (ItemStack cost : recipe(person, project)) {
       if (Utils.getAmountOfItemType(pack, cost.getItem()) < cost.getCount()) {
         return true;
       }
@@ -104,7 +110,7 @@ public final class GatherStep implements BlockWorkStep {
   /** Lift what this chest can offer toward the still-missing part of the recipe. */
   private void pullNeeded(RealPerson person, Container chest, StructureInProgress project) {
     Container pack = person.personMainInv;
-    for (ItemStack cost : project.getBuilding().getInfo().getMaterialCost()) {
+    for (ItemStack cost : recipe(person, project)) {
       int need = cost.getCount() - Utils.getAmountOfItemType(pack, cost.getItem());
       if (need <= 0) {
         continue;
@@ -139,7 +145,7 @@ public final class GatherStep implements BlockWorkStep {
 
   private boolean holdsSomethingNeeded(RealPerson person, Container chest, StructureInProgress project) {
     Container pack = person.personMainInv;
-    for (ItemStack cost : project.getBuilding().getInfo().getMaterialCost()) {
+    for (ItemStack cost : recipe(person, project)) {
       int need = cost.getCount() - Utils.getAmountOfItemType(pack, cost.getItem());
       if (need > 0 && Utils.getAmountOfItemType(chest, cost.getItem()) > 0) {
         return true;
