@@ -60,7 +60,23 @@ public class WorkOnBuildingGoal extends Goal {
                     person.swing(person.getUsedItemHand());
                 }
 
-                person.getVillage().getCurrentProject().updateBuilding();
+                var project = person.getVillage().getCurrentProject();
+                if (project.getProgress() == com.quzzar.villagelife.village.buildings.BuildProgress.PREPARING) {
+                    // Clearing and levelling the ground is the builder's first
+                    // phase, not a separate job (docs/site-selection.md).
+                    if (!project.prepareStep(person.getVillage(), person)) {
+                        person.getVillage().logEvent(
+                                new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(
+                                        net.minecraft.world.item.Items.DIRT, 1));
+                        person.logIssue("We have no earth to level the ground for the new building.",
+                                java.util.Optional.empty());
+                    }
+                    if (project.remainingPrepWork() == 0) {
+                        project.startBuilding();
+                    }
+                } else {
+                    project.updateBuilding();
+                }
                 
             }
 

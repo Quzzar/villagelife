@@ -28,6 +28,9 @@ public class LocationValidator {
   public static BlockPos findValidLocation(ServerLevelAccessor levelAccess, BlockPos centerPos, BoundingBox bounds, Village village, Random random) {
 
     int searchRadius = SEARCH_RADIUS_PER_4_BUILDINGS * (int) Math.ceil(village.getBuildings().size() / 4.0D);
+    // A free site always wins; otherwise the cheapest ground to prepare does.
+    BlockPos best = null;
+    int bestCost = Integer.MAX_VALUE;
 
     for (int rel_y : SEARCH_HEIGHTS) {
       for (int n = 1; n <= searchRadius; n += SEARCH_INTERVAL) {
@@ -47,11 +50,21 @@ public class LocationValidator {
         if (cost.isFree()) {
           return candidate;
         }
-        Villagelife.LOGGER.debug("Site at {} rejected: {}", candidate.toShortString(), cost.describe());
+        if (!cost.impossible() && (best == null || cost.blocksMoved() < bestCost)) {
+          // Worth having if nothing free turns up: the builder can prepare it.
+          best = candidate;
+          bestCost = cost.blocksMoved();
+        }
+        Villagelife.LOGGER.debug("Site at {} costs {}", candidate.toShortString(), cost.describe());
 
       }
     }
 
+    if (best != null) {
+      Villagelife.LOGGER.debug("No free site; taking {} at a cost of {} blocks moved",
+          best.toShortString(), bestCost);
+      return best;
+    }
     return BlockPos.ZERO;
 
   }

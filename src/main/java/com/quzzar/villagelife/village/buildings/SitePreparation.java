@@ -64,7 +64,82 @@ public final class SitePreparation {
     }
   }
 
+  /** The actual work a site needs: blocks to take away, and columns to raise. */
+  public record PrepWork(java.util.List<Long> toBreak, java.util.List<Long> toFill) {
+    public boolean isEmpty() {
+      return toBreak.isEmpty() && toFill.isEmpty();
+    }
+
+    public int size() {
+      return toBreak.size() + toFill.size();
+    }
+  }
+
   private SitePreparation() {
+  }
+
+  /**
+   * The same walk as {@link #score}, but collecting positions instead of
+   * counting them: what the builder must break, and where they must place fill
+   * to bring a column up to the build plane. Returns empty when the site needs
+   * nothing or cannot be prepared at all.
+   */
+  public static PrepWork planWork(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds) {
+    java.util.List<Long> toBreak = new java.util.ArrayList<>();
+    java.util.List<Long> toFill = new java.util.ArrayList<>();
+    int plane = origin.getY();
+
+    for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
+      for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
+        int worldX = origin.getX() + x;
+        int worldZ = origin.getZ() + z;
+        BlockPos groundProbe = new BlockPos(worldX, plane, worldZ);
+        if (!level.getLevel().isLoaded(groundProbe) || village.hasClaimed(groundProbe)) {
+          return new PrepWork(java.util.List.of(), java.util.List.of());
+        }
+
+        int y = plane + CLEARANCE_HEIGHT;
+        int surface = Integer.MIN_VALUE;
+        while (y >= plane - MAX_COLUMN_DELTA - 1) {
+          BlockPos pos = new BlockPos(worldX, y, worldZ);
+          BlockState state = level.getBlockState(pos);
+          if (state.isAir()) {
+            y--;
+            continue;
+          }
+          if (level.getBlockEntity(pos) != null) {
+            return new PrepWork(java.util.List.of(), java.util.List.of());
+          }
+          if (state.is(CLEARABLE)) {
+            toBreak.add(pos.asLong());
+            y--;
+            continue;
+          }
+          if (!state.getFluidState().isEmpty()) {
+            y--;
+            continue;
+          }
+          surface = y;
+          break;
+        }
+        if (surface == Integer.MIN_VALUE) {
+          return new PrepWork(java.util.List.of(), java.util.List.of());
+        }
+
+        int delta = surface - (plane - 1);
+        if (Math.abs(delta) > MAX_COLUMN_DELTA) {
+          return new PrepWork(java.util.List.of(), java.util.List.of());
+        }
+        // Cut everything standing above the build plane, fill everything below it.
+        for (int cut = 0; cut < delta; cut++) {
+          toBreak.add(new BlockPos(worldX, plane - 1 + delta - cut, worldZ).asLong());
+        }
+        for (int fill = 0; fill < -delta; fill++) {
+          toFill.add(new BlockPos(worldX, plane - 1 - fill, worldZ).asLong());
+        }
+      }
+    }
+    return new PrepWork(java.util.List.copyOf(toBreak), java.util.List.copyOf(toFill));
   }
 
   /**

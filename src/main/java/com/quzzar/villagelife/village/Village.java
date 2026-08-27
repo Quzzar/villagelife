@@ -412,6 +412,16 @@ public class Village {
 
         currentProject = project.setOriginLocation(projectLocation);
 
+        // Ground the site owes before a single structure block is placed. A
+        // free site returns nothing and construction starts immediately.
+        var prep = com.quzzar.villagelife.village.buildings.SitePreparation
+            .planWork(level, this, projectLocation, bounds);
+        if (!prep.isEmpty()) {
+          currentProject.setPrepWork(prep);
+          Villagelife.LOGGER.info("Village '{}' is clearing ground for {}: {} blocks to move",
+              name, buildingInfo.getName(), prep.size());
+        }
+
         BlockPos centerOffset = new BlockPos(bounds.getCenter().getX(), 0, bounds.getCenter().getZ());
         currentProject.getBuilding().setCenterLocation(projectLocation.above().offset(centerOffset).asLong());
         currentProject.getBuilding().setRadius(LocationValidator.getBuildingRadius(bounds));

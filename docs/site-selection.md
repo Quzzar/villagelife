@@ -5,7 +5,20 @@ names space as a first-class build constraint and defers the design to its own d
 is that doc. It covers how a site is found, whether villagers may reshape the ground to
 make one, and what that costs at runtime.
 
-Implementation state (first slice): `SitePreparation.score` prices any candidate
+Implementation state: **the prepare phase is built** as of
+[#69](https://github.com/Quzzar/villagelife/issues/69). `SitePreparation.planWork` returns
+the actual positions to break and to fill, a project carries that work in its own persisted
+queues, and the BUILDER performs it as the first phase of construction: one block per swing,
+cleared blocks going into village storage rather than onto the ground, fill paid for out of
+the village's own dirt. A site that needs work enters `PREPARING` and places nothing until
+the ground is ready. When fill runs out the village emits the ordinary shortage event and
+the builder says so in their own log, rather than spinning.
+
+The planner now takes ground that needs work: a free site always wins, and otherwise the
+cheapest preparable site is chosen. Still unbuilt from the sections below: the resumable
+budgeted search, the site cache, and heightmap-first screening.
+
+Earlier slice: `SitePreparation.score` prices any candidate
 footprint in blocks moved (clear, cut, fill, or impossible) using the
 `villagelife:clearable` whitelist tag, the per-column and average levelling budgets below,
 the block-entity and claim protections, and the never-scan-unloaded rule. The planner's

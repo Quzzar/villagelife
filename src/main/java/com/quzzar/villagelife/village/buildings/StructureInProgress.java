@@ -45,6 +45,8 @@ public class StructureInProgress {
     public static final Codec<StructureInProgress> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Building.CODEC.fieldOf("building").forGetter(s -> s.building),
             VillagelifeCodecs.forEnum(BuildProgress.class).fieldOf("progress").forGetter(s -> s.progress),
+            Codec.LONG.listOf().optionalFieldOf("prep_break", java.util.List.of()).forGetter(s -> java.util.List.copyOf(s.prepBreak)),
+            Codec.LONG.listOf().optionalFieldOf("prep_fill", java.util.List.of()).forGetter(s -> java.util.List.copyOf(s.prepFill)),
             Codec.INT.fieldOf("index").forGetter(s -> s.index),
             Codec.LONG.fieldOf("location").forGetter(s -> s.location1),
             Codec.LONG.fieldOf("location2").forGetter(s -> s.location2),
@@ -60,13 +62,16 @@ public class StructureInProgress {
         return list == null ? List.of() : list;
     }
 
-    private static StructureInProgress fromCodec(Building building, BuildProgress progress, int index, long location1,
+    private static StructureInProgress fromCodec(Building building, BuildProgress progress,
+            java.util.List<Long> prepBreak, java.util.List<Long> prepFill, int index, long location1,
             long location2, Rotation rotation, int magicInt, List<Long> list1, List<Long> list2,
             List<PlacedBlock> list3, List<Integer> bounds) {
         StructureInProgress s = new StructureInProgress(building, new Random());
         // A project can only be saved while its transient placement state is gone, so
         // it resumes as paused; startBuilding() rebuilds the block list from the template.
         s.progress = progress == BuildProgress.IN_PROGRESS_WORKING ? BuildProgress.IN_PROGRESS_PAUSED : progress;
+        s.prepBreak = new java.util.ArrayList<>(prepBreak);
+        s.prepFill = new java.util.ArrayList<>(prepFill);
         s.index = index;
         s.location1 = location1;
         s.location2 = location2;
@@ -87,6 +92,9 @@ public class StructureInProgress {
     }
 
     private BuildProgress progress;
+    /** Ground work owed before the first structure block goes down (#69). */
+    private java.util.ArrayList<Long> prepBreak = new java.util.ArrayList<>();
+    private java.util.ArrayList<Long> prepFill = new java.util.ArrayList<>();
     private int index;
 
     private ArrayList<Long> list1;
@@ -165,6 +173,59 @@ public class StructureInProgress {
 
     }
 
+    /** Ground work this site owes before building can start. */
+    public void setPrepWork(SitePreparation.PrepWork work) {
+        this.prepBreak = new java.util.ArrayList<>(work.toBreak());
+        this.prepFill = new java.util.ArrayList<>(work.toFill());
+        if (!work.isEmpty()) {
+            this.progress = BuildProgress.PREPARING;
+        }
+    }
+
+    public int remainingPrepWork() {
+        return prepBreak.size() + prepFill.size();
+    }
+
+    /**
+     * One swing of ground work: take away a block that is in the way, or raise
+     * a column that sits below the build plane. Cleared blocks go into village
+     * storage rather than the ground, because clearing a wooded site is a
+     * lumber harvest that happens to also make room. Returns false when the
+     * village cannot pay for fill, so the caller can complain rather than spin.
+     */
+    public boolean prepareStep(com.quzzar.villagelife.village.Village village,
+            net.minecraft.world.entity.Entity worker) {
+        if (level == null) {
+            return true;
+        }
+        if (!prepBreak.isEmpty()) {
+            BlockPos pos = BlockPos.of(prepBreak.remove(prepBreak.size() - 1));
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+            if (!state.isAir() && level.getBlockEntity(pos) == null) {
+                if (level.getLevel() != null) {
+                    for (net.minecraft.world.item.ItemStack drop : net.minecraft.world.level.block.Block
+                            .getDrops(state, level.getLevel(), pos, null)) {
+                        village.placeItemStackIntoVillage(drop, worker);
+                    }
+                }
+                level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+            }
+            return true;
+        }
+        if (!prepFill.isEmpty()) {
+            BlockPos pos = BlockPos.of(prepFill.get(prepFill.size() - 1));
+            net.minecraft.world.item.ItemStack paid = village.gatherItemStackFromVillage(
+                    new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIRT, 1));
+            if (paid.isEmpty()) {
+                return false;
+            }
+            prepFill.remove(prepFill.size() - 1);
+            level.setBlock(pos, net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState(), 3);
+            return true;
+        }
+        return true;
+    }
+
     public BuildProgress getProgress(){
         return this.progress;
     }
@@ -187,6 +248,14 @@ public class StructureInProgress {
 
         if (level == null) {
             return;
+        }
+
+        // Ground work first: nothing is placed until the site is ready.
+        if(progress == BuildProgress.PREPARING){
+            if (remainingPrepWork() > 0) {
+                return;
+            }
+            progress = BuildProgress.NOT_STARTED;
         }
 
         // If not started, set to started & paused
