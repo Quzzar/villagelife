@@ -221,6 +221,13 @@ public class Village {
     int centerSpan = templateSpan(centerInfo);
     int clearance = centerSpan + 4;
     int half = (maxFoundingSpan(centerSpan) + 1) / 2 + 1;
+
+    // A village cannot reshape ground it has not loaded. Load every chunk the
+    // camp will touch first, so the heightmap, the site check and the levelling
+    // read real terrain rather than an unloaded default - which otherwise reads
+    // as the world floor and founds the whole camp far underground.
+    forceLoadCamp(centerLoc, clearance + half);
+
     int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY();
     BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
 
@@ -266,6 +273,24 @@ public class Village {
     // spawn (persona map #4), so the first villagers arrive through the
     // campfire loop like everyone else.
 
+  }
+
+  /**
+   * Loads every chunk within {@code reach} blocks of the camp centre, so the
+   * heightmap read, the site score and the levelling all see generated terrain.
+   * Reading a heightmap from an unloaded chunk returns the world floor, which
+   * is what founded a camp at y=-60 in a fresh region.
+   */
+  private void forceLoadCamp(BlockPos center, int reach) {
+    int minCx = (center.getX() - reach) >> 4;
+    int maxCx = (center.getX() + reach) >> 4;
+    int minCz = (center.getZ() - reach) >> 4;
+    int maxCz = (center.getZ() + reach) >> 4;
+    for (int cx = minCx; cx <= maxCx; cx++) {
+      for (int cz = minCz; cz <= maxCz; cz++) {
+        level.getChunk(cx, cz); // FULL status: generates and loads if absent
+      }
+    }
   }
 
   /** The widest of the founding buildings, so the plat is deep enough for all three. */
