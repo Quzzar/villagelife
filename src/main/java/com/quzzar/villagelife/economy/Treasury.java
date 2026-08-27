@@ -158,6 +158,23 @@ public final class Treasury {
   }
 
   /** Fills existing stacks first, then empty slots; returns what is left over. */
+  /**
+   * Puts goods into the market's own chests, returning what would not fit.
+   * The public way in: a caller doing the village's side of a trade needs this
+   * and has no business reaching for a single container.
+   */
+  public static ItemStack store(Village village, ServerLevel level, ItemStack stack) {
+    ItemStack remaining = stack.copy();
+    for (Container container : chests(village, level)) {
+      if (remaining.isEmpty()) {
+        break;
+      }
+      int leftover = insert(container, remaining);
+      remaining = leftover <= 0 ? ItemStack.EMPTY : remaining.copyWithCount(leftover);
+    }
+    return remaining;
+  }
+
   static int insert(Container container, ItemStack stack) {
     int remaining = stack.getCount();
     for (int slot = 0; slot < container.getContainerSize() && remaining > 0; slot++) {

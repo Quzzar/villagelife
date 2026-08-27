@@ -220,17 +220,24 @@ public class MarketMenu extends AbstractContainerMenu {
     if (staged.getCount() < cost.getCount()) {
       return;
     }
-    // The staged stake is already out of the pack, so put it back before the
-    // trade runs: Trade takes what it needs from the pack itself, and paying
-    // twice out of two places is how a container duplicates or eats items.
+    // The CONTAINER owns the player's side: the staged payment is already out
+    // of the pack, and the result slot has already handed the goods over. So
+    // this does the VILLAGE's side only. Calling Trade here as well delivered
+    // the goods a SECOND time, which is why 56 emeralds bought 30 bread at a
+    // rate of four for one.
     staged.shrink(cost.getCount());
     trade.setItem(COST_A, staged.isEmpty() ? ItemStack.EMPTY : staged);
-    giveBack(cost);
 
+    int emeralds = offer.offer().emeralds();
+    ItemStack goods = new ItemStack(offer.offer().item(), offer.offer().itemCount());
     if (offer.playerBuys()) {
-      Trade.villageSells(village, level, serverPlayer, offer.offer().item(), offer.offer().itemCount());
+      // Goods leave the village; its money box gains the price.
+      village.gatherItemStackFromVillage(goods);
+      Treasury.deposit(village, level, emeralds);
     } else {
-      Trade.villageBuys(village, level, serverPlayer, offer.offer().item(), offer.offer().itemCount());
+      // Goods arrive in the market; its money box pays for them.
+      Treasury.withdraw(village, level, emeralds);
+      Treasury.store(village, level, goods);
     }
     updateResult();
   }

@@ -189,6 +189,44 @@ public class PersonChatScreen
 
   private static String previewTyped;
 
+  /**
+   * The emerald price of one unit of the selected trade, for the self-test.
+   * Read off the row the screen is showing, so an assertion is against the
+   * ADVERTISED rate rather than against what the trade happened to do.
+   */
+  public static int selectedUnitPrice() {
+    if (Minecraft.getInstance().screen instanceof PersonChatScreen screen
+        && screen.selected >= 0 && screen.selected < screen.allDeals.size()) {
+      Deal deal = screen.allDeals.get(screen.selected);
+      return deal.playerBuys() ? deal.from().getCount() : deal.into().getCount();
+    }
+    return 0;
+  }
+
+  /** Diagnostic for the self-test: what the screen thinks it has. */
+  public static String previewState() {
+    if (!(Minecraft.getInstance().screen instanceof PersonChatScreen screen)) {
+      return "screen=" + (Minecraft.getInstance().screen == null ? "null"
+          : Minecraft.getInstance().screen.getClass().getSimpleName());
+    }
+    return "screen=PersonChatScreen tab=" + screen.tab + " canTrade=" + screen.canTrade
+        + " offers=" + (screen.offers == null ? "null"
+            : screen.offers.selling().size() + "sell/" + screen.offers.wanted().size() + "want")
+        + " deals=" + screen.allDeals.size();
+  }
+
+  /** First row where the player PAYS emeralds, so a test picks a known shape. */
+  public static int firstBuyIndex() {
+    if (Minecraft.getInstance().screen instanceof PersonChatScreen screen) {
+      for (int i = 0; i < screen.allDeals.size(); i++) {
+        if (screen.allDeals.get(i).playerBuys()) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
   static void previewChatTab() {
     previewTab = Tab.CHAT;
   }

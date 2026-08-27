@@ -76,6 +76,9 @@ neoForge {
             // corrections forever: the client never finishes connecting and the
             // log fills with "is not correct. Correcting" twice a second.
             gameDirectory = project.file('run-preview')
+            // Drives a real trade end to end and asserts what it cost, so
+            // trading bugs stop being found by handing the game back to Aaron.
+            systemProperty 'villagelife.uitest', (findProperty('uitest') ?: '')
         }
 
         server {
