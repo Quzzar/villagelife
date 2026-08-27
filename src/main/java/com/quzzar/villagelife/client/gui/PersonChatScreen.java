@@ -117,11 +117,11 @@ public class PersonChatScreen
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
   private static final int PANEL_WIDTH = 286;
-  private static final int PANEL_HEIGHT = 206;
+  private static final int PANEL_HEIGHT = 204;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = com.quzzar.villagelife.menu.MarketMenu.HEAD;
   /** Where the rule under the tabs sits, measured from the panel top. */
-  private static final int TAB_RULE = 40;
+  private static final int TAB_RULE = 34;
   /** Width of the trades well: the buttons plus their scrollbar. */
   private static final int WELL_WIDTH = 100;
   /** Where the right-hand column (market, preview, inventory) begins. */
@@ -284,8 +284,8 @@ public class PersonChatScreen
 
     if (canTrade) {
       int tabWidth = 58;
-      addRenderableWidget(new TabButton(panelLeft + 8, panelTop + 24, tabWidth, "Chat", Tab.CHAT));
-      addRenderableWidget(new TabButton(panelLeft + 10 + tabWidth, panelTop + 24, tabWidth, "Trade", Tab.TRADE));
+      addRenderableWidget(new TabButton(panelLeft + 8, panelTop + 18, tabWidth, "Chat", Tab.CHAT));
+      addRenderableWidget(new TabButton(panelLeft + 10 + tabWidth, panelTop + 18, tabWidth, "Trade", Tab.TRADE));
       toServer(
           com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
     }
@@ -439,7 +439,7 @@ public class PersonChatScreen
     int headerLeft = panelLeft + 8;
     int room = (panelRight - 8) - headerLeft;
     graphics.drawString(this.font, header,
-        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 7,
+        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 6,
         TEXT_LABEL, false);
 
     if (tab == Tab.TRADE) {
@@ -685,10 +685,10 @@ public class PersonChatScreen
     }
     allDeals = deals;
 
-    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + head - 14);
+    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + head - 12);
     if (!offers.villageName().isBlank()) {
       centred(graphics, offers.villageName() + " Market", rightLeft + rightWidth / 2,
-          panelTop + head - 14);
+          panelTop + head - 12);
     }
 
     slot(graphics, listLeft, listTop - 2, listLeft + WELL_WIDTH, listBottom + 2);
