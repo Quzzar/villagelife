@@ -193,20 +193,14 @@ resolve it. The one genuinely wrong outcome, false-closing a still-partial matte
 is the direction the tuning deliberately does NOT push toward, which is why more
 resolve examples were not added.
 
-Instead the server closes the matter where the model cannot. The write path
-(`PersonChatDispatcher.completeIfSettled`) forces the op to resolve when the
-PLAYER's own line carries completion language ("the last", "all ten", "paid in
-full", "we're square") and no partial marker ("toward", "some of", "a start").
-That is the reliable half of the same signal the 3B fumbles: a literal
-completion-word match, which the server does well and the surface-collision that
-beats the model does not touch. It runs whatever op the model emitted, open
-included (otherwise the open&#8594;advance coercion would mask a completion as an
-advance), and the partial-marker guard keeps it from ever false-closing a
-part-payment. What it still misses is a completion turn the model answers with no
-undertaking field at all (a silent third in the audit); firing the check
-independent of the model would catch those, but then an incidental completion word
-on an unrelated turn could false-close, so v1 keeps the model's emission as the
-gate.
+Closing a matter from the player's chat text was tried and pulled. Pattern-matching
+prose to confirm an event is brittle: players say all kinds of things, and a word
+list both misses real completions and risks false-closing on an incidental phrase.
+The reliable signal is the thing itself changing hands, not the words for it, so a
+future robust close is mechanical: a deliverable matter carries what it is owed and
+resolves when the villager has actually received it (the pickup log already records
+what the player threw and to whom). Until then resolution is the model's own op,
+best-effort, and a matter it never resolves simply lingers, which is harmless.
 
 ## How they surface
 

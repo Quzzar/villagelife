@@ -337,7 +337,7 @@ public final class PersonChatDispatcher {
           person.getData(VillagelifeAttachments.CHAT_HISTORY.get())
               .withExchange(speakerUUID,
                   new ChatHistoryData.Exchange(playerLine, reply, person.level().getDayTime())));
-      String matter = applyUndertaking(person, speakerUUID, playerLine, undertaking);
+      String matter = applyUndertaking(person, speakerUUID, undertaking);
       Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
           give != null ? " [give: " + give + "]" : "",
           applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "",
@@ -351,17 +351,14 @@ public final class PersonChatDispatcher {
    * ({@link PersonChatContext}'s briefing and gate) depends on. Returns the
    * applied action for the log, or null when nothing changed.
    *
-   * <p>Aaron's completion rule lives here (undertakings map #24): the 3B cannot
-   * tell a final delivery from a partial one, so rather than fight it, the
-   * server forces resolve when the exchange plainly completes the matter,
-   * whatever op the model emitted. The signal is the PLAYER's own words, matched
-   * literally, which is exactly the completion cue the model's surface-matching
-   * misses and the server does not. When completion does not fire, the model's
-   * op passes through and {@link UndertakingService}'s open&#8594;advance
-   * coercion handles a stray open on a standing matter.
+   * <p>Resolution is left to the model's own op (best-effort) and the
+   * {@link UndertakingService} open&#8594;advance coercion; a matter the model
+   * never resolves simply lingers, which is harmless. Detecting completion from
+   * the player's chat text was tried and pulled: pattern-matching prose to
+   * confirm an event is brittle, and the reliable signal is the item actually
+   * changing hands, not the words.
    */
-  private static String applyUndertaking(RealPerson person, UUID playerUUID, String playerLine,
-      JsonObject undertaking) {
+  private static String applyUndertaking(RealPerson person, UUID playerUUID, JsonObject undertaking) {
     if (undertaking == null) {
       return null;
     }
@@ -369,7 +366,7 @@ public final class PersonChatDispatcher {
     if (parsed.isEmpty()) {
       return null;
     }
-    UndertakingService.Op op = completeIfSettled(parsed.get(), playerLine);
+    UndertakingService.Op op = parsed.get();
     UndertakingData data = person.getData(VillagelifeAttachments.UNDERTAKINGS.get());
     UndertakingService.Result result = UndertakingService.apply(data, op, playerUUID, true,
         person.level().getDayTime());
@@ -389,54 +386,6 @@ public final class PersonChatDispatcher {
     return result.action();
   }
 
-  /**
-   * Forces the op to {@code resolve} when the player's line marks the matter
-   * finished, whatever the model emitted. It has to override open as well as
-   * advance: the 3B emits open on some completion turns, and {@link
-   * UndertakingService}'s open&#8594;advance coercion would then quietly turn
-   * that into an advance and miss the close. The player's words settle it, so
-   * the op does.
-   *
-   * <p>A partial marker ("toward", "some of") always wins over a completion
-   * marker, so a part-payment can never false-close a debt, which is the one
-   * genuinely wrong outcome the system can produce; a missed completion merely
-   * lingers open until a later turn, losing nothing.
-   */
-  private static UndertakingService.Op completeIfSettled(UndertakingService.Op op, String playerLine) {
-    if (playerLine == null || "resolve".equals(op.op())) {
-      return op; // nothing to read, or the model already resolved
-    }
-    String line = playerLine.toLowerCase(java.util.Locale.ROOT);
-    for (String partial : PARTIAL_MARKERS) {
-      if (line.contains(partial)) {
-        return op; // a part-payment names itself; never close on it
-      }
-    }
-    for (String complete : COMPLETION_MARKERS) {
-      if (line.contains(complete)) {
-        return new UndertakingService.Op("resolve", op.summary(), op.valence(), op.note(), op.step());
-      }
-    }
-    return op;
-  }
-
-  /** Words that mark a delivery as only part of what is owed: never close on these. */
-  private static final String[] PARTIAL_MARKERS = {
-      "toward", "towards", "some of", "part of", "a start", "start on", "half", "instalment",
-      "installment", "down payment", "still owe", "rest to come", "more to come", "next lot"
-  };
-
-  /**
-   * Words that mark a matter as finished. Kept to strong, low-ambiguity phrases,
-   * since the partial guard above only removes the obvious partials; a stray
-   * completion just resolves a matter a turn early, never wrongly.
-   */
-  private static final String[] COMPLETION_MARKERS = {
-      "the last", "all of it", "all ten", "the whole", "in full", "paid in full", "we're square",
-      "we are square", "square now", "we're even", "we are even", "even now", "call it even",
-      "settled", "all settled", "that's all of", "that's us square", "no more owed", "we're done here",
-      "put right", "made it right", "made right", "all done", "every last"
-  };
 
   /**
    * A parsed reply. {@code undertaking} carries the raw {@code "undertaking"}
