@@ -1,7 +1,5 @@
 package com.quzzar.villagelife.configuration;
 
-import java.util.ArrayList;
-import java.util.List;
 
 import com.quzzar.villagelife.Villagelife;
 
@@ -24,11 +22,6 @@ public class VillagelifeConfig {
         }
     }
 
-    public static boolean RaidAnimals;
-    public static boolean AttackAllMobs;
-    public static boolean FriendlyFire;
-    public static double GuardVillagerHelpRange;
-    public static List<? extends String> MobBlackList;
     public static int DaysInYear;
     public static boolean LlmEnabled;
     public static String LlmModel;
@@ -74,11 +67,6 @@ public class VillagelifeConfig {
     public static boolean DeveloperCommands;
 
     public static void bakeCommonConfig() {
-        RaidAnimals = COMMON.RaidAnimals.get();
-        AttackAllMobs = COMMON.AttackAllMobs.get();
-        FriendlyFire = COMMON.FriendlyFire.get();
-        MobBlackList = COMMON.MobBlackList.get();
-        GuardVillagerHelpRange = COMMON.GuardVillagerHelpRange.get();
         DaysInYear = COMMON.DaysInYear.get();
         LlmEnabled = COMMON.LlmEnabled.get();
         LlmModel = COMMON.LlmModel.get();
@@ -134,11 +122,6 @@ public class VillagelifeConfig {
     }
 
     public static class CommonConfig {
-        public final ModConfigSpec.BooleanValue RaidAnimals;
-        public final ModConfigSpec.BooleanValue AttackAllMobs;
-        public final ModConfigSpec.BooleanValue FriendlyFire;
-        public final ModConfigSpec.DoubleValue GuardVillagerHelpRange;
-        public final ModConfigSpec.ConfigValue<List<? extends String>> MobBlackList;
         public final ModConfigSpec.IntValue DaysInYear;
         public final ModConfigSpec.BooleanValue LlmEnabled;
         public final ModConfigSpec.ConfigValue<String> LlmModel;
@@ -184,12 +167,6 @@ public class VillagelifeConfig {
         public final ModConfigSpec.BooleanValue DeveloperCommands;
 
         public CommonConfig(ModConfigSpec.Builder builder) {
-            RaidAnimals = builder.comment("Illagers In Raids Attack Animals?").translation(Villagelife.MODID + ".config.RaidAnimals").define("Illagers in raids attack animals?", false);
-            AttackAllMobs = builder.comment("Guards will attack all hostiles with this option").translation(Villagelife.MODID + ".config.AttackAllMobs").define("Guards attack all mobs?", false);
-            MobBlackList = builder.comment("Guards won't attack mobs in this list if AttackAllMobs is enabled, for example, putting minecraft:creeper in this list will make guards ignore creepers.").defineListAllowEmpty("MobBlackList", ArrayList::new, () -> "", o -> o instanceof String);
-            FriendlyFire = builder.comment("This will make guards attempt to avoid friendly fire.").translation(Villagelife.MODID + ".config.FriendlyFire").define("Have guards attempt to avoid firing into other friendlies? (Experimental)", false);
-            GuardVillagerHelpRange = builder.translation(Villagelife.MODID + ".config.range").comment("This is the range in which the guards will be aggroed to mobs that are attacking villagers. Higher values are more resource intensive, and setting this to zero will disable the goal.")
-                    .defineInRange("Range", 50.0D, -500.0D, 500.0D);
 
             DaysInYear = builder.comment("Days in one Minecraft year (there are 8 days in one full lunar cycle).").translation(Villagelife.MODID + ".config.DaysInYear").defineInRange("Days in Year", 96, 8, 79992);
 
