@@ -51,8 +51,8 @@ public class PersonChatScreen extends Screen {
   private static final int ROW_HOVER = 0x40FFFFFF;
 
   /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
-  private static final int PANEL_WIDTH = 256;
-  private static final int PANEL_HEIGHT = 170;
+  private static final int PANEL_WIDTH = 264;
+  private static final int PANEL_HEIGHT = 218;
   /** slot, arrow, slot: the width the two slots of one trade occupy. */
   private static final int TRADE_WIDTH = 52;
   private static final int SLOT_SIZE = 20;
@@ -82,6 +82,8 @@ public class PersonChatScreen extends Screen {
   private final boolean canTrade;
   private Tab tab;
   private com.quzzar.villagelife.networking.MarketOffersPacket offers;
+  /** Whatever the cursor is over this frame; the tooltip is drawn last, on top. */
+  private ItemStack hoveredStack = ItemStack.EMPTY;
   private String marketNote = "";
 
   private EditBox input;
@@ -287,13 +289,17 @@ public class PersonChatScreen extends Screen {
         headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 8, TEXT_LABEL, false);
 
     if (tab == Tab.TRADE) {
+      hoveredStack = ItemStack.EMPTY;
       renderTrade(graphics, mouseX, mouseY);
       for (Row row : rowHits) {
         if (mouseY >= row.y() && mouseY <= row.y() + SLOT_SIZE
             && mouseX >= row.left() && mouseX <= row.right()) {
-          graphics.renderTooltip(this.font, stackOf(row.itemId(), 1), mouseX, mouseY);
+          hoveredStack = stackOf(row.itemId(), 1);
           break;
         }
+      }
+      if (!hoveredStack.isEmpty()) {
+        graphics.renderTooltip(this.font, hoveredStack, mouseX, mouseY);
       }
       return;
     }
@@ -322,7 +328,7 @@ public class PersonChatScreen extends Screen {
     int start = Math.max(0, rendered.size() - maxLines);
     int y = top;
     for (int i = start; i < rendered.size(); i++) {
-      graphics.drawString(this.font, rendered.get(i), left, y, colours.get(i));
+      graphics.drawString(this.font, rendered.get(i), left, y, colours.get(i), false);
       y += this.font.lineHeight + LINE_GAP;
     }
   }
@@ -346,90 +352,111 @@ public class PersonChatScreen extends Screen {
   }
 
   /**
-   * The stall, written the way a Minecraft trade is written: a slot, an arrow,
-   * a slot. What you hand over on the left of the arrow, what you get on the
-   * right. No prices, because an item count IS the price here, and "3.80" was
-   * never something a player could act on.
+   * The stall as one list of trades, plus the player's own inventory.
+   *
+   * For-sale and looking-for were two columns describing one operation:
+   * converting a stack of one thing into a stack of another. Emeralds on the
+   * left is buying, emeralds on the right is selling, and the arrow already
+   * says which. Splitting them implied a distinction that does not exist, and
+   * cost the width of a second column to do it.
+   *
+   * The inventory is shown because a trade is only worth clicking if you have
+   * the goods, and having to close the screen to check defeats the point. It
+   * is a read-only view: trading happens by clicking a row, never by dragging.
    */
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int y = panelTop + 42;
+    int left = panelLeft + 8;
+    int y = panelTop + 40;
 
     if (offers == null) {
-      centred(graphics, "Opening the stall...", (panelLeft + panelRight) / 2, y, TEXT_PENDING);
+      graphics.drawString(this.font, "Opening the stall...", left, y, TEXT_PENDING, false);
       return;
     }
     if (!marketNote.isBlank()) {
       for (FormattedCharSequence line : this.font.split(
-          Component.literal(marketNote), panelRight - panelLeft - 24)) {
-        graphics.drawString(this.font, line, panelLeft + 12, y, TEXT_LABEL, false);
+          Component.literal(marketNote), panelRight - panelLeft - 16)) {
+        graphics.drawString(this.font, line, left, y, TEXT_LABEL, false);
         y += this.font.lineHeight + 2;
       }
       return;
     }
 
-    // Each column is centred in its own half, so a two-slot trade does not
-    // sit marooned against the panel edge with a canyon between the columns.
-    int gap = Math.max(6, (panelRight - panelLeft) - COLUMN_WIDTH * 2 - 12);
-    int leftColumn = panelLeft + 6;
-    int rightColumn = leftColumn + COLUMN_WIDTH + gap;
+    graphics.drawString(this.font, "Trades", left, y, TEXT_LABEL, false);
+    y += 11;
 
-    graphics.drawString(this.font, "For sale", leftColumn, y, TEXT_LABEL, false);
-    graphics.drawString(this.font, "Looking for", rightColumn, y, TEXT_LABEL, false);
-    y += 12;
+    List<Deal> deals = new ArrayList<>();
+    for (var row : offers.selling()) {
+      deals.add(new Deal(new ItemStack(Items.EMERALD, row.emeralds()),
+          stackOf(row.itemId(), row.itemCount()), row.itemId(), true));
+    }
+    for (var row : offers.wanted()) {
+      deals.add(new Deal(stackOf(row.itemId(), row.itemCount()),
+          new ItemStack(Items.EMERALD, row.emeralds()), row.itemId(), false));
+    }
 
-    drawColumn(graphics, offers.selling(), leftColumn, y, mouseX, mouseY, true);
-    drawColumn(graphics, offers.wanted(), rightColumn, y, mouseX, mouseY, false);
-  }
-
-  private void centred(GuiGraphics graphics, String text, int centreX, int y, int colour) {
-    graphics.drawString(this.font, text, centreX - this.font.width(text) / 2, y, colour, false);
-  }
-
-  /**
-   * One column of trades. {@code playerBuys} decides which way round the arrow
-   * reads: buying costs emeralds and yields goods, selling is the reverse.
-   */
-  private void drawColumn(GuiGraphics graphics, List<com.quzzar.villagelife.networking.MarketOffersPacket.Row> rows,
-      int left, int top, int mouseX, int mouseY, boolean playerBuys) {
-    int y = top;
-    if (rows.isEmpty()) {
-      graphics.drawString(this.font, playerBuys ? "nothing spare" : "nothing needed",
-          left, y + 5, TEXT_PENDING, false);
+    if (deals.isEmpty()) {
+      graphics.drawString(this.font, "Nothing to trade today.", left, y + 4, TEXT_PENDING, false);
       return;
     }
-    int right = left + TRADE_WIDTH;
-    // Never draw past the panel. The server caps the list too, but the client
-    // owns the panel height and must not depend on the two agreeing.
-    int fits = Math.max(1, (panelBottom - 6 - top) / ROW_HEIGHT);
-    for (var row : rows.size() > fits ? rows.subList(0, fits) : rows) {
-      ItemStack goods = stackOf(row.itemId(), row.itemCount());
-      ItemStack coins = new ItemStack(Items.EMERALD, row.emeralds());
-      ItemStack from = playerBuys ? coins : goods;
-      ItemStack into = playerBuys ? goods : coins;
 
-      if (mouseX >= left && mouseX <= left + COLUMN_WIDTH && mouseY >= y && mouseY <= y + SLOT_SIZE) {
-        graphics.fill(left - 2, y - 1, left + COLUMN_WIDTH, y + SLOT_SIZE + 1, ROW_HOVER);
+    // Two columns of trades only because a stall can offer more than fits in
+    // one; each entry is still the same shape, unlike the old buy/sell split.
+    int perColumn = Math.max(1, (int) Math.ceil(deals.size() / 2.0D));
+    int columnWidth = (panelRight - panelLeft - 24) / 2;
+    for (int i = 0; i < deals.size(); i++) {
+      int column = i / perColumn;
+      int rowIndex = i % perColumn;
+      int rowLeft = left + column * (columnWidth + 8);
+      int rowTop = y + rowIndex * ROW_HEIGHT;
+      drawDeal(graphics, deals.get(i), rowLeft, rowTop, columnWidth, mouseX, mouseY);
+    }
+
+    int inventoryTop = y + perColumn * ROW_HEIGHT + 6;
+    graphics.drawString(this.font, "Inventory", left, inventoryTop, TEXT_LABEL, false);
+    drawInventory(graphics, left, inventoryTop + 11, mouseX, mouseY);
+  }
+
+  /** One trade: what you hand over, what you get back. */
+  private record Deal(ItemStack from, ItemStack into, String itemId, boolean playerBuys) {
+  }
+
+  private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int width,
+      int mouseX, int mouseY) {
+    int right = left + width;
+    boolean hovered = mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= top + SLOT_SIZE;
+    if (hovered) {
+      graphics.fill(left, top, right, top + SLOT_SIZE, ROW_HOVER);
+    }
+    slot(graphics, left, top, left + SLOT_SIZE, top + SLOT_SIZE);
+    int intoLeft = left + SLOT_SIZE + 14;
+    slot(graphics, intoLeft, top, intoLeft + SLOT_SIZE, top + SLOT_SIZE);
+    graphics.renderItem(deal.from(), left + 2, top + 2);
+    graphics.renderItemDecorations(this.font, deal.from(), left + 2, top + 2);
+    graphics.renderItem(deal.into(), intoLeft + 2, top + 2);
+    graphics.renderItemDecorations(this.font, deal.into(), intoLeft + 2, top + 2);
+    arrow(graphics, left + SLOT_SIZE + 2, top + 8);
+    rowHits.add(new Row(top, left, right, deal.itemId(), deal.playerBuys()));
+  }
+
+  /** The player's own pack, so a trade can be judged without closing the screen. */
+  private void drawInventory(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+    var inventory = Minecraft.getInstance().player.getInventory();
+    for (int index = 0; index < 36; index++) {
+      int column = index % 9;
+      // The hotbar reads as the bottom row, the way every other screen shows it.
+      int rowIndex = index < 9 ? 3 : (index / 9) - 1;
+      int x = left + column * 18;
+      int slotY = top + rowIndex * 18 + (index < 9 ? 4 : 0);
+      slot(graphics, x, slotY, x + 18, slotY + 18);
+      ItemStack stack = inventory.getItem(index);
+      if (!stack.isEmpty()) {
+        graphics.renderItem(stack, x + 1, slotY + 1);
+        graphics.renderItemDecorations(this.font, stack, x + 1, slotY + 1);
+        if (mouseX >= x && mouseX < x + 18 && mouseY >= slotY && mouseY < slotY + 18) {
+          hoveredStack = stack;
+        }
       }
-      slot(graphics, left, y, left + SLOT_SIZE, y + SLOT_SIZE);
-      slot(graphics, right - SLOT_SIZE, y, right, y + SLOT_SIZE);
-      graphics.renderItem(from, left + 2, y + 2);
-      graphics.renderItemDecorations(this.font, from, left + 2, y + 2);
-      graphics.renderItem(into, right - SLOT_SIZE + 2, y + 2);
-      graphics.renderItemDecorations(this.font, into, right - SLOT_SIZE + 2, y + 2);
-      arrow(graphics, left + 24, y + 8);
-
-      // Icons alone do not distinguish an oak log from a spruce one.
-      int nameLeft = right + 5;
-      int nameRoom = left + COLUMN_WIDTH - nameLeft;
-      String name = goods.getHoverName().getString();
-      if (this.font.width(name) > nameRoom) {
-        name = this.font.plainSubstrByWidth(name, nameRoom - this.font.width("..")) + "..";
-      }
-      graphics.drawString(this.font, name, nameLeft, y + 6, TEXT_LABEL, false);
-
-      rowHits.add(new Row(y, left, left + COLUMN_WIDTH, row.itemId(), playerBuys));
-      y += ROW_HEIGHT;
     }
   }
 
@@ -538,14 +565,19 @@ public class PersonChatScreen extends Screen {
         graphics.drawCenteredString(PersonChatScreen.this.font, "✕",
             getX() + width / 2, getY() + (height - 8) / 2, colour);
       } else {
-        // A right-pointing triangle: column i runs from y+i down to y+h-i, so
-        // it tapers to a point. Drawn rather than glyphed, so no font coverage
-        // question, and it cannot come out looking like a letter.
+        // Flat and quiet with nothing to send; a raised button once there is a
+        // message, so the screen tells you it is ready rather than waiting to
+        // be guessed at.
+        boolean ready = input != null && !input.getValue().isBlank();
+        if (ready) {
+          panel(graphics, getX(), getY(), getX() + width, getY() + height);
+        }
+        int glyph = ready ? ICON_HOVER : (hovered ? ICON_HOVER : ICON_IDLE);
         int size = 5;
         int x0 = getX() + (width - size) / 2;
         int y0 = getY() + (height - (size * 2 - 1)) / 2;
         for (int i = 0; i < size; i++) {
-          graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + (size * 2 - 1) - i, colour);
+          graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + (size * 2 - 1) - i, glyph);
         }
       }
     }

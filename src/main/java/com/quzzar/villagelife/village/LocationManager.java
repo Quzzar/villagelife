@@ -30,7 +30,10 @@ public class LocationManager {
 
         Building building = village.getBuilding(job.getBuildingUUID());
         if(building == null){ return BlockPos.ZERO; }
-        
+        // A workplace being rebuilt one level up has no usable station: the
+        // worker keeps the job and waits at the campfire until it is ready.
+        if(village.isBeingRebuilt(job.getBuildingUUID())){ return BlockPos.ZERO; }
+
         int foundCount = 0;
         for(Entry<Long, Occupation> entry : building.getInfo().getWorkLocations().entrySet()) {
             if(entry.getValue() == job.getOccupation()){
@@ -55,7 +58,9 @@ public class LocationManager {
 
         Building building = village.getBuilding(bed.getBuildingUUID());
         if(building == null){ return BlockPos.ZERO; }
-        
+        // Same for a bed: the house is a building site until the upgrade finishes.
+        if(village.isBeingRebuilt(bed.getBuildingUUID())){ return BlockPos.ZERO; }
+
         int foundCount = 0;
         for(long longloc : building.getInfo().getBedLocations()) {
             if(foundCount == bed.getBedIndex()){

@@ -163,6 +163,17 @@ public final class SitePreparation {
    * sits there, on ground whose top block is one below it.
    */
   public static SiteCost score(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds) {
+    return score(level, village, origin, bounds, null);
+  }
+
+  /**
+   * Scores a footprint while ignoring the columns of {@code standing}, in the
+   * same origin-relative frame. That is what an upgrade needs: the ground the
+   * old building occupies is not an obstacle, it is the thing being replaced,
+   * and only the ring the larger footprint reaches into has to be free.
+   */
+  public static SiteCost score(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds,
+      BoundingBox standing) {
     int clear = 0;
     int cut = 0;
     int fill = 0;
@@ -172,6 +183,10 @@ public final class SitePreparation {
 
     for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
       for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
+        if (standing != null && x >= standing.minX() && x <= standing.maxX()
+            && z >= standing.minZ() && z <= standing.maxZ()) {
+          continue;
+        }
         int worldX = origin.getX() + x;
         int worldZ = origin.getZ() + z;
         BlockPos groundProbe = new BlockPos(worldX, plane, worldZ);

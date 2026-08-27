@@ -112,6 +112,49 @@ public class VillageBrain {
 
   }
 
+  /**
+   * Registers any container the definition has that this building's ground does
+   * not already have registered. Called when a building is rebuilt at a new
+   * level: its old container positions stay in the list, which costs nothing —
+   * a position that is no longer a container is skipped by every reader — while
+   * the ones the new level added become part of village storage.
+   */
+  public void registerNewContainers(Building building) {
+    for (long offset : building.getInfo() == null ? List.<Long>of() : building.getInfo().getContainerLocations()) {
+      BlockPos location = BlockPos.of(building.getOriginLocation())
+          .offset(BlockPos.of(offset).rotate(building.getRotation()));
+      if (!containerLocs.contains(location.asLong())) {
+        containerLocs.add(location.asLong());
+      }
+    }
+  }
+
+  /**
+   * Moves a stack into village storage without anyone carrying it, skipping the
+   * containers named in {@code excluding}. Used when a building is emptied
+   * before being rebuilt (docs/building-spec.md): the items have to leave the
+   * building itself, and there is no worker standing there to hand them to.
+   * Returns whatever would not fit, which the caller must not throw away.
+   */
+  public ItemStack storeAwayFrom(ServerLevelAccessor levelAccess, ItemStack stack,
+      java.util.Collection<BlockPos> excluding) {
+    ItemStack remaining = stack;
+    for (Long longLoc : containerLocs) {
+      if (excluding.contains(BlockPos.of(longLoc))) {
+        continue;
+      }
+      Container container = containerAt(levelAccess, longLoc);
+      if (container == null) {
+        continue;
+      }
+      remaining = HopperBlockEntity.addItem(null, container, remaining, null);
+      if (remaining.isEmpty()) {
+        return ItemStack.EMPTY;
+      }
+    }
+    return remaining;
+  }
+
   public boolean hasItemStackInVillage(ServerLevelAccessor levelAccess, ItemStack itemStack) {
 
     int amountRequired = itemStack.getCount();

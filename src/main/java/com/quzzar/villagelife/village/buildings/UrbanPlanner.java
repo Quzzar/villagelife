@@ -164,13 +164,18 @@ public class UrbanPlanner {
     Needs needs = Needs.of(village);
     List<Candidate> unaffordable = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
-      if (isFoundingOnly(info) || info.getUpgradesFrom() != null) {
+      if (isFoundingOnly(info) || hasMaterialsToConstruct(village, info)) {
         continue;
       }
-      if (info.hasWellFormedId() && info.getLevel() > 1) {
+      // An upgrade it cannot pay for yet is exactly the kind of thing worth
+      // saving toward, so it belongs here on the same terms as a new building.
+      Building standing = BuildingUpgrade.standingSource(village, info);
+      if (standing != null) {
+        unaffordable.add(new Candidate(info, upgradeScore(village, info, standing, needs),
+            BuildingUpgrade.describe(standing, info)));
         continue;
       }
-      if (hasMaterialsToConstruct(village, info)) {
+      if (info.getUpgradesFrom() != null || (info.hasWellFormedId() && info.getLevel() > 1)) {
         continue;
       }
       unaffordable.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
@@ -255,22 +260,29 @@ public class UrbanPlanner {
 
   /**
    * Every building the village could legally and affordably start, best first.
-   * A level above 1 is excluded: those are reached by upgrading in place, which
-   * nothing implements yet, so offering one would promise a building that can
-   * never be built.
+   * Higher levels are in the list only as upgrades of something already
+   * standing: a level above 1 is never built fresh (docs/building-spec.md), so
+   * one is offered when the village owns the level below, can pay the new
+   * level's own cost, and the larger footprint has somewhere to grow into.
    */
   public static List<Candidate> rankCandidates(Village village) {
     Needs needs = Needs.of(village);
 
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
-      if (isFoundingOnly(info) || info.getUpgradesFrom() != null) {
-        continue;
-      }
-      if (info.hasWellFormedId() && info.getLevel() > 1) {
+      if (isFoundingOnly(info)) {
         continue;
       }
       if (!hasMaterialsToConstruct(village, info)) {
+        continue;
+      }
+      Building standing = BuildingUpgrade.standingSource(village, info);
+      if (standing != null) {
+        candidates.add(new Candidate(info, upgradeScore(village, info, standing, needs),
+            BuildingUpgrade.describe(standing, info)));
+        continue;
+      }
+      if (info.getUpgradesFrom() != null || (info.hasWellFormedId() && info.getLevel() > 1)) {
         continue;
       }
       candidates.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
@@ -278,6 +290,49 @@ public class UrbanPlanner {
 
     candidates.sort(Comparator.comparingDouble(Candidate::score).reversed());
     return candidates;
+  }
+
+  /**
+   * How badly the village wants the improvement, which is the value of what the
+   * upgrade ADDS rather than of the whole building. Scoring an upgrade as if it
+   * were a new building would make a bigger farm look worth as much as a farm
+   * to a village that already has one.
+   */
+  private static double upgradeScore(Village village, BuildingInfo info, Building standing, Needs needs) {
+    BuildingInfo current = standing.getInfo();
+    if (current == null) {
+      return scoreOf(village, info, needs);
+    }
+    double score = 0.0;
+    score += (info.getBedLocations().size() - current.getBedLocations().size()) * (1.0 + needs.housing());
+    score += (info.getWorkLocations().size() - current.getWorkLocations().size()) * (1.0 + needs.work());
+    score += (info.getContainerLocations().size() - current.getContainerLocations().size()) * 0.25;
+    for (Occupation occupation : info.getWorkLocations().values().stream().distinct().toList()) {
+      int added = stationsFor(info, occupation) - stationsFor(current, occupation);
+      if (added <= 0) {
+        continue;
+      }
+      if (occupation == Occupation.GUARD) {
+        score += needs.safety() * added;
+      }
+      if (occupation == Occupation.FARMER || occupation == Occupation.LUMBERJACK) {
+        score += needs.food() * 0.5 * added;
+      }
+    }
+    // Improving something is a smaller act than founding something new, and it
+    // costs the village the use of the building while it happens, so a tie goes
+    // to the new thing.
+    return score - 0.5;
+  }
+
+  private static int stationsFor(BuildingInfo info, Occupation occupation) {
+    int count = 0;
+    for (Occupation station : info.getWorkLocations().values()) {
+      if (station == occupation) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /** A plain-language option line: what it is, and what it would give the village. */

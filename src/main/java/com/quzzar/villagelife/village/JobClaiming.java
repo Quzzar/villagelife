@@ -92,6 +92,43 @@ public final class JobClaiming {
     }
   }
 
+  /**
+   * The same additive reconciliation for beds. An upgraded house or village
+   * center gains beds, and beds are registered only when a building is first
+   * added, so without this the new ones exist in the world and in the
+   * definition while nobody can ever be assigned to them.
+   */
+  public static void registerMissingBeds(Village village) {
+    List<BedAssignment> open = village.getUnassignedBeds();
+    for (Building building : village.getBuildings()) {
+      UUID buildingId = building.getUUID();
+      int count = building.getInfo() == null ? 0 : building.getInfo().getBedLocations().size();
+      for (int index = 0; index < count; index++) {
+        if (!isBedRepresented(village, open, buildingId, index)) {
+          open.add(new BedAssignment(null, buildingId, index));
+          Villagelife.LOGGER.info("Registered a new bed in '{}': the building definition grew",
+              village.getName());
+        }
+      }
+    }
+  }
+
+  /** True when this bed is already someone's or already on the open list. */
+  private static boolean isBedRepresented(Village village, List<BedAssignment> open, UUID buildingId,
+      int bedIndex) {
+    for (BedAssignment bed : village.getBedAssignmentsView().values()) {
+      if (bed.getBedIndex() == bedIndex && buildingId.equals(bed.getBuildingUUID())) {
+        return true;
+      }
+    }
+    for (BedAssignment bed : open) {
+      if (bed.getBedIndex() == bedIndex && buildingId.equals(bed.getBuildingUUID())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** True when this station is already booked by someone or already on the open list. */
   private static boolean isStationRepresented(Village village, List<JobAssignment> open, UUID buildingId,
       int stationIndex) {

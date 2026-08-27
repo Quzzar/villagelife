@@ -40,6 +40,18 @@ public class Building {
     this.rotation = rotation;
   }
 
+  /**
+   * The same building, one level up: identity, ground and orientation kept,
+   * definition swapped. Keeping the id is what lets a worker hold their job
+   * through an upgrade (docs/building-spec.md) — assignments point at a
+   * building by id and station index, so a new id would release every one of
+   * them and let stat-based placement reshuffle the village.
+   */
+  public static Building upgradeOf(Building from, String newName) {
+    return new Building(from.getUUID(), newName, from.getCenterLocation(),
+        from.getOriginLocation(), from.getRadius(), from.getRotation());
+  }
+
   private Building(UUID id, String name, long centerLoc, long originLoc, double radius, Rotation rotation) {
     this.id = id;
     this.name = name;

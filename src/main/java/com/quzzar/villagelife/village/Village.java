@@ -327,6 +327,23 @@ public class Village {
   }
 
   /**
+   * The same building at a new level. Deliberately not {@link #addBuilding}:
+   * registering it as new would hand out a second set of beds, jobs and
+   * containers on top of the ones its workers are already holding. What the
+   * definition GAINED is picked up by reconciliation instead — stations by
+   * JobClaiming, beds and stores here — which is the only safe direction,
+   * because what it lost is released by the same pass (docs/building-spec.md).
+   */
+  protected void replaceBuilding(Building upgraded) {
+    this.buildings.put(upgraded.getUUID(), upgraded);
+    this.brain.registerNewContainers(upgraded);
+    JobClaiming.registerMissingStations(this);
+    JobClaiming.registerMissingBeds(this);
+    this.capabilities = null;
+    Villagelife.LOGGER.info("Village '{}' finished upgrading to {}", name, upgraded.getName());
+  }
+
+  /**
    * What this village can currently do (#55): derived from the buildings
    * standing right now, never stored. Cached between recomputes because
    * resolving walks every building.
@@ -349,7 +366,15 @@ public class Village {
       if (currentProject.getProgress() == BuildProgress.COMPLETE) {
         Villagelife.LOGGER.debug("Since current project is complete, adding it and setting to null");
 
-        addBuilding(currentProject.getBuilding());
+        Building finished = currentProject.getBuilding();
+        // An upgrade finishes as the SAME building at a new level, so it is put
+        // back under the id it always had rather than added as a new one: the
+        // workers holding assignments against that id keep them.
+        if (buildings.containsKey(finished.getUUID())) {
+          replaceBuilding(finished);
+        } else {
+          addBuilding(finished);
+        }
         currentProject = null;
 
       } else {
@@ -404,6 +429,9 @@ public class Village {
 
   /** Places a chosen building on the best free site, or logs why it could not. */
   private boolean startProject(BuildingInfo buildingInfo) {
+      if (buildingInfo.getUpgradesFrom() != null) {
+        return startUpgrade(buildingInfo);
+      }
       Building building = new Building(buildingInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]);
       StructureInProgress project = new StructureInProgress(building, random);
       project.attach(level);
@@ -421,6 +449,44 @@ public class Village {
   }
 
   /**
+   * Rebuilds a standing building one level up, on its own ground and in its own
+   * orientation (docs/building-spec.md). No site search: an upgrade goes where
+   * the building already is, which is also why the fit check happened when the
+   * option was offered rather than now.
+   *
+   * The old building's stores are carried out to the rest of the village first.
+   * If they will not fit anywhere, that is a storage shortage and the upgrade
+   * waits rather than proceeding, because nothing is ever destroyed to make
+   * room for construction.
+   */
+  private boolean startUpgrade(BuildingInfo buildingInfo) {
+    Building standing = com.quzzar.villagelife.village.buildings.BuildingUpgrade
+        .standingSource(this, buildingInfo);
+    if (standing == null) {
+      Villagelife.LOGGER.debug("Village '{}' has nothing standing to upgrade into {}",
+          name, buildingInfo.getName());
+      return false;
+    }
+    if (!com.quzzar.villagelife.village.buildings.BuildingUpgrade.clearStorage(this, standing)) {
+      // Not a missing material: the village is out of somewhere to put things,
+      // which is what a village short of chests actually feels.
+      maybeLogShortage(new ItemStack(net.minecraft.world.item.Items.CHEST, 1));
+      Villagelife.LOGGER.debug("Village '{}' cannot empty its {} yet, so the upgrade waits",
+          name, standing.getName());
+      return false;
+    }
+
+    Building upgraded = Building.upgradeOf(standing, buildingInfo.getName());
+    StructureInProgress project = new StructureInProgress(upgraded, random);
+    project.attach(level);
+    BoundingBox bounds = project.getStructureTemplate()
+        .getBoundingBox(project.getStructurePlaceSettings(), BlockPos.ZERO);
+    Villagelife.LOGGER.info("Village '{}' is upgrading its {} to {}",
+        name, standing.getName(), buildingInfo.getName());
+    return beginProject(project, bounds, BlockPos.of(standing.getOriginLocation()));
+  }
+
+  /**
    * Starts construction of an already-chosen building on already-chosen ground.
    * Separate from the site search so the same path can be driven from a
    * command: preparation only ever runs on ground the village did not pick for
@@ -430,6 +496,11 @@ public class Village {
   public boolean startProjectAt(BuildingInfo buildingInfo, BlockPos location) {
     if (currentProject != null || level == null) {
       return false;
+    }
+    // An upgrade has only one legal site — where the building already stands —
+    // so a chosen position cannot apply to it.
+    if (buildingInfo.getUpgradesFrom() != null) {
+      return startUpgrade(buildingInfo);
     }
     Building building = new Building(buildingInfo.getName(),
         Rotation.values()[random.nextInt(Rotation.values().length)]);
@@ -894,6 +965,16 @@ public class Village {
     return unassignedJobs;
   }
 
+  /** Beds nobody sleeps in yet. Returned live: reconciliation adds to it. */
+  public List<BedAssignment> getUnassignedBeds() {
+    return unassignedBeds;
+  }
+
+  /** Snapshot of every bed that belongs to someone. */
+  public Map<UUID, BedAssignment> getBedAssignmentsView() {
+    return Map.copyOf(bedAssignments);
+  }
+
   /** People eligible for claiming, in FIFO (arrival) order. */
   public List<UUID> idlePeople() {
     List<UUID> idle = new ArrayList<>();
@@ -980,6 +1061,14 @@ public class Village {
     return this.brain.placeItemStackIntoVillage(level, itemStack, entity, preferNearestToLoc);
   }
 
+  /** Puts a stack anywhere in village storage except the containers listed. */
+  public ItemStack storeAwayFrom(ItemStack stack, java.util.Collection<BlockPos> excluding) {
+    if (level == null) {
+      return stack;
+    }
+    return this.brain.storeAwayFrom(level, stack, excluding);
+  }
+
   public boolean hasItemStackInVillage(ItemStack itemStack) {
     return level != null && this.brain.hasItemStackInVillage(level, itemStack);
   }
@@ -1040,6 +1129,18 @@ public class Village {
     lastShortageLogTime = now;
     logEvent(new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(missing.getItem(), missing.getCount()));
     Villagelife.LOGGER.debug("Village '{}' is short on {} x{}", name, missing.getItem(), missing.getCount());
+  }
+
+  /**
+   * True while this building is the one being rebuilt at a new level. Its
+   * stations and beds are rubble for the duration, so whoever holds them keeps
+   * the assignment and waits it out rather than standing in a building site
+   * (docs/building-spec.md).
+   */
+  public boolean isBeingRebuilt(UUID buildingId) {
+    return currentProject != null
+        && currentProject.getProgress() != BuildProgress.COMPLETE
+        && currentProject.getBuilding().getUUID().equals(buildingId);
   }
 
   public StructureInProgress getCurrentProject() {
