@@ -1,9 +1,9 @@
 # Building spec: every building, variant, level, recipe, and unlock
 
-**Proposed, not yet decided. 38 of 173 structures exist.** Reality check before reading:
+**Proposed, not yet decided. 44 of 179 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, seven exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,
-and `farm` ships in its three variants at all three levels. Still missing: `mine`,
+and `farm` ships in all five variants at all three levels. Still missing: `mine`,
 `quarry`, `hunting_lodge`, `fishery` — and `mine_plains_1` is named in the founding set
 above, which therefore cannot be built as written.
 
@@ -537,7 +537,7 @@ Worker: **LIBRARIAN**  ·  Phase 3  ·  Variants: `plains`
 
 #### `farm`
 
-Worker: **FARMER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `desert`
+Worker: **FARMER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert`, `savanna`
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
@@ -732,13 +732,13 @@ Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
 | Set | What it buys | Structures |
 | --- | --- | --- |
 | **Minimum playable** | One level-1 building per phase 1 category, plains variant only. A village that founds, feeds, houses, and defends itself. | **11** |
-| Phase 1 | A village survives in any biome, at every level | 81 |
+| Phase 1 | A village survives in any biome, at every level | 87 |
 | Phase 2 | It thrives: processed food, iron, faith, trade | 38 |
 | Phase 3 | It deepens: brewing, cloth, brick, glass, learning | 25 |
 | Phase 4 | It fights: soldiers, walls, arrows, potions | 29 |
-| | **Total** | **173** |
+| | **Total** | **179** |
 
-36 categories, 67 category-variant pairs, 173 structures. That total is the honest number and it
+36 categories, 69 category-variant pairs, 179 structures. That total is the honest number and it
 is large. Two things make it tractable:
 
 - **The minimum playable set is 11 structures.** One level-1 plains building per phase 1 category.
@@ -787,8 +787,10 @@ well_plains_1                 well_plains_2                 well_desert_1
 well_desert_2                 storehouse_plains_1           storehouse_plains_2
 storehouse_plains_3           farm_plains_1                 farm_plains_2
 farm_plains_3                 farm_taiga_1                  farm_taiga_2
-farm_taiga_3                  farm_desert_1                 farm_desert_2
-farm_desert_3                 hunting_lodge_plains_1        hunting_lodge_plains_2
+farm_taiga_3                  farm_snowy_1                  farm_snowy_2
+farm_snowy_3                  farm_desert_1                 farm_desert_2
+farm_desert_3                 farm_savanna_1                farm_savanna_2
+farm_savanna_3                hunting_lodge_plains_1        hunting_lodge_plains_2
 hunting_lodge_taiga_1         hunting_lodge_taiga_2         fishery_plains_1
 fishery_plains_2              fishery_marsh_1               fishery_marsh_2
 lumberjack_plains_1           lumberjack_plains_2           lumberjack_plains_3

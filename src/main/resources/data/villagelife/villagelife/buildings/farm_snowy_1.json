@@ -1,0 +1,27 @@
+{
+  "structure": "farm_snowy_1",
+  "category": "farm",
+  "variant": "snowy",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        5,
+        1,
+        7
+      ],
+      "occupation": "FARMER"
+    }
+  ],
+  "containers": [
+    [
+      5,
+      1,
+      6
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "GRAIN"
+  ]
+}
