@@ -86,14 +86,19 @@ public final class UiPreview {
 
     private static void openSample(Minecraft client) {
         boolean trade = !"chat".equalsIgnoreCase(MODE);
-        PersonChatScreen.open(0, "Fallon Moody", "Merchant of Larkspur Creek", trade,
+        // Always a merchant: the tabs and the chat input only ever share a
+        // screen on someone who has both, so that is the case worth seeing.
+        if (!trade) {
+            PersonChatScreen.previewChatTab();
+        }
+        PersonChatScreen.open(0, "Fallon Moody", "Merchant of Larkspur Creek", true,
                 List.of(
                         new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
                                 "", "Morning. You look like you have been walking a while."),
                         new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
                                 "Do you sell bread?",
                                 "Aye, though the harvest was thin and I cannot let it go cheap.")));
-        if (trade) {
+        {
             // The awkward cases on purpose: a long name, a two-digit stack.
             PersonChatScreen.onMarketOffers(new MarketOffersPacket(0, "Larkspur Creek", 83,
                     List.of(new MarketOffersPacket.Row("minecraft:bread", 1, 4),

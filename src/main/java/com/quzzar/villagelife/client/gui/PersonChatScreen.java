@@ -52,12 +52,13 @@ public class PersonChatScreen extends Screen {
 
   /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
   private static final int PANEL_WIDTH = 276;
-  private static final int PANEL_HEIGHT = 196;
+  private static final int PANEL_HEIGHT = 218;
   /** slot, arrow, slot: the width the two slots of one trade occupy. */
   private static final int TRADE_WIDTH = 56;
+  private static final int SLOT_SIZE = 20;
   /** A trade plus the name of the goods, which is what fills a column. */
   private static final int COLUMN_WIDTH = 130;
-  private static final int ROW_HEIGHT = 20;
+  private static final int ROW_HEIGHT = 22;
 
   private static final int LINE_GAP = 2;
 
@@ -70,6 +71,13 @@ public class PersonChatScreen extends Screen {
   private final List<ChatLine> lines = new ArrayList<>();
   /** Which face of the villager is showing. Occupations contribute tabs. */
   private enum Tab { CHAT, TRADE }
+
+  /** Set only by {@link UiPreview}, so either face can be photographed. */
+  static Tab previewTab;
+
+  static void previewChatTab() {
+    previewTab = Tab.CHAT;
+  }
 
   private final boolean canTrade;
   private Tab tab;
@@ -96,7 +104,7 @@ public class PersonChatScreen extends Screen {
     this.canTrade = canTrade;
     // Open on what this person is FOR, if their job offers anything; talking
     // is the fallback, and the only option for everyone else.
-    this.tab = canTrade ? Tab.TRADE : Tab.CHAT;
+    this.tab = previewTab != null ? previewTab : (canTrade ? Tab.TRADE : Tab.CHAT);
     this.headerName = headerName;
     this.headerDetail = headerDetail;
     for (var exchange : scrollback) {
@@ -148,9 +156,9 @@ public class PersonChatScreen extends Screen {
 
     if (canTrade) {
       int tabWidth = 58;
-      addRenderableWidget(new TabButton(panelLeft + 12, panelTop + 30, tabWidth, "Chat", Tab.CHAT));
-      addRenderableWidget(new TabButton(panelLeft + 14 + tabWidth, panelTop + 30, tabWidth, "Trade", Tab.TRADE));
-      PacketDistributor.sendToServer(
+      addRenderableWidget(new TabButton(panelLeft + 12, panelTop + 28, tabWidth, "Chat", Tab.CHAT));
+      addRenderableWidget(new TabButton(panelLeft + 14 + tabWidth, panelTop + 28, tabWidth, "Trade", Tab.TRADE));
+      toServer(
           com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
     }
 
@@ -163,7 +171,6 @@ public class PersonChatScreen extends Screen {
     this.input.setMaxLength(PersonChatMessagePacket.MAX_TEXT_LENGTH);
     this.input.setBordered(false);
     this.input.setTextColor(TEXT_VILLAGER);
-    this.input.setHint(Component.translatable("villagelife.chat.say").withStyle(ChatFormatting.DARK_GRAY));
     addRenderableWidget(this.input);
 
     this.sendButton = addRenderableWidget(new IconButton(panelRight - 30, inputRowTop, 20,
@@ -186,6 +193,10 @@ public class PersonChatScreen extends Screen {
       return;
     }
     slot(graphics, panelLeft + 8, inputRowTop, panelRight - 34, inputRowTop + 20);
+    if (input != null && input.getValue().isEmpty()) {
+      graphics.drawString(this.font, Component.translatable("villagelife.chat.say"),
+          panelLeft + 20, inputRowTop + 6, TEXT_PENDING, false);
+    }
   }
 
   /** The raised grey panel Minecraft draws every one of its own windows with. */
@@ -228,6 +239,18 @@ public class PersonChatScreen extends Screen {
     }
   }
 
+  /**
+   * Sends only when there is a server to send to. A screen can outlive its
+   * connection (a disconnect mid-conversation, or the UI preview harness,
+   * which renders this screen with no session at all), and sendToServer
+   * dereferences the connection without checking.
+   */
+  private static void toServer(net.minecraft.network.protocol.common.custom.CustomPacketPayload payload) {
+    if (Minecraft.getInstance().getConnection() != null) {
+      PacketDistributor.sendToServer(payload);
+    }
+  }
+
   private void send() {
     String text = this.input.getValue().strip();
     if (text.isEmpty() || awaitingReply) {
@@ -237,7 +260,7 @@ public class PersonChatScreen extends Screen {
     awaitingReply = true;
     awaitingSinceMs = System.currentTimeMillis();
     this.input.setValue("");
-    PacketDistributor.sendToServer(new PersonChatMessagePacket(entityId, text));
+    toServer(new PersonChatMessagePacket(entityId, text));
   }
 
   @Override
@@ -256,7 +279,7 @@ public class PersonChatScreen extends Screen {
     if (tab == Tab.TRADE) {
       renderTrade(graphics, mouseX, mouseY);
       for (Row row : rowHits) {
-        if (mouseY >= row.y() && mouseY <= row.y() + 18
+        if (mouseY >= row.y() && mouseY <= row.y() + SLOT_SIZE
             && mouseX >= row.left() && mouseX <= row.right()) {
           graphics.renderTooltip(this.font, stackOf(row.itemId(), 1), mouseX, mouseY);
           break;
@@ -287,7 +310,7 @@ public class PersonChatScreen extends Screen {
 
     int maxLines = Math.max(1, (bottom - top) / (this.font.lineHeight + LINE_GAP));
     int start = Math.max(0, rendered.size() - maxLines);
-    int y = bottom - (rendered.size() - start) * (this.font.lineHeight + LINE_GAP);
+    int y = top;
     for (int i = start; i < rendered.size(); i++) {
       graphics.drawString(this.font, rendered.get(i), left, y, colours.get(i));
       y += this.font.lineHeight + LINE_GAP;
@@ -297,7 +320,7 @@ public class PersonChatScreen extends Screen {
   @Override
   public void removed() {
     // Tell the server the conversation ended so the villager goes back to life.
-    PacketDistributor.sendToServer(new com.quzzar.villagelife.networking.PersonChatClosePacket(entityId));
+    toServer(new com.quzzar.villagelife.networking.PersonChatClosePacket(entityId));
     super.removed();
   }
 
@@ -320,7 +343,7 @@ public class PersonChatScreen extends Screen {
    */
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int y = panelTop + 44;
+    int y = panelTop + 50;
 
     if (offers == null) {
       centred(graphics, "Opening the stall...", (panelLeft + panelRight) / 2, y, TEXT_PENDING);
@@ -372,16 +395,16 @@ public class PersonChatScreen extends Screen {
       ItemStack from = playerBuys ? coins : goods;
       ItemStack into = playerBuys ? goods : coins;
 
-      if (mouseX >= left && mouseX <= left + COLUMN_WIDTH && mouseY >= y && mouseY <= y + 18) {
-        graphics.fill(left - 2, y - 1, left + COLUMN_WIDTH, y + 19, ROW_HOVER);
+      if (mouseX >= left && mouseX <= left + COLUMN_WIDTH && mouseY >= y && mouseY <= y + SLOT_SIZE) {
+        graphics.fill(left - 2, y - 1, left + COLUMN_WIDTH, y + SLOT_SIZE + 1, ROW_HOVER);
       }
-      slot(graphics, left, y, left + 18, y + 18);
-      slot(graphics, right - 18, y, right, y + 18);
-      graphics.renderItem(from, left + 1, y + 1);
-      graphics.renderItemDecorations(this.font, from, left + 1, y + 1);
-      graphics.renderItem(into, right - 17, y + 1);
-      graphics.renderItemDecorations(this.font, into, right - 17, y + 1);
-      arrow(graphics, left + 23, y + 7);
+      slot(graphics, left, y, left + SLOT_SIZE, y + SLOT_SIZE);
+      slot(graphics, right - SLOT_SIZE, y, right, y + SLOT_SIZE);
+      graphics.renderItem(from, left + 2, y + 2);
+      graphics.renderItemDecorations(this.font, from, left + 2, y + 2);
+      graphics.renderItem(into, right - SLOT_SIZE + 2, y + 2);
+      graphics.renderItemDecorations(this.font, into, right - SLOT_SIZE + 2, y + 2);
+      arrow(graphics, left + 26, y + 8);
 
       // Icons alone do not distinguish an oak log from a spruce one.
       int nameLeft = right + 5;
@@ -390,7 +413,7 @@ public class PersonChatScreen extends Screen {
       if (this.font.width(name) > nameRoom) {
         name = this.font.plainSubstrByWidth(name, nameRoom - this.font.width("..")) + "..";
       }
-      graphics.drawString(this.font, name, nameLeft, y + 5, TEXT_LABEL, false);
+      graphics.drawString(this.font, name, nameLeft, y + 6, TEXT_LABEL, false);
 
       rowHits.add(new Row(y, left, left + COLUMN_WIDTH, row.itemId(), playerBuys));
       y += ROW_HEIGHT;
@@ -424,7 +447,7 @@ public class PersonChatScreen extends Screen {
         if (mouseY >= row.y() && mouseY <= row.y() + 18
             && mouseX >= row.left() && mouseX <= row.right()) {
           int count = hasShiftDown() ? 8 : 1;
-          PacketDistributor.sendToServer(new com.quzzar.villagelife.networking.MarketActionPacket(
+          toServer(new com.quzzar.villagelife.networking.MarketActionPacket(
               entityId, row.playerBuys(), row.itemId(), count));
           return true;
         }
@@ -453,7 +476,7 @@ public class PersonChatScreen extends Screen {
         input.visible = tab == Tab.CHAT;
       }
       if (target == Tab.TRADE) {
-        PacketDistributor.sendToServer(
+        toServer(
             com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
       }
     }
@@ -502,12 +525,14 @@ public class PersonChatScreen extends Screen {
         graphics.drawCenteredString(PersonChatScreen.this.font, "✕",
             getX() + width / 2, getY() + (height - 8) / 2, colour);
       } else {
-        // A send arrow drawn as a triangle: no reliance on font coverage.
-        int cx = getX() + width / 2 - 3;
-        int cy = getY() + height / 2 - 5;
-        for (int row = 0; row < 5; row++) {
-          graphics.fill(cx, cy + row, cx + 6 - row, cy + row + 1, colour);
-          graphics.fill(cx, cy + 9 - row, cx + 6 - row, cy + 10 - row, colour);
+        // A right-pointing triangle: column i runs from y+i down to y+h-i, so
+        // it tapers to a point. Drawn rather than glyphed, so no font coverage
+        // question, and it cannot come out looking like a letter.
+        int size = 5;
+        int x0 = getX() + (width - size) / 2;
+        int y0 = getY() + (height - (size * 2 - 1)) / 2;
+        for (int i = 0; i < size; i++) {
+          graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + (size * 2 - 1) - i, colour);
         }
       }
     }

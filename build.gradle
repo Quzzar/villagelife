@@ -54,6 +54,12 @@ neoForge {
 
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+
+            // UI preview: ./gradlew runClient -Puipreview=trade photographs the
+            // villager screen and quits (see client/gui/UiPreview.java). It must
+            // be forwarded explicitly, because -D lands on Gradle's own JVM and
+            // never reaches the forked client.
+            systemProperty 'villagelife.uipreview', (findProperty('uipreview') ?: '')
         }
 
         // Boots straight onto the local dev server: the headless test loop uses this to put
