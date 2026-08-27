@@ -39,10 +39,13 @@ public final class VillageProfile {
 
   public static void setEnabled(boolean on) {
     enabled = on;
-    if (!on) {
-      SEGMENTS.clear();
-      ticks = 0L;
-    }
+    SEGMENTS.clear();
+    ticks = 0L;
+    // Village time is already large when profiling is switched on, so a zero
+    // here fires the first summary immediately: an 18-tick window that reads
+    // like a full minute and understates every total by two orders of
+    // magnitude. Wait for a real window before reporting anything.
+    lastReport = Long.MIN_VALUE;
   }
 
   public static boolean isEnabled() {
@@ -72,6 +75,10 @@ public final class VillageProfile {
       return;
     }
     ticks++;
+    if (lastReport == Long.MIN_VALUE) {
+      lastReport = villageTime;
+      return;
+    }
     if (villageTime - lastReport < REPORT_INTERVAL_SECONDS) {
       return;
     }

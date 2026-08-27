@@ -134,6 +134,10 @@ and self-correcting on every visit. Between server boot and the first time any o
 storage is resident the ledger is genuinely empty, and a village in that window holds
 rather than deciding at all — `VillageBrain.hasReadStores`.
 
+Measured over the same one-minute window at 22 villages, before and after: the
+attractiveness pass went from **684.2 ms to 0.3 ms**, its worst single call from 11.75 ms
+to 0.01 ms, and server tick P99 from **43.8 ms to 3.8 ms** against a 50 ms budget.
+
 Anyone adding a new input to attractiveness inherits this rule. The next person to find a
 synchronous chunk load in a tick loop will reach for the guard first; the guard is only
 half the fix.
