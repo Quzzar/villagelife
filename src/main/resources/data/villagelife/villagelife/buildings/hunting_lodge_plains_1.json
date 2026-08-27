@@ -1,0 +1,28 @@
+{
+  "structure": "hunting_lodge_plains_1",
+  "category": "hunting_lodge",
+  "variant": "plains",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        3,
+        1,
+        1
+      ],
+      "occupation": "HUNTER"
+    }
+  ],
+  "containers": [
+    [
+      4,
+      1,
+      5
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "MEAT",
+    "LEATHER"
+  ]
+}

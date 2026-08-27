@@ -1,0 +1,28 @@
+{
+  "structure": "hunting_lodge_taiga_1",
+  "category": "hunting_lodge",
+  "variant": "taiga",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        3,
+        1,
+        1
+      ],
+      "occupation": "HUNTER"
+    }
+  ],
+  "containers": [
+    [
+      4,
+      1,
+      5
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "MEAT",
+    "LEATHER"
+  ]
+}
