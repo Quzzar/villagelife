@@ -614,7 +614,13 @@ public class Village {
       VillageProfile.end("attractiveness", t);
     }
 
-    if (time % CHECK_PROJECT_PROGRESS == 0) {// Every X seconds
+    // Phase-staggered per village, like every other pass here. Without the
+    // stagger all loaded villages decide what to build on the SAME tick every
+    // 60s, and 'decide' is a model call - so a dozen villages fire a dozen LLM
+    // requests at the same instant, once a minute, saturating the one model
+    // they share with the player. This is the pile-up the priority fix would
+    // otherwise have to absorb; spreading the checks stops it forming.
+    if ((time + Math.floorMod(id.hashCode(), CHECK_PROJECT_PROGRESS)) % CHECK_PROJECT_PROGRESS == 0) {
 
       long t = VillageProfile.start();
       checkCurrentProject();
