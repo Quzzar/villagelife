@@ -16,6 +16,8 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.chat.PersonChatContext.AssembledChat;
 import com.quzzar.villagelife.chat.PersonChatContext.Turn;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.UndertakingData;
+import com.quzzar.villagelife.entities.UndertakingService;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.networking.PersonChatReplyPacket;
@@ -32,9 +34,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
 /**
  * The conversation pipeline (conversation map #28): assembles the villager's
  * briefing, asks the LLM through the chat-priority slot, parses the
- * {@code {say, give?}} reply, executes a validated give, and answers the
- * player. Every failure path ends in one in-fiction fallback line — the
- * player can simply say it again.
+ * {@code {say, give?, opinion?, undertaking?}} reply, executes a validated
+ * give, records any undertaking against the villager (the write path the
+ * briefing's read side depends on), and answers the player. Every failure path
+ * ends in one in-fiction fallback line, so the player can simply say it again.
  */
 public final class PersonChatDispatcher {
 
@@ -237,22 +240,25 @@ public final class PersonChatDispatcher {
           String say = null;
           String give = null;
           int opinion = 0;
+          JsonObject undertaking = null;
           if (result.isPresent()) {
             Reply parsed = parseReply(result.get());
             if (parsed != null) {
               say = parsed.say();
               give = parsed.give();
               opinion = parsed.opinionDelta();
+              undertaking = parsed.undertaking();
             }
           }
           if (say == null || say.isBlank()) {
             say = fallbackLine(person);
             give = null;
             opinion = 0;
+            undertaking = null; // a fallback line committed to nothing; record nothing
           }
-          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion,
+          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion, undertaking,
               System.currentTimeMillis() - askedAtMs);
-          return new Reply(say, give, opinion);
+          return new Reply(say, give, opinion, undertaking);
         });
   }
 
@@ -319,7 +325,8 @@ public final class PersonChatDispatcher {
    * are invisible to RCON sources, so headless capture reads the log.
    */
   private static void finalizeExchange(RealPerson person, String speakerName, UUID speakerUUID,
-      String playerLine, String reply, String give, int requestedOpinion, long elapsedMs) {
+      String playerLine, String reply, String give, int requestedOpinion, JsonObject undertaking,
+      long elapsedMs) {
     var server = person.getServer();
     if (server == null) {
       return;
@@ -330,13 +337,105 @@ public final class PersonChatDispatcher {
           person.getData(VillagelifeAttachments.CHAT_HISTORY.get())
               .withExchange(speakerUUID,
                   new ChatHistoryData.Exchange(playerLine, reply, person.level().getDayTime())));
-      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}", elapsedMs, speakerName, person.getFullName(), reply,
+      String matter = applyUndertaking(person, speakerUUID, playerLine, undertaking);
+      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
           give != null ? " [give: " + give + "]" : "",
-          applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "");
+          applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "",
+          matter != null ? " [" + matter + "]" : "");
     });
   }
 
-  public record Reply(String say, String give, int opinionDelta) {
+  /**
+   * The write path for the undertaking tool: the model's op is applied to the
+   * villager's matters and persisted, closing the loop the READ side
+   * ({@link PersonChatContext}'s briefing and gate) depends on. Returns the
+   * applied action for the log, or null when nothing changed.
+   *
+   * <p>Aaron's completion rule lives here (undertakings map #24): the 3B cannot
+   * tell a final delivery from a partial one, so rather than fight it, the
+   * server forces resolve when the exchange plainly completes the matter,
+   * whatever op the model emitted. The signal is the PLAYER's own words, matched
+   * literally, which is exactly the completion cue the model's surface-matching
+   * misses and the server does not. When completion does not fire, the model's
+   * op passes through and {@link UndertakingService}'s open&#8594;advance
+   * coercion handles a stray open on a standing matter.
+   */
+  private static String applyUndertaking(RealPerson person, UUID playerUUID, String playerLine,
+      JsonObject undertaking) {
+    if (undertaking == null) {
+      return null;
+    }
+    Optional<UndertakingService.Op> parsed = UndertakingService.Op.parse(undertaking);
+    if (parsed.isEmpty()) {
+      return null;
+    }
+    UndertakingService.Op op = completeIfSettled(parsed.get(), playerLine);
+    UndertakingData data = person.getData(VillagelifeAttachments.UNDERTAKINGS.get());
+    UndertakingService.Result result = UndertakingService.apply(data, op, playerUUID, true,
+        person.level().getDayTime());
+    if (!result.changed()) {
+      return null;
+    }
+    person.setData(VillagelifeAttachments.UNDERTAKINGS.get(), result.data());
+    return result.action();
+  }
+
+  /**
+   * Forces the op to {@code resolve} when the player's line marks the matter
+   * finished, whatever the model emitted. It has to override open as well as
+   * advance: the 3B emits open on some completion turns, and {@link
+   * UndertakingService}'s open&#8594;advance coercion would then quietly turn
+   * that into an advance and miss the close. The player's words settle it, so
+   * the op does.
+   *
+   * <p>A partial marker ("toward", "some of") always wins over a completion
+   * marker, so a part-payment can never false-close a debt, which is the one
+   * genuinely wrong outcome the system can produce; a missed completion merely
+   * lingers open until a later turn, losing nothing.
+   */
+  private static UndertakingService.Op completeIfSettled(UndertakingService.Op op, String playerLine) {
+    if (playerLine == null || "resolve".equals(op.op())) {
+      return op; // nothing to read, or the model already resolved
+    }
+    String line = playerLine.toLowerCase(java.util.Locale.ROOT);
+    for (String partial : PARTIAL_MARKERS) {
+      if (line.contains(partial)) {
+        return op; // a part-payment names itself; never close on it
+      }
+    }
+    for (String complete : COMPLETION_MARKERS) {
+      if (line.contains(complete)) {
+        return new UndertakingService.Op("resolve", op.summary(), op.valence(), op.note(), op.step());
+      }
+    }
+    return op;
+  }
+
+  /** Words that mark a delivery as only part of what is owed: never close on these. */
+  private static final String[] PARTIAL_MARKERS = {
+      "toward", "towards", "some of", "part of", "a start", "start on", "half", "instalment",
+      "installment", "down payment", "still owe", "rest to come", "more to come", "next lot"
+  };
+
+  /**
+   * Words that mark a matter as finished. Kept to strong, low-ambiguity phrases,
+   * since the partial guard above only removes the obvious partials; a stray
+   * completion just resolves a matter a turn early, never wrongly.
+   */
+  private static final String[] COMPLETION_MARKERS = {
+      "the last", "all of it", "all ten", "the whole", "in full", "paid in full", "we're square",
+      "we are square", "square now", "we're even", "we are even", "even now", "call it even",
+      "settled", "all settled", "that's all of", "that's us square", "no more owed", "we're done here",
+      "put right", "made it right", "made right", "all done", "every last"
+  };
+
+  /**
+   * A parsed reply. {@code undertaking} carries the raw {@code "undertaking"}
+   * object when the model emitted one (null otherwise); it is applied as a
+   * side effect in {@link #finalizeExchange}, not by the caller, which only
+   * reads {@code say}/{@code give}.
+   */
+  public record Reply(String say, String give, int opinionDelta, JsonObject undertaking) {
   }
 
   /** Largest single-call opinion step the model may take. */
@@ -372,7 +471,10 @@ public final class PersonChatDispatcher {
               } catch (Exception ignored) {
               }
             }
-            return new Reply(node.get("say").getAsString(), give, opinion);
+            JsonObject undertaking = node.has("undertaking") && node.get("undertaking").isJsonObject()
+                ? node.getAsJsonObject("undertaking")
+                : null;
+            return new Reply(node.get("say").getAsString(), give, opinion, undertaking);
           }
         } catch (Exception ignored) {
           // fall through to the regex pass
@@ -383,9 +485,13 @@ public final class PersonChatDispatcher {
     if (say.find()) {
       Matcher give = GIVE_PATTERN.matcher(raw);
       Matcher opinion = OPINION_PATTERN.matcher(raw);
+      // The regex fallback does not recover the nested undertaking object; it
+      // only runs when the JSON failed to parse, and a malformed reply is not a
+      // turn to be recording lasting commitments from anyway.
       return new Reply(say.group(1).replace("\\\"", "\""),
           give.find() ? give.group(1) : null,
-          opinion.find() ? clampStep(Integer.parseInt(opinion.group(1))) : 0);
+          opinion.find() ? clampStep(Integer.parseInt(opinion.group(1))) : 0,
+          null);
     }
     return null;
   }

@@ -5,12 +5,14 @@ a beginning, some progress, and an end. One generic system used for everything
 from "make it up to me by bringing wheat" to "help me clear the lava in my mine"
 to "I am saving toward a bigger house."
 
-This is the design. The record, its persistence, the validation-and-apply, and
-a measuring harness are built (`entities/UndertakingData`, `UndertakingService`,
-`UndertakingCommands`); what remains is the production chat wiring — the
-`undertaking` field on the reply and its few-shot examples — which is the LLM
-session's lane. The schema below is locked against the code so that edit lands
-once.
+This is the design, and it is built end to end. The record, its persistence, the
+validation-and-apply, and a measuring harness live in `entities/UndertakingData`,
+`UndertakingService`, and `UndertakingCommands`; the production chat wiring lives
+in `PersonChatDispatcher`. In a real conversation the model emits an `undertaking`
+field (gated, with the few-shot examples in `PersonChatContext`), the dispatcher
+parses it, applies it to the villager, and persists it, which closes the loop the
+briefing's read side (`openWith` for the gate and the "Matters between you"
+section) depends on. The schema below is locked against the code.
 
 ## Why, and what is already here
 
@@ -189,8 +191,22 @@ the model reads as advance leaves the matter's `progressNote` showing it all but
 done while the matter stays open, so no data is lost and a later turn can still
 resolve it. The one genuinely wrong outcome, false-closing a still-partial matter,
 is the direction the tuning deliberately does NOT push toward, which is why more
-resolve examples were not added. Lifting resolve later would mean escalating only
-resolve-candidate turns to a stronger model; out of scope for this slice.
+resolve examples were not added.
+
+Instead the server closes the matter where the model cannot. The write path
+(`PersonChatDispatcher.completeIfSettled`) forces the op to resolve when the
+PLAYER's own line carries completion language ("the last", "all ten", "paid in
+full", "we're square") and no partial marker ("toward", "some of", "a start").
+That is the reliable half of the same signal the 3B fumbles: a literal
+completion-word match, which the server does well and the surface-collision that
+beats the model does not touch. It runs whatever op the model emitted, open
+included (otherwise the open&#8594;advance coercion would mask a completion as an
+advance), and the partial-marker guard keeps it from ever false-closing a
+part-payment. What it still misses is a completion turn the model answers with no
+undertaking field at all (a silent third in the audit); firing the check
+independent of the model would catch those, but then an incidental completion word
+on an unrelated turn could false-close, so v1 keeps the model's emission as the
+gate.
 
 ## How they surface
 
