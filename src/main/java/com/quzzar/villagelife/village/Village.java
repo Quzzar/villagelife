@@ -117,6 +117,10 @@ public class Village {
   private transient long lastShortageLogTime = -1_000_000_000L;
   // True while the brain is deciding what to build; keeps one decision in flight.
   private transient boolean projectDecisionPending;
+  // What the village can do, derived from its buildings (#55). Never persisted:
+  // recomputed on building change and on the slow tick, because supply-gated
+  // grants depend on what the chests hold right now.
+  private transient java.util.Set<String> capabilities;
   /** No planning until this second: a village that cannot build must not keep asking. */
   private transient int planningQuietUntil;
   private transient int planningBackoffSeconds;
@@ -319,6 +323,24 @@ public class Village {
   protected void addBuilding(Building building) {
     this.buildings.put(building.getUUID(), building);
     this.brain.processNewBuilding(building, unassignedBeds, unassignedJobs);
+    this.capabilities = null;
+  }
+
+  /**
+   * What this village can currently do (#55): derived from the buildings
+   * standing right now, never stored. Cached between recomputes because
+   * resolving walks every building.
+   */
+  public java.util.Set<String> getCapabilities() {
+    if (capabilities == null) {
+      capabilities = com.quzzar.villagelife.village.buildings.VillageCapabilities.resolve(this);
+    }
+    return capabilities;
+  }
+
+  /** True when the village can do the named thing, whatever a datapack calls it. */
+  public boolean canDo(String capability) {
+    return getCapabilities().contains(capability);
   }
 
   private void checkCurrentProject() {
@@ -457,6 +479,12 @@ public class Village {
     tickTravelers();
 
     JobClaiming.tick(this, level);
+
+    // Supply-gated capabilities follow what the chests hold, so the derived set
+    // is dropped periodically rather than only when buildings change.
+    if ((time + Math.floorMod(id.hashCode(), 30)) % 30 == 0) {
+      capabilities = null;
+    }
 
     // Villagers making up their minds about what has happened to them lately.
     int reflectInterval = com.quzzar.villagelife.relationships.ReflectionService.REFLECT_INTERVAL_SECONDS;

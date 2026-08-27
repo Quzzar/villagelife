@@ -23,14 +23,14 @@
       3
     ]
   ],
-  "benefits": [
-    "LOGS",
-    "PLANKS"
-  ],
   "cost": [
     {
       "item": "minecraft:cobblestone",
       "count": 64
     }
+  ],
+  "grants": [
+    "LOGS",
+    "PLANKS"
   ]
 }

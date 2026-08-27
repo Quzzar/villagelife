@@ -58,6 +58,21 @@ public class VillagelifeCommands {
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(ctx -> reportAttractiveness(ctx.getSource(),
                                                 BlockPosArgument.getBlockPos(ctx, "pos")))))
+                        .then(Commands.literal("place")
+                                .then(Commands.argument("building", StringArgumentType.word())
+                                        .executes(ctx -> placeBuilding(ctx.getSource(),
+                                                BlockPos.containing(ctx.getSource().getPosition()),
+                                                StringArgumentType.getString(ctx, "building")))
+                                        .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                                .executes(ctx -> placeBuilding(ctx.getSource(),
+                                                        BlockPosArgument.getBlockPos(ctx, "pos"),
+                                                        StringArgumentType.getString(ctx, "building"))))))
+                        .then(Commands.literal("capabilities")
+                                .executes(ctx -> reportCapabilities(ctx.getSource(),
+                                        BlockPos.containing(ctx.getSource().getPosition())))
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                        .executes(ctx -> reportCapabilities(ctx.getSource(),
+                                                BlockPosArgument.getBlockPos(ctx, "pos")))))
                         .then(Commands.literal("gallery")
                                 .executes(ctx -> buildGallery(ctx.getSource(),
                                         BlockPos.containing(ctx.getSource().getPosition())))
@@ -136,6 +151,57 @@ public class VillagelifeCommands {
         source.sendSuccess(() -> Component.literal(
                 String.format("Site %s (%dx%d): %s", pos.toShortString(), sizeX, sizeZ, cost.describe())), false);
         return cost.impossible() ? 0 : Math.max(1, cost.blocksMoved());
+    }
+
+    /** Drops a building into the nearest village, for testing what it changes. */
+    private static int placeBuilding(CommandSourceStack source, BlockPos pos, String building) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        if (!village.devPlaceBuilding(building)) {
+            source.sendFailure(Component.literal("Could not place '" + building
+                    + "': no such definition, or nowhere to put it."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Placed " + building + " in '" + village.getName() + "'."), true);
+        return 1;
+    }
+
+    /** What the nearest village can currently do, and what each building contributes. */
+    private static int reportCapabilities(CommandSourceStack source, BlockPos pos) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        java.util.Set<String> capabilities = village.getCapabilities();
+        StringBuilder report = new StringBuilder();
+        report.append("Village '").append(village.getName()).append("' can do: ")
+                .append(capabilities.isEmpty() ? "nothing yet" : String.join(", ",
+                        capabilities.stream().sorted().toList()));
+        for (var building : village.getBuildings()) {
+            var info = building.getInfo();
+            if (info == null || (info.getGrants().isEmpty() && info.getConditionalGrants().isEmpty())) {
+                continue;
+            }
+            report.append("\n  ").append(info.getName()).append(": ")
+                    .append(String.join(", ", info.getGrants()));
+            for (var grant : info.getConditionalGrants()) {
+                boolean held = capabilities.contains(grant.capability());
+                report.append("\n    ").append(grant.capability())
+                        .append(held ? " (granted)" : " (withheld)")
+                        .append(" needs ")
+                        .append(grant.requiresCapability().isEmpty() ? "" : grant.requiresCapability().toString())
+                        .append(grant.requiresSupply().isEmpty() ? "" : grant.requiresSupply().stream()
+                                .map(item -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).getPath())
+                                .toList().toString());
+            }
+        }
+        source.sendSuccess(() -> Component.literal(report.toString()), false);
+        return capabilities.size();
     }
 
     private static int reportAttractiveness(CommandSourceStack source, BlockPos pos) {

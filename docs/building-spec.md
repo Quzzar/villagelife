@@ -326,6 +326,20 @@ Three capabilities need more than one building:
 
 ### How a conditional grant is declared
 
+**Implemented** as of [#68](https://github.com/Quzzar/villagelife/issues/68). `grants` is a
+list of capability strings; `grants_if` is a list of objects naming a capability plus
+`requires_capability` and/or `requires_supply`. `VillageCapabilities.resolve` walks the
+standing buildings, takes everything unconditional, then re-evaluates the conditional ones
+until a pass adds nothing. `/vldev village capabilities` prints the resolved set and what
+each building contributes, marking conditional grants as granted or withheld with the
+requirement that decides it.
+
+One rule worth stating because it caught the market: **currency is not a supply.** A
+village's treasury is physical emeralds sitting in a village container, so a supply
+requirement naming emeralds would be satisfied by the village's own money. Emeralds are
+skipped when checking supply.
+
+
 **Conditions name capabilities and supplies, never building ids.** A church should not care which
 library variant the village built, or whether a future datapack adds a third way to get
 `LEARNING`.

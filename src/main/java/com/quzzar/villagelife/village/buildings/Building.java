@@ -89,18 +89,5 @@ public class Building {
     return Buildings.getByName(name);
   }
 
-  public enum Benefit {
-    WATER,
-    LOGS,
-    PLANKS,
-    STONE,
-    ORES,
-    STORAGE,
-    PROTECTION,
-    SMELTING,
-    REPAIR,
-    HEALING,
-    ENCHANTING,
-  }
 
 }

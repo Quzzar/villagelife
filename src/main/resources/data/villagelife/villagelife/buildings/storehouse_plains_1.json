@@ -57,9 +57,6 @@
       9
     ]
   ],
-  "benefits": [
-    "STORAGE"
-  ],
   "cost": [
     {
       "item": "minecraft:cobblestone",
@@ -73,5 +70,8 @@
       "item": "minecraft:oak_planks",
       "count": 256
     }
+  ],
+  "grants": [
+    "STORAGE"
   ]
 }

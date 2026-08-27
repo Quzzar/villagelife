@@ -39,8 +39,8 @@ public class BuildingInfo {
       WorkStation.CODEC.listOf().optionalFieldOf("work_stations", List.of()).forGetter(BuildingInfo::workStations),
       BlockPos.CODEC.listOf().optionalFieldOf("containers", List.of()).forGetter(BuildingInfo::containerPositions),
       ItemCost.CODEC.listOf().optionalFieldOf("cost", List.of()).forGetter(BuildingInfo::itemCosts),
-      VillagelifeCodecs.forEnum(Building.Benefit.class).listOf().optionalFieldOf("benefits", List.of()).forGetter(info ->
-          info.benefits == null ? List.of() : info.benefits),
+      Codec.STRING.listOf().optionalFieldOf("grants", List.of()).forGetter(BuildingInfo::getGrants),
+      Grant.CODEC.listOf().optionalFieldOf("grants_if", List.of()).forGetter(BuildingInfo::getConditionalGrants),
       BlockPos.CODEC.optionalFieldOf("gathering_point").forGetter(info ->
           java.util.Optional.ofNullable(info.gatheringPoint).map(BlockPos::of)),
       Codec.STRING.optionalFieldOf("category").forGetter(info -> java.util.Optional.ofNullable(info.explicitCategory)),
@@ -49,7 +49,7 @@ public class BuildingInfo {
   ).apply(inst, BuildingInfo::fromCodec));
 
   private static BuildingInfo fromCodec(String structure, List<BlockPos> beds, List<WorkStation> workStations,
-      List<BlockPos> containers, List<ItemCost> costs, List<Building.Benefit> benefits,
+      List<BlockPos> containers, List<ItemCost> costs, List<String> grants, List<Grant> conditionalGrants,
       java.util.Optional<BlockPos> gatheringPoint, java.util.Optional<String> category,
       java.util.Optional<String> variant, java.util.Optional<String> upgradesFrom) {
     BuildingInfo info = new BuildingInfo(structure);
@@ -58,7 +58,8 @@ public class BuildingInfo {
         station.pos().getX(), station.pos().getY(), station.pos().getZ(), station.occupation()));
     containers.forEach(pos -> info.addContainerLocation(pos.getX(), pos.getY(), pos.getZ()));
     info.setMaterialCost(costs.stream().map(cost -> new ItemStack(cost.item(), cost.count())).toList());
-    info.setBenefits(List.copyOf(benefits));
+    info.grants = List.copyOf(grants);
+    info.conditionalGrants = List.copyOf(conditionalGrants);
     gatheringPoint.ifPresent(pos -> info.gatheringPoint = pos.asLong());
     info.explicitCategory = category.orElse(null);
     info.explicitVariant = variant.orElse(null);
@@ -73,7 +74,10 @@ public class BuildingInfo {
   private ArrayList<Long> containerLocs;
 
   private List<ItemStack> materialCost;
-  private List<Building.Benefit> benefits;
+  /** Capabilities this building always grants, as datapack strings (#55). */
+  private List<String> grants = List.of();
+  /** Capabilities it grants only while a condition holds. */
+  private List<Grant> conditionalGrants = List.of();
   // Packed BlockPos of the building's gathering point (the campfire), or null.
   private Long gatheringPoint;
   // Explicit JSON category/variant, validated against the id-derived values; null = derive.
@@ -217,13 +221,12 @@ public class BuildingInfo {
     return gatheringPoint;
   }
 
-  public List<Building.Benefit> getBenefits() {
-    return benefits;
+  public List<String> getGrants() {
+    return grants;
   }
 
-  public BuildingInfo setBenefits(List<Building.Benefit> benefits) {
-    this.benefits = benefits;
-    return this;
+  public List<Grant> getConditionalGrants() {
+    return conditionalGrants;
   }
 
   private List<BlockPos> bedPositions() {
