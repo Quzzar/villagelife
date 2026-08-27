@@ -161,7 +161,7 @@ public final class UndertakingCommands {
 
     /**
      * The measurement prompt, kept in step with production (PersonChatContext,
-     * commit 8e287b0): the two-state split the live gate uses, mirrored verbatim.
+     * commit c7ad47c): the two-state split the live gate uses, mirrored verbatim.
      * The GATED pass picks a state exactly as production does (a matter stands ->
      * OPEN_MATTER, else a commitment-opening line -> NEW_MATTER, else the field is
      * never offered), so the number reflects what ships. The UNGATED pass offers
@@ -195,35 +195,49 @@ public final class UndertakingCommands {
     private static final String OPEN_MATTER_CLAUSE =
             " A matter already stands between you and this person (named above). You are NOT opening a new one - you are "
             + "moving it forward or settling it. If this exchange moves it along, \"undertaking\": {\"op\": \"advance\", "
-            + "\"note\": \"<what moved>\"}. If it settles the matter for good - paid in full, the promise kept, the wrong put "
-            + "right - \"undertaking\": {\"op\": \"resolve\", \"note\": \"<how it ended>\"}. If it does neither, leave "
-            + "\"undertaking\" out. You never name which matter - the game knows.";
+            + "\"note\": \"<what moved>\"}. If it settles the matter for good, \"undertaking\": {\"op\": \"resolve\", "
+            + "\"note\": \"<how it ended>\"}. When their words mark it FINISHED - the LAST of it, the FINAL piece, the WHOLE "
+            + "amount, all of it now, the debt PAID, the task DONE - that is resolve, never advance. If it does neither, "
+            + "leave \"undertaking\" out. You never name which matter - the game knows.";
 
     private static final String SHAPE_UNDERTAKING =
             " Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding \"undertaking\" only when it applies.";
 
-    /** The one open few-shot, shown in NEW_MATTER (mirrors OPEN_EXAMPLES). */
+    /** Two open few-shots, one per valence, shown in NEW_MATTER (mirrors OPEN_EXAMPLES). */
     private static final List<LlmService.FewShotExample> OPEN_EXAMPLES = List.of(
             new LlmService.FewShotExample(
                     "Player says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
                     "{\"say\": \"Bring back the ten wheat you took and we're square.\", \"undertaking\": "
                     + "{\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", "
-                    + "\"valence\": \"negative\"}}"));
+                    + "\"valence\": \"negative\"}}"),
+            new LlmService.FewShotExample(
+                    "Player says: \"I'm sorry you're short on oak. I'll bring you a stack tomorrow.\"\nYour JSON answer:",
+                    "{\"say\": \"That would see my roof done. I'd be in your debt, Steve.\", \"undertaking\": "
+                    + "{\"op\": \"open\", \"summary\": \"Steve to bring a stack of oak for the roof\", "
+                    + "\"valence\": \"positive\"}}"));
 
     /**
-     * The advance/resolve pair, shown in OPEN_MATTER (mirrors PROGRESS_EXAMPLES).
-     * The only visible difference is completion language - "four toward" (advance)
-     * vs "the last of" (resolve) - which teaches the one call the server cannot make.
+     * The four turns shown in OPEN_MATTER (mirrors PROGRESS_EXAMPLES): a neutral
+     * no-op (advance was firing on every turn), a partial delivery (advance), and
+     * two completions (resolve, one per valence) leaning hard on completion
+     * language, since one resolve example proved too thin for the 3B.
      */
     private static final List<LlmService.FewShotExample> PROGRESS_EXAMPLES = List.of(
+            new LlmService.FewShotExample(
+                    "Player says: \"Just passing through, don't mind me.\"\nYour JSON answer:",
+                    "{\"say\": \"Mind yourself, Steve. The roads are dark this hour.\"}"),
             new LlmService.FewShotExample(
                     "Player says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
                     "{\"say\": \"Four - a start. Six more and we're even.\", \"undertaking\": "
                     + "{\"op\": \"advance\", \"note\": \"Four of the ten wheat brought back\"}}"),
             new LlmService.FewShotExample(
-                    "Player says: \"That's the last of the ten wheat.\"\nYour JSON answer:",
-                    "{\"say\": \"Then we're square. No hard feelings.\", \"undertaking\": "
-                    + "{\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"));
+                    "Player says: \"Here's the last of it - that's the whole ten wheat now.\"\nYour JSON answer:",
+                    "{\"say\": \"Then we're square, Steve. No hard feelings.\", \"undertaking\": "
+                    + "{\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"),
+            new LlmService.FewShotExample(
+                    "Player says: \"That's your fence done - every rail back in place.\"\nYour JSON answer:",
+                    "{\"say\": \"Fine work, and quicker than I'd hoped. We're square.\", \"undertaking\": "
+                    + "{\"op\": \"resolve\", \"note\": \"The fence is fully mended\"}}"));
 
     private static final List<LlmService.FewShotExample> ALL_UNDERTAKING_EXAMPLES;
     static {
