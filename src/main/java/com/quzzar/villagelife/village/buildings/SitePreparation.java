@@ -68,8 +68,18 @@ public final class SitePreparation {
     }
   }
 
-  /** The actual work a site needs: blocks to take away, and columns to raise. */
-  public record PrepWork(java.util.List<Long> toBreak, java.util.List<Long> toFill) {
+  /**
+   * The actual work a site needs: blocks to take away, and columns to raise.
+   * Ground that cannot be prepared at all is {@link #impossible()}, which is
+   * not the same as needing no work: the caller must refuse the site rather
+   * than read an empty queue as "nothing to do here".
+   */
+  public record PrepWork(java.util.List<Long> toBreak, java.util.List<Long> toFill, boolean possible) {
+
+    static PrepWork impossible() {
+      return new PrepWork(java.util.List.of(), java.util.List.of(), false);
+    }
+
     public boolean isEmpty() {
       return toBreak.isEmpty() && toFill.isEmpty();
     }
@@ -85,8 +95,9 @@ public final class SitePreparation {
   /**
    * The same walk as {@link #score}, but collecting positions instead of
    * counting them: what the builder must break, and where they must place fill
-   * to bring a column up to the build plane. Returns empty when the site needs
-   * nothing or cannot be prepared at all.
+   * to bring a column up to the build plane. Returns an empty queue when the
+   * site needs nothing, and {@link PrepWork#impossible()} when it cannot be
+   * prepared at all — the two must not be confused.
    */
   public static PrepWork planWork(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds) {
     java.util.List<Long> toBreak = new java.util.ArrayList<>();
@@ -99,7 +110,7 @@ public final class SitePreparation {
         int worldZ = origin.getZ() + z;
         BlockPos groundProbe = new BlockPos(worldX, plane, worldZ);
         if (!level.getLevel().isLoaded(groundProbe) || village.hasClaimed(groundProbe)) {
-          return new PrepWork(java.util.List.of(), java.util.List.of());
+          return PrepWork.impossible();
         }
 
         int y = plane + CLEARANCE_HEIGHT;
@@ -112,7 +123,7 @@ public final class SitePreparation {
             continue;
           }
           if (level.getBlockEntity(pos) != null) {
-            return new PrepWork(java.util.List.of(), java.util.List.of());
+            return PrepWork.impossible();
           }
           if (state.is(CLEARABLE)) {
             toBreak.add(pos.asLong());
@@ -127,12 +138,12 @@ public final class SitePreparation {
           break;
         }
         if (surface == Integer.MIN_VALUE) {
-          return new PrepWork(java.util.List.of(), java.util.List.of());
+          return PrepWork.impossible();
         }
 
         int delta = surface - (plane - 1);
         if (Math.abs(delta) > MAX_COLUMN_DELTA) {
-          return new PrepWork(java.util.List.of(), java.util.List.of());
+          return PrepWork.impossible();
         }
         // Cut everything standing above the build plane, fill everything below it.
         for (int cut = 0; cut < delta; cut++) {
@@ -143,7 +154,7 @@ public final class SitePreparation {
         }
       }
     }
-    return new PrepWork(java.util.List.copyOf(toBreak), java.util.List.copyOf(toFill));
+    return new PrepWork(java.util.List.copyOf(toBreak), java.util.List.copyOf(toFill), true);
   }
 
   /**

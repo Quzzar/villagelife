@@ -442,6 +442,19 @@ public class Village {
 
   private boolean beginProject(StructureInProgress project, BoundingBox bounds, BlockPos projectLocation) {
     BuildingInfo buildingInfo = project.getBuilding().getInfo();
+
+    // Ground the site owes before a single structure block is placed. A free
+    // site returns nothing; ground that cannot be prepared at all returns
+    // nothing too unless it is asked, and building into it would place a
+    // structure inside a cliff.
+    var prep = com.quzzar.villagelife.village.buildings.SitePreparation
+        .planWork(level, this, projectLocation, bounds);
+    if (!prep.possible()) {
+      Villagelife.LOGGER.info("Village '{}' cannot prepare the ground at {} for {}",
+          name, projectLocation.toShortString(), buildingInfo.getName());
+      return false;
+    }
+
     Villagelife.LOGGER.info("Village '{}' is building {} at {}",
         name, buildingInfo.getName(), projectLocation.toShortString());
 
@@ -449,10 +462,6 @@ public class Village {
 
     currentProject = project.setOriginLocation(projectLocation);
 
-    // Ground the site owes before a single structure block is placed. A
-    // free site returns nothing and construction starts immediately.
-    var prep = com.quzzar.villagelife.village.buildings.SitePreparation
-        .planWork(level, this, projectLocation, bounds);
     if (!prep.isEmpty()) {
       currentProject.setPrepWork(prep);
       Villagelife.LOGGER.info("Village '{}' is clearing ground for {}: {} blocks to move",
