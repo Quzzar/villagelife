@@ -708,25 +708,9 @@ public class PersonChatScreen
     resultLeft = previewLeft + previewWidth - 26;
     resultTop = previewTop - 4;
     slot(graphics, resultLeft, previewTop - 4, resultLeft + 26, previewTop + 22);
-    affordable = false;
-    reserved.clear();
-    if (under != null) {
-      int need = under.from().getCount();
-      staged = Math.min(staged, countHeld(under.from().getItem()));
-      affordable = staged >= need && !offers.blocked();
-      int moved = staged;
-      reserve(under.from().getItem(), moved);
-      if (moved > 0) {
-        ItemStack cost = new ItemStack(under.from().getItem(), moved);
-        graphics.renderItem(cost, previewLeft + 1, previewTop + 1);
-        graphics.renderItemDecorations(this.font, cost, previewLeft + 1, previewTop + 1);
-      }
-      if (affordable) {
-        graphics.renderItem(under.into(), resultLeft + 5, previewTop + 1);
-        graphics.renderItemDecorations(this.font, under.into(), resultLeft + 5, previewTop + 1);
-      }
-    }
-
+    // Slot art only. Slots 0, 1 and 2 belong to the menu and it renders what
+    // is in them; the staged payment and the result are whatever the SERVER
+    // says they are, which is the point of having a container at all.
     int gridLeft = rightLeft + (rightWidth - 9 * 18) / 2;
     // The pack's last row lands on the well's last row: the two columns end
     // together, which is what makes the layout read as one block.
@@ -893,29 +877,9 @@ public class PersonChatScreen
             && mouseX >= row.left() && mouseX < row.right()) {
           clickSound();
           selected = i + scrollOff;
-          Deal deal = selected < allDeals.size() ? allDeals.get(selected) : null;
-          staged = deal == null ? 0
-              : Math.min(countHeld(deal.from().getItem()), deal.from().getItem().getDefaultMaxStackSize());
+          toServer(new com.quzzar.villagelife.networking.SelectTradePacket(selected));
           return true;
         }
-      }
-      // Taking from the result slot is the trade. Nothing there, nothing to take.
-      boolean onResult = mouseX >= resultLeft && mouseX < resultLeft + 26
-          && mouseY >= resultTop && mouseY < resultTop + 26;
-      if (onResult && affordable && selected < allDeals.size()) {
-        clickSound();
-        Deal deal = allDeals.get(selected);
-        int cost = deal.from().getCount();
-        // Shift-take empties the staged payment, one trade at a time, as
-        // shift-clicking a result slot does in vanilla.
-        int times = hasShiftDown() ? Math.max(1, staged / Math.max(1, cost)) : 1;
-        int goods = deal.playerBuys() ? deal.into().getCount() : deal.from().getCount();
-        for (int n = 0; n < times; n++) {
-          toServer(new com.quzzar.villagelife.networking.MarketActionPacket(
-              entityId, deal.playerBuys(), deal.itemId(), goods));
-        }
-        staged = Math.max(0, staged - cost * times);
-        return true;
       }
     }
     return super.mouseClicked(mouseX, mouseY, button);
