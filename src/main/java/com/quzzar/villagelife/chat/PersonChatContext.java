@@ -45,23 +45,49 @@ public final class PersonChatContext {
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
       + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"opinion\": <number>}.";
 
+  private static final String SHAPE_UNDERTAKING =
+      "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", or "
+      + "\"undertaking\" only when it applies.";
+
   /**
-   * The undertaking clause, added to the rules ONLY when a matter is plausibly
-   * in play (undertakings map #24, 7b). It is gated rather than always present
-   * for the reason the give tool taught: offered on every turn, a small model
-   * reaches for it on turns that do not warrant it - the "goodnight" and
-   * "lovely weather" false opens the audit measured. Gated to amends, promises,
-   * and turns where a matter already stands, the false-fire class disappears
-   * (audit: gated precision 100%, 0 false fires) while the few-shot examples
-   * below lift the model's recall on the moments that do warrant it.
+   * The undertaking clause is split by the state the SERVER already knows, and
+   * the model is shown only the ops that are legal in that state - the same
+   * discipline the decision brain uses when it never shows an unaffordable
+   * building (llm-brain.md). The audit (7b) measured why it must be: shown all
+   * three ops at once, the 3B defaults nearly every matter to "open", opening a
+   * second matter when the briefing plainly says one already stands. It cannot
+   * pick open vs advance from context, so it is not asked to.
+   *
+   * The whole clause stays gated on top of that (undertakings map #24): on a
+   * turn where no matter is in play at all, none of these variants is used and
+   * the field is never mentioned - the give tool's lesson that a small model
+   * reaches for an always-present field on turns that do not warrant it.
+   *
+   * NEW_MATTER: no matter stands, but this turn opens one (opensACommitment).
+   * Only "open" is offered.
    */
-  private static final String RULES_WITH_UNDERTAKING = RULES_BODY
-      + "A lasting matter between you and this person can be recorded with \"undertaking\", but ONLY on the turn it "
-      + "actually happens - most replies have none. When they make amends or promise something that will take time, "
-      + "open it: {\"op\": \"open\", \"summary\": \"<what is to be done, in a few words>\", \"valence\": \"positive\" for a kindness or \"negative\" for a wrong to right}. "
-      + "When an existing matter moves forward, {\"op\": \"advance\", \"note\": \"<what moved>\"}. "
-      + "When it is settled, {\"op\": \"resolve\", \"note\": \"<how it ended>\"}. You never name which matter - the game knows. "
-      + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", or \"undertaking\" only when it applies.";
+  private static final String RULES_NEW_MATTER = RULES_BODY
+      + "This person is making amends, or promising something that will take time, and no such matter yet stands "
+      + "between you. If their words truly begin one, record it: \"undertaking\": {\"op\": \"open\", "
+      + "\"summary\": \"<what is to be done, in a few words>\", \"valence\": \"positive\" for a kindness or "
+      + "\"negative\" for a wrong to right}. Most turns begin nothing - leave it out unless this one does. "
+      + SHAPE_UNDERTAKING;
+
+  /**
+   * OPEN_MATTER: a matter already stands with this person (openWith non-empty).
+   * "Open" is withheld entirely - the server coerces a stray open to advance
+   * anyway (7b's UndertakingService change), so the model's only real call is
+   * the one the server cannot make: has this settled the matter (resolve) or
+   * merely moved it (advance). Framed as that binary, with the completion-
+   * language contrast carried by the few-shots below.
+   */
+  private static final String RULES_OPEN_MATTER = RULES_BODY
+      + "A matter already stands between you and this person (named above). You are NOT opening a new one - you are "
+      + "moving it forward or settling it. If this exchange moves it along, \"undertaking\": {\"op\": \"advance\", "
+      + "\"note\": \"<what moved>\"}. If it settles the matter for good - paid in full, the promise kept, the wrong put "
+      + "right - \"undertaking\": {\"op\": \"resolve\", \"note\": \"<how it ended>\"}. If it does neither, leave "
+      + "\"undertaking\" out. You never name which matter - the game knows. "
+      + SHAPE_UNDERTAKING;
 
   /**
    * Whether the player's line plausibly opens a NEW matter - amends, a promise,
@@ -143,10 +169,19 @@ public final class PersonChatContext {
    * emitting the field looks like. One of each op, on the amends arc the schema
    * was written around.
    */
-  private static final List<FewShotExample> UNDERTAKING_EXAMPLES = List.of(
+  /** Shown when a NEW matter may open: the one worked open turn. */
+  private static final List<FewShotExample> OPEN_EXAMPLES = List.of(
       new FewShotExample("Steve says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
           "{\"say\": \"Bring back the ten wheat you took and we're square.\", "
-          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", \"valence\": \"negative\"}}"),
+          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", \"valence\": \"negative\"}}"));
+
+  /**
+   * Shown when a matter STANDS: the advance/resolve pair, chosen so the only
+   * visible difference is completion language - "four toward" (partial, advance)
+   * versus "the last of" (final, resolve). That contrast is what teaches the one
+   * distinction the server cannot derive.
+   */
+  private static final List<FewShotExample> PROGRESS_EXAMPLES = List.of(
       new FewShotExample("Steve says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
           "{\"say\": \"Four - a start. Six more and we're even.\", "
           + "\"undertaking\": {\"op\": \"advance\", \"note\": \"Four of the ten wheat brought back\"}}"),
@@ -154,13 +189,17 @@ public final class PersonChatContext {
           "{\"say\": \"Then we're square, Steve. No hard feelings.\", "
           + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"));
 
-  /** The base examples, plus the undertaking few-shots when the gate is open. */
-  private static List<FewShotExample> examplesFor(boolean undertakingGate) {
-    if (!undertakingGate) {
-      return EXAMPLES;
-    }
+  /** Which undertaking state a turn is in - drives both the rules and examples. */
+  private enum UndertakingMode { NONE, NEW_MATTER, OPEN_MATTER }
+
+  /** The base examples, plus the few-shots for the op(s) legal in this state. */
+  private static List<FewShotExample> examplesFor(UndertakingMode mode) {
     List<FewShotExample> all = new ArrayList<>(EXAMPLES);
-    all.addAll(UNDERTAKING_EXAMPLES);
+    switch (mode) {
+      case OPEN_MATTER -> all.addAll(PROGRESS_EXAMPLES);
+      case NEW_MATTER -> all.addAll(OPEN_EXAMPLES);
+      case NONE -> { }
+    }
     return all;
   }
 
@@ -232,21 +271,29 @@ public final class PersonChatContext {
     }
     system.append(". ").append(opinionLine(person, playerName, playerUUID)).append('\n');
 
-    // The undertaking tool is offered only when a matter is plausibly in play:
-    // an open one already stands with this person, or their line opens a new
-    // commitment. On any other turn the field is not even mentioned, so the
-    // model cannot reach for it (undertakings map #24). Open matters are stated
-    // so the model knows what an advance or resolve would move.
+    // The undertaking tool is offered only when a matter is plausibly in play,
+    // and then only the ops legal in the current state (undertakings map #24).
+    // A matter already standing takes precedence: the model is shown advance/
+    // resolve, never open, because the server knows one stands and coerces a
+    // stray open anyway. Only when nothing stands and the line opens a new
+    // commitment is "open" offered. On any other turn the field is not mentioned
+    // at all. Open matters are stated so an advance or resolve knows its target.
     List<UndertakingData.Undertaking> openMatters =
         person.getData(VillagelifeAttachments.UNDERTAKINGS.get()).openWith(playerUUID);
-    boolean undertakingGate = !openMatters.isEmpty() || opensACommitment(playerLine);
-    if (!openMatters.isEmpty()) {
+    UndertakingMode mode = !openMatters.isEmpty() ? UndertakingMode.OPEN_MATTER
+        : opensACommitment(playerLine) ? UndertakingMode.NEW_MATTER
+        : UndertakingMode.NONE;
+    if (mode == UndertakingMode.OPEN_MATTER) {
       system.append("Still between you and ").append(playerName).append(": ")
           .append(openMatters.stream().map(UndertakingData.Undertaking::summary)
               .collect(java.util.stream.Collectors.joining("; ")))
           .append(". If one moves forward or is settled now, mark it.\n");
     }
-    system.append(undertakingGate ? RULES_WITH_UNDERTAKING : RULES);
+    system.append(switch (mode) {
+      case OPEN_MATTER -> RULES_OPEN_MATTER;
+      case NEW_MATTER -> RULES_NEW_MATTER;
+      case NONE -> RULES;
+    });
 
     StringBuilder user = new StringBuilder();
     List<Turn> transcript = withoutRepeats(history);
@@ -259,7 +306,7 @@ public final class PersonChatContext {
     }
     user.append(playerName).append(" says: \"").append(playerLine).append("\"\nYour JSON answer:");
 
-    return new AssembledChat(system.toString(), user.toString(), examplesFor(undertakingGate));
+    return new AssembledChat(system.toString(), user.toString(), examplesFor(mode));
   }
 
   private static String tierName(Village village) {
