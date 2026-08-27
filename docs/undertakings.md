@@ -128,6 +128,16 @@ parses. Fields by op:
   *that* a thing moved, never *which record* moved.
 - `open`'s origin is PLAYER when the exchange is with the player, SELF when the
   villager raised it for themselves.
+- **`open` is coerced to `advance` when a matter with this player already
+  stands.** Which of open/advance/resolve applies is the one call a small model
+  cannot make (the audit below), and half of it is server-known: whether a matter
+  stands is `openWith`, not the model's to judge. So a stray `open` while one
+  stands folds into it as an `advance` (`UndertakingService.open`). The measured
+  consequence, accepted for v1: at most one open matter per player-pair, a second
+  promise folding into the standing one until it resolves. `MAX_OPEN` supports
+  more, but the 3B cannot tell a new matter from the same one, so one clean matter
+  beats three garbled. The prompt reinforces it by never offering `open` while a
+  matter stands (below), so the coercion is a backstop, not the common path.
 
 The same guard discipline as `give` and `opinion` applies: validated
 server-side, never trusted raw. An `op` the model invents, an `open` with no
@@ -148,14 +158,30 @@ turn is visibly about a commitment — so a prompt that always dangles
 harness counts false positives, not just hits, because over-emission is the
 failure that actually bites.
 
-The first audit (Llama-3.2-3B) bore this out and then some. UNGATED the model
-over-emitted (precision 33%); GATED it never false-fired at all (precision 100%,
-zero false fires) — the gating line justified outright. But it revealed the
-opposite problem underneath: recall of 40%, the model UNDER-noticing the moments
-to open, advance, or resolve. That is a few-shot gap, not a gating one — the
-give tool fires reliably only because it carries a worked example, and
-undertakings carry none yet. Recall is what the production EXAMPLES must buy
-back, measured by re-running `/vldev undertaking audit`.
+The audit (Llama-3.2-3B, `/vldev undertaking audit`) drove three findings in
+sequence, each fixing the last one's residue:
+
+1. **Over-emission, solved by gating.** UNGATED the model over-emitted
+   (precision 33%); GATED it never false-fired (precision 100%, zero false
+   fires). The gating line justified outright.
+2. **Under-noticing, solved by few-shots.** GATED recall was only 40%: the model
+   under-noticed the moments to act, for the same reason the give tool needed its
+   torch example. Adding worked open/advance/resolve few-shots fixed the
+   triggering: the model now reaches for the tool on nearly every amends,
+   delivery, and completion turn.
+3. **Op-confusion, split between server and prompt.** With the tool firing, the
+   3B could not tell the three ops apart: shown all three, it defaulted almost
+   everything to `open`, opening a second matter when one plainly stood. Two
+   changes answer it. The server COERCES `open`→`advance` when a matter stands
+   (above), removing that call from the model entirely. The prompt then never
+   offers `open` while a matter stands, collapsing the model's real decision to
+   the one thing the server cannot derive: has this SETTLED the matter (resolve)
+   or merely moved it (advance). The advance/resolve few-shots carry that
+   distinction in completion language ("four toward" vs "the last of").
+
+The audit scores the EFFECTIVE (post-coercion) op and mirrors the live two-state
+gate, so its number is what ships. Resolve-vs-advance is the remaining pure-prompt
+signal, and what re-running the audit now measures.
 
 ## How they surface
 

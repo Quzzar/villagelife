@@ -74,6 +74,19 @@ public final class UndertakingService {
     }
 
     private static Result open(UndertakingData data, Op op, UUID player, boolean withPlayer, long dayTime) {
+        // Coercion: when a matter with this player already stands, an "open" is the
+        // small model failing to tell a NEW matter from the SAME one - a distinction
+        // the server owns (openWith) and the 3B cannot make reliably. Route it to an
+        // advance on the standing matter; the open's summary carries the progress the
+        // model just described. The measured consequence, accepted for v1: at most one
+        // open matter per player-pair, a second promise folding into the standing one
+        // until it resolves. One clean matter beats three the model garbles. The prompt
+        // reinforces this by never offering "open" while a matter stands. See
+        // docs/undertakings.md.
+        if (withPlayer && !data.openWith(player).isEmpty()) {
+            String note = !op.note().isBlank() ? op.note() : op.summary();
+            return advance(data, new Op("advance", "", "", note, ""), player, withPlayer, dayTime);
+        }
         if (op.summary().isBlank()) {
             return Result.unchanged(data, "open with no summary");
         }

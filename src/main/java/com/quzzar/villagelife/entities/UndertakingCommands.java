@@ -112,6 +112,14 @@ public final class UndertakingCommands {
                 step.changed() && step.data().allOpen().get(0).steps().stream()
                         .anyMatch(m -> m.text().equals("Frame raised") && m.reached()));
 
+        // coercion: an "open" while a matter with this player stands folds into it as
+        // an advance, so no second matter is created and the note is recorded.
+        var coerced = UndertakingService.apply(resolved.with(r1.data().allOpen().get(0)),
+                new Op("open", "They owe me even more wheat now", "negative", "", ""), player, true, 110L);
+        check(source, pass, fail, "open coerces to advance when a player matter stands",
+                coerced.changed() && coerced.action().startsWith("advanced")
+                        && coerced.data().openWith(player).size() == 1);
+
         source.sendSuccess(() -> Component.literal(String.format(
                 "Undertaking selftest: %d passed, %d failed", pass[0], fail[0])), false);
         return fail[0] == 0 ? 1 : 0;
@@ -133,21 +141,42 @@ public final class UndertakingCommands {
      * and whether a well-behaved model SHOULD emit an op. {@code expected} is the
      * op wanted, or empty string for "no op, this turn is not about a matter".
      */
-    private record Case(String context, String playerLine, String expected, boolean gatedIn) {
+    /** Which production undertaking state this case lands in (see PersonChatContext). */
+    private enum Mode { NONE, NEW_MATTER, OPEN_MATTER }
+
+    private record Case(String context, String playerLine, String expected, boolean matterStandsWithPlayer) {
+
+        /**
+         * The state the live gate would put this turn in: a matter standing with the
+         * player wins (OPEN_MATTER), else a commitment-opening line (NEW_MATTER), else
+         * the tool is never offered (NONE). Exactly PersonChatContext.assemble's order.
+         */
+        Mode mode() {
+            if (matterStandsWithPlayer) {
+                return Mode.OPEN_MATTER;
+            }
+            return opensACommitment(playerLine) ? Mode.NEW_MATTER : Mode.NONE;
+        }
     }
 
     /**
      * The measurement prompt, kept in step with production (PersonChatContext,
-     * commit 1354aec): the base rules, the SAME undertaking clause the live
-     * gate adds, and the SAME three few-shots. Mirroring rather than importing,
-     * because PersonChatContext keeps these private; if that wording changes,
-     * this must re-sync, and the comment there and here both say so.
+     * commit 8e287b0): the two-state split the live gate uses, mirrored verbatim.
+     * The GATED pass picks a state exactly as production does (a matter stands ->
+     * OPEN_MATTER, else a commitment-opening line -> NEW_MATTER, else the field is
+     * never offered), so the number reflects what ships. The UNGATED pass offers
+     * all three ops at once, the configuration 7b measured defaulting nearly every
+     * matter to "open" - kept as the baseline the split is measured against.
+     *
+     * Mirrored, not imported, because PersonChatContext keeps these private; if that
+     * wording moves, this must re-sync, and the comment there and here both say so.
      */
     private static final String AUDIT_BASE =
             "You are a villager in a medieval village, talking to a player. Answer in character, "
             + "one or two short sentences.";
 
-    private static final String UNDERTAKING_CLAUSE =
+    /** Ungated baseline: open+advance+resolve dangled together. */
+    private static final String ALL_OPS_CLAUSE =
             " A lasting matter between you and this person can be recorded with \"undertaking\", but ONLY on the turn "
             + "it actually happens - most replies have none. When they make amends or promise something that will take "
             + "time, open it: {\"op\": \"open\", \"summary\": \"<what is to be done>\", \"valence\": "
@@ -155,15 +184,38 @@ public final class UndertakingCommands {
             + "forward, {\"op\": \"advance\", \"note\": \"<what moved>\"}. When it is settled, "
             + "{\"op\": \"resolve\", \"note\": \"<how it ended>\"}. You never name which matter.";
 
-    private static final String ANSWER_RULE =
-            " Answer with ONLY a JSON object: {\"say\": \"...\"}, adding \"undertaking\" only when it applies.";
+    /** Gated, no matter stands but the line opens one: open only (mirrors RULES_NEW_MATTER). */
+    private static final String NEW_MATTER_CLAUSE =
+            " This person is making amends, or promising something that will take time, and no such matter yet stands "
+            + "between you. If their words truly begin one, record it: \"undertaking\": {\"op\": \"open\", "
+            + "\"summary\": \"<what is to be done, in a few words>\", \"valence\": \"positive\" for a kindness or "
+            + "\"negative\" for a wrong to right}. Most turns begin nothing - leave it out unless this one does.";
 
-    private static final List<LlmService.FewShotExample> UNDERTAKING_FEWSHOTS = List.of(
+    /** Gated, a matter stands: advance/resolve only, open withheld (mirrors RULES_OPEN_MATTER). */
+    private static final String OPEN_MATTER_CLAUSE =
+            " A matter already stands between you and this person (named above). You are NOT opening a new one - you are "
+            + "moving it forward or settling it. If this exchange moves it along, \"undertaking\": {\"op\": \"advance\", "
+            + "\"note\": \"<what moved>\"}. If it settles the matter for good - paid in full, the promise kept, the wrong put "
+            + "right - \"undertaking\": {\"op\": \"resolve\", \"note\": \"<how it ended>\"}. If it does neither, leave "
+            + "\"undertaking\" out. You never name which matter - the game knows.";
+
+    private static final String SHAPE_UNDERTAKING =
+            " Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding \"undertaking\" only when it applies.";
+
+    /** The one open few-shot, shown in NEW_MATTER (mirrors OPEN_EXAMPLES). */
+    private static final List<LlmService.FewShotExample> OPEN_EXAMPLES = List.of(
             new LlmService.FewShotExample(
                     "Player says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
                     "{\"say\": \"Bring back the ten wheat you took and we're square.\", \"undertaking\": "
                     + "{\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", "
-                    + "\"valence\": \"negative\"}}"),
+                    + "\"valence\": \"negative\"}}"));
+
+    /**
+     * The advance/resolve pair, shown in OPEN_MATTER (mirrors PROGRESS_EXAMPLES).
+     * The only visible difference is completion language - "four toward" (advance)
+     * vs "the last of" (resolve) - which teaches the one call the server cannot make.
+     */
+    private static final List<LlmService.FewShotExample> PROGRESS_EXAMPLES = List.of(
             new LlmService.FewShotExample(
                     "Player says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
                     "{\"say\": \"Four - a start. Six more and we're even.\", \"undertaking\": "
@@ -173,17 +225,42 @@ public final class UndertakingCommands {
                     "{\"say\": \"Then we're square. No hard feelings.\", \"undertaking\": "
                     + "{\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"));
 
+    private static final List<LlmService.FewShotExample> ALL_UNDERTAKING_EXAMPLES;
+    static {
+        List<LlmService.FewShotExample> all = new java.util.ArrayList<>(OPEN_EXAMPLES);
+        all.addAll(PROGRESS_EXAMPLES);
+        ALL_UNDERTAKING_EXAMPLES = List.copyOf(all);
+    }
+
+    /** The commitment markers production gates NEW_MATTER on (mirrors COMMITMENT_MARKERS). */
+    private static final String[] COMMITMENT_MARKERS = {
+            "sorry", "apolog", "make it right", "make up for", "my fault", "forgive", "make amends",
+            "owe", "repay", "pay you back", "i'll get you", "i will get you", "i'll bring", "i will bring",
+            "promise", "i swear", "you have my word"
+    };
+
+    private static boolean opensACommitment(String playerLine) {
+        String line = playerLine.toLowerCase(java.util.Locale.ROOT);
+        for (String marker : COMMITMENT_MARKERS) {
+            if (line.contains(marker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
         private static final List<Case> CASES = List.of(
-            // should OPEN
+            // should OPEN (no matter stands yet). The gate needs a commitment marker
+            // in the line: "sorry" catches the first, "owe/i'll bring" the offer to help.
             new Case("The player robbed your chest yesterday and you saw them.",
-                    "I'm sorry about your chest. How can I make it up to you?", "open", true),
+                    "I'm sorry about your chest. How can I make it up to you?", "open", false),
             new Case("You are a builder short of oak for the next house.",
-                    "I could fetch you materials if you tell me what you need.", "open", true),
+                    "I'm sorry you're short. I'll bring you the oak you need.", "open", false),
             // should ADVANCE (an open matter is in play)
             new Case("Matter with this player: they owe you ten wheat for grain they took. "
                     + "So far none brought.", "Here, I've brought you four wheat toward what I owe.", "advance", true),
-            new Case("Matter you are seeing through: saving for a bigger house; the frame is up.",
-                    "How's the house coming along?", "advance", true),
+            new Case("Matter with this player: they promised you a new fence; the posts are set.",
+                    "The fence posts are all set now, rails next.", "advance", true),
             // should RESOLVE
             new Case("Matter with this player: they owe you ten wheat. They have brought nine.",
                     "Here's the last wheat — that's all ten now.", "resolve", true),
@@ -209,7 +286,8 @@ public final class UndertakingCommands {
         // yields both numbers and the delta that justifies gating.
         runPass(source, false).thenCompose(ungated ->
                 runPass(source, true).thenAccept(gated -> {
-                    StringBuilder out = new StringBuilder("\n=== undertaking audit (Llama vs the prompt) ===\n");
+                    StringBuilder out = new StringBuilder("\n=== undertaking audit (Llama vs the prompt) ===\n"
+                            + "(* = model said open, server coerced to advance because a matter stands)\n");
                     out.append(ungated.render("UNGATED (tool every turn)"));
                     out.append(gated.render("GATED   (tool only when plausible)"));
                     out.append(String.format(
@@ -263,10 +341,11 @@ public final class UndertakingCommands {
         if (wanted) {
             t.shouldFire++;
         }
-        // Gating: a turn the gate would not offer the tool cannot fire. Every
-        // gated-out case here has no wanted op, so gating it out is a correct
-        // silence; if one ever had a wanted op, this would (rightly) count a miss.
-        if (gated && !c.gatedIn()) {
+        // Gating: in the gated pass the tool is offered only in the state production
+        // would offer it. A NONE turn cannot fire, and gating it out is a correct
+        // silence; a wanted op gated out is (rightly) a miss.
+        Mode mode = c.mode();
+        if (gated && mode == Mode.NONE) {
             if (wanted) {
                 t.missed++;
             }
@@ -274,20 +353,38 @@ public final class UndertakingCommands {
                     "GATED-OUT", c.expected().isBlank() ? "(none)" : c.expected(), "(none)", c.playerLine()));
             return CompletableFuture.completedFuture(null);
         }
-        // Any turn that reaches the model here is one the tool is OFFERED on
-        // (gated-out turns returned above), so it gets the undertaking clause and
-        // the few-shots, exactly as production does when its gate is open.
-        String system = AUDIT_BASE + UNDERTAKING_CLAUSE + ANSWER_RULE;
+        // The clause and few-shots for the state this turn is in. The ungated pass
+        // offers all three ops at once (the 7b baseline); the gated pass offers only
+        // the op(s) legal in this state, exactly as production does.
+        String clause;
+        List<LlmService.FewShotExample> shots;
+        if (!gated) {
+            clause = ALL_OPS_CLAUSE;
+            shots = ALL_UNDERTAKING_EXAMPLES;
+        } else if (mode == Mode.OPEN_MATTER) {
+            clause = OPEN_MATTER_CLAUSE;
+            shots = PROGRESS_EXAMPLES;
+        } else {
+            clause = NEW_MATTER_CLAUSE;
+            shots = OPEN_EXAMPLES;
+        }
+        String system = AUDIT_BASE + clause + SHAPE_UNDERTAKING;
         String user = "Situation: " + c.context() + "\nPlayer says: \"" + c.playerLine()
                 + "\"\nYour JSON answer:";
-        return LlmService.get().submitChat(system, user, UNDERTAKING_FEWSHOTS, 96, 0.4D, 0.3D)
+        return LlmService.get().submitChat(system, user, shots, 96, 0.4D, 0.3D)
                 .thenAccept(raw -> {
                     Optional<Op> op = raw.flatMap(UndertakingCommands::opOf);
-                    if (op.isPresent()) {
+                    // Score the EFFECTIVE op, i.e. what UndertakingService.apply lands
+                    // in-world: an "open" the model emits while a matter with this
+                    // player stands is coerced to "advance" server-side, because
+                    // whether a matter stands is server-known, not the 3B's to judge.
+                    Optional<String> effective = op.map(o ->
+                            o.op().equals("open") && c.matterStandsWithPlayer() ? "advance" : o.op());
+                    if (effective.isPresent()) {
                         t.didFire++;
                         if (!wanted) {
                             t.falseFire++;
-                        } else if (op.get().op().equals(c.expected())) {
+                        } else if (effective.get().equals(c.expected())) {
                             t.correctFire++;
                         } else {
                             t.wrongOp++;
@@ -295,10 +392,11 @@ public final class UndertakingCommands {
                     } else if (wanted) {
                         t.missed++;
                     }
-                    String got = op.map(Op::op).orElse("(none)");
+                    boolean coerced = op.map(o -> o.op().equals("open") && c.matterStandsWithPlayer()).orElse(false);
+                    String got = effective.map(e -> coerced ? e + "*" : e).orElse("(none)");
                     String verdict = wanted
-                            ? (op.map(o -> o.op().equals(c.expected())).orElse(false) ? "OK" : "MISS")
-                            : (op.isPresent() ? "FALSE-FIRE" : "OK");
+                            ? (effective.map(e -> e.equals(c.expected())).orElse(false) ? "OK" : "MISS")
+                            : (effective.isPresent() ? "FALSE-FIRE" : "OK");
                     t.rows.append(String.format("  [%-10s] want %-8s got %-8s  \"%s\"\n",
                             verdict, c.expected().isBlank() ? "(none)" : c.expected(), got, c.playerLine()));
                 });
