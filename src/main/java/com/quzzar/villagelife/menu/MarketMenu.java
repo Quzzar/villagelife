@@ -39,7 +39,7 @@ public class MarketMenu extends AbstractContainerMenu {
   public static final int COST_B = 1;
   public static final int RESULT = 2;
   /** Height of the strip above the container: the villager's name and tabs. */
-  public static final int HEAD = 64;
+  public static final int HEAD = 52;
   /** Left edge of the pack, and of the right-hand column generally. */
   public static final int PACK_X = 116;
   private static final int TRADE_SLOTS = 3;
@@ -72,17 +72,17 @@ public class MarketMenu extends AbstractContainerMenu {
     // Vanilla's own coordinates, pushed down by the strip that carries the
     // villager's name and the tabs. A merchant screen has no such strip, so the
     // offset is ours; everything below it keeps MerchantMenu's spacing exactly.
-    addSlot(new Slot(trade, COST_A, PACK_X + 28, HEAD + 37));
-    addSlot(new Slot(trade, COST_B, PACK_X + 54, HEAD + 37));
-    addSlot(new MarketResultSlot(this, trade, RESULT, PACK_X + 112, HEAD + 37));
+    addSlot(new Slot(trade, COST_A, PACK_X + 28, HEAD + 30));
+    addSlot(new Slot(trade, COST_B, PACK_X + 54, HEAD + 30));
+    addSlot(new MarketResultSlot(this, trade, RESULT, PACK_X + 112, HEAD + 30));
 
     for (int row = 0; row < 3; row++) {
       for (int column = 0; column < 9; column++) {
-        addSlot(new Slot(inventory, column + row * 9 + 9, PACK_X + column * 18, HEAD + 84 + row * 18));
+        addSlot(new Slot(inventory, column + row * 9 + 9, PACK_X + column * 18, HEAD + 70 + row * 18));
       }
     }
     for (int column = 0; column < 9; column++) {
-      addSlot(new Slot(inventory, column, PACK_X + column * 18, HEAD + 142));
+      addSlot(new Slot(inventory, column, PACK_X + column * 18, HEAD + 128));
     }
 
     addSlotListener(new ContainerListener() {
