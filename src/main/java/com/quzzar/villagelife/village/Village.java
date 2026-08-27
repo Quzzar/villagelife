@@ -38,6 +38,7 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
@@ -101,8 +102,11 @@ public class Village {
   private final int CHECK_PROJECT_PROGRESS = 60; // 60 // seconds
   /** Longest a stalled village waits between planning attempts. */
   private static final int MAX_PLANNING_BACKOFF = 600; // seconds
-  /** Project-progress checks a gather gets before the village abandons it and re-plans. */
+  /** Checks a gather gets when its materials have genuinely left the village, before abandoning. */
   private static final int MAX_GATHERING_CHECKS = 15;
+  /** The hard ceiling: checks a gather gets even while its materials sit in transit, so a
+   *  delivery that never lands cannot freeze a project forever. */
+  private static final int MAX_TRANSIT_CHECKS = 60;
 
   private int time = 0;
 
@@ -491,14 +495,23 @@ public class Village {
         currentProject = null;
 
       } else if (currentProject.isGathering()) {
-        // A project stuck gathering would freeze the village: it holds a
-        // currentProject, so it plans nothing new, while its recipe never comes
-        // together (the builder died mid-trip, or the materials were traded away
-        // after the affordability check). Give the gather a generous window - big
-        // recipes take many trips - then abandon so the village can choose
-        // something it can actually carry. Any partial recipe stays in the
-        // builder's pack and counts toward whatever they gather next.
-        if (++gatheringChecks > MAX_GATHERING_CHECKS) {
+        // A gathering project holds the village - it plans nothing new while it
+        // waits - so a gather that never completes has to be abandoned. But
+        // "waiting" and "stuck" are different: a stack of logs in the
+        // quartermaster's pack on its way to the storehouse is a delivery in
+        // flight, not a missing recipe, and the builder (dormant on an empty
+        // chest) re-engages the instant it is shelved. So the clock runs slow
+        // while the materials exist SOMEWHERE in the village and fast once they
+        // are genuinely gone - traded away, or never gathered. Either way a hard
+        // ceiling abandons a project whose materials can be seen but never reach
+        // a chest, so a worker that cannot path to a delivery cannot freeze a
+        // build for good. Any partial recipe stays in the builder's pack toward
+        // whatever they gather next.
+        gatheringChecks++;
+        int cap = recipeMateriallyPossible(currentProject)
+            ? MAX_TRANSIT_CHECKS
+            : MAX_GATHERING_CHECKS;
+        if (gatheringChecks > cap) {
           Villagelife.LOGGER.info("Village '{}' abandons {}: its recipe never came together",
               name, currentProject.getBuilding().getInfo().getName());
           currentProject = null;
@@ -1229,6 +1242,57 @@ public class Village {
 
   public RealPerson getPerson(ServerLevel level, UUID entityUUID) {
     return (RealPerson) level.getEntity(entityUUID);
+  }
+
+  /**
+   * Whether the recipe for the current build still exists anywhere in the
+   * village - in its chests OR in a villager's pack - so a gather waiting on a
+   * delivery in flight is not mistaken for one whose materials are gone.
+   *
+   * Kept cheap the way the stock tally is: chests answer first, from a single
+   * sweep, and packs are only counted for the items chests could not cover.
+   * Most builds never touch the pack scan at all.
+   */
+  public boolean recipeMateriallyPossible(StructureInProgress project) {
+    if (level == null) {
+      return true; // cannot judge without a world; never abandon on a guess
+    }
+    Map<Item, Integer> inChests = brain.stockTally(level);
+    Map<Item, Integer> inPacks = null; // computed lazily, and only once
+    for (ItemStack cost : project.getBuilding().getInfo().getMaterialCost()) {
+      int have = inChests.getOrDefault(cost.getItem(), 0);
+      if (have >= cost.getCount()) {
+        continue; // the chests alone cover this one; no pack scan needed
+      }
+      if (inPacks == null) {
+        inPacks = tallyVillagerPacks();
+      }
+      if (have + inPacks.getOrDefault(cost.getItem(), 0) < cost.getCount()) {
+        return false; // genuinely short: this material has left the village
+      }
+    }
+    return true;
+  }
+
+  /** Everything the villagers are carrying, counted once - the in-transit half of stock. */
+  private Map<Item, Integer> tallyVillagerPacks() {
+    Map<Item, Integer> tally = new HashMap<>();
+    if (level == null) {
+      return tally;
+    }
+    for (UUID id : people) {
+      RealPerson person = getPerson(level, id);
+      if (person == null) {
+        continue;
+      }
+      for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
+        ItemStack stack = person.personMainInv.getItem(slot);
+        if (stack != null && !stack.isEmpty()) {
+          tally.merge(stack.getItem(), stack.getCount(), Integer::sum);
+        }
+      }
+    }
+    return tally;
   }
 
   public void removePerson(UUID personUUID) {
