@@ -317,20 +317,21 @@ public class PersonChatScreen extends Screen {
       awaitingReply = false; // let the player speak again rather than wait forever
     }
 
-    // "Name, Title" on one line, centred in the space the close button leaves
-    // rather than in the panel, and trimmed to fit: a long village name used to
-    // run straight through the X.
+    // The stall is titled like a shop, not like a person: vanilla puts the
+    // trader's name here, and the equivalent for a village market is the
+    // market itself. The villager's own name belongs on the tab where you
+    // are actually talking to them.
+    String header = tab == Tab.TRADE && offers != null && !offers.villageName().isBlank()
+        ? offers.villageName() + " Market"
+        : headerName + ", " + headerDetail;
     int headerLeft = panelLeft + 8;
-    int headerRight = panelRight - 26;
-    String detail = ", " + headerDetail;
-    int room = headerRight - headerLeft;
-    if (this.font.width(headerName + detail) > room) {
-      detail = this.font.plainSubstrByWidth(detail,
-          Math.max(0, room - this.font.width(headerName) - this.font.width(".."))) + "..";
+    int room = (panelRight - 26) - headerLeft;
+    if (this.font.width(header) > room) {
+      header = this.font.plainSubstrByWidth(header, room - this.font.width("..")) + "..";
     }
-    String header = headerName + detail;
     graphics.drawString(this.font, header,
-        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 5, TEXT_LABEL, false);
+        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 5,
+        TEXT_LABEL, false);
 
     if (tab == Tab.TRADE) {
       hoveredStack = ItemStack.EMPTY;
