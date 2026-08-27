@@ -94,6 +94,19 @@ surplus.
 | 2 | **Initiative**: the village trades on its own, with no player present |
 | 3 | **Rates**: a narrower spread, closer to fair value |
 
+**Initiative is live, and gated on a capability rather than on a level number.** A market
+grants `TRADE_INITIATIVE` and the village checks for it, which keeps the gate in the
+datapack where every other capability lives (#55) — so moving it to level 2 is a JSON edit
+and not a code change. The placeholder market carries it today, because the real market
+levels do not exist yet and a gate nothing can pass is a feature nobody can see.
+
+**What an unattended trade does.** Every five village minutes, a village with that
+capability and a staffed market weighs the legal moves and makes at most one: it sells
+genuine surplus — what it holds, less what its current project and its saved-for goal have
+already committed, less a floor it will not sell past — and it buys the one material it
+cannot otherwise afford. The rules find the moves, the brain picks among them and says why,
+and with no model the rules' own first choice stands.
+
 ## Standing
 
 Village standing is **derived from its residents' opinions**, never stored separately, so

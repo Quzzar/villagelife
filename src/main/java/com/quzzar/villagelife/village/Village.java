@@ -603,6 +603,12 @@ public class Village {
 
     }
 
+    // A village with a market it can trade from does business on its own
+    // account, unattended, at the bank's punishing rate (docs/economy.md).
+    if (time % com.quzzar.villagelife.economy.VillageTrading.TRADE_INTERVAL_SECONDS == 0) {
+      com.quzzar.villagelife.economy.VillageTrading.consider(this, level);
+    }
+
     int populationInterval = Math.max(5, com.quzzar.villagelife.configuration.VillagelifeConfig.PopulationCheckIntervalSeconds);
     if ((time + Math.floorMod(id.hashCode(), populationInterval)) % populationInterval == 0) {
       checkPopulation();
