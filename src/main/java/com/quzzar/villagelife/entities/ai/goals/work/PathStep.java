@@ -51,6 +51,7 @@ public final class PathStep implements BlockWorkStep {
   /** Fraction of a building's radius that counts as having arrived at it. */
   private static final double ARRIVAL_FRACTION = 0.4D;
 
+  private Building nearEnd;
   private Building destination;
   private boolean laying;
 
@@ -74,6 +75,7 @@ public final class PathStep implements BlockWorkStep {
     if (from == to) {
       return null; // try again next scan
     }
+    this.nearEnd = from;
     this.destination = to;
     this.laying = false;
     return BlockPos.of(from.getCenterLocation());
@@ -88,6 +90,7 @@ public final class PathStep implements BlockWorkStep {
     }
     if (arrived(person)) {
       this.laying = false;
+      this.nearEnd = null;
       this.destination = null;
       return false; // route complete; the next scan picks a fresh pair
     }
@@ -98,6 +101,7 @@ public final class PathStep implements BlockWorkStep {
   @Override
   public void released(RealPerson person, BlockPos target) {
     if (!this.laying) {
+      this.nearEnd = null;
       this.destination = null;
     }
   }
@@ -118,10 +122,17 @@ public final class PathStep implements BlockWorkStep {
     return 10;
   }
 
-  /** A builder is at a building once well inside its radius. */
+  /**
+   * A builder is at a building once well inside its radius - and which building
+   * that is depends on which half of the trip they are on. Measuring the near
+   * end against the FAR end's radius, as this did at first, means a builder
+   * setting off from a large building toward a small one has to reach a point
+   * they may not be able to stand on, never arrives, and is eventually
+   * teleported home as stranded.
+   */
   @Override
   public double reachSqr(RealPerson person) {
-    Building at = this.destination;
+    Building at = this.laying ? this.destination : this.nearEnd;
     if (at == null) {
       return 9.0D;
     }
