@@ -54,9 +54,11 @@ The blacksmith's walk to the mine's chest falls out of this for free rather than
 what actually exists ([the derivation](https://claude.ai/code/artifact/fd012989-aa95-4656-882d-24145f7a8aa7)).
 The three verbs hold. Three corrections came out of it:
 
-- **Scope is 13 classes, not 28.** Only 13 of the 30 goals are work at all (2,163 of 3,461 lines).
-  The other 17 are eating, sleeping, fleeing, strolling and fighting; they are not worker loops and
-  stay as they are.
+- **Scope is 11 classes, not 28.** Only 11 of the 30 goals are work at all. The rest are eating,
+  sleeping, fleeing, strolling and fighting; they are not worker loops and stay as they are.
+  (First counted as 13: `ArmorerRepairPersonArmorGoal` and `SearchForItemsGoal` are registered on
+  EVERY villager rather than gated on an occupation, so getting your armour mended and picking up
+  litter are personal needs rather than jobs.)
 - **`ACT` has six kinds in the code, and one is missing above.** `BREAK` (destroy a block, take
   drops), `PLACE` (put a block down, paying stock), `APPLY` (consume an item to change a target that
   survives), `CONVERT` (items to items on a timer), `CARRY` (move items between inventories), and
@@ -70,6 +72,29 @@ The three verbs hold. Three corrections came out of it:
   freeze), five that call `stop()` from `tick()` where it cannot end a goal, two that never navigate
   at all, and only six carrying the stranded-worker recovery. Build the loop skeleton first; the
   verbs are the easy half.
+
+**Built, 2026-08-27.** All eleven are now steps on a shared skeleton
+(`entities/ai/goals/work/`). 1,492 lines of hand-written goals became 1,141 lines of steps plus a
+137-line `WorkLoopGoal` written once.
+
+`WorkLoopGoal` owns TRAVEL and the whole lifecycle, and its `canUse`, `canContinueToUse`, `start`,
+`stop` and `tick` are **final** - a step cannot make the bugs the derivation found. It supplies only
+`select` and `act`, plus tuning the job definitions are meant to carry as data: reach, act cadence,
+scan interval, speed, and whether the work carries on after dark.
+
+Two variants earned their place during the port rather than being designed in advance:
+
+- **`WorkStep<T>` is generic over what a target is.** The cleric follows a patient who walks about
+  while being treated, so the loop asks the step where its target IS every tick rather than being
+  handed a position once. `BlockWorkStep` covers the nine steps whose target is a place.
+- **`actWhileTravelling`**, because laying a path is the one act that belongs to the journey rather
+  than the destination.
+
+Four defects fell out of doing it, all of them the surround rather than any act: bone meal never
+walked to its work and could not end; the lumberjack never removed the log it felled, printing
+timber forever; the miner's cursor could loop unbounded over a cave and hang the server; and the
+path-layer finished a route by calling `stop()` from inside `tick()`, which ends nothing, leaving
+the builder holding the movement flag until nightfall.
 
 **Prior art agrees, twice.** All four surveyed mods converge on acquire, travel, act, deposit
 ([research](https://github.com/Quzzar/villagelife/issues/52)). More usefully, Millenaire's own
