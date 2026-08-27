@@ -5,8 +5,12 @@ a beginning, some progress, and an end. One generic system used for everything
 from "make it up to me by bringing wheat" to "help me clear the lava in my mine"
 to "I am saving toward a bigger house."
 
-This is the design. The code does not exist yet; this doc is the shape to build
-to, and the first slice to build first.
+This is the design. The record, its persistence, the validation-and-apply, and
+a measuring harness are built (`entities/UndertakingData`, `UndertakingService`,
+`UndertakingCommands`); what remains is the production chat wiring — the
+`undertaking` field on the reply and its few-shot examples — which is the LLM
+session's lane. The schema below is locked against the code so that edit lands
+once.
 
 ## Why, and what is already here
 
@@ -143,6 +147,15 @@ turn is visibly about a commitment — so a prompt that always dangles
 "open|advance|resolve" does not invite the model to reach for it. The measuring
 harness counts false positives, not just hits, because over-emission is the
 failure that actually bites.
+
+The first audit (Llama-3.2-3B) bore this out and then some. UNGATED the model
+over-emitted (precision 33%); GATED it never false-fired at all (precision 100%,
+zero false fires) — the gating line justified outright. But it revealed the
+opposite problem underneath: recall of 40%, the model UNDER-noticing the moments
+to open, advance, or resolve. That is a few-shot gap, not a gating one — the
+give tool fires reliably only because it carries a worked example, and
+undertakings carry none yet. Recall is what the production EXAMPLES must buy
+back, measured by re-running `/vldev undertaking audit`.
 
 ## How they surface
 
