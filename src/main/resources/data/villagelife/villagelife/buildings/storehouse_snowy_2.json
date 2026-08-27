@@ -1,0 +1,63 @@
+{
+  "structure": "storehouse_snowy_2",
+  "upgrades_from": "storehouse_snowy_1",
+  "work_stations": [
+    {
+      "pos": [
+        9,
+        1,
+        7
+      ],
+      "occupation": "QUARTERMASTER"
+    }
+  ],
+  "containers": [
+    [
+      8,
+      5,
+      9
+    ],
+    [
+      8,
+      6,
+      9
+    ],
+    [
+      10,
+      5,
+      8
+    ],
+    [
+      12,
+      1,
+      6
+    ],
+    [
+      12,
+      2,
+      6
+    ],
+    [
+      14,
+      1,
+      6
+    ]
+  ],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 40
+    },
+    {
+      "item": "minecraft:stone_bricks",
+      "count": 98
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 12
+    }
+  ],
+  "grants": [
+    "STORAGE"
+  ]
+}
