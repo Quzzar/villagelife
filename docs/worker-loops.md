@@ -76,6 +76,20 @@ should stay outside:
 giving nearby guards equipment priority and a rally point. It needs no new verbs, and it explains
 why a barracks beats scattered watchtowers.
 
+## The builder builds, and between builds it makes the village walkable
+
+The BUILDER has two duties, not one. The first is construction: preparing a site, then
+placing the chosen structure block by block. The second runs whenever there is no project to
+work on — the builder picks two of the village's buildings and walks between them, turning
+the ground it crosses into dirt path, leaving crops and saplings alone. Paths are therefore
+not planned or designed. They wear in along the routes a builder actually walks, which is
+why they thicken between the buildings the village has most of and never appear at all in a
+village that has only just been founded.
+
+This is deliberately the low-priority half of the job: a village with something to build is
+always building it, and a village with nothing to build is tidying itself. It also means
+paths are the visible sign of a village that has caught up with its own plans.
+
 ## Roaming, fixed, and the shape in between
 
 **Roaming by default, fixed where a job is simpler that way.** Per job, not global.
@@ -112,7 +126,10 @@ every time a radius empties.
   compressing output would remove it.
 - **Work stops at night.** Per job, with exceptions: guards patrol, an innkeeper stays open.
   Night work is a field on the job definition, not a global rule.
-- **Unloaded chunks freeze.** A village only lives while someone is watching.
+- **Unloaded chunks freeze.** A village only lives while someone is watching. Its brain waits
+  too: a village whose ground is not loaded does not plan its next building, because no site
+  can be found in chunks that are not there and the decision would cost a model call for an
+  answer nobody could act on.
 
 **Note the disagreement on that last one.** Both actively maintained 1.21.1 references refuse to
 freeze and force-load instead. We are choosing differently on purpose: abstract simulation
