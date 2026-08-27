@@ -65,6 +65,16 @@ public class PersonChatScreen extends Screen {
    */
   private static final ResourceLocation VILLAGER_GUI =
       ResourceLocation.withDefaultNamespace("textures/gui/container/villager.png");
+  /**
+   * A vanilla trade row is a plain Button: MerchantScreen.TradeOfferButton
+   * extends Button and never overrides its rendering, which is why the rows in
+   * a villager screen are the game's own stone-grey button art. Painting a
+   * lookalike by hand is what made mine read as not-quite-Minecraft.
+   */
+  private static final ResourceLocation BUTTON =
+      ResourceLocation.withDefaultNamespace("widget/button");
+  private static final ResourceLocation BUTTON_HOVER =
+      ResourceLocation.withDefaultNamespace("widget/button_highlighted");
   private static final ResourceLocation SCROLLER =
       ResourceLocation.withDefaultNamespace("container/villager/scroller");
   private static final ResourceLocation SCROLLER_DISABLED =
@@ -75,6 +85,8 @@ public class PersonChatScreen extends Screen {
   private static final int PANEL_HEIGHT = 214;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = 58;
+  /** Where the rule under the tabs sits, measured from the panel top. */
+  private static final int TAB_RULE = 40;
   /** Width of the trades well: the buttons plus their scrollbar. */
   private static final int WELL_WIDTH = 104;
   /** Where the right-hand column (market, preview, inventory) begins. */
@@ -246,7 +258,13 @@ public class PersonChatScreen extends Screen {
     // second frame inside this one and made the two tabs look like different
     // screens; what belongs here is its CONTENTS, drawn in the same frame.
     panel(graphics, panelLeft, panelTop, panelRight, panelBottom);
-
+    if (canTrade) {
+      // The rule the tabs stand on. The active tab is drawn over it as a
+      // raised stub, so it breaks the line and reads as joined to the page.
+      int rule = panelTop + TAB_RULE;
+      graphics.fill(panelLeft + 8, rule, panelRight - 8, rule + 1, PANEL_DARK);
+      graphics.fill(panelLeft + 8, rule + 1, panelRight - 8, rule + 2, PANEL_LIGHT);
+    }
 
     if (tab != Tab.CHAT) {
       return;
@@ -513,21 +531,15 @@ public class PersonChatScreen extends Screen {
 
   private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int mouseX, int mouseY) {
     boolean hovered = mouseX >= left && mouseX < left + LIST_WIDTH
-        && mouseY >= top && mouseY < top + LIST_ROW - 1;
-    graphics.fill(left, top, left + LIST_WIDTH, top + LIST_ROW - 1, DEAL_FACE);
-    int edge = hovered ? DEAL_EDGE_HOVER : DEAL_EDGE;
-    graphics.fill(left, top, left + LIST_WIDTH, top + 1, edge);
-    graphics.fill(left, top + LIST_ROW - 2, left + LIST_WIDTH, top + LIST_ROW - 1, edge);
-    graphics.fill(left, top, left + 1, top + LIST_ROW - 1, edge);
-    graphics.fill(left + LIST_WIDTH - 1, top, left + LIST_WIDTH, top + LIST_ROW - 1, edge);
+        && mouseY >= top && mouseY < top + LIST_ROW;
+    graphics.blitSprite(hovered ? BUTTON_HOVER : BUTTON, left, top, LIST_WIDTH, LIST_ROW);
 
-    // Cost, an empty second cost, then the result: vanilla's shape, which is
-    // why the arrow sits far right rather than in the middle.
-    graphics.renderItem(deal.from(), left + 2, top + 1);
-    graphics.renderItemDecorations(this.font, deal.from(), left + 2, top + 1);
-    graphics.blitSprite(TRADE_ARROW, left + 46, top + 5, 10, 9);
-    graphics.renderItem(deal.into(), left + 68, top + 1);
-    graphics.renderItemDecorations(this.font, deal.into(), left + 68, top + 1);
+    int itemY = top + 2;
+    graphics.renderItem(deal.from(), left + 5, itemY);
+    graphics.renderItemDecorations(this.font, deal.from(), left + 5, itemY);
+    graphics.blitSprite(TRADE_ARROW, left + 55, itemY + 3, 10, 9);
+    graphics.renderItem(deal.into(), left + 68, itemY);
+    graphics.renderItemDecorations(this.font, deal.into(), left + 68, itemY);
     rowHits.add(new Row(top, left, left + LIST_WIDTH, deal.itemId(), deal.playerBuys()));
   }
 
@@ -619,15 +631,18 @@ public class PersonChatScreen extends Screen {
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
       boolean active = tab == target;
+      if (active) {
+        // The active tab is a raised stub that breaks the rule beneath it,
+        // which is how a tab says it belongs to the page below.
+        panel(graphics, getX() - 2, getY() - 3, getX() + width + 2, getY() + height + 2);
+      }
       int colour = active ? ICON_HOVER : (isHovered() ? ICON_HOVER : ICON_IDLE);
       // drawCenteredString always shadows; on a light panel that reads as
       // grime around every glyph.
       Font font = PersonChatScreen.this.font;
       graphics.drawString(font, label, getX() + (width - font.width(label)) / 2,
           getY() + 3, colour, false);
-      if (active) {
-        graphics.fill(getX(), getY() + 13, getX() + width, getY() + 14, 0xFF8FBB84);
-      }
+
     }
 
     @Override

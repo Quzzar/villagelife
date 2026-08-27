@@ -101,6 +101,11 @@ public class InstantBuildStructure {
 
     }
 
+    /** The footprint this structure will occupy, before it is given a place. */
+    public BoundingBox getBounds(){
+        return this.template.getBoundingBox(this.settings, BlockPos.ZERO);
+    }
+
     public Rotation getRotation(){
         return this.rotation;
     }

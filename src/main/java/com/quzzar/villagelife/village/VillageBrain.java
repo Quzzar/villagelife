@@ -290,6 +290,31 @@ public class VillageBrain {
     return bookkeeper.totalImpact(type);
   }
 
+  /**
+   * Forgets container positions whose block is gone: broken by a player, built
+   * over, or replaced when a building was upgraded. Every reader already skips
+   * them, so this is not a correctness fix on its own — it stops the list
+   * growing forever, and stops workers being sent to chests that are not there.
+   *
+   * Only positions in loaded chunks are judged. A container in a chunk nobody
+   * is near is not missing, it is merely out of sight, and pruning it would
+   * delete real storage the moment a village went quiet.
+   */
+  public void pruneMissingContainers(ServerLevelAccessor levelAccess) {
+    containerLocs.removeIf(longLoc -> {
+      BlockPos pos = BlockPos.of(longLoc);
+      if (!levelAccess.getLevel().hasChunkAt(pos)) {
+        return false;
+      }
+      boolean gone = !(levelAccess.getBlockEntity(pos) instanceof Container);
+      if (gone) {
+        Villagelife.LOGGER.debug("Forgetting a container at {}: nothing is there any more",
+            pos.toShortString());
+      }
+      return gone;
+    });
+  }
+
   private Container containerAt(ServerLevelAccessor levelAccess, long longLoc) {
     BlockEntity entity = levelAccess.getBlockEntity(BlockPos.of(longLoc));
     return entity instanceof Container container ? container : null;

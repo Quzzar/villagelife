@@ -308,12 +308,22 @@ public class Village {
     if (level == null || getTownCenter() == null) {
       return false;
     }
-    BlockPos near = BlockPos.of(getTownCenter().getCenterLocation()).offset(16, 0, 16);
-    BlockPos ground = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, near);
     InstantBuildStructure struct = new InstantBuildStructure(
-        new Building(buildingName, Rotation.NONE), random, level)
-        .setOriginLocation(ground, claimGrid);
-    if (!struct.buildInstantly()) {
+        new Building(buildingName, Rotation.NONE), random, level);
+
+    // The same site search a village uses for itself, rather than a fixed
+    // offset from the centre. The fixed offset dropped every dev-placed
+    // building on the same spot and ignored the claim grid entirely, so one
+    // landed inside the footprint of a project already under way and was
+    // demolished by it — taking a market's chest, and its treasury, with it.
+    BlockPos site = LocationValidator.findValidLocation(level,
+        BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random);
+    if (site.equals(BlockPos.ZERO)) {
+      Villagelife.LOGGER.info("Village '{}' has nowhere to put a {}", name, buildingName);
+      return false;
+    }
+
+    if (!struct.setOriginLocation(site, claimGrid).buildInstantly()) {
       return false;
     }
     addBuilding(struct.getBuilding());
@@ -587,6 +597,9 @@ public class Village {
     if (time % CHECK_PROJECT_PROGRESS == 0) {// Every X seconds
 
       checkCurrentProject();
+      // Chests come and go — broken, built over, replaced by an upgrade — and
+      // the village should not keep sending people to the ones that went.
+      this.brain.pruneMissingContainers(level);
 
     }
 
