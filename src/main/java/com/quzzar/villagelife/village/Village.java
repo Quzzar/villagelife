@@ -413,43 +413,64 @@ public class Village {
       BlockPos projectLocation = LocationValidator.findValidLocation(level,
           BlockPos.of(getTownCenter().getCenterLocation()).below(), bounds, this, random);
 
-      if (projectLocation != BlockPos.ZERO) {
-        // Beginning construction of new project.
-        Villagelife.LOGGER.info("Village '{}' is building {} at {}",
-            name, buildingInfo.getName(), projectLocation.toShortString());
-
-        UrbanPlanner.payForBuilding(this, project.getBuilding().getInfo());
-
-        currentProject = project.setOriginLocation(projectLocation);
-
-        // Ground the site owes before a single structure block is placed. A
-        // free site returns nothing and construction starts immediately.
-        var prep = com.quzzar.villagelife.village.buildings.SitePreparation
-            .planWork(level, this, projectLocation, bounds);
-        if (!prep.isEmpty()) {
-          currentProject.setPrepWork(prep);
-          Villagelife.LOGGER.info("Village '{}' is clearing ground for {}: {} blocks to move",
-              name, buildingInfo.getName(), prep.size());
-        }
-
-        BlockPos centerOffset = new BlockPos(bounds.getCenter().getX(), 0, bounds.getCenter().getZ());
-        currentProject.getBuilding().setCenterLocation(projectLocation.above().offset(centerOffset).asLong());
-        currentProject.getBuilding().setRadius(LocationValidator.getBuildingRadius(bounds));
-
-        for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
-          for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
-            claimGrid.add(BlockPos.asLong(projectLocation.getX() + x, 0, projectLocation.getZ() + z));
-          }
-        }
-
-        planningBackoffSeconds = 0;
-        return true;
-
-      } else {
+      if (projectLocation == BlockPos.ZERO) {
         Villagelife.LOGGER.debug("Failed to find a valid location for the new building.");
         return false;
       }
+      return beginProject(project, bounds, projectLocation);
+  }
 
+  /**
+   * Starts construction of an already-chosen building on already-chosen ground.
+   * Separate from the site search so the same path can be driven from a
+   * command: preparation only ever runs on ground the village did not pick for
+   * itself if someone asks for it, which is the only way to watch it happen on
+   * purpose rather than waiting for a village to run out of free sites.
+   */
+  public boolean startProjectAt(BuildingInfo buildingInfo, BlockPos location) {
+    if (currentProject != null || level == null) {
+      return false;
+    }
+    Building building = new Building(buildingInfo.getName(),
+        Rotation.values()[random.nextInt(Rotation.values().length)]);
+    StructureInProgress project = new StructureInProgress(building, random);
+    project.attach(level);
+    BoundingBox bounds = project.getStructureTemplate().getBoundingBox(project.getStructurePlaceSettings(),
+        BlockPos.ZERO);
+    return beginProject(project, bounds, location);
+  }
+
+  private boolean beginProject(StructureInProgress project, BoundingBox bounds, BlockPos projectLocation) {
+    BuildingInfo buildingInfo = project.getBuilding().getInfo();
+    Villagelife.LOGGER.info("Village '{}' is building {} at {}",
+        name, buildingInfo.getName(), projectLocation.toShortString());
+
+    UrbanPlanner.payForBuilding(this, buildingInfo);
+
+    currentProject = project.setOriginLocation(projectLocation);
+
+    // Ground the site owes before a single structure block is placed. A
+    // free site returns nothing and construction starts immediately.
+    var prep = com.quzzar.villagelife.village.buildings.SitePreparation
+        .planWork(level, this, projectLocation, bounds);
+    if (!prep.isEmpty()) {
+      currentProject.setPrepWork(prep);
+      Villagelife.LOGGER.info("Village '{}' is clearing ground for {}: {} blocks to move",
+          name, buildingInfo.getName(), prep.size());
+    }
+
+    BlockPos centerOffset = new BlockPos(bounds.getCenter().getX(), 0, bounds.getCenter().getZ());
+    currentProject.getBuilding().setCenterLocation(projectLocation.above().offset(centerOffset).asLong());
+    currentProject.getBuilding().setRadius(LocationValidator.getBuildingRadius(bounds));
+
+    for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
+      for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
+        claimGrid.add(BlockPos.asLong(projectLocation.getX() + x, 0, projectLocation.getZ() + z));
+      }
+    }
+
+    planningBackoffSeconds = 0;
+    return true;
   }
 
   /**

@@ -6,6 +6,8 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageManager;
+import com.quzzar.villagelife.village.buildings.BuildingInfo;
+import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureGallery;
 
@@ -66,6 +68,12 @@ public class VillagelifeCommands {
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                                 .executes(ctx -> placeBuilding(ctx.getSource(),
                                                         BlockPosArgument.getBlockPos(ctx, "pos"),
+                                                        StringArgumentType.getString(ctx, "building"))))))
+                        .then(Commands.literal("start-project")
+                                .then(Commands.argument("building", StringArgumentType.word())
+                                        .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                                .executes(ctx -> startProject(ctx.getSource(),
+                                                        BlockPosArgument.getLoadedBlockPos(ctx, "pos"),
                                                         StringArgumentType.getString(ctx, "building"))))))
                         .then(Commands.literal("capabilities")
                                 .executes(ctx -> reportCapabilities(ctx.getSource(),
@@ -167,6 +175,34 @@ public class VillagelifeCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "Placed " + building + " in '" + village.getName() + "'."), true);
+        return 1;
+    }
+
+    /**
+     * Starts a real construction project at a chosen spot: the builder prepares
+     * the ground and raises the structure exactly as it would for a site the
+     * village picked itself. A free site always beats a costed one in the
+     * village's own search, so this is the only way to watch ground being
+     * cleared without waiting for a village to run out of level ground.
+     */
+    private static int startProject(CommandSourceStack source, BlockPos pos, String building) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        BuildingInfo info = Buildings.getByName(building);
+        if (info == null) {
+            source.sendFailure(Component.literal("No building definition named '" + building + "'."));
+            return 0;
+        }
+        if (!village.startProjectAt(info, pos)) {
+            source.sendFailure(Component.literal("'" + village.getName()
+                    + "' is already building something."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "'" + village.getName() + "' has started " + building + " at " + pos.toShortString()), true);
         return 1;
     }
 
