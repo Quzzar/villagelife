@@ -265,6 +265,12 @@ public final class LlmService {
       next = personaQueue.poll();
       personaInFlight = true;
     }
+    // NOTE: this re-wraps the request rather than carrying one through, so any
+    // field added to CompletionRequest has to be added HERE too or it silently
+    // reverts to its default on the persona path only. Nothing fails loudly:
+    // the knob works in chat, does nothing in personas, and looks like a model
+    // problem. Chat reaches the provider via foregroundComplete and is not
+    // affected.
     provider.complete(new CompletionRequest(next.system(), next.user(), next.examples(),
         next.maxNewTokens(), next.temperature()))
         .whenComplete((result, error) -> {
