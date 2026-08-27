@@ -75,7 +75,7 @@ public class PersonChatScreen
   private static final int ARROW_GLYPH_W = 6;
   private static final int ARROW_GLYPH_H = 12;
   /** White in both states; the button face is what changes. */
-  private static final int SEND_ON = 0xFFFFFFFF;
+  private static final int SEND_ON = 0xFF1E1E1E;
   private static final int SEND_OFF = 0xFF9A9A9A;
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
@@ -123,7 +123,7 @@ public class PersonChatScreen
   /** Where the rule under the tabs sits, measured from the panel top. */
   private static final int TAB_RULE = 40;
   /** Width of the trades well: the buttons plus their scrollbar. */
-  private static final int WELL_WIDTH = 104;
+  private static final int WELL_WIDTH = 100;
   /** Where the right-hand column (market, preview, inventory) begins. */
   private static final int RIGHT_COLUMN = 124;
   /** The hotbar hangs below the pack, the way every Minecraft screen shows it. */
@@ -134,7 +134,7 @@ public class PersonChatScreen
   private static final int LIST_ROW = 20;
   private static final int LIST_WIDTH = 88;
   /** Rows the vanilla list shows before it must scroll. */
-  private static final int LIST_ROWS = 7;
+  private static final int LIST_ROWS = 8;
   /** Its player inventory: 3x9 from (108, 84), hotbar at y 142. */
   private static final int INV_LEFT = 108;
   private static final int INV_TOP = 84;
@@ -653,9 +653,9 @@ public class PersonChatScreen
     // the container draws a slot's CONTENTS at its position, and art placed by
     // any other rule ends up beside the items rather than under them.
     int head = com.quzzar.villagelife.menu.MarketMenu.HEAD;
-    int listLeft = panelLeft + 5;
+    int listLeft = panelLeft + 3;
     int listTop = panelTop + head;
-    int listBottom = panelTop + head + 160 + 2;
+    int listBottom = panelTop + head + 142 + 18;
     int rightLeft = panelLeft + 108;
     int rightWidth = 9 * 18;
 
@@ -681,9 +681,9 @@ public class PersonChatScreen
           panelTop + head - 12);
     }
 
-    slot(graphics, listLeft, listTop, listLeft + WELL_WIDTH, listBottom);
-    int trackLeft = listLeft + WELL_WIDTH - 10;
-    slot(graphics, trackLeft, listTop + 2, trackLeft + 8, listBottom - 2);
+    slot(graphics, listLeft, listTop - 2, listLeft + WELL_WIDTH, listBottom + 2);
+    int trackLeft = listLeft + 2 + LIST_WIDTH + 1;
+    slot(graphics, trackLeft, listTop, trackLeft + 8, listBottom);
 
     int overflow = Math.max(0, deals.size() - LIST_ROWS);
     overflowRows = overflow;
@@ -693,11 +693,11 @@ public class PersonChatScreen
     for (int i = 0; i < visible; i++) {
       Deal deal = deals.get(i + scrollOff);
       shown.add(deal);
-      drawDeal(graphics, deal, listLeft + 2, listTop + 2 + i * LIST_ROW, mouseX, mouseY,
+      drawDeal(graphics, deal, listLeft + 2, listTop + i * LIST_ROW, mouseX, mouseY,
           i + scrollOff == selected);
     }
-    int trackTop = listTop + 3;
-    int trackRun = (listBottom - 3) - trackTop - 27;
+    int trackTop = listTop + 1;
+    int trackRun = (listBottom - 1) - trackTop - 27;
     int handle = overflow == 0 ? 0 : Math.round((float) scrollOff / overflow * trackRun);
     graphics.blitSprite(overflow == 0 ? SCROLLER_DISABLED : SCROLLER,
         trackLeft + 1, trackTop + handle, 6, 27);
@@ -965,12 +965,12 @@ public class PersonChatScreen
         // until there is something to send, then it lifts into a live one.
         boolean ready = sendReveal > 0.5F;
         if (ready) {
-          graphics.blitSprite(hovered ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
-        } else {
-          // Dormant is the window's own light grey, so it recedes; waking makes
-          // it DARKER rather than lighter, which is the direction that reads as
-          // a control coming forward.
+          // Raised out of the panel once there is something to send.
           panel(graphics, getX(), getY(), getX() + width, getY() + height);
+        } else {
+          // Sunken, like the text field beside it: dormant reads as part of the
+          // input rather than as a button someone forgot to switch on.
+          slot(graphics, getX(), getY(), getX() + width, getY() + height);
         }
         // No lift. It was meant to make the arrow rise as it woke up, but the
         // offset was 2 at rest when dormant and 0 when live, so the two resting
