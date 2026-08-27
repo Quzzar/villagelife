@@ -12,7 +12,18 @@ public class WorkOnBuildingGoal extends Goal {
     
     protected final double PERCENT_INCREASE = 1.1;
 
+    /** Ticks spent walking without ever getting closer before giving up on the site. */
+    private static final int STALL_TICKS = 200;
+
+    /** How long a builder who could not reach the site leaves it alone. */
+    private static final int STAND_DOWN_TICKS = 600;
+
     private int tickCount = 0;
+
+    /** The closest the builder has come to the site on this attempt. */
+    private double closestApproachSqr = Double.MAX_VALUE;
+    private int ticksWithoutProgress = 0;
+    private int standDownUntil = 0;
 
     protected RealPerson person;
     protected BlockPos buildingPos;
@@ -29,18 +40,30 @@ public class WorkOnBuildingGoal extends Goal {
     public boolean canUse() {
         if(person.getVillage() == null) { return false; }
         if(person.getVillage().getCurrentProject() == null) { return false; }
-        if(shouldInterrupt()) { return false; }
+        if(shouldInterrupt() || standingDown()) { return false; }
         return true;
     }
 
     @Override
     public boolean canContinueToUse() {
-        return person.getVillage().getCurrentProject() != null && person.getVillage().getCurrentProject().getProgress() != BuildProgress.COMPLETE && !shouldInterrupt();
+        return person.getVillage().getCurrentProject() != null && person.getVillage().getCurrentProject().getProgress() != BuildProgress.COMPLETE && !shouldInterrupt() && !standingDown();
+    }
+
+    /**
+     * True while the builder has given up on a site they could not walk to.
+     * Holding the movement flag forever would leave them standing where they
+     * stopped: a builder who cannot reach the work has to let go of it so
+     * everything else they could be doing gets a turn.
+     */
+    private boolean standingDown() {
+        return person.tickCount < standDownUntil;
     }
 
     @Override
     public void start() {
         this.buildingPos = BlockPos.of(person.getVillage().getCurrentProject().getBuilding().getCenterLocation());
+        this.closestApproachSqr = Double.MAX_VALUE;
+        this.ticksWithoutProgress = 0;
         person.getVillage().getCurrentProject().startBuilding();
     }
 
@@ -86,8 +109,33 @@ public class WorkOnBuildingGoal extends Goal {
 
         } else {
             person.getNavigation().moveTo(buildingPos.getX(), buildingPos.getY(), buildingPos.getZ(), 0.5D);
+            trackApproach();
         }
 
+    }
+
+    /**
+     * Watches whether walking is actually getting the builder anywhere. A
+     * villager in a hole they cannot climb, or on the wrong side of water, is
+     * never reported as stuck by the navigator, because a path that was never
+     * found cannot stall: they simply stand still with a job they will never
+     * start.
+     */
+    private void trackApproach() {
+        double distanceSqr = buildingPos.distSqr(person.blockPosition());
+        if (distanceSqr < closestApproachSqr - 0.5D) {
+            closestApproachSqr = distanceSqr;
+            ticksWithoutProgress = 0;
+            return;
+        }
+        if (++ticksWithoutProgress < STALL_TICKS) {
+            return;
+        }
+        person.logIssue("I cannot get to where the new building is going.", java.util.Optional.empty());
+        Villagelife.LOGGER.debug("{} cannot reach the build site at {} and is standing down",
+                person.getFullName(), buildingPos.toShortString());
+        standDownUntil = person.tickCount + STAND_DOWN_TICKS;
+        ticksWithoutProgress = 0;
     }
 
     protected boolean shouldInterrupt(){
