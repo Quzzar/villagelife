@@ -71,47 +71,53 @@ public final class LlamaServerLauncher {
    *   Qwen2.5-3B      743ms  611ms  1142ms   1022ms    2.1G
    *   Llama-3.2-3B    766ms  580ms  1261ms   1020ms    2.0G
    *
-   * Qwen2.5-3B is the default. It and Gemma are the two that never misjudge a
-   * build decision, and of those two it answers a player roughly 130ms quicker,
-   * which is the latency a person actually feels: nobody waits on a village
-   * deciding what to build, and everybody waits on a villager replying.
+   * The table above scores whether a single reply is USABLE, and by that
+   * measure the models are close. It misses the thing a player feels most,
+   * because it looks at one turn at a time: whether a villager can hold a
+   * CONVERSATION. A follow-up ran a twelve-turn chat per model with history
+   * accumulating as the mod builds it, and scored repetition, echoing the
+   * player back, and how many distinct openings the model managed:
+   *
+   *                  distinct openings / 12   reused own opening   echoed player
+   *   Llama-3.2-3B          12                     0                   0
+   *   Gemma-2-2B            10                     2                   0
+   *   Qwen2.5-3B             2                     0                   4
+   *   Qwen2.5-1.5B           8                     4                   0
+   *
+   * Qwen2.5-3B opened "Ah, Quzzar!" on all twelve turns - the "talks in
+   * circles" failure a player hits within a minute. That is why the Qwen
+   * options were removed and Llama-3.2-3B is the default: it was the clear best
+   * at conversation, at 580ms a reply, and a near-tie on the build decision it
+   * is a hair behind on. Gemma is the one kept alternative.
    *
    * The persona column is NOT trustworthy and is kept only to show that the
    * task is the weak one for every model. It asks whether the blurb used each
-   * listed trait, which is scored by keyword and cannot recognise "a mountain
-   * of a man" as "a true giant". Hand reading the failures shows real defects
-   * underneath (Qwen2.5-1.5B rendered "never ill" as "often sick", inverting
-   * it) but the number overstates them. Scoring persona properly needs a judge
-   * model, not a word list.
+   * listed trait, scored by keyword, and cannot recognise "a mountain of a man"
+   * as "a true giant"; hand reading shows real defects underneath but the
+   * number overstates them. Scoring persona properly needs a judge model.
    *
    * Three call sites are still unmeasured: relationship SELECTION, reflection,
    * and village naming.
    */
   public static final Model GEMMA_2B = new Model(
       "bartowski/gemma-2-2b-it-GGUF", "gemma-2-2b-it-Q4_K_M.gguf", "Gemma-2-2B-it");
-  public static final Model QWEN_3B = new Model(
-      "Qwen/Qwen2.5-3B-Instruct-GGUF", "qwen2.5-3b-instruct-q4_k_m.gguf", "Qwen2.5-3B-Instruct");
-  public static final Model QWEN_1_5B = new Model(
-      "Qwen/Qwen2.5-1.5B-Instruct-GGUF", "qwen2.5-1.5b-instruct-q4_k_m.gguf", "Qwen2.5-1.5B-Instruct");
   public static final Model LLAMA_3B = new Model(
       "bartowski/Llama-3.2-3B-Instruct-GGUF", "Llama-3.2-3B-Instruct-Q4_K_M.gguf", "Llama-3.2-3B-Instruct");
 
-  /** What the config's model name may say, and what it gets. */
+  /**
+   * What the config's model name may say, and what it gets. Llama-3.2-3B is the
+   * default and the only unqualified answer: it was the clear best at holding a
+   * conversation when the four were run head to head, and a villager that talks
+   * in circles is the thing players notice first. Gemma stays as the one
+   * alternative. The Qwen options were removed - both looped their own opening
+   * line back at the player turn after turn (Aaron, in play).
+   */
   public static Model byName(String name) {
     String key = name == null ? "" : name.toLowerCase(Locale.ROOT).replace(" ", "");
-    if (key.contains("qwen") && key.contains("1.5b")) {
-      return QWEN_1_5B;
-    }
-    if (key.contains("qwen")) {
-      return QWEN_3B;
-    }
-    if (key.contains("llama")) {
-      return LLAMA_3B;
-    }
     if (key.contains("gemma")) {
       return GEMMA_2B;
     }
-    return QWEN_3B;
+    return LLAMA_3B;
   }
 
   private static final HttpClient HTTP = HttpClient.newBuilder()
