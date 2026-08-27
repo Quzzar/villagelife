@@ -52,7 +52,10 @@ footprint in blocks moved (clear, cut, fill, or impossible) using the
 the block-entity and claim protections, and the never-scan-unloaded rule. The planner's
 site search uses it gated on cost zero, so behavior is unchanged until the builder's
 prepare phase exists; rejected candidates log their price at debug, and
-`/vldev village score-site <pos> <sizeX> <sizeZ>` prints any site's bill. The resumable
+`/vldev village score-site <pos> <sizeX> <sizeZ>` prints any site's bill, and
+`/vldev village start-project <building> <pos>` begins a real project on ground you choose,
+which is the only way to watch preparation run: a village's own search always prefers a free
+site, so in ordinary terrain it never picks ground that needs clearing. The resumable
 budgeted search, the site cache, and the prepare phase itself are later slices.
 
 ## The problem this replaced
