@@ -119,6 +119,15 @@ be resolved by anyone or no one, and there is no quest state machine.
 **The job is never freed.** Returning the worker to the campfire would thrash the whole labor pool
 every time a radius empties.
 
+**Not reaching the work is its own case, and it is not the same as having nothing to do.** A
+villager at the bottom of their own village's mine has a job, materials and a destination, and
+simply cannot walk there. The navigator never calls this stuck, because a path that was never
+found cannot stall, so a worker in that state stands still forever holding a job nobody else
+will take. A worker who walks without ever getting closer therefore says so in their own log,
+lets go of the work so everything else gets a turn, and after repeated failures is brought back
+to the village center — the same recovery a lost villager already gets. Implemented for the
+BUILDER; the other work loops are [#75](https://github.com/Quzzar/villagelife/issues/75).
+
 ## Rate, night, and unloaded chunks
 
 - **Cycles stay slow and real.** A fell-replant-grow cycle takes what it takes. A village that
