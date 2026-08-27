@@ -50,7 +50,45 @@ public final class UndertakingCommands {
                 .then(Commands.literal("show")
                         .then(Commands.argument("target", net.minecraft.commands.arguments.EntityArgument.entity())
                                 .executes(c -> show(c.getSource(),
-                                        net.minecraft.commands.arguments.EntityArgument.getEntity(c, "target")))));
+                                        net.minecraft.commands.arguments.EntityArgument.getEntity(c, "target")))))
+                .then(Commands.literal("probe")
+                        .then(Commands.argument("target", net.minecraft.commands.arguments.EntityArgument.entity())
+                                .then(Commands.argument("message", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                        .executes(c -> probe(c.getSource(),
+                                                net.minecraft.commands.arguments.EntityArgument.getEntity(c, "target"),
+                                                com.mojang.brigadier.arguments.StringArgumentType.getString(c, "message"))))));
+    }
+
+    /**
+     * Builds the REAL live chat prompt ({@link com.quzzar.villagelife.chat.PersonChatContext#assemble})
+     * for a villager and player line, then shows two things the ordinary chat path
+     * hides: whether the undertaking tool was OFFERED (the gate opened) and what the
+     * model emitted RAW. Splits a missing write into a gating miss vs a model-recall
+     * miss on the full prompt, which the isolated audit cannot see.
+     */
+    private static int probe(CommandSourceStack source, net.minecraft.world.entity.Entity target, String message) {
+        if (!(target instanceof RealPerson person)) {
+            source.sendFailure(Component.literal("Target is not a villager."));
+            return 0;
+        }
+        if (!LlmService.get().isReady()) {
+            source.sendFailure(Component.literal("LLM not ready."));
+            return 0;
+        }
+        UUID tester = UUID.nameUUIDFromBytes("villagelife-tester".getBytes());
+        var chat = com.quzzar.villagelife.chat.PersonChatContext.assemble(person, "Tester", tester,
+                List.of(), message);
+        boolean offered = chat.system().toLowerCase(java.util.Locale.ROOT).contains("undertaking");
+        source.sendSuccess(() -> Component.literal("undertaking tool offered (gate open): " + offered), false);
+        LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(), 128, 0.4D, 0.3D)
+                .thenAccept(raw -> {
+                    String r = raw.orElse("(no reply)");
+                    boolean emitted = r.contains("undertaking");
+                    Villagelife.LOGGER.info("[probe] offered={} emitted={} raw={}", offered, emitted, r);
+                    source.getServer().execute(() -> source.sendSuccess(() -> Component.literal(
+                            "model emitted undertaking: " + emitted + "  |  raw: " + r), false));
+                });
+        return 1;
     }
 
     /**
