@@ -1,0 +1,22 @@
+{
+  "structure": "house_plains_1",
+  "category": "house",
+  "variant": "plains",
+  "beds": [
+    [
+      3,
+      1,
+      2
+    ]
+  ],
+  "work_stations": [],
+  "containers": [
+    [
+      2,
+      1,
+      4
+    ]
+  ],
+  "cost": [],
+  "benefits": []
+}

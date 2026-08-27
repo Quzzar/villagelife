@@ -1,0 +1,38 @@
+{
+  "structure": "house_taiga_3",
+  "category": "house",
+  "variant": "taiga",
+  "upgrades_from": "house_taiga_2",
+  "beds": [
+    [
+      2,
+      1,
+      7
+    ],
+    [
+      2,
+      5,
+      3
+    ],
+    [
+      3,
+      1,
+      2
+    ],
+    [
+      3,
+      5,
+      8
+    ]
+  ],
+  "work_stations": [],
+  "containers": [
+    [
+      4,
+      5,
+      8
+    ]
+  ],
+  "cost": [],
+  "benefits": []
+}

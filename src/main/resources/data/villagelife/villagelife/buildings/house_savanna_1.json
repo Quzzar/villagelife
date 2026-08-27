@@ -1,0 +1,22 @@
+{
+  "structure": "house_savanna_1",
+  "category": "house",
+  "variant": "savanna",
+  "beds": [
+    [
+      3,
+      1,
+      2
+    ]
+  ],
+  "work_stations": [],
+  "containers": [
+    [
+      2,
+      1,
+      4
+    ]
+  ],
+  "cost": [],
+  "benefits": []
+}

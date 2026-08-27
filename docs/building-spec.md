@@ -1,10 +1,13 @@
 # Building spec: every building, variant, level, recipe, and unlock
 
-**Proposed, not yet decided. 9 of 173 structures exist.** Reality check before reading:
+**Proposed, not yet decided. 29 of 173 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, five exist (`village_center_plains_1`,
-`storehouse_plains_1`, `well_plains_1`, `lumberjack_plains_1`, `watchtower_plains_1`), and
-**no `house` definition exists at all**, which caps every village's population at the
-center's own beds. `grants` / `grants_if` are not parsed by anything; `upgrades_from`
+`storehouse_plains_1`, `well_plains_1`, `lumberjack_plains_1`, `watchtower_plains_1`).
+`house` now ships in all five variants at levels 1 to 3 (1, 2 and 4 beds), so a village
+is no longer capped at the center's own beds. Every house carries `upgrades_from` but
+**no house has a `cost` yet**: the recipes, and the sprawl-versus-upgrade pricing the
+section below argues about, are still unset, so nothing gates building one.
+`grants` / `grants_if` are not parsed by anything; `upgrades_from`
 parses and validates but has no consumer, so no level-2 building can be reached. Several
 shipped files contradict the rules below (a level-1 church granting ENCHANTING alone, a
 watchtower with two guard stations, a storehouse with eleven containers). The footprint
