@@ -69,6 +69,10 @@ public class VillagelifeCommands {
                                                 .executes(ctx -> placeBuilding(ctx.getSource(),
                                                         BlockPosArgument.getBlockPos(ctx, "pos"),
                                                         StringArgumentType.getString(ctx, "building"))))))
+                        .then(Commands.literal("profile")
+                                .then(Commands.argument("on", com.mojang.brigadier.arguments.BoolArgumentType.bool())
+                                        .executes(ctx -> setProfiling(ctx.getSource(),
+                                                com.mojang.brigadier.arguments.BoolArgumentType.getBool(ctx, "on")))))
                         .then(Commands.literal("standing")
                                 .executes(ctx -> reportStanding(ctx.getSource(),
                                         BlockPos.containing(ctx.getSource().getPosition())))
@@ -184,6 +188,19 @@ public class VillagelifeCommands {
         }
         source.sendSuccess(() -> Component.literal(
                 "Placed " + building + " in '" + village.getName() + "'."), true);
+        return 1;
+    }
+
+    /**
+     * Turns the per-village tick profiler on or off. Off by default and it
+     * costs a branch when off: villages tick whether or not anyone is near
+     * them, so the measuring must not become the thing being measured.
+     */
+    private static int setProfiling(CommandSourceStack source, boolean on) {
+        com.quzzar.villagelife.village.VillageProfile.setEnabled(on);
+        source.sendSuccess(() -> Component.literal(on
+                ? "Village tick profiling ON. A summary lands in the log every 60 village-seconds."
+                : "Village tick profiling off."), true);
         return 1;
     }
 

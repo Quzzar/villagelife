@@ -584,34 +584,47 @@ public class Village {
   }
 
   public void update(ServerLevel level) { // Every 1 second
+    VillageProfile.tickCounted(time);
     attach(level);
 
+    long tb = VillageProfile.start();
     this.brain.update();
+    VillageProfile.end("brain bookkeeping", tb);
 
     // Recompute attractiveness every 10 seconds, phase-staggered per village so
     // many villages don't all scan their containers on the same tick.
     if (attractiveness == null || (time + Math.floorMod(id.hashCode(), 10)) % 10 == 0) {
+      long t = VillageProfile.start();
       attractiveness = computeAttractiveness();
+      VillageProfile.end("attractiveness", t);
     }
 
     if (time % CHECK_PROJECT_PROGRESS == 0) {// Every X seconds
 
+      long t = VillageProfile.start();
       checkCurrentProject();
+      VillageProfile.end("project", t);
       // Chests come and go — broken, built over, replaced by an upgrade — and
       // the village should not keep sending people to the ones that went.
+      long tp = VillageProfile.start();
       this.brain.pruneMissingContainers(level);
+      VillageProfile.end("prune containers", tp);
 
     }
 
     // A village with a market it can trade from does business on its own
     // account, unattended, at the bank's punishing rate (docs/economy.md).
     if (time % com.quzzar.villagelife.economy.VillageTrading.TRADE_INTERVAL_SECONDS == 0) {
+      long t = VillageProfile.start();
       com.quzzar.villagelife.economy.VillageTrading.consider(this, level);
+      VillageProfile.end("unattended trade", t);
     }
 
     int populationInterval = Math.max(5, com.quzzar.villagelife.configuration.VillagelifeConfig.PopulationCheckIntervalSeconds);
     if ((time + Math.floorMod(id.hashCode(), populationInterval)) % populationInterval == 0) {
+      long t = VillageProfile.start();
       checkPopulation();
+      VillageProfile.end("population", t);
 
       // Backfill the display-only village name onto residents that predate the
       // field (it is normally set at arrival).
@@ -623,9 +636,13 @@ public class Village {
       }
     }
 
+    long tt = VillageProfile.start();
     tickTravelers();
+    VillageProfile.end("travelers", tt);
 
+    long tj = VillageProfile.start();
     JobClaiming.tick(this, level);
+    VillageProfile.end("jobs", tj);
 
     // Supply-gated capabilities follow what the chests hold, so the derived set
     // is dropped periodically rather than only when buildings change.
@@ -636,13 +653,17 @@ public class Village {
     // Villagers making up their minds about what has happened to them lately.
     int reflectInterval = com.quzzar.villagelife.relationships.ReflectionService.REFLECT_INTERVAL_SECONDS;
     if ((time + Math.floorMod(id.hashCode(), reflectInterval)) % reflectInterval == 0) {
+      long t = VillageProfile.start();
       com.quzzar.villagelife.relationships.ReflectionService.tick(this, level);
+      VillageProfile.end("reflection", t);
     }
 
     // Familiarity: not a judgement, just the pull of sharing a workplace or a fire.
     int driftInterval = com.quzzar.villagelife.relationships.RelationshipDrift.DRIFT_INTERVAL_SECONDS;
     if ((time + Math.floorMod(id.hashCode(), driftInterval)) % driftInterval == 0) {
+      long t = VillageProfile.start();
       com.quzzar.villagelife.relationships.RelationshipDrift.tick(this);
+      VillageProfile.end("relationship drift", t);
     }
 
     // Every 100 seconds, phase-staggered per village like the attractiveness
