@@ -69,7 +69,6 @@ import com.quzzar.villagelife.entities.ai.goals.WorkInMineGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkAtMarketGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnBuildingGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnMakingPathsGoal;
-import com.quzzar.villagelife.entities.ai.goals.WorkOnWoodcuttingGoal;
 import com.quzzar.villagelife.other.EquipmentUpgrade;
 
 import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
@@ -893,7 +892,8 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(3, new DepositHaulGoal(this));
       this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
           new com.quzzar.villagelife.entities.ai.goals.work.BonemealStep(true)));
-      this.goalSelector.addGoal(4, new WorkOnWoodcuttingGoal(this));
+      this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
+          new com.quzzar.villagelife.entities.ai.goals.work.ChopStep()));
       this.goalSelector.addGoal(8, new ProcessItemGoal(this,
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),

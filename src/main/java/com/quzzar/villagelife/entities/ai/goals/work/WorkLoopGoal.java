@@ -88,9 +88,17 @@ public class WorkLoopGoal extends Goal {
 
   @Override
   public final void stop() {
-    this.target = null;
+    release();
     this.ticksInReach = 0;
     this.person.getNavigation().stop();
+  }
+
+  /** The one place a target is let go, so a step always hears about it. */
+  private void release() {
+    if (this.target != null) {
+      this.step.released(this.person, this.target);
+      this.target = null;
+    }
   }
 
   @Override
@@ -104,7 +112,7 @@ public class WorkLoopGoal extends Goal {
       // the navigator only calls a path stalled if it found one, and a path it
       // never found cannot stall.
       if (this.approach.giveUp(this.target)) {
-        this.target = null;
+        release();
         return;
       }
       this.person.getNavigation().moveTo(
@@ -124,7 +132,7 @@ public class WorkLoopGoal extends Goal {
       this.person.swing(this.person.getUsedItemHand());
     }
     if (!this.step.act(this.person, this.target)) {
-      this.target = null; // done with this one; canUse picks the next
+      release(); // done with this one; canUse picks the next
     }
   }
 

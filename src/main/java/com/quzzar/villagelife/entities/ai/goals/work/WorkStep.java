@@ -47,6 +47,15 @@ public interface WorkStep {
   /** What the worker calls this, for the issue they log when they cannot reach it. */
   String describe();
 
+  /**
+   * Called whenever the loop lets a target go - finished, abandoned, or the
+   * whole goal stopping. Somewhere to drop per-target state and undo anything
+   * shown to players, such as the block-cracking overlay, which otherwise
+   * stays on a block the worker walked away from.
+   */
+  default void released(RealPerson person, BlockPos target) {
+  }
+
   /** How close counts as arrived. Three blocks, which is arm's length plus slack. */
   default double reachSqr() {
     return 9.0D;
