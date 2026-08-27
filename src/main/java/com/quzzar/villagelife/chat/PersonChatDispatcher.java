@@ -43,6 +43,23 @@ public final class PersonChatDispatcher {
   // (server and worker share cores), so the cap bounds the worst-case wait.
   private static final int MAX_NEW_TOKENS = 64;
   private static final double CHAT_TEMPERATURE = 0.4D; // livelier than decide()'s 0.0; locked at the prototype
+
+  /**
+   * How hard to push the model off words it has just used.
+   *
+   * A villager's own last line is in the transcript it is asked to continue,
+   * and on a 3B at temperature 0.4 that line is the highest-probability thing
+   * to say next - so it says it again, verbatim, to any input. Aaron got the
+   * same sentence three times in a row to "What?", "I'm good" and "What?".
+   *
+   * Deliberately mild. The reply is JSON, and a large penalty would be
+   * penalising the braces and quotes the parser needs as much as the words.
+   */
+  private static final double CHAT_REPETITION_PENALTY = 0.3D;
+
+  /** Hotter and pushed harder, for the one retry after a verbatim repeat. */
+  private static final double RETRY_TEMPERATURE = 0.85D;
+  private static final double RETRY_REPETITION_PENALTY = 0.7D;
   private static final long HISTORY_EXPIRY_MS = 10 * 60 * 1000;
 
   private static final Set<UUID> IN_FLIGHT = ConcurrentHashMap.newKeySet();
@@ -183,7 +200,22 @@ public final class PersonChatDispatcher {
 
     AssembledChat chat = PersonChatContext.assemble(person, speakerName, speakerUUID, history, message);
 
-    return LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(), MAX_NEW_TOKENS, CHAT_TEMPERATURE)
+    // What the villager said last time, so an identical answer can be caught
+    // rather than shipped. The penalty above makes the lock less likely; this
+    // catches it when it happens anyway, which is the half that does not
+    // depend on a model honouring a sampling parameter.
+    String lastAnswer = history.isEmpty() ? null : history.get(history.size() - 1).villagerLine();
+
+    return ask(chat, CHAT_TEMPERATURE, CHAT_REPETITION_PENALTY)
+        .thenCompose(first -> {
+          if (!repeatsVerbatim(first, lastAnswer)) {
+            return CompletableFuture.completedFuture(first);
+          }
+          Villagelife.LOGGER.debug("{} answered exactly as they did last time; sampling once more",
+              person.getFullName());
+          return ask(chat, RETRY_TEMPERATURE, RETRY_REPETITION_PENALTY)
+              .thenApply(second -> repeatsVerbatim(second, lastAnswer) ? first : second);
+        })
         .thenApply(result -> {
           String say = null;
           String give = null;
@@ -204,6 +236,35 @@ public final class PersonChatDispatcher {
           finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion);
           return new Reply(say, give, opinion);
         });
+  }
+
+  private static CompletableFuture<Optional<String>> ask(AssembledChat chat, double temperature,
+      double penalty) {
+    return LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(),
+        MAX_NEW_TOKENS, temperature, penalty);
+  }
+
+  /**
+   * Whether a raw reply says word for word what the villager last said.
+   *
+   * Compared on the parsed "say" rather than the raw JSON, so a differing
+   * "give" or "opinion" does not disguise the same sentence, and loosely
+   * enough that trailing punctuation or capitalisation is not a difference.
+   */
+  private static boolean repeatsVerbatim(Optional<String> raw, String lastAnswer) {
+    if (raw == null || raw.isEmpty() || lastAnswer == null || lastAnswer.isBlank()) {
+      return false;
+    }
+    Reply parsed = parseReply(raw.get());
+    if (parsed == null || parsed.say() == null || parsed.say().isBlank()) {
+      return false; // unparseable is a different problem, with its own fallback
+    }
+    return flatten(parsed.say()).equals(flatten(lastAnswer));
+  }
+
+  private static String flatten(String line) {
+    return line.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9 ]", "").trim()
+        .replaceAll(" +", " ");
   }
 
   /**

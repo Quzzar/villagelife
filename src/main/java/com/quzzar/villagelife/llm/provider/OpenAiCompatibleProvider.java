@@ -134,6 +134,12 @@ public final class OpenAiCompatibleProvider implements LlmProvider {
       body.addProperty("reasoning_effort", "minimal");
     }
     body.addProperty("temperature", request.temperature());
+    // Sent only when a caller asks for it. Every other call site answers in
+    // JSON, and penalising repeated tokens there would be penalising the
+    // braces and quotes the parser needs.
+    if (request.frequencyPenalty() != 0.0D) {
+      body.addProperty("frequency_penalty", request.frequencyPenalty());
+    }
 
     return attempt(body.toString(), 0);
   }

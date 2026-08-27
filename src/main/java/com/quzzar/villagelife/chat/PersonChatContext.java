@@ -42,6 +42,38 @@ public final class PersonChatContext {
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
       + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"opinion\": <number>}.";
 
+  /**
+   * Collapses a run of turns where the villager gave the same answer down to
+   * the last of them.
+   *
+   * A small model that has said a line once is fairly likely to say it again;
+   * once the transcript shows it saying that line TWICE, it is close to
+   * certain. Measured on the live Qwen2.5-3B, with the same sentence in the
+   * transcript: once, it never repeated; twice, 2 of 4; three times, 4 of 4.
+   * That is the shape Aaron hit - a reasonable first answer, then the same
+   * sentence to everything.
+   *
+   * So the escalation is the actual defect, and it is cheaper to prevent than
+   * to sample around: the model never sees itself say the same thing twice,
+   * so the attractor cannot build. Dropping those turns loses nothing worth
+   * keeping - they are precisely the exchanges where the villager was not
+   * really answering.
+   */
+  private static List<Turn> withoutRepeats(List<Turn> history) {
+    List<Turn> kept = new ArrayList<>(history.size());
+    for (Turn turn : history) {
+      if (!kept.isEmpty() && sameAnswer(kept.get(kept.size() - 1), turn)) {
+        kept.remove(kept.size() - 1);
+      }
+      kept.add(turn);
+    }
+    return kept;
+  }
+
+  private static boolean sameAnswer(Turn a, Turn b) {
+    return a.villagerLine() != null && a.villagerLine().equalsIgnoreCase(b.villagerLine());
+  }
+
   private static final List<FewShotExample> EXAMPLES = List.of(
       new FewShotExample("Steve says: \"What did you find today?\"\nYour JSON answer:",
           "{\"say\": \"Only some wheat by the field this morning, nothing grander.\"}"),
@@ -119,9 +151,10 @@ public final class PersonChatContext {
     system.append(". ").append(opinionLine(person, playerName, playerUUID)).append('\n').append(RULES);
 
     StringBuilder user = new StringBuilder();
-    if (!history.isEmpty()) {
+    List<Turn> transcript = withoutRepeats(history);
+    if (!transcript.isEmpty()) {
       user.append("Conversation so far:\n");
-      for (Turn turn : history) {
+      for (Turn turn : transcript) {
         user.append(playerName).append(" said: \"").append(turn.playerLine()).append("\"\n");
         user.append("You answered: \"").append(turn.villagerLine()).append("\"\n");
       }

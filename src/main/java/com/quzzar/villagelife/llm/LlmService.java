@@ -198,7 +198,14 @@ public final class LlmService {
    */
   public CompletableFuture<Optional<String>> submitChat(String system, String user,
       List<FewShotExample> examples, int maxNewTokens, double temperature) {
-    return foregroundComplete(new CompletionRequest(system, user, examples, maxNewTokens, temperature));
+    return submitChat(system, user, examples, maxNewTokens, temperature, 0.0D);
+  }
+
+  /** As above, pushing the model off tokens it has just used (see PersonChatDispatcher). */
+  public CompletableFuture<Optional<String>> submitChat(String system, String user,
+      List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
+    return foregroundComplete(
+        new CompletionRequest(system, user, examples, maxNewTokens, temperature, frequencyPenalty));
   }
 
   /**

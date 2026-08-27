@@ -28,7 +28,16 @@ public interface LlmProvider {
    *                    (Anthropic's newest models) omit it
    */
   record CompletionRequest(String system, String user, List<LlmService.FewShotExample> examples,
-      int maxNewTokens, double temperature) {
+      int maxNewTokens, double temperature, double frequencyPenalty) {
+
+    /**
+     * No repetition penalty, which is what every caller but chat wants: their
+     * replies are JSON, and JSON repeats its own structural tokens by design.
+     */
+    public CompletionRequest(String system, String user, List<LlmService.FewShotExample> examples,
+        int maxNewTokens, double temperature) {
+      this(system, user, examples, maxNewTokens, temperature, 0.0D);
+    }
   }
 
   /** Begin starting up (async); safe to call repeatedly and after failure. */
