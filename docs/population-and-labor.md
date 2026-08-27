@@ -106,6 +106,38 @@ Mechanism notes:
   death dips without stalling growth; famine alone stalls; famine plus a massacre
   collapses below the decline threshold and people walk out.
 
+**The score must never be confidently wrong.** `checkPopulation` acts on a single sample
+with no hysteresis: one reading below the decline threshold emigrates a person, and no
+later correction brings them back. So every input to attractiveness carries an obligation
+that the rest of the codebase does not — it may be *stale*, but it may not be *low for the
+wrong reason*. A pass that cannot see what it is counting must say so or report what it
+last knew, never zero.
+
+This bit us for real (#65). The food count opened every village container every ten
+seconds, and `getBlockEntity` on a `ServerLevel` loads the chunk synchronously off disk
+when it is not resident: villages nobody was near were paging their own storage in from
+disk six times a minute to answer a question about mood. It was 96% of the entire village
+tick — 684 ms per minute across 22 villages, against 4.4 ms for every job and traveler
+pass combined.
+
+The obvious fix is the trap. Guarding on `hasChunkAt` and skipping what you cannot read is
+*worse than the spike*: an unseen chest counts as empty, food per capita goes to zero, the
+food component collapses, and villagers emigrate out of a well-stocked village because
+nobody happened to be standing in it. The bug is silent, it looks like famine, and nothing
+downstream can distinguish it from real famine. A performance fix wearing a correctness
+bug's clothing.
+
+What we do instead: **the village keeps books.** A container it can see is counted and the
+figure recorded against that position; a container it cannot see reports what it held when
+anyone last looked. Exact whenever the village is observed, merely stale when it is not,
+and self-correcting on every visit. Between server boot and the first time any of its
+storage is resident the ledger is genuinely empty, and a village in that window holds
+rather than deciding at all — `VillageBrain.hasReadStores`.
+
+Anyone adding a new input to attractiveness inherits this rule. The next person to find a
+synchronous chunk load in a tick loop will reach for the guard first; the guard is only
+half the fix.
+
 Arrival itself (**implemented**): on a periodic, per-village phase-staggered check, if
 attractiveness clears the grow threshold and both caps have room (counting people still
 mid-walk), the persona pipeline runs first — generate-before-spawn, a failed generation
