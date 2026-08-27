@@ -89,7 +89,11 @@ public final class UiPreview {
     }
 
     private static void openSample(Minecraft client) {
-        boolean trade = !"chat".equalsIgnoreCase(MODE) && !"typing".equalsIgnoreCase(MODE);
+        boolean trade = !"chat".equalsIgnoreCase(MODE) && !"typing".equalsIgnoreCase(MODE)
+                && !"plain".equalsIgnoreCase(MODE);
+        // "plain" is somebody with no job to offer: no tabs at all, chat only,
+        // which is what most villagers are and what had never been rendered.
+        boolean merchant = !"plain".equalsIgnoreCase(MODE);
         // "blocked" renders the trade tab with the market unable to deal.
         // Always a merchant: the tabs and the chat input only ever share a
         // screen on someone who has both, so that is the case worth seeing.
@@ -101,7 +105,8 @@ public final class UiPreview {
         }
         var inventory = client.player.getInventory();
         var menu = new com.quzzar.villagelife.menu.MarketMenu(0, inventory, 0,
-                "Fallon Moody", "Merchant of Larkspur Creek", true);
+                merchant ? "Fallon Moody" : "Bartleby Sanford",
+                merchant ? "Merchant of Larkspur Creek" : "Idle of Larkspur Creek", merchant);
         client.setScreen(new PersonChatScreen(menu, inventory,
                 net.minecraft.network.chat.Component.literal("Fallon Moody")));
         PersonChatScreen.openChat(0, List.of(
