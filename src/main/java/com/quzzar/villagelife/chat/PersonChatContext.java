@@ -84,9 +84,10 @@ public final class PersonChatContext {
   private static final String RULES_OPEN_MATTER = RULES_BODY
       + "A matter already stands between you and this person (named above). You are NOT opening a new one - you are "
       + "moving it forward or settling it. If this exchange moves it along, \"undertaking\": {\"op\": \"advance\", "
-      + "\"note\": \"<what moved>\"}. If it settles the matter for good - paid in full, the promise kept, the wrong put "
-      + "right - \"undertaking\": {\"op\": \"resolve\", \"note\": \"<how it ended>\"}. If it does neither, leave "
-      + "\"undertaking\" out. You never name which matter - the game knows. "
+      + "\"note\": \"<what moved>\"}. If it settles the matter for good, \"undertaking\": {\"op\": \"resolve\", "
+      + "\"note\": \"<how it ended>\"}. When their words mark it FINISHED - the LAST of it, the FINAL piece, the WHOLE "
+      + "amount, all of it now, the debt PAID, the task DONE - that is resolve, never advance. If it does neither, "
+      + "leave \"undertaking\" out. You never name which matter - the game knows. "
       + SHAPE_UNDERTAKING;
 
   /**
@@ -163,31 +164,39 @@ public final class PersonChatContext {
           "{\"say\": \"Take it, and mind the dark.\", \"give\": \"minecraft:torch\", \"opinion\": 2}"));
 
   /**
-   * The worked open/advance/resolve turns, shown ONLY when the undertaking gate
-   * is open. The model under-triggered without these (audit recall 40%) for the
-   * same reason the give tool needed its torch example: it had never seen what
-   * emitting the field looks like. One of each op, on the amends arc the schema
-   * was written around.
+   * Shown when a NEW matter may open: one per valence, since the audit found the
+   * 3B under-fired on open. A wrong to right (negative) and an offer of a
+   * kindness (positive), so both shapes of "this begins a matter" are seen - the
+   * offer-to-help case in particular never fired on the apology example alone.
    */
-  /** Shown when a NEW matter may open: the one worked open turn. */
   private static final List<FewShotExample> OPEN_EXAMPLES = List.of(
       new FewShotExample("Steve says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
           "{\"say\": \"Bring back the ten wheat you took and we're square.\", "
-          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", \"valence\": \"negative\"}}"));
+          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", \"valence\": \"negative\"}}"),
+      new FewShotExample("Steve says: \"I'm sorry you're short on oak. I'll bring you a stack tomorrow.\"\nYour JSON answer:",
+          "{\"say\": \"That would see my roof done. I'd be in your debt, Steve.\", "
+          + "\"undertaking\": {\"op\": \"open\", \"summary\": \"Steve to bring a stack of oak for the roof\", \"valence\": \"positive\"}}"));
 
   /**
-   * Shown when a matter STANDS: the advance/resolve pair, chosen so the only
-   * visible difference is completion language - "four toward" (partial, advance)
-   * versus "the last of" (final, resolve). That contrast is what teaches the one
-   * distinction the server cannot derive.
+   * Shown when a matter STANDS. Four turns the audit's failures shaped: a
+   * neutral turn that emits NOTHING (advance was firing on every turn once the
+   * tool was offered), a partial delivery (advance), and two completions (both
+   * resolve, one per valence). One resolve example proved too thin for the 3B to
+   * separate final from partial, so the completion pair leans hard on "the last
+   * of it", "the whole", "every rail", "done".
    */
   private static final List<FewShotExample> PROGRESS_EXAMPLES = List.of(
+      new FewShotExample("Steve says: \"Just passing through, don't mind me.\"\nYour JSON answer:",
+          "{\"say\": \"Mind yourself, Steve. The roads are dark this hour.\"}"),
       new FewShotExample("Steve says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
           "{\"say\": \"Four - a start. Six more and we're even.\", "
           + "\"undertaking\": {\"op\": \"advance\", \"note\": \"Four of the ten wheat brought back\"}}"),
-      new FewShotExample("Steve says: \"That's the last of the ten wheat.\"\nYour JSON answer:",
+      new FewShotExample("Steve says: \"Here's the last of it - that's the whole ten wheat now.\"\nYour JSON answer:",
           "{\"say\": \"Then we're square, Steve. No hard feelings.\", "
-          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"));
+          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"),
+      new FewShotExample("Steve says: \"That's your fence done - every rail back in place.\"\nYour JSON answer:",
+          "{\"say\": \"Fine work, and quicker than I'd hoped. We're square.\", "
+          + "\"undertaking\": {\"op\": \"resolve\", \"note\": \"The fence is fully mended\"}}"));
 
   /** Which undertaking state a turn is in - drives both the rules and examples. */
   private enum UndertakingMode { NONE, NEW_MATTER, OPEN_MATTER }
