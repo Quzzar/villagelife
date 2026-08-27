@@ -58,6 +58,16 @@ public class PersonChatScreen extends Screen {
   /** Typed text is white on the sunken field, with the hint a step down from it. */
   private static final int INPUT_TEXT = 0xFFFFFFFF;
   private static final int INPUT_HINT = 0xFFBCBCBC;
+  /**
+   * Where text sits inside the 20px field. An unbordered EditBox draws at
+   * getY() with no centring of its own, so this is the one number both the
+   * typed text and the hint use; they were two pixels apart before.
+   */
+  private static final int INPUT_TEXT_Y = 7;
+  /** Conversation colours, chosen for the sunken well rather than the panel. */
+  private static final int CHAT_VILLAGER = 0xFFF0F0F0;
+  private static final int CHAT_PLAYER = 0xFFA9C7F5;
+  private static final int CHAT_PENDING = 0xFFB4B4B4;
   /** The send glyph, dark on a live button and washed out on a dead one. */
   /** Six by twelve, so it divides exactly into the twenty pixel button. */
   private static final int ARROW_GLYPH_W = 6;
@@ -271,7 +281,7 @@ public class PersonChatScreen extends Screen {
     // text is centred on that box: an 8px line in a 20px box starts 6px down.
     int fieldLeft = panelLeft + 8;
     int fieldRight = panelRight - 34;
-    this.input = new EditBox(this.font, fieldLeft + 4, inputRowTop + 5, fieldRight - fieldLeft - 8, 12,
+    this.input = new EditBox(this.font, fieldLeft + 4, inputRowTop + INPUT_TEXT_Y, fieldRight - fieldLeft - 8, 12,
         Component.translatable("villagelife.chat.say"));
     this.input.setMaxLength(PersonChatMessagePacket.MAX_TEXT_LENGTH);
     this.input.setBordered(false);
@@ -311,7 +321,7 @@ public class PersonChatScreen extends Screen {
     slot(graphics, panelLeft + 8, inputRowTop, panelRight - 34, inputRowTop + 20);
     if (input != null && input.getValue().isEmpty()) {
       graphics.drawString(this.font, Component.translatable("villagelife.chat.say"),
-          panelLeft + 20, inputRowTop + 7, INPUT_HINT, true);
+          panelLeft + 20, inputRowTop + INPUT_TEXT_Y, INPUT_HINT, true);
     }
   }
 
@@ -424,17 +434,22 @@ public class PersonChatScreen extends Screen {
       return;
     }
 
-    int textWidth = panelRight - panelLeft - 28;
-    int left = panelLeft + 14;
-    int top = panelTop + (canTrade ? CHAT_TOP : 26);
-    int bottom = inputRowTop - 8;
+    // The conversation sits in a sunken well, like the trades list, so the two
+    // tabs are furnished the same way.
+    int wellLeft = panelLeft + 8;
+    int wellRight = panelRight - 8;
+    int wellTop = panelTop + (canTrade ? CHAT_TOP : 26);
+    int wellBottom = inputRowTop - 6;
+    slot(graphics, wellLeft, wellTop, wellRight, wellBottom);
 
-    // Speaker in bold, what they said in plain, and a gap between messages
-    // rather than one undifferentiated wall: a wrapped line belongs to the
-    // message above it, and should not read like a new one.
+    int textWidth = wellRight - wellLeft - 20;
+    int left = wellLeft + 6;
+    int top = wellTop + 5;
+    int bottom = wellBottom - 5;
+
     List<Line> rendered = new ArrayList<>();
     for (ChatLine line : lines) {
-      int colour = line.player() ? TEXT_PLAYER : TEXT_VILLAGER;
+      int colour = line.player() ? CHAT_PLAYER : CHAT_VILLAGER;
       Component full = Component.empty()
           .append(Component.literal(line.speaker() + ": ").withStyle(ChatFormatting.BOLD))
           .append(Component.literal(line.text()));
@@ -445,31 +460,52 @@ public class PersonChatScreen extends Screen {
       }
     }
     if (awaitingReply) {
-      rendered.add(new Line(Component.literal(headerName + " …").getVisualOrderText(),
-          TEXT_PENDING, true));
+      rendered.add(new Line(Component.literal(headerName + " ...").getVisualOrderText(),
+          CHAT_PENDING, true));
     }
 
+    // Height per line INCLUDING the gap that precedes it. Measuring capacity in
+    // bare lines ignored those gaps, so the newest lines fell off the bottom of
+    // the well: a reply could arrive and simply not be visible until something
+    // else pushed the log around.
     int step = this.font.lineHeight + LINE_GAP;
-    int visible = Math.max(1, (bottom - top) / step);
-    int overflow = Math.max(0, rendered.size() - visible);
-    chatScrollUp = Math.min(chatScrollUp, overflow);
-    chatOverflow = overflow;
-    // A conversation that fits starts at the top; one that does not shows its
-    // newest lines, which is where a reply you are waiting for arrives.
-    int startLine = Math.max(0, overflow - chatScrollUp);
+    int[] heights = new int[rendered.size()];
+    for (int i = 0; i < rendered.size(); i++) {
+      heights[i] = step + (rendered.get(i).first() && i > 0 ? MESSAGE_GAP : 0);
+    }
+    int wellRoom = bottom - top;
+    // Walk back from the newest line until the next one would not fit.
+    int firstVisible = rendered.size();
+    int used = 0;
+    while (firstVisible > 0 && used + heights[firstVisible - 1] <= wellRoom) {
+      used += heights[firstVisible - 1];
+      firstVisible--;
+    }
+    chatOverflow = firstVisible;
+    chatScrollUp = Math.min(chatScrollUp, chatOverflow);
+    int startLine = Math.max(0, firstVisible - chatScrollUp);
 
     int y = top;
-    for (int i = startLine; i < rendered.size() && y + step <= bottom + step; i++) {
-      Line line = rendered.get(i);
-      if (line.first() && i > startLine) {
+    for (int i = startLine; i < rendered.size(); i++) {
+      if (i > startLine && rendered.get(i).first()) {
         y += MESSAGE_GAP;
       }
       if (y + this.font.lineHeight > bottom) {
         break;
       }
-      graphics.drawString(this.font, line.seq(), left, y, line.colour(), false);
+      graphics.drawString(this.font, rendered.get(i).seq(), left, y, rendered.get(i).colour(), false);
       y += step;
     }
+
+    // The same scrollbar the trades list uses.
+    int trackLeft = wellRight - 10;
+    slot(graphics, trackLeft, wellTop + 2, trackLeft + 8, wellBottom - 2);
+    int trackTop = wellTop + 3;
+    int trackRun = (wellBottom - 3) - trackTop - 27;
+    int handle = chatOverflow == 0 ? 0
+        : Math.round((float) (chatOverflow - chatScrollUp) / chatOverflow * trackRun);
+    graphics.blitSprite(chatOverflow == 0 ? SCROLLER_DISABLED : SCROLLER,
+        trackLeft + 1, trackTop + handle, 6, 27);
   }
 
   /** One laid-out line of conversation. {@code first} starts a new message. */
@@ -527,6 +563,11 @@ public class PersonChatScreen extends Screen {
   private List<Deal> shown = new ArrayList<>();
   /** First trade shown, once the stall offers more than the well holds. */
   private int scrollOff;
+  /** Which trade is picked. The preview follows this, not the cursor. */
+  private int selected;
+  /** Where the result slot is this frame, since that is what completes a trade. */
+  private int resultLeft;
+  private int resultTop;
   /** Lines the conversation is scrolled back from its newest. */
   private int chatScrollUp;
   private int chatOverflow;
@@ -571,13 +612,6 @@ public class PersonChatScreen extends Screen {
       graphics.drawString(this.font, "Opening the stall...", listLeft, listTop, TEXT_PENDING, false);
       return;
     }
-    if (!marketNote.isBlank()) {
-      for (FormattedCharSequence line : this.font.split(
-          Component.literal(marketNote), panelRight - panelLeft - 16)) {
-        graphics.drawString(this.font, line, listLeft, listTop, TEXT_LABEL, false);
-      }
-      return;
-    }
 
     List<Deal> deals = new ArrayList<>();
     for (var row : offers.selling()) {
@@ -614,7 +648,8 @@ public class PersonChatScreen extends Screen {
     for (int i = 0; i < visible; i++) {
       Deal deal = deals.get(i + scrollOff);
       shown.add(deal);
-      drawDeal(graphics, deal, listLeft + 2, listTop + 2 + i * LIST_ROW, mouseX, mouseY);
+      drawDeal(graphics, deal, listLeft + 2, listTop + 2 + i * LIST_ROW, mouseX, mouseY,
+          i + scrollOff == selected);
     }
     int trackTop = listTop + 3;
     int trackRun = (listBottom - 3) - trackTop - 27;
@@ -623,15 +658,8 @@ public class PersonChatScreen extends Screen {
         trackLeft + 1, trackTop + handle, 6, 27);
 
     // The trade under the cursor, shown the way vanilla shows a selected one.
-    Deal under = null;
-    for (int i = 0; i < rowHits.size(); i++) {
-      Row row = rowHits.get(i);
-      if (mouseX >= row.left() && mouseX < row.right()
-          && mouseY >= row.y() && mouseY < row.y() + LIST_ROW) {
-        under = shown.get(i);
-        break;
-      }
-    }
+    selected = Math.min(selected, Math.max(0, deals.size() - 1));
+    Deal under = deals.isEmpty() ? null : deals.get(selected);
     int previewWidth = 18 + 8 + 18 + 8 + ARROW_W + 6 + 26;
     int previewLeft = rightLeft + (rightWidth - previewWidth) / 2;
     int previewTop = listTop + 10;
@@ -640,13 +668,23 @@ public class PersonChatScreen extends Screen {
     bigArrow(graphics, previewLeft + 52, previewTop + 2, offers.blocked());
     // The result slot is 26 wide, not 18: vanilla gives what you receive more
     // room than what it costs.
-    int resultLeft = previewLeft + previewWidth - 26;
+    resultLeft = previewLeft + previewWidth - 26;
+    resultTop = previewTop - 4;
     slot(graphics, resultLeft, previewTop - 4, resultLeft + 26, previewTop + 22);
     if (under != null) {
       graphics.renderItem(under.from(), previewLeft + 1, previewTop + 1);
       graphics.renderItemDecorations(this.font, under.from(), previewLeft + 1, previewTop + 1);
       graphics.renderItem(under.into(), resultLeft + 5, previewTop + 1);
       graphics.renderItemDecorations(this.font, under.into(), resultLeft + 5, previewTop + 1);
+    }
+
+    if (!marketNote.isBlank()) {
+      int noteY = previewTop + 26;
+      for (FormattedCharSequence line : this.font.split(
+          Component.literal(marketNote), rightWidth)) {
+        graphics.drawString(this.font, line, rightLeft, noteY, TEXT_PENDING, false);
+        noteY += this.font.lineHeight;
+      }
     }
 
     int gridLeft = rightLeft + (rightWidth - 9 * 18) / 2;
@@ -661,7 +699,8 @@ public class PersonChatScreen extends Screen {
   private record Deal(ItemStack from, ItemStack into, String itemId, boolean playerBuys) {
   }
 
-  private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int mouseX, int mouseY) {
+  private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int mouseX, int mouseY,
+      boolean chosen) {
     boolean hovered = mouseX >= left && mouseX < left + LIST_WIDTH
         && mouseY >= top && mouseY < top + LIST_ROW;
     graphics.blitSprite(hovered ? BUTTON_HOVER : BUTTON, left, top, LIST_WIDTH, LIST_ROW);
@@ -675,6 +714,10 @@ public class PersonChatScreen extends Screen {
     graphics.blitSprite(TRADE_ARROW, left + 55, itemY + 3, 10, 9);
     if (offers != null && offers.blocked()) {
       cross(graphics, left + 56, itemY + 3, 7);
+    }
+    if (chosen) {
+      // The picked row stays picked, the way a selected trade does in vanilla.
+      graphics.renderOutline(left, top, LIST_WIDTH, LIST_ROW, DEAL_EDGE_HOVER);
     }
     graphics.renderItem(deal.into(), left + 68, itemY);
     graphics.renderItemDecorations(this.font, deal.into(), left + 68, itemY);
@@ -796,9 +839,10 @@ public class PersonChatScreen extends Screen {
     @Override
     public void onPress() {
       tab = target;
-      if (input != null) {
-        input.visible = tab == Tab.CHAT;
-      }
+      // Through applyTabVisibility, never by poking one widget: setting
+      // input.visible here left the send button hidden from the moment the
+      // screen opened on Trade, and no amount of typing brought it back.
+      applyTabVisibility();
       if (target == Tab.TRADE) {
         toServer(
             com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
