@@ -144,8 +144,8 @@ public final class ChopStep implements BlockWorkStep {
         state.getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
         person.getRandom().nextFloat() * 0.4F + 0.8F);
 
-    // The log actually comes down. Straight into the pack; DepositHaulGoal
-    // walks it to the workplace container once the pack is worth a trip.
+    // The log actually comes down. Straight into the pack; HaulStep walks it to
+    // the workplace container once the pack is worth a trip.
     person.level().removeBlock(target, false);
     person.addItems(drops);
   }
