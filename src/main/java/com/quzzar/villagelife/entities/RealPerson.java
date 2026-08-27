@@ -45,6 +45,7 @@ import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.ai.goals.work.ConsolidateStep;
+import com.quzzar.villagelife.entities.ai.goals.work.GatherStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal;
 import com.quzzar.villagelife.entities.ai.goals.work.BonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.ChopStep;
@@ -886,6 +887,9 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MineStep()));
     }
     if (getOccupation() == Occupation.BUILDER) {
+      // Gathering the recipe comes before raising it; the two never run at once
+      // because they gate on the project's phase, but priority makes it plain.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new GatherStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new BuildStep()));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new PathStep()));
     }

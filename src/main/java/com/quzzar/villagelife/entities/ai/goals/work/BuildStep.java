@@ -38,6 +38,12 @@ public final class BuildStep implements BlockWorkStep {
     if (project == null || project.getProgress() == BuildProgress.COMPLETE) {
       return null;
     }
+    // While the recipe is still being gathered, this step stays dormant: the
+    // GatherStep owns the project, and acquiring here would call startBuilding()
+    // on a build that has not been paid for.
+    if (project.getProgress() == BuildProgress.GATHERING) {
+      return null;
+    }
     return BlockPos.of(project.getBuilding().getCenterLocation());
   }
 

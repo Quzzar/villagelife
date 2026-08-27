@@ -143,7 +143,10 @@ public class StructureInProgress {
 
         this.building = building;
 
-        this.progress = BuildProgress.NOT_STARTED;
+        // A project opens by gathering its recipe, not by breaking ground: no
+        // block is placed and no material is spent until the builder has the
+        // whole recipe in hand and it is consumed at commit.
+        this.progress = BuildProgress.GATHERING;
         this.index = 0;
         this.list1 = null;
         this.list2 = null;
@@ -173,13 +176,49 @@ public class StructureInProgress {
 
     }
 
-    /** Ground work this site owes before building can start. */
+    /**
+     * Ground work this site owes before building can start. Stored now but not
+     * begun: the project is still gathering its recipe, and prep waits until the
+     * materials are committed (see {@link #commitFromBuilder}).
+     */
     public void setPrepWork(SitePreparation.PrepWork work) {
         this.prepBreak = new java.util.ArrayList<>(work.toBreak());
         this.prepFill = new java.util.ArrayList<>(work.toFill());
-        if (!work.isEmpty()) {
-            this.progress = BuildProgress.PREPARING;
+    }
+
+    public boolean isGathering() {
+        return this.progress == BuildProgress.GATHERING;
+    }
+
+    /**
+     * The atomic commit. When the builder's pack holds the WHOLE recipe, consume
+     * exactly the recipe amounts and move the project on to ground work (or
+     * straight to building if the site is clear). Until then this does nothing
+     * and returns false, so a half-gathered recipe never commits and never pays.
+     *
+     * This is the only place materials are spent. A builder killed before it
+     * returns true drops what they carried and the village is no poorer for the
+     * attempt; after it returns true, construction owes nothing and any builder
+     * can finish it.
+     */
+    public boolean commitFromBuilder(net.minecraft.world.Container pack) {
+        if (this.progress != BuildProgress.GATHERING) {
+            return false;
         }
+        java.util.List<net.minecraft.world.item.ItemStack> recipe =
+                this.building.getInfo().getMaterialCost();
+        for (net.minecraft.world.item.ItemStack cost : recipe) {
+            if (com.quzzar.villagelife.Utils.getAmountOfItemType(pack, cost.getItem()) < cost.getCount()) {
+                return false; // the recipe is not all here yet
+            }
+        }
+        for (net.minecraft.world.item.ItemStack cost : recipe) {
+            com.quzzar.villagelife.Utils.removeItem(pack, cost.getItem(), cost.getCount());
+        }
+        this.progress = remainingPrepWork() > 0
+                ? BuildProgress.PREPARING
+                : BuildProgress.NOT_STARTED;
+        return true;
     }
 
     public int remainingPrepWork() {
