@@ -826,7 +826,6 @@ public class RealPerson extends Person {
 
       this.targetSelector.addGoal(3,
           new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false, this::isAngryAt));
-      // this.targetSelector.addGoal(3, new FollowLeaderHurtByTargetGoal(this));
 
       this.goalSelector.addGoal(1, new RaiseShieldGoal(this));
 
@@ -855,7 +854,6 @@ public class RealPerson extends Person {
               && com.quzzar.villagelife.wrongdoing.Standing
                   .tierOf(getVillage(), serverLevel, target.getUUID()) == com.quzzar.villagelife.wrongdoing.Standing.Tier.HOSTILE));
 
-      // this.targetSelector.addGoal(3, new FollowLeaderHurtTargetGoal(this));
       this.targetSelector.addGoal(5, new DefendOthersFromPlayerGoal(this));
 
       // Only run away to eat, if you'll join the fight again.

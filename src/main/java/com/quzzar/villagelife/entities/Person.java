@@ -99,10 +99,6 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   private static final AttributeModifier USE_ITEM_SPEED_PENALTY = new AttributeModifier(SPEED_MODIFIER_ID,
       -0.25D, AttributeModifier.Operation.ADD_VALUE);
 
-  private static final EntityDataAccessor<Optional<BlockPos>> GUARD_POS = SynchedEntityData.defineId(Person.class,
-      EntityDataSerializers.OPTIONAL_BLOCK_POS);
-  private static final EntityDataAccessor<Boolean> PATROLLING = SynchedEntityData.defineId(Person.class,
-      EntityDataSerializers.BOOLEAN);
   /** Number of skins in {@code textures/entity/person/person_N.png}. */
   public static final int SKIN_VARIANT_COUNT = 7;
 
@@ -118,11 +114,6 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       EntityDataSerializers.BOOLEAN);
   private static final EntityDataAccessor<Boolean> EATING = SynchedEntityData.defineId(Person.class,
       EntityDataSerializers.BOOLEAN);
-  private static final EntityDataAccessor<Boolean> FOLLOWING = SynchedEntityData.defineId(Person.class,
-      EntityDataSerializers.BOOLEAN);
-  protected static final EntityDataAccessor<Optional<UUID>> FOLLOW_LEADER_UUID = SynchedEntityData.defineId(
-      Person.class,
-      EntityDataSerializers.OPTIONAL_UUID);
 
   private static final Map<Pose, EntityDimensions> SIZE_BY_POSE = ImmutableMap.<Pose, EntityDimensions>builder()
       .put(Pose.STANDING, EntityDimensions.scalable(0.6F, 1.95F).withEyeHeight(1.62F))
@@ -203,16 +194,6 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     super.doPush(entityIn);
   }
 
-  @Nullable
-  public void setPatrolPos(BlockPos position) {
-    this.entityData.set(GUARD_POS, Optional.ofNullable(position));
-  }
-
-  @Nullable
-  public BlockPos getPatrolPos() {
-    return this.entityData.get(GUARD_POS).orElse((BlockPos) null);
-  }
-
   @Override
   protected SoundEvent getAmbientSound() {
     return null;
@@ -266,14 +247,6 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   @Override
   public void readAdditionalSaveData(CompoundTag compound) {
     super.readAdditionalSaveData(compound);
-    UUID uuid = compound.hasUUID("Owner") ? compound.getUUID("Owner") : null;
-    if (uuid != null) {
-      try {
-        this.setFollowLeaderUUID(uuid);
-      } catch (Throwable throwable) {
-        this.setFollowLeaderUUID(null);
-      }
-    }
     if (compound.contains("SkinVariant")) {
       this.setSkinVariant(compound.getInt("SkinVariant"));
     } else {
@@ -281,22 +254,13 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       // every pre-existing villager wearing skin 0.
       this.setSkinVariant(this.random.nextInt(SKIN_VARIANT_COUNT));
     }
-    this.setFollowing(compound.getBoolean("Following"));
     this.guiOpen = compound.getBoolean("GuiOpen");
     this.immobile = compound.getBoolean("Immobile");
     this.setEating(compound.getBoolean("Eating"));
-    this.setPatrolling(compound.getBoolean("Patrolling"));
     this.setRunningToEat(compound.getBoolean("RunningToEat"));
     this.setInterrupted(compound.getBoolean("Interrupted"));
     this.shieldCoolDown = compound.getInt("ShieldCooldown");
     this.setDaysSinceSleep(compound.getInt("DaysSinceSleep"));
-    if (compound.contains("PatrolPosX")) {
-      int x = compound.getInt("PatrolPosX");
-      int y = compound.getInt("PatrolPosY");
-      int z = compound.getInt("PatrolPosZ");
-      this.entityData.set(GUARD_POS, Optional.ofNullable(new BlockPos(x, y, z)));
-    }
-
     ListTag listnbt = compound.getList("Inventory", 10);
     for (int i = 0; i < listnbt.size(); ++i) {
       CompoundTag compoundnbt = listnbt.getCompound(i);
@@ -349,17 +313,12 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     }
     compound.putInt("SkinVariant", this.getSkinVariant());
     compound.putInt("ShieldCooldown", this.shieldCoolDown);
-    compound.putBoolean("Following", this.isFollowing());
     compound.putBoolean("GuiOpen", this.guiOpen);
     compound.putBoolean("Immobile", this.immobile);
     compound.putBoolean("Eating", this.isEating());
-    compound.putBoolean("Patrolling", this.isPatrolling());
     compound.putBoolean("RunningToEat", this.isRunningToEat());
     compound.putBoolean("Interrupted", this.isInterrupted());
     compound.putInt("DaysSinceSleep", this.getDaysSinceSleep());
-    if (this.getFollowLeaderUUID() != null) {
-      compound.putUUID("FollowLeader", this.getFollowLeaderUUID());
-    }
 
     ListTag listnbt = new ListTag();
     for (int i = 0; i < this.personEquipInv.getContainerSize(); ++i) {
@@ -385,35 +344,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     }
     compound.put("MainInventory", mainlistnbt);
 
-    if (this.getPatrolPos() != null) {
-      compound.putInt("PatrolPosX", this.getPatrolPos().getX());
-      compound.putInt("PatrolPosY", this.getPatrolPos().getY());
-      compound.putInt("PatrolPosZ", this.getPatrolPos().getZ());
-    }
     this.addPersistentAngerSaveData(compound);
-  }
-
-  @Nullable
-  public LivingEntity getFollowLeader() {
-    try {
-      UUID uuid = this.getFollowLeaderUUID();
-      return uuid == null ? null : this.level().getPlayerByUUID(uuid);
-    } catch (IllegalArgumentException illegalargumentexception) {
-      return null;
-    }
-  }
-
-  public boolean isFollowLeader(LivingEntity entityIn) {
-    return entityIn == this.getFollowLeader();
-  }
-
-  @Nullable
-  public UUID getFollowLeaderUUID() {
-    return this.entityData.get(FOLLOW_LEADER_UUID).orElse(null);
-  }
-
-  public void setFollowLeaderUUID(@Nullable UUID leaderUUID) {
-    this.entityData.set(FOLLOW_LEADER_UUID, Optional.ofNullable(leaderUUID));
   }
 
   @Override
@@ -560,11 +491,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     super.defineSynchedData(builder);
     builder.define(SKIN_VARIANT, 0);
     builder.define(DATA_CHARGING_STATE, false);
-    builder.define(FOLLOW_LEADER_UUID, Optional.empty());
     builder.define(EATING, false);
-    builder.define(FOLLOWING, false);
-    builder.define(GUARD_POS, Optional.empty());
-    builder.define(PATROLLING, false);
     builder.define(RUNNING_TO_EAT, false);
     builder.define(INTERRUPTED, false);
     builder.define(DAYS_SINCE_SLEEP, 0);
@@ -740,18 +667,9 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     return Utils.isFullContainer(this.personMainInv);
   }
 
-  public boolean isFollowing() {
-    return this.entityData.get(FOLLOWING);
-  }
-
-  public void setFollowing(boolean following) {
-    this.entityData.set(FOLLOWING, following);
-  }
-
   @Override
   public boolean canAttack(LivingEntity target) {
-    return !this.isFollowLeader(target)
-        && !(target instanceof Person)
+    return !(target instanceof Person)
         && super.canAttack(target);
   }
 
@@ -837,14 +755,6 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
 
   public void setEating(boolean eating) {
     this.entityData.set(EATING, eating);
-  }
-
-  public boolean isPatrolling() {
-    return this.entityData.get(PATROLLING);
-  }
-
-  public void setPatrolling(boolean patrolling) {
-    this.entityData.set(PATROLLING, patrolling);
   }
 
   public boolean isRunningToEat() {

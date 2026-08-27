@@ -105,8 +105,7 @@ public class RangedBowAttackPassiveGoal<T extends RealPerson & RangedAttackMob> 
                 } else if (d0 < (double) (this.maxAttackDistance * 0.25F)) {
                     this.strafingBackwards = true;
                 }
-                if (entity.getPatrolPos() == null)
-                    this.entity.getMoveControl().strafe(this.strafingBackwards ? -0.5F : 0.5F, this.strafingClockwise ? 0.5F : -0.5F);
+                this.entity.getMoveControl().strafe(this.strafingBackwards ? -0.5F : 0.5F, this.strafingClockwise ? 0.5F : -0.5F);
                 this.entity.lookAt(livingentity, 30.0F, 30.0F);
             }
             this.entity.lookAt(livingentity, 30.0F, 30.0F);
