@@ -18,10 +18,15 @@ import net.minecraft.core.UUIDUtil;
  * wired separately, so the record can be built and tested before the LLM seam
  * is agreed.
  *
- * The whole design rests on one division of labour: the model may PROPOSE an
- * op (open, advance, resolve), but the SERVER owns every count. "Bring ten
- * wheat" advances when the game sees wheat arrive, never when the model claims
- * it did, because a small model cannot be trusted to hold a tally.
+ * The system is generic on purpose, so it is driven ENTIRELY through the model:
+ * the model opens a matter, and the model advances and resolves it, from what it
+ * sees in conversation. There is no game-side counter watching for wheat, because
+ * an undertaking can be about anything the game cannot observe (a truce, a wait,
+ * a change of heart). Progress is qualitative, not a tally: milestones the model
+ * marks reached, or a plain note it sets. What keeps a small model honest is not
+ * the game keeping the count, but the count being PERSISTED between turns: the
+ * model reads the stored progress from its briefing, updates it from what just
+ * happened, and writes it back, rather than holding a running total in its head.
  */
 public record UndertakingData(List<Undertaking> undertakings) {
 
@@ -55,9 +60,9 @@ public record UndertakingData(List<Undertaking> undertakings) {
      * @param origin    who raised it
      * @param summary   the villager's own one sentence
      * @param withWhom  the player or villager it concerns, if any
-     * @param steps     ordered milestones; empty for a stepless matter
-     * @param progress  index of the last reached step, or a 0..100 count when stepless
-     * @param target    stepless goal amount (10 wheat, 60 emeralds); 0 when milestoned
+     * @param steps     ordered milestones the model marks reached; empty for a stepless matter
+     * @param progressNote free text the model keeps for a stepless matter ("four of ten brought"),
+     *                     since the game cannot count an arbitrary undertaking; empty when milestoned
      * @param resolution one sentence, filled only when it ends
      * @param openedDay  level day-time when it began
      * @param updatedDay level day-time it last moved
@@ -70,8 +75,7 @@ public record UndertakingData(List<Undertaking> undertakings) {
             String summary,
             Optional<UUID> withWhom,
             List<Milestone> steps,
-            int progress,
-            int target,
+            Optional<String> progressNote,
             Optional<String> resolution,
             long openedDay,
             long updatedDay) {
@@ -84,8 +88,7 @@ public record UndertakingData(List<Undertaking> undertakings) {
                 Codec.STRING.fieldOf("summary").forGetter(Undertaking::summary),
                 UUIDUtil.STRING_CODEC.optionalFieldOf("with").forGetter(Undertaking::withWhom),
                 Milestone.CODEC.listOf().optionalFieldOf("steps", List.of()).forGetter(Undertaking::steps),
-                Codec.INT.optionalFieldOf("progress", 0).forGetter(Undertaking::progress),
-                Codec.INT.optionalFieldOf("target", 0).forGetter(Undertaking::target),
+                Codec.STRING.optionalFieldOf("progress_note").forGetter(Undertaking::progressNote),
                 Codec.STRING.optionalFieldOf("resolution").forGetter(Undertaking::resolution),
                 Codec.LONG.fieldOf("opened_day").forGetter(Undertaking::openedDay),
                 Codec.LONG.fieldOf("updated_day").forGetter(Undertaking::updatedDay)
@@ -95,14 +98,18 @@ public record UndertakingData(List<Undertaking> undertakings) {
             return state == State.OPEN || state == State.ACTIVE;
         }
 
-        /** 0..1 for a progress bar, whether the matter is stepless or milestoned. */
-        public float fraction() {
-            if (!steps.isEmpty()) {
-                long reached = steps.stream().filter(Milestone::reached).count();
-                return steps.isEmpty() ? 0F : (float) reached / steps.size();
+        /**
+         * How far along, for a milestoned matter only. A stepless matter has no
+         * numeric fraction, because there is nothing to divide - its progress is
+         * the {@link #progressNote}, in words, which is the price of the system
+         * being generic over things the game cannot count.
+         */
+        public Optional<Float> milestoneFraction() {
+            if (steps.isEmpty()) {
+                return Optional.empty();
             }
-            return target <= 0 ? (state == State.RESOLVED ? 1F : 0F)
-                    : Math.min(1F, (float) progress / target);
+            long reached = steps.stream().filter(Milestone::reached).count();
+            return Optional.of((float) reached / steps.size());
         }
     }
 

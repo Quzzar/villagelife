@@ -39,7 +39,7 @@ Undertaking(
   String summary,          // one sentence, the villager's own words
   Optional<UUID> withWhom, // the player or villager it concerns, if any
   List<Milestone> steps,   // ordered progress markers; may be empty
-  int progress,            // index into steps, or a 0..100 count when stepless
+  Optional<String> progressNote, // words, for a stepless matter the game can't count
   Origin origin,           // SELF, EVENT, or PLAYER — who raised it
   long openedDayTime,      // level.getDayTime() when it began
   long updatedDayTime,     // last time it moved
@@ -52,10 +52,11 @@ Milestone(String text, boolean reached)
 - **Valence** is not the same as state. A NEGATIVE undertaking that RESOLVES is
   a wrong made right; a POSITIVE one that ABANDONS is a hope let go. The two
   axes are independent and both feed mood and conversation.
-- **Milestones** are optional. "Bring ten wheat" is stepless: `progress` is a
-  0..100 measure (0, then 100 on delivery). "Build the new house" has ordered
-  steps and `progress` is the index of the last reached one. One record serves
-  both; a stepless undertaking just has an empty `steps` list.
+- **Milestones** are optional and model-marked. "Build the new house" has
+  ordered steps the model ticks off as it makes headway. "Bring ten wheat" is
+  stepless: its progress is a `progressNote` in the villager's own words, which
+  the model updates. One record serves both; a stepless undertaking just has an
+  empty `steps` list and leans on the note. Neither is a number the game keeps.
 - **Origin** records who raised it, which the prompt and the UI both use:
   SELF (the villager set it themselves), EVENT (the world created it, e.g. a
   cave-in), PLAYER (it arose from something the player did).
@@ -86,8 +87,14 @@ Three origins, one record:
    bookkeeping can also open an undertaking on the villager who experienced it:
    a miner trapped by lava, a builder blocked with no materials. These reuse the
    existing `bookkeeping/` event classes as their trigger.
-3. **The player's actions** advance and resolve, but do not directly create —
-   the player's part is to move a matter a villager or an event raised.
+3. **The player's actions** are what the model observes and reports on — the
+   player's part is to do the thing, and the villager (via the model) notices
+   and updates. The player never edits an undertaking directly.
+
+A specific undertaking could later be wired to a game event that auto-advances
+it — a "clear the lava" matter resolving when the lava is gone. That is an
+optional hook for one case, layered on top, NOT how the generic system works.
+The core is model-driven, and stays that way.
 
 ## The LLM tool contract
 
@@ -113,10 +120,18 @@ server-side, never trusted raw. An `op` the model invents, or a resolve with no
 matching open undertaking, is dropped the way an out-of-range opinion is
 clamped. The model proposes; the server decides.
 
-Crucially, the model does not track progress itself — that is the bug the
-chat-repetition work already taught us about small models. The **server** owns
-the count. "Bring ten wheat" advances when the player hands over wheat, detected
-by the game, not when the model claims it did.
+The model drives every op, because the system is generic and the game cannot
+count an arbitrary matter. The small-model risk is therefore NOT that it fails
+to keep a tally — it is that it OVER-emits: opening or resolving an undertaking
+on a mundane turn where nothing was undertaken, the same way the give tool once
+handed out diamonds unprompted. Two guards answer that. First, the count lives
+in the persisted `progressNote`, not the model's memory, so a missed turn does
+not lose progress. Second, the undertaking field is only offered in the prompt
+when one is plausible — there is an open matter to advance or resolve, or the
+turn is visibly about a commitment — so a prompt that always dangles
+"open|advance|resolve" does not invite the model to reach for it. The measuring
+harness counts false positives, not just hits, because over-emission is the
+failure that actually bites.
 
 ## How they surface
 
@@ -157,15 +172,18 @@ The anchoring case, built end to end before anything else:
    the player, Origin PLAYER.
 3. It persists, and the next time the player opens chat, the villager's briefing
    carries it: they mention the outstanding debt unprompted.
-4. The player hands over wheat (the existing give-detection, in reverse — the
-   server notices the item arriving). The server advances `progress` toward 100.
-5. At ten wheat, the server resolves it, fills `resolution`, and raises the
-   player's standing through the opinion system. The villager, next chat, is
-   square with them and says so.
+4. The player hands over wheat and says so in the conversation. The model,
+   seeing this, emits `advance` and updates the note ("four of the ten"). The
+   note persists, so next visit the villager knows where things stand.
+5. When the debt is met, the model emits `resolve`, which fills `resolution`
+   and raises the player's standing through the opinion system. The villager,
+   next chat, is square with them and says so.
 
 This slice exercises every part of the generic model once — open, advance,
-resolve, valence, origin, the tool, the chat surface, the standing effect — so
-the shape is proven before it is generalised to the rescue and self-goal cases.
+resolve, valence, origin, the tool, the chat surface, the standing effect — all
+driven through the model, so the thing the whole feature rests on (does the
+model reliably emit the op at the right moment, and NOT at the wrong one) is
+measured on the simplest case before the rescue and self-goal cases are added.
 
 ## Out of scope for the first build
 
