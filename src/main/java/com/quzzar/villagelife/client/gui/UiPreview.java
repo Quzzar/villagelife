@@ -50,6 +50,9 @@ public final class UiPreview {
 
     private static int ticks = -1;
     private static boolean shot;
+    private static boolean revealFired;
+    /** Fire the reveal 26 ticks before the shot, so it is caught mid-type. */
+    private static final int REVEAL_FIRE_TICK = 14;
 
     private UiPreview() {
     }
@@ -78,6 +81,15 @@ public final class UiPreview {
         if (!(client.screen instanceof PersonChatScreen)) {
             openSample(client);
         }
+        // A fresh reply reveals character by character, and the history path
+        // shows it whole, so the only way to photograph it mid-reveal is to
+        // fire one and shoot before it finishes. onReply at tick 14, shot at
+        // 40: about 1.3s of reveal, well inside a long line.
+        if ("reveal".equalsIgnoreCase(MODE) && ticks == REVEAL_FIRE_TICK && !revealFired) {
+            revealFired = true;
+            PersonChatScreen.onReply(0, "Aye, and the north road's been thick with bandits "
+                    + "since the frost broke, so mind yourself past the old mill.");
+        }
         if (++ticks < SETTLE_TICKS) {
             return;
         }
@@ -90,7 +102,7 @@ public final class UiPreview {
 
     private static void openSample(Minecraft client) {
         boolean trade = !"chat".equalsIgnoreCase(MODE) && !"typing".equalsIgnoreCase(MODE)
-                && !"plain".equalsIgnoreCase(MODE);
+                && !"plain".equalsIgnoreCase(MODE) && !"reveal".equalsIgnoreCase(MODE);
         // "plain" is somebody with no job to offer: no tabs at all, chat only,
         // which is what most villagers are and what had never been rendered.
         boolean merchant = !"plain".equalsIgnoreCase(MODE);
