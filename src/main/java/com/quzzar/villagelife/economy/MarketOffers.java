@@ -73,6 +73,16 @@ public final class MarketOffers {
 
   /** The village's surplus, priciest first: what a player can buy. */
   public static List<Offer> selling(Village village, ServerLevel level) {
+    return selling(village, level, 1.0D);
+  }
+
+  /**
+   * As above, with the asking price moved by how the village feels about the
+   * person looking at it. The markup is applied to the UNIT value, before
+   * bundling and rounding, because that is where Trade applies it: apply it
+   * afterwards and the stall would quote a price the trade does not charge.
+   */
+  public static List<Offer> selling(Village village, ServerLevel level, double markup) {
     List<Offer> offers = new ArrayList<>();
     Set<Item> seen = new HashSet<>();
     for (ItemStack stack : village.getVillageInventory()) {
@@ -88,7 +98,7 @@ public final class MarketOffers {
       if (price.isEmpty()) {
         continue; // nothing can value it, so it is not tradeable
       }
-      bundle(item, price.get(), held, true).ifPresent(offers::add);
+      bundle(item, price.get() * markup, held, true).ifPresent(offers::add);
     }
     offers.sort(Comparator.comparingInt(Offer::emeralds).reversed());
     return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;
@@ -99,6 +109,11 @@ public final class MarketOffers {
    * board. Staples it holds little of, best price first.
    */
   public static List<Offer> wanted(Village village, ServerLevel level) {
+    return wanted(village, level, 1.0D);
+  }
+
+  /** As above; the markup runs the other way when the village is buying. */
+  public static List<Offer> wanted(Village village, ServerLevel level, double markup) {
     List<Offer> offers = new ArrayList<>();
     for (String id : WANTED_STAPLES) {
       Optional<Item> item = ItemValues.item(id);
@@ -114,7 +129,7 @@ public final class MarketOffers {
         continue;
       }
       // No stock cap: the village is asking the player to bring these.
-      bundle(item.get(), price.get(), 0, false).ifPresent(offers::add);
+      bundle(item.get(), price.get() / markup, 0, false).ifPresent(offers::add);
     }
     offers.sort(Comparator.comparingInt(Offer::emeralds).reversed());
     return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;

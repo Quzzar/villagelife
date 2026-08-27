@@ -55,15 +55,27 @@ public record MarketOffersPacket(int entityId, String villageName, boolean block
   /** Builds the current stall state and sends it. Server thread. */
   public static void sendTo(ServerPlayer player, RealPerson merchant, Village village, ServerLevel level,
       String message) {
-    String blocker = Treasury.tradeBlocker(village, level).orElse("");
+    // Two different reasons a stall may be shut: the village cannot trade at
+    // all, or it will not trade with YOU. The screen has to know about both, or
+    // it shows an open market that then refuses the trade.
+    com.quzzar.villagelife.wrongdoing.Standing.Tier tier =
+        com.quzzar.villagelife.wrongdoing.Standing.tierOf(village, level, player.getUUID());
+    String standing = com.quzzar.villagelife.wrongdoing.Standing.refusalReason(tier);
+    String blocker = Treasury.tradeBlocker(village, level).orElse(standing);
+    // Prices carry the same markup the trade will charge, so the stall never
+    // quotes a figure the exchange then disagrees with.
+    double markup = com.quzzar.villagelife.wrongdoing.Standing.priceMultiplier(
+        com.quzzar.villagelife.wrongdoing.Standing.of(village, level, player.getUUID()));
     // The stall is still listed when it cannot trade, so the screen can strike
     // the arrows out rather than going blank. A blank stall says "no trades
     // exist"; a struck-out one says "not with you, not right now".
-    String note = blocker.isEmpty() ? message : "This market cannot trade: " + blocker + ".";
-    List<Row> selling = MarketOffers.selling(village, level).stream()
+    String note = blocker.isEmpty() ? message
+        : (standing.isEmpty() ? "This market cannot trade: " : "'" + village.getName()
+            + "' will not trade with you: ") + blocker + ".";
+    List<Row> selling = MarketOffers.selling(village, level, markup).stream()
         .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
         .toList();
-    List<Row> wanted = MarketOffers.wanted(village, level).stream()
+    List<Row> wanted = MarketOffers.wanted(village, level, markup).stream()
         .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
         .toList();
     PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(), village.getName(),
