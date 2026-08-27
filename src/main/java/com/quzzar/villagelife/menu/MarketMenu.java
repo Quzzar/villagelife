@@ -38,6 +38,8 @@ public class MarketMenu extends AbstractContainerMenu {
   public static final int COST_A = 0;
   public static final int COST_B = 1;
   public static final int RESULT = 2;
+  /** Height of the strip above the container: the villager's name and tabs. */
+  public static final int HEAD = 44;
   private static final int TRADE_SLOTS = 3;
   private static final int PACK_START = TRADE_SLOTS;
   private static final int PACK_END = PACK_START + 36;
@@ -65,18 +67,20 @@ public class MarketMenu extends AbstractContainerMenu {
     this.headerDetail = headerDetail;
     this.canTrade = canTrade;
 
-    // Vanilla's own coordinates: costs at 136 and 162 on row 37, result at 220.
-    addSlot(new Slot(trade, COST_A, 136, 37));
-    addSlot(new Slot(trade, COST_B, 162, 37));
-    addSlot(new MarketResultSlot(this, trade, RESULT, 220, 37));
+    // Vanilla's own coordinates, pushed down by the strip that carries the
+    // villager's name and the tabs. A merchant screen has no such strip, so the
+    // offset is ours; everything below it keeps MerchantMenu's spacing exactly.
+    addSlot(new Slot(trade, COST_A, 136, HEAD + 37));
+    addSlot(new Slot(trade, COST_B, 162, HEAD + 37));
+    addSlot(new MarketResultSlot(this, trade, RESULT, 220, HEAD + 37));
 
     for (int row = 0; row < 3; row++) {
       for (int column = 0; column < 9; column++) {
-        addSlot(new Slot(inventory, column + row * 9 + 9, 108 + column * 18, 84 + row * 18));
+        addSlot(new Slot(inventory, column + row * 9 + 9, 108 + column * 18, HEAD + 84 + row * 18));
       }
     }
     for (int column = 0; column < 9; column++) {
-      addSlot(new Slot(inventory, column, 108 + column * 18, 142));
+      addSlot(new Slot(inventory, column, 108 + column * 18, HEAD + 142));
     }
 
     addSlotListener(new ContainerListener() {

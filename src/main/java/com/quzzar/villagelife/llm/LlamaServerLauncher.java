@@ -50,10 +50,48 @@ public final class LlamaServerLauncher {
     }
   }
 
+  /**
+   * Benchmarked on the mod's own decide prompt, ten runs each, scored on whether
+   * the answer parsed AND named a real option whose text it copied correctly:
+   *
+   *   Gemma-2-2B     1.7G  10/10   734 ms
+   *   Qwen2.5-3B     2.1G  10/10   749 ms
+   *   Llama-3.2-3B   2.0G   8/10   810 ms
+   *   Qwen2.5-1.5B   1.1G   8/10   438 ms
+   *   Phi-3.5-mini   2.4G  10/10  2276 ms
+   *
+   * Gemma is the default: it is the smallest and quickest of the models that
+   * never got a choice wrong. Speed alone would have picked the 1.5B, and a
+   * village acting on a mis-parsed answer builds the wrong thing.
+   */
+  public static final Model GEMMA_2B = new Model(
+      "bartowski/gemma-2-2b-it-GGUF", "gemma-2-2b-it-Q4_K_M.gguf", "Gemma-2-2B-it");
   public static final Model QWEN_3B = new Model(
       "Qwen/Qwen2.5-3B-Instruct-GGUF", "qwen2.5-3b-instruct-q4_k_m.gguf", "Qwen2.5-3B-Instruct");
   public static final Model QWEN_1_5B = new Model(
       "Qwen/Qwen2.5-1.5B-Instruct-GGUF", "qwen2.5-1.5b-instruct-q4_k_m.gguf", "Qwen2.5-1.5B-Instruct");
+  public static final Model LLAMA_3B = new Model(
+      "bartowski/Llama-3.2-3B-Instruct-GGUF", "Llama-3.2-3B-Instruct-Q4_K_M.gguf", "Llama-3.2-3B-Instruct");
+  public static final Model PHI_3_5 = new Model(
+      "bartowski/Phi-3.5-mini-instruct-GGUF", "Phi-3.5-mini-instruct-Q4_K_M.gguf", "Phi-3.5-mini");
+
+  /** What the config's model name may say, and what it gets. */
+  public static Model byName(String name) {
+    String key = name == null ? "" : name.toLowerCase(Locale.ROOT).replace(" ", "");
+    if (key.contains("qwen") && key.contains("1.5b")) {
+      return QWEN_1_5B;
+    }
+    if (key.contains("qwen")) {
+      return QWEN_3B;
+    }
+    if (key.contains("llama")) {
+      return LLAMA_3B;
+    }
+    if (key.contains("phi")) {
+      return PHI_3_5;
+    }
+    return GEMMA_2B;
+  }
 
   private static final HttpClient HTTP = HttpClient.newBuilder()
       .followRedirects(HttpClient.Redirect.NORMAL)

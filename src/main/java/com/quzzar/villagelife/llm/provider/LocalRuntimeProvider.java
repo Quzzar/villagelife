@@ -105,11 +105,7 @@ public final class LocalRuntimeProvider implements LlmProvider {
   }
 
   private static LlamaServerLauncher.Model chosenModel() {
-    String configured = VillagelifeConfig.LlmCloudModel;
-    if (configured != null && configured.toLowerCase().contains("1.5b")) {
-      return LlamaServerLauncher.QWEN_1_5B;
-    }
-    return LlamaServerLauncher.QWEN_3B;
+    return LlamaServerLauncher.byName(VillagelifeConfig.LlmCloudModel);
   }
 
   /**

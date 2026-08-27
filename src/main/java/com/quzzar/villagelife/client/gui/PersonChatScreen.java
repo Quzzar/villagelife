@@ -30,7 +30,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * icon. No dialogue options, by design (Villager Conversations map). The
  * villager speaks first when there is no history, so the panel is never empty.
  */
-public class PersonChatScreen extends Screen {
+public class PersonChatScreen
+    extends net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<
+        com.quzzar.villagelife.menu.MarketMenu> {
 
   // Panel and text colours, kept together so the surface reads as one piece.
   private static final int PANEL_FILL = 0xE6101017;
@@ -114,10 +116,10 @@ public class PersonChatScreen extends Screen {
   /** Vanilla's struck-out arrow, used when the whole stall cannot trade. */
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
-  private static final int PANEL_WIDTH = 300;
+  private static final int PANEL_WIDTH = 276;
   private static final int PANEL_HEIGHT = 212;
   /** Height of the strip above the art: the villager's name and the tabs. */
-  private static final int HEAD_STRIP = 58;
+  private static final int HEAD_STRIP = com.quzzar.villagelife.menu.MarketMenu.HEAD;
   /** Where the rule under the tabs sits, measured from the panel top. */
   private static final int TAB_RULE = 40;
   /** Width of the trades well: the buttons plus their scrollbar. */
@@ -211,32 +213,39 @@ public class PersonChatScreen extends Screen {
   private int panelBottom;
   private int inputRowTop;
 
-  private PersonChatScreen(int entityId, String headerName, String headerDetail, boolean canTrade,
-      List<com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine> scrollback) {
-    super(Component.literal(headerName));
-    this.entityId = entityId;
-    this.canTrade = canTrade;
-    // Open on what this person is FOR, if their job offers anything; talking
-    // is the fallback, and the only option for everyone else.
+  public PersonChatScreen(com.quzzar.villagelife.menu.MarketMenu menu,
+      net.minecraft.world.entity.player.Inventory inventory, Component title) {
+    super(menu, inventory, title);
+    this.entityId = menu.merchantId();
+    this.headerName = menu.headerName();
+    this.headerDetail = menu.headerDetail();
+    this.canTrade = menu.canTrade();
     this.tab = previewTab != null ? previewTab : (canTrade ? Tab.TRADE : Tab.CHAT);
-    this.headerName = headerName;
-    this.headerDetail = headerDetail;
-    for (var exchange : scrollback) {
-      // A blank player line is the villager's own opener, not an exchange.
-      if (!exchange.playerLine().isBlank()) {
-        lines.add(new ChatLine("You", exchange.playerLine(), true));
-      }
-      lines.add(new ChatLine(headerName, exchange.reply(), false));
-    }
-    // With nothing to show, the server is generating the villager's greeting.
-    this.awaitingReply = lines.isEmpty();
-    this.awaitingSinceMs = System.currentTimeMillis();
+    this.imageWidth = PANEL_WIDTH;
+    this.imageHeight = PANEL_HEIGHT;
+    this.awaitingReply = false;
   }
 
-  public static void open(int entityId, String headerName, String headerDetail, boolean canTrade,
-      List<com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine> scrollback) {
-    Minecraft.getInstance().setScreen(
-        new PersonChatScreen(entityId, headerName, headerDetail, canTrade, scrollback));
+  /**
+   * The conversation so far, delivered separately from the menu: a container's
+   * extra data is opened once and cannot carry a growing log.
+   */
+  public static void openChat(int entityId, List<
+      com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine> scrollback) {
+    if (!(Minecraft.getInstance().screen instanceof PersonChatScreen screen)
+        || screen.entityId != entityId) {
+      return;
+    }
+    screen.lines.clear();
+    for (var exchange : scrollback) {
+      if (!exchange.playerLine().isBlank()) {
+        screen.lines.add(new ChatLine("You", exchange.playerLine(), true));
+      }
+      screen.lines.add(new ChatLine(screen.headerName, exchange.reply(), false));
+    }
+    screen.awaitingReply = screen.lines.isEmpty();
+    screen.awaitingSinceMs = System.currentTimeMillis();
+    screen.chatScrollUp = 0;
   }
 
   /** The stall's current state arrived; repaint the trade tab. */
@@ -258,16 +267,19 @@ public class PersonChatScreen extends Screen {
 
   @Override
   protected void init() {
+    super.init();
+    // The container's own labels are suppressed: this window titles itself.
+    this.titleLabelX = Integer.MIN_VALUE / 2;
+    this.inventoryLabelX = Integer.MIN_VALUE / 2;
     scrollOff = 0; // a stall always opens at the top of its list
-    // A fixed, compact window, the way every vanilla screen is sized. Scaling
-    // to the viewport stretched this into a near-fullscreen grey rectangle
-    // with its content marooned at the edges.
-    int panelWidth = Math.min(PANEL_WIDTH, this.width - 16);
-    int panelHeight = Math.min(PANEL_HEIGHT, this.height - 16);
-    this.panelLeft = (this.width - panelWidth) / 2;
-    this.panelRight = panelLeft + panelWidth;
-    this.panelTop = (this.height - panelHeight) / 2;
-    this.panelBottom = panelTop + panelHeight;
+    // leftPos and topPos come from AbstractContainerScreen, computed from
+    // imageWidth and imageHeight. Everything drawn here must hang off them, or
+    // the drawing and the SLOTS would be positioned by two different rules and
+    // drift apart the moment the window moves.
+    this.panelLeft = this.leftPos;
+    this.panelRight = leftPos + imageWidth;
+    this.panelTop = this.topPos;
+    this.panelBottom = topPos + imageHeight;
     this.inputRowTop = panelBottom - 30;
 
     if (canTrade) {
@@ -304,9 +316,7 @@ public class PersonChatScreen extends Screen {
   }
 
   @Override
-  public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-    // super gives the blurred, darkened world behind the panel.
-    super.renderBackground(graphics, mouseX, mouseY, partialTick);
+  protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
     // ONE window for both tabs. Blitting the whole villager container put a
     // second frame inside this one and made the two tabs look like different
     // screens; what belongs here is its CONTENTS, drawn in the same frame.
@@ -529,8 +539,19 @@ public class PersonChatScreen extends Screen {
    * a drop it can see is a drop worth closing on.
    */
   @Override
-  public void tick() {
-    super.tick();
+  protected void renderSlot(GuiGraphics graphics, net.minecraft.world.inventory.Slot slot) {
+    if (tab == Tab.TRADE) {
+      super.renderSlot(graphics, slot);
+    }
+  }
+
+  @Override
+  protected boolean isHovering(int x, int y, int width, int height, double mouseX, double mouseY) {
+    return tab == Tab.TRADE && super.isHovering(x, y, width, height, mouseX, mouseY);
+  }
+
+  @Override
+  protected void containerTick() {
     Minecraft client = Minecraft.getInstance();
     if (client.player == null || client.level == null) {
       return;
@@ -790,33 +811,18 @@ public class PersonChatScreen extends Screen {
 
   /** The player's own pack, so a trade can be judged without closing the screen. */
   private void drawInventory(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-    // The slots are drawn here now. They used to come from the container
-    // texture, and removing that texture left the items floating in space.
-    var player = Minecraft.getInstance().player;
+    // Slot backgrounds only. The container renders what is IN them, and drawing
+    // the contents here as well would paint every stack twice, from two sources
+    // that disagree the moment anything moves.
     for (int index = 0; index < 36; index++) {
       int column = index % 9;
       int rowIndex = index < 9 ? 3 : (index / 9) - 1;
       int x = left + column * 18;
       int y = top + rowIndex * 18 + (index < 9 ? HOTBAR_GAP : 0);
       slot(graphics, x, y, x + 18, y + 18);
-      ItemStack stack = player != null ? player.getInventory().getItem(index)
-          : previewInventory.getOrDefault(index, ItemStack.EMPTY);
-      int held = reserved.getOrDefault(index, 0);
-      if (held > 0) {
-        stack = stack.getCount() > held
-            ? new ItemStack(stack.getItem(), stack.getCount() - held)
-            : ItemStack.EMPTY;
-      }
-      if (stack.isEmpty()) {
-        continue;
-      }
-      graphics.renderItem(stack, x + 1, y + 1);
-      graphics.renderItemDecorations(this.font, stack, x + 1, y + 1);
-      if (mouseX >= x && mouseX < x + 18 && mouseY >= y && mouseY < y + 18) {
-        hoveredStack = stack;
-      }
     }
   }
+
 
   /**
    * The long arrow between cost and result. It is baked into villager.png

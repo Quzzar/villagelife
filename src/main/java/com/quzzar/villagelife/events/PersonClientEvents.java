@@ -41,5 +41,7 @@ public class PersonClientEvents {
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(VillagelifeMenus.PERSON_MENU.get(), GuardInventoryScreen::new);
+        event.register(VillagelifeMenus.MARKET.get(),
+                com.quzzar.villagelife.client.gui.PersonChatScreen::new);
     }
 }

@@ -45,8 +45,7 @@ public record OpenPersonChatPacket(int entityId, String headerName, String heade
   public static void handle(OpenPersonChatPacket msg, IPayloadContext context) {
     // Lambda body defers loading the client-only screen class until a client
     // actually receives the packet.
-    context.enqueueWork(() -> PersonChatScreen.open(msg.entityId(), msg.headerName(), msg.headerDetail(), msg.canTrade(),
-        msg.scrollback()));
+    context.enqueueWork(() -> PersonChatScreen.openChat(msg.entityId(), msg.scrollback()));
   }
 
 }

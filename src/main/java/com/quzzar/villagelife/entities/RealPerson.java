@@ -694,6 +694,22 @@ public class RealPerson extends Person {
     boolean canTrade = getOccupation() == Occupation.MERCHANT && getVillage() != null
         && com.quzzar.villagelife.economy.Treasury.tradeBlocker(getVillage(),
             (net.minecraft.server.level.ServerLevel) level()).isEmpty();
+    // The menu is what opens the screen now, because the screen is a real
+    // container; the conversation follows separately, since a container's extra
+    // data is written once and a chat log keeps growing.
+    final String header = getFullName();
+    final String subtitle = detail;
+    final boolean trades = canTrade;
+    player.openMenu(new net.minecraft.world.SimpleMenuProvider(
+        (containerId, inventory, opener) -> new com.quzzar.villagelife.menu.MarketMenu(
+            containerId, inventory, getId(), header, subtitle, trades),
+        Component.literal(header)),
+        buffer -> {
+          buffer.writeVarInt(getId());
+          buffer.writeUtf(header);
+          buffer.writeUtf(subtitle);
+          buffer.writeBoolean(trades);
+        });
     PacketDistributor.sendToPlayer(player,
         new OpenPersonChatPacket(this.getId(), getFullName(), detail, canTrade, scrollback));
     if (scrollback.isEmpty()) {

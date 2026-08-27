@@ -68,6 +68,9 @@ neoForge {
             client()
             programArguments.addAll '--quickPlayMultiplayer', 'localhost:25565'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            // The UI preview needs a real player now that the screen is a
+            // container, so it runs on the join-local configuration.
+            systemProperty 'villagelife.uipreview', (findProperty('uipreview') ?: '')
         }
 
         server {

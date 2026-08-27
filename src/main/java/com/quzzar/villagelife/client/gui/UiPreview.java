@@ -65,7 +65,14 @@ public final class UiPreview {
             // onboarding first, and waiting for a title that never comes is how
             // this sat idle forever. Any screen, once the loading overlay is
             // gone, means the client is drawing and the atlases are ready.
-            if (client.getOverlay() == null && client.screen != null) {
+            // A container screen needs a real Inventory, which needs a real player,
+        // so the harness now has to be IN a world rather than at the title
+        // screen. That is a cost of the conversion and also a gain: it exercises
+        // the path the screen actually opens through.
+        if (client.player == null || client.level == null) {
+            return;
+        }
+        if (client.getOverlay() == null) {
                 Villagelife.LOGGER.info("UI preview: opening {} over {}", MODE,
                         client.screen.getClass().getSimpleName());
                 openSample(client);
@@ -95,13 +102,17 @@ public final class UiPreview {
                 PersonChatScreen.previewTyping("How much for the bread?");
             }
         }
-        PersonChatScreen.open(0, "Fallon Moody", "Merchant of Larkspur Creek", true,
-                List.of(
-                        new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
-                                "", "Morning. You look like you have been walking a while."),
-                        new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
-                                "Do you sell bread?",
-                                "Aye, though the harvest was thin and I cannot let it go cheap.")));
+        var inventory = client.player.getInventory();
+        var menu = new com.quzzar.villagelife.menu.MarketMenu(0, inventory, 0,
+                "Fallon Moody", "Merchant of Larkspur Creek", true);
+        client.setScreen(new PersonChatScreen(menu, inventory,
+                net.minecraft.network.chat.Component.literal("Fallon Moody")));
+        PersonChatScreen.openChat(0, List.of(
+                new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
+                        "", "Morning. You look like you have been walking a while."),
+                new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
+                        "Do you sell bread?",
+                        "Aye, though the harvest was thin and I cannot let it go cheap.")));
         // A believable pack: a couple of stacks, a hotbar, and gaps.
         PersonChatScreen.previewInventory.put(0, new net.minecraft.world.item.ItemStack(
                 net.minecraft.world.item.Items.EMERALD, 41));
