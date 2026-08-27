@@ -36,14 +36,14 @@ Undertaking(
   UUID id,                 // stable handle for advancing/resolving it
   Valence valence,         // POSITIVE or NEGATIVE, how the villager feels about it
   State state,             // OPEN, ACTIVE, RESOLVED, ABANDONED
+  Origin origin,           // SELF, EVENT, or PLAYER — who raised it
   String summary,          // one sentence, the villager's own words
   Optional<UUID> withWhom, // the player or villager it concerns, if any
-  List<Milestone> steps,   // ordered progress markers; may be empty
+  List<Milestone> steps,   // ordered milestones the model marks; may be empty
   Optional<String> progressNote, // words, for a stepless matter the game can't count
-  Origin origin,           // SELF, EVENT, or PLAYER — who raised it
-  long openedDayTime,      // level.getDayTime() when it began
-  long updatedDayTime,     // last time it moved
-  Optional<String> resolution // one sentence, filled when it ends
+  Optional<String> resolution,   // one sentence, filled when it ends
+  long openedDay,          // level day-time when it began
+  long updatedDay          // last time it moved
 )
 
 Milestone(String text, boolean reached)
@@ -104,21 +104,32 @@ field on the same object, so the model's contract grows by one tool, not one
 schema:
 
 ```json
-{ "say": "...", "undertaking": { "op": "open|advance|resolve",
-                                 "summary": "...", "valence": "positive|negative" } }
+{ "say": "...", "undertaking": { "op": "open" | "advance" | "resolve",
+                                 "summary": "...", "valence": "positive" | "negative",
+                                 "note": "...", "step": "..." } }
 ```
 
-- `op: "open"` starts a new undertaking with the villager as author (Origin
-  SELF, or PLAYER when it plainly arose from the player's request). `summary`
-  and `valence` are required; `steps` may be given or left for later.
-- `op: "advance"` moves the villager's current open undertaking with this player
-  one step, or sets a milestone reached.
-- `op: "resolve"` ends it.
+This is the locked schema, and it is exactly what `UndertakingService.Op`
+parses. Fields by op:
+
+| op        | uses                | meaning                                                        |
+|-----------|---------------------|----------------------------------------------------------------|
+| `open`    | `summary`, `valence`| begin a matter. Both required; a blank `summary` is dropped.    |
+| `advance` | `note` or `step`    | move it on. `note` is stepless progress in words; `step` marks or adds a milestone. One of the two, else dropped. |
+| `resolve` | `note`              | end it. `note` becomes the resolution; a default is used if blank. |
+
+- Which matter `advance`/`resolve` acts on is the SERVER's choice, not the
+  model's: the model names no id, and the server takes the most recently touched
+  open matter with this player, or a self-goal otherwise. The model only says
+  *that* a thing moved, never *which record* moved.
+- `open`'s origin is PLAYER when the exchange is with the player, SELF when the
+  villager raised it for themselves.
 
 The same guard discipline as `give` and `opinion` applies: validated
-server-side, never trusted raw. An `op` the model invents, or a resolve with no
-matching open undertaking, is dropped the way an out-of-range opinion is
-clamped. The model proposes; the server decides.
+server-side, never trusted raw. An `op` the model invents, an `open` with no
+summary, an `advance` with nothing to record, a `resolve` with no matching open
+matter — all dropped the way an out-of-range opinion is clamped. The model
+proposes; the server decides.
 
 The model drives every op, because the system is generic and the game cannot
 count an arbitrary matter. The small-model risk is therefore NOT that it fails
