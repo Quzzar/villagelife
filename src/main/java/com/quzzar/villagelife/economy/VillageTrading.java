@@ -10,11 +10,13 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.llm.LlmDecision;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.village.Village;
+import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
@@ -79,6 +81,19 @@ public final class VillageTrading {
    */
   public static boolean consider(Village village, ServerLevel level) {
     if (!village.canDo(INITIATIVE)) {
+      return false;
+    }
+    // Page in to act, not to decide (docs/population-and-labor.md). The trade
+    // check reads the market's till off disk (Treasury.tradeBlocker), and an
+    // unattended village almost always has nothing worth trading, so deciding
+    // NOT to trade must not force the market chunk into memory. Unlike the food
+    // count, skipping a trade cycle for an unloaded market is harmless: the
+    // village simply trades on a later cycle, once someone is near enough to
+    // load it. So a chunk-load guard is safe here, where it would be a
+    // correctness bug for mood. Without it, villages nobody has visited page
+    // their own stall in from disk every trade interval only to leave it alone.
+    Optional<Building> market = Treasury.market(village);
+    if (market.isEmpty() || !level.hasChunkAt(BlockPos.of(market.get().getCenterLocation()))) {
       return false;
     }
     Optional<String> blocked = Treasury.tradeBlocker(village, level);
