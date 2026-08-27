@@ -49,6 +49,11 @@ public class PersonChatScreen extends Screen {
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
+  /** A trade row reads as a button: dark face, light edge, brighter on hover. */
+  private static final int DEAL_FACE = 0xFF6E6E6E;
+  private static final int DEAL_FACE_HOVER = 0xFF8B8B8B;
+  private static final int DEAL_EDGE = 0xFFAFAFAF;
+  private static final int DEAL_EDGE_HOVER = 0xFFFFFFFF;
 
   /**
    * Vanilla's own villager container art, and its exact dimensions, because
@@ -59,15 +64,23 @@ public class PersonChatScreen extends Screen {
    */
   private static final ResourceLocation VILLAGER_GUI =
       ResourceLocation.withDefaultNamespace("textures/gui/container/villager.png");
+  private static final ResourceLocation SCROLLER =
+      ResourceLocation.withDefaultNamespace("container/villager/scroller");
+  private static final ResourceLocation SCROLLER_DISABLED =
+      ResourceLocation.withDefaultNamespace("container/villager/scroller_disabled");
   private static final ResourceLocation TRADE_ARROW =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow");
   private static final int PANEL_WIDTH = 276;
-  private static final int PANEL_HEIGHT = 166;
+  private static final int PANEL_HEIGHT = 192;
+  /** Height of the strip above the art: the villager's name and the tabs. */
+  private static final int HEAD_STRIP = 26;
   /** MerchantScreen's trade buttons: 89x20 at (5, 16 + n*20). */
   private static final int LIST_LEFT = 5;
   private static final int LIST_TOP = 16;
   private static final int LIST_ROW = 20;
   private static final int LIST_WIDTH = 89;
+  /** Rows the vanilla list shows before it must scroll. */
+  private static final int LIST_ROWS = 7;
   /** Its player inventory: 3x9 from (108, 84), hotbar at y 142. */
   private static final int INV_LEFT = 108;
   private static final int INV_TOP = 84;
@@ -194,8 +207,8 @@ public class PersonChatScreen extends Screen {
 
     if (canTrade) {
       int tabWidth = 58;
-      addRenderableWidget(new TabButton(panelLeft + 8, panelTop - 12, tabWidth, "Chat", Tab.CHAT));
-      addRenderableWidget(new TabButton(panelLeft + 10 + tabWidth, panelTop - 12, tabWidth, "Trade", Tab.TRADE));
+      addRenderableWidget(new TabButton(panelLeft + 8, panelTop + 12, tabWidth, "Chat", Tab.CHAT));
+      addRenderableWidget(new TabButton(panelLeft + 10 + tabWidth, panelTop + 12, tabWidth, "Trade", Tab.TRADE));
       toServer(
           com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
     }
@@ -213,8 +226,6 @@ public class PersonChatScreen extends Screen {
 
     this.sendButton = addRenderableWidget(new IconButton(panelRight - 30, inputRowTop, 20,
         IconButton.SEND, button -> send()));
-    addRenderableWidget(new IconButton(panelRight - 20, panelTop + 2, 16,
-        IconButton.CLOSE, button -> onClose()));
     applyTabVisibility();
 
     setInitialFocus(this.input);
@@ -224,16 +235,16 @@ public class PersonChatScreen extends Screen {
   public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
     // super gives the blurred, darkened world behind the panel.
     super.renderBackground(graphics, mouseX, mouseY, partialTick);
-    if (canTrade) {
-      panel(graphics, panelLeft + 4, panelTop - 14, panelLeft + 4 + TAB_STRIP, panelTop + 2);
-    }
+    // One window: a title strip holding the villager and the tabs, with the
+    // trade tab hanging the real container art directly beneath it.
+    panel(graphics, panelLeft, panelTop, panelRight, panelTop + HEAD_STRIP + 2);
     if (tab == Tab.TRADE) {
-      graphics.blit(VILLAGER_GUI, panelLeft, panelTop, 0, 0.0F, 0.0F,
-          PANEL_WIDTH, PANEL_HEIGHT, 512, 256);
+      graphics.blit(VILLAGER_GUI, panelLeft, panelTop + HEAD_STRIP, 0, 0.0F, 0.0F,
+          PANEL_WIDTH, PANEL_HEIGHT - HEAD_STRIP, 512, 256);
       return;
     }
     panel(graphics, panelLeft, panelTop, panelRight, panelBottom);
-    graphics.fill(panelLeft + 6, panelTop + 20, panelRight - 6, panelTop + 21, DIVIDER);
+
 
     if (tab != Tab.CHAT) {
       return;
@@ -321,11 +332,9 @@ public class PersonChatScreen extends Screen {
     // trader's name here, and the equivalent for a village market is the
     // market itself. The villager's own name belongs on the tab where you
     // are actually talking to them.
-    String header = tab == Tab.TRADE && offers != null && !offers.villageName().isBlank()
-        ? offers.villageName() + " Market"
-        : headerName + ", " + headerDetail;
+    String header = headerName + ", " + headerDetail;
     int headerLeft = panelLeft + 8;
-    int room = (panelRight - 26) - headerLeft;
+    int room = (panelRight - 8) - headerLeft;
     if (this.font.width(header) > room) {
       header = this.font.plainSubstrByWidth(header, room - this.font.width("..")) + "..";
     }
@@ -351,7 +360,7 @@ public class PersonChatScreen extends Screen {
 
     int textWidth = panelRight - panelLeft - 24;
     int left = panelLeft + 12;
-    int top = panelTop + (canTrade ? 44 : 28);
+    int top = panelTop + (canTrade ? 30 : 20);
     int bottom = inputRowTop - 6;
 
     List<FormattedCharSequence> rendered = new ArrayList<>();
@@ -409,20 +418,32 @@ public class PersonChatScreen extends Screen {
    * the goods, and having to close the screen to check defeats the point. It
    * is a read-only view: trading happens by clicking a row, never by dragging.
    */
+  /** Top of the container art, which the trade tab's coordinates are relative to. */
+  private int artTop() {
+    return panelTop + HEAD_STRIP;
+  }
+
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
     if (offers == null) {
       graphics.drawString(this.font, "Opening the stall...",
-          panelLeft + LIST_LEFT, panelTop + LIST_TOP + 4, TEXT_PENDING, false);
+          panelLeft + LIST_LEFT, artTop() + LIST_TOP + 4, TEXT_PENDING, false);
       return;
     }
     if (!marketNote.isBlank()) {
       for (FormattedCharSequence line : this.font.split(
           Component.literal(marketNote), LIST_WIDTH + 40)) {
-        graphics.drawString(this.font, line, panelLeft + LIST_LEFT, panelTop + LIST_TOP + 4,
+        graphics.drawString(this.font, line, panelLeft + LIST_LEFT, artTop() + LIST_TOP + 4,
             TEXT_LABEL, false);
       }
       return;
+    }
+
+    graphics.drawString(this.font, "Trades", panelLeft + LIST_LEFT, artTop() + 6,
+        TEXT_LABEL, false);
+    if (!offers.villageName().isBlank()) {
+      graphics.drawString(this.font, offers.villageName() + " Market",
+          panelLeft + INV_LEFT, artTop() + 6, TEXT_LABEL, false);
     }
 
     List<Deal> deals = new ArrayList<>();
@@ -437,31 +458,34 @@ public class PersonChatScreen extends Screen {
 
     if (deals.isEmpty()) {
       graphics.drawString(this.font, "Nothing to trade.",
-          panelLeft + LIST_LEFT, panelTop + LIST_TOP + 4, TEXT_PENDING, false);
+          panelLeft + LIST_LEFT, artTop() + LIST_TOP + 4, TEXT_PENDING, false);
     }
-    int visible = Math.min(deals.size(), 7);
+    int visible = Math.min(deals.size(), LIST_ROWS);
     for (int i = 0; i < visible; i++) {
-      drawDeal(graphics, deals.get(i), panelLeft + LIST_LEFT, panelTop + LIST_TOP + i * LIST_ROW,
+      drawDeal(graphics, deals.get(i), panelLeft + LIST_LEFT, artTop() + LIST_TOP + i * LIST_ROW,
           mouseX, mouseY);
     }
 
-    drawInventory(graphics, panelLeft + INV_LEFT, panelTop + INV_TOP, mouseX, mouseY);
+    graphics.blitSprite(deals.size() > LIST_ROWS ? SCROLLER : SCROLLER_DISABLED,
+        panelLeft + 94, artTop() + LIST_TOP, 6, 27);
+
+    drawInventory(graphics, panelLeft + INV_LEFT, artTop() + INV_TOP, mouseX, mouseY);
 
     Deal shown = hoveredDeal(deals, visible, mouseX, mouseY);
     if (shown != null) {
-      graphics.renderItem(shown.from(), panelLeft + PREVIEW_COST, panelTop + PREVIEW_TOP);
+      graphics.renderItem(shown.from(), panelLeft + PREVIEW_COST, artTop() + PREVIEW_TOP);
       graphics.renderItemDecorations(this.font, shown.from(),
-          panelLeft + PREVIEW_COST, panelTop + PREVIEW_TOP);
-      graphics.renderItem(shown.into(), panelLeft + PREVIEW_RESULT, panelTop + PREVIEW_TOP);
+          panelLeft + PREVIEW_COST, artTop() + PREVIEW_TOP);
+      graphics.renderItem(shown.into(), panelLeft + PREVIEW_RESULT, artTop() + PREVIEW_TOP);
       graphics.renderItemDecorations(this.font, shown.into(),
-          panelLeft + PREVIEW_RESULT, panelTop + PREVIEW_TOP);
+          panelLeft + PREVIEW_RESULT, artTop() + PREVIEW_TOP);
     }
   }
 
   /** The trade under the cursor, which is what the preview slots show. */
   private Deal hoveredDeal(List<Deal> deals, int visible, int mouseX, int mouseY) {
     for (int i = 0; i < visible; i++) {
-      int top = panelTop + LIST_TOP + i * LIST_ROW;
+      int top = artTop() + LIST_TOP + i * LIST_ROW;
       if (mouseX >= panelLeft + LIST_LEFT && mouseX < panelLeft + LIST_LEFT + LIST_WIDTH
           && mouseY >= top && mouseY < top + LIST_ROW) {
         return deals.get(i);
@@ -477,9 +501,13 @@ public class PersonChatScreen extends Screen {
   private void drawDeal(GuiGraphics graphics, Deal deal, int left, int top, int mouseX, int mouseY) {
     boolean hovered = mouseX >= left && mouseX < left + LIST_WIDTH
         && mouseY >= top && mouseY < top + LIST_ROW;
-    if (hovered) {
-      graphics.fill(left, top, left + LIST_WIDTH, top + LIST_ROW, ROW_HOVER);
-    }
+    graphics.fill(left, top, left + LIST_WIDTH, top + LIST_ROW,
+        hovered ? DEAL_FACE_HOVER : DEAL_FACE);
+    int border = hovered ? DEAL_EDGE_HOVER : DEAL_EDGE;
+    graphics.fill(left, top, left + LIST_WIDTH, top + 1, border);
+    graphics.fill(left, top + LIST_ROW - 1, left + LIST_WIDTH, top + LIST_ROW, border);
+    graphics.fill(left, top, left + 1, top + LIST_ROW, border);
+    graphics.fill(left + LIST_WIDTH - 1, top, left + LIST_WIDTH, top + LIST_ROW, border);
     graphics.renderItem(deal.from(), left + 2, top + 2);
     graphics.renderItemDecorations(this.font, deal.from(), left + 2, top + 2);
     graphics.blitSprite(TRADE_ARROW, left + 34, top + 5, 10, 9);
@@ -496,7 +524,7 @@ public class PersonChatScreen extends Screen {
       int column = index % 9;
       int x = left + column * 18;
       // The hotbar is its own row on the texture, below a gap.
-      int y = index < 9 ? panelTop + HOTBAR_TOP : top + ((index / 9) - 1) * 18;
+      int y = index < 9 ? artTop() + HOTBAR_TOP : top + ((index / 9) - 1) * 18;
       ItemStack stack = player != null ? player.getInventory().getItem(index)
           : previewInventory.getOrDefault(index, ItemStack.EMPTY);
       if (stack.isEmpty()) {
