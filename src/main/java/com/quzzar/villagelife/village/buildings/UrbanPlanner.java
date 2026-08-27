@@ -147,6 +147,11 @@ public class UrbanPlanner {
     for (Candidate goalCandidate : goals) {
       options.add("save up for " + goalCandidate.description());
     }
+    // What the brain was actually asked. Without it a village that never saves
+    // for anything is indistinguishable from one that was never offered the
+    // chance, and the same ambiguity hid a broken site search for a day.
+    Villagelife.LOGGER.debug("Village '{}' is choosing among {} affordable, {} to save for, plus waiting",
+        village.getName(), offered.size(), goals.size());
     return LlmService.get().decide(situationOf(village), options)
         .thenApply(decision -> pick(village, offered, goals, ruleChoice, decision));
   }
