@@ -1,41 +1,47 @@
 {
-  "structure": "blacksmith_plains_1",
+  "structure": "blacksmith_taiga_2",
+  "upgrades_from": "blacksmith_taiga_1",
   "beds": [
     [
       4,
       1,
-      7
+      6
     ]
   ],
   "work_stations": [
     {
       "pos": [
-        5,
+        7,
         1,
-        9
+        11
       ],
       "occupation": "BLACKSMITH"
     }
   ],
   "containers": [
     [
-      5,
-      4,
-      9
+      7,
+      1,
+      12
+    ],
+    [
+      9,
+      1,
+      13
     ]
   ],
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 28
+      "count": 18
     },
     {
       "item": "minecraft:cobblestone",
-      "count": 40
+      "count": 28
     },
     {
       "item": "minecraft:iron_ingot",
-      "count": 4
+      "count": 6
     }
   ],
   "grants": [
