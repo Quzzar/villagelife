@@ -1,5 +1,6 @@
 {
   "structure": "market_taiga_3",
+  "upgrades_from": "market_taiga_2",
   "work_stations": [
     {
       "pos": [

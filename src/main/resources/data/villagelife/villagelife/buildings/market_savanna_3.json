@@ -1,5 +1,6 @@
 {
   "structure": "market_savanna_3",
+  "upgrades_from": "market_savanna_2",
   "work_stations": [
     {
       "pos": [

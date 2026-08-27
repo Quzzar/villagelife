@@ -1,5 +1,6 @@
 {
   "structure": "market_snowy_3",
+  "upgrades_from": "market_snowy_2",
   "work_stations": [
     {
       "pos": [

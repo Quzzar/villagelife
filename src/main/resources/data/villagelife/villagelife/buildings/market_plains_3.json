@@ -1,5 +1,6 @@
 {
   "structure": "market_plains_3",
+  "upgrades_from": "market_plains_2",
   "work_stations": [
     {
       "pos": [

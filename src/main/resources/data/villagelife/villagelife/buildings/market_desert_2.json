@@ -1,5 +1,6 @@
 {
   "structure": "market_desert_2",
+  "upgrades_from": "market_desert_1",
   "work_stations": [
     {
       "pos": [
