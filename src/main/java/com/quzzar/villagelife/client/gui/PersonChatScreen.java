@@ -72,6 +72,7 @@ public class PersonChatScreen extends Screen {
   /** Six by twelve, so it divides exactly into the twenty pixel button. */
   private static final int ARROW_GLYPH_W = 6;
   private static final int ARROW_GLYPH_H = 12;
+  /** White in both states; the button face is what changes. */
   private static final int SEND_ON = 0xFFFFFFFF;
   private static final int SEND_OFF = 0xFF9A9A9A;
   private static final int ICON_IDLE = 0xFF404040;
@@ -758,6 +759,13 @@ public class PersonChatScreen extends Screen {
     }
   }
 
+  /** The UI click every vanilla button makes; ours are drawn, so we play it. */
+  private static void clickSound() {
+    Minecraft.getInstance().getSoundManager().play(
+        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+            net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+  }
+
   /** How many of an item the pack holds, which is what a trade is judged against. */
   private int countHeld(Item item) {
     var player = Minecraft.getInstance().player;
@@ -877,6 +885,7 @@ public class PersonChatScreen extends Screen {
         Row row = rowHits.get(i);
         if (mouseY >= row.y() && mouseY < row.y() + LIST_ROW
             && mouseX >= row.left() && mouseX < row.right()) {
+          clickSound();
           selected = i + scrollOff;
           Deal deal = selected < allDeals.size() ? allDeals.get(selected) : null;
           staged = deal == null ? 0
@@ -888,6 +897,7 @@ public class PersonChatScreen extends Screen {
       boolean onResult = mouseX >= resultLeft && mouseX < resultLeft + 26
           && mouseY >= resultTop && mouseY < resultTop + 26;
       if (onResult && affordable && selected < allDeals.size()) {
+        clickSound();
         Deal deal = allDeals.get(selected);
         int cost = deal.from().getCount();
         // Shift-take empties the staged payment, one trade at a time, as
@@ -997,12 +1007,17 @@ public class PersonChatScreen extends Screen {
         // states sat at different heights: an animation whose endpoints do not
         // line up reads as a bug, because it is one. The arrow is centred in
         // both states and the waking is carried by the glyph and the face.
-        int glyph = ready ? SEND_ON : SEND_OFF;
-        int x0 = getX() + (width - ARROW_GLYPH_W) / 2;
-        int y0 = getY() + (height - ARROW_GLYPH_H) / 2;
-        for (int i = 0; i < ARROW_GLYPH_W; i++) {
-          graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + ARROW_GLYPH_H - i, glyph);
+        int glyph = SEND_ON;
+        int headW = 12;
+        int headH = 6;
+        int stemH = 5;
+        int cx = getX() + width / 2;
+        int y0 = getY() + (height - (headH + stemH)) / 2;
+        for (int r = 0; r < headH; r++) {
+          int half = r + 1;
+          graphics.fill(cx - half, y0 + r, cx + half, y0 + r + 1, glyph);
         }
+        graphics.fill(cx - 1, y0 + headH, cx + 1, y0 + headH + stemH, glyph);
       }
     }
 
