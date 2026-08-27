@@ -164,6 +164,12 @@ public final class BuildingUpgrade {
     return count;
   }
 
+  /** The footprint a standing building actually occupies, in its own frame. */
+  @Nullable
+  public static BoundingBox footprintOf(ServerLevelAccessor level, Building building) {
+    return footprintOf(level, building.getName(), building);
+  }
+
   /** A definition's footprint in the frame of a standing building's origin. */
   @Nullable
   private static BoundingBox footprintOf(ServerLevelAccessor level, String definition, Building placed) {

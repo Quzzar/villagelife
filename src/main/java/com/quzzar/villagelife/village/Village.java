@@ -518,8 +518,15 @@ public class Village {
     // site returns nothing; ground that cannot be prepared at all returns
     // nothing too unless it is asked, and building into it would place a
     // structure inside a cliff.
+    //
+    // An upgrade is the exception: the building already standing here is not
+    // ground to prepare, it is what the new template replaces, so only the ring
+    // the larger footprint reaches into is measured.
+    Building standing = buildings.get(project.getBuilding().getUUID());
+    BoundingBox occupied = standing == null ? null
+        : com.quzzar.villagelife.village.buildings.BuildingUpgrade.footprintOf(level, standing);
     var prep = com.quzzar.villagelife.village.buildings.SitePreparation
-        .planWork(level, this, projectLocation, bounds);
+        .planWork(level, this, projectLocation, bounds, occupied);
     if (!prep.possible()) {
       Villagelife.LOGGER.info("Village '{}' cannot prepare the ground at {} for {}",
           name, projectLocation.toShortString(), buildingInfo.getName());

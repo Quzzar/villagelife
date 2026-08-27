@@ -100,12 +100,27 @@ public final class SitePreparation {
    * prepared at all — the two must not be confused.
    */
   public static PrepWork planWork(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds) {
+    return planWork(level, village, origin, bounds, null);
+  }
+
+  /**
+   * The same walk, ignoring the columns of {@code standing}. An upgrade needs
+   * this for the same reason its fit check does: the old building's own walls
+   * are not ground to be levelled, they are what the new template replaces, and
+   * measuring them would report every upgrade as impossible.
+   */
+  public static PrepWork planWork(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds,
+      BoundingBox standing) {
     java.util.List<Long> toBreak = new java.util.ArrayList<>();
     java.util.List<Long> toFill = new java.util.ArrayList<>();
     int plane = origin.getY();
 
     for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
       for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
+        if (standing != null && x >= standing.minX() && x <= standing.maxX()
+            && z >= standing.minZ() && z <= standing.maxZ()) {
+          continue;
+        }
         int worldX = origin.getX() + x;
         int worldZ = origin.getZ() + z;
         BlockPos groundProbe = new BlockPos(worldX, plane, worldZ);
