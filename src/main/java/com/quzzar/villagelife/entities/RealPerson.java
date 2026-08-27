@@ -44,14 +44,19 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal;
+import com.quzzar.villagelife.entities.ai.goals.work.BonemealStep;
+import com.quzzar.villagelife.entities.ai.goals.work.ChopStep;
+import com.quzzar.villagelife.entities.ai.goals.work.HarvestStep;
+import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
+import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
+import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.DefendOthersFromPlayerGoal;
-import com.quzzar.villagelife.entities.ai.goals.HarvestCropGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunAwayGoal;
 import com.quzzar.villagelife.entities.ai.goals.PersonEatFoodGoal;
 import com.quzzar.villagelife.entities.ai.goals.PersonMeleeGoal;
-import com.quzzar.villagelife.entities.ai.goals.ProcessItemGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunToEatGoal;
 import com.quzzar.villagelife.entities.ai.goals.SearchForItemsGoal;
 import com.quzzar.villagelife.entities.ai.goals.SetRunningToEatGoal;
@@ -62,9 +67,7 @@ import com.quzzar.villagelife.entities.ai.goals.RangedBowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.RangedCrossbowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
-import com.quzzar.villagelife.entities.ai.goals.TillSoilGoal;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
-import com.quzzar.villagelife.entities.ai.goals.DepositHaulGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkInMineGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkAtMarketGoal;
 import com.quzzar.villagelife.entities.ai.goals.WorkOnBuildingGoal;
@@ -454,7 +457,7 @@ public class RealPerson extends Person {
     if (getOccupation() == Occupation.FARMER) {
 
       ArrayList<ItemStack> gatheredSeeds = new ArrayList<>();
-      for (Item seed : TillSoilGoal.PLANTABLES.keySet()) {
+      for (Item seed : TillStep.PLANTABLES.keySet()) {
         ItemStack gatheredSeed = this.getVillage().gatherItemStackFromVillage(new ItemStack(seed, 8), depositToLoc);
         gatheredSeeds.add(gatheredSeed);
       }
@@ -878,7 +881,7 @@ public class RealPerson extends Person {
     }
     if (getOccupation() == Occupation.MINER) {
       // Ahead of the work goal: a full pack is worth a trip before more digging.
-      this.goalSelector.addGoal(3, new DepositHaulGoal(this));
+      this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
       this.goalSelector.addGoal(4, new WorkInMineGoal(this));
     }
     if (getOccupation() == Occupation.BUILDER) {
@@ -889,66 +892,66 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkAtMarketGoal(this));
     }
     if (getOccupation() == Occupation.LUMBERJACK) {
-      this.goalSelector.addGoal(3, new DepositHaulGoal(this));
-      this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
-          new com.quzzar.villagelife.entities.ai.goals.work.BonemealStep(true)));
-      this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
-          new com.quzzar.villagelife.entities.ai.goals.work.ChopStep()));
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+      this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal(this,
+          new BonemealStep(true)));
+      this.goalSelector.addGoal(4, new WorkLoopGoal(this,
+          new ChopStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),
           8,
-          SoundEvents.SMITHING_TABLE_USE));
+          SoundEvents.SMITHING_TABLE_USE)));
     }
     if (getOccupation() == Occupation.MASON) {
       // The mason does not dig. The mine brings cobblestone up; this is the
       // chain that turns it into something a village can build with, which is
       // why stone_bricks are the most-used crafted block in the catalogue.
-      this.goalSelector.addGoal(3, new DepositHaulGoal(this));
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+      this.goalSelector.addGoal(3, new WorkLoopGoal(this, new HaulStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.COBBLESTONE, 8),
           new ItemStack(Items.STONE, 8),
           8,
-          SoundEvents.FURNACE_FIRE_CRACKLE));
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          SoundEvents.FURNACE_FIRE_CRACKLE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.STONE, 4),
           new ItemStack(Items.STONE_BRICKS, 4),
           6,
-          SoundEvents.UI_STONECUTTER_TAKE_RESULT));
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.SAND, 4),
           new ItemStack(Items.SANDSTONE, 1),
           6,
-          SoundEvents.UI_STONECUTTER_TAKE_RESULT));
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.SANDSTONE, 4),
           new ItemStack(Items.CUT_SANDSTONE, 4),
           6,
-          SoundEvents.UI_STONECUTTER_TAKE_RESULT));
+          SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
     }
     if (getOccupation() == Occupation.FARMER) {
-      this.goalSelector.addGoal(4, new com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal(this,
-          new com.quzzar.villagelife.entities.ai.goals.work.BonemealStep(true)));
-      this.goalSelector.addGoal(4, new HarvestCropGoal(this, true));
-      this.goalSelector.addGoal(6, new TillSoilGoal(this, true));
+      this.goalSelector.addGoal(4, new WorkLoopGoal(this,
+          new BonemealStep(true)));
+      this.goalSelector.addGoal(4, new WorkLoopGoal(this, new HarvestStep(true)));
+      this.goalSelector.addGoal(6, new WorkLoopGoal(this, new TillStep(true)));
 
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.MELON_SLICE, 16),
           new ItemStack(Items.MELON_SEEDS, 16),
           4,
-          SoundEvents.PUMPKIN_CARVE));
-      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          SoundEvents.PUMPKIN_CARVE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
           new ItemStack(Items.PUMPKIN, 4),
           new ItemStack(Items.PUMPKIN_SEEDS, 16),
           4,
-          SoundEvents.PUMPKIN_CARVE));
+          SoundEvents.PUMPKIN_CARVE)));
 
-      for (Item seed : TillSoilGoal.PLANTABLES.keySet()) {
-        this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+      for (Item seed : TillStep.PLANTABLES.keySet()) {
+        this.goalSelector.addGoal(8, new WorkLoopGoal(this, new CraftStep(
             new ItemStack(seed, 64),
             new ItemStack(Items.BONE_MEAL, 3), // ~2.74
             4,
-            SoundEvents.COMPOSTER_FILL_SUCCESS));
+            SoundEvents.COMPOSTER_FILL_SUCCESS)));
       }
     }
 
