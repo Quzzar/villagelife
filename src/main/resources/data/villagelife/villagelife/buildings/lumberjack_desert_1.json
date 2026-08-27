@@ -1,5 +1,5 @@
 {
-  "structure": "lumberjack_plains_1",
+  "structure": "lumberjack_desert_1",
   "beds": [
     [
       6,
@@ -32,15 +32,15 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 48
+      "count": 26
     },
     {
-      "item": "minecraft:cobblestone",
-      "count": 40
+      "item": "minecraft:sandstone",
+      "count": 62
     },
     {
       "item": "minecraft:oak_planks",
-      "count": 16
+      "count": 10
     }
   ],
   "grants": [
