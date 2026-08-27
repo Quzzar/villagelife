@@ -105,7 +105,7 @@ public final class LocalRuntimeProvider implements LlmProvider {
   }
 
   private static LlamaServerLauncher.Model chosenModel() {
-    return LlamaServerLauncher.byName(VillagelifeConfig.LlmCloudModel);
+    return LlamaServerLauncher.byName(VillagelifeConfig.LlmLocalModel);
   }
 
   /**
