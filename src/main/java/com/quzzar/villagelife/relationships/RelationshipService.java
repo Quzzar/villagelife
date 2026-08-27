@@ -59,9 +59,15 @@ public final class RelationshipService {
     private static final String PAIR_SYSTEM = """
             You judge how two villagers in a medieval village feel about each other. \
             Their opinions of each other are usually close: a shared value with small personal leans. \
-            Rarely, mark asymmetric true when one plausibly feels quite differently. \
+            Set asymmetric true only when the two genuinely see each other differently, which is \
+            about one pair in ten; for every other pair it is false and the leans stay tiny. \
+            These two have only just met, so keep value between -60 and 60: adoration and hatred \
+            are earned over time, not assigned on arrival. \
+            The flavor must be about the PAIR: what passes between them, what they share, what \
+            grates. Never describe one villager on their own, and never write a line that would \
+            still make sense if the other person did not exist. \
             Respond with ONLY a JSON object exactly like: \
-            {"value": <-100 to 100>, "lean_a": <-15 to 15>, "lean_b": <-15 to 15>, "asymmetric": false, "flavor": "<one sentence why>"} \
+            {"value": <-60 to 60>, "lean_a": <-15 to 15>, "lean_b": <-15 to 15>, "asymmetric": false, "flavor": "<one sentence about the two of them>"} \
             Higher value means fonder. Do not write anything else.""";
 
     private static final LlmService.FewShotExample PAIR_EXAMPLE = new LlmService.FewShotExample(
@@ -69,6 +75,16 @@ public final class RelationshipService {
             Person A: Doria Fenn (cheerful; notably strong, keen-eyed).
             Person B: Tam Reed (bubbly): hums to the chickens at dawn.""",
             "{\"value\": 35, \"lean_a\": 5, \"lean_b\": -3, \"asymmetric\": false, \"flavor\": \"Two warm souls who trade jokes over the fence most mornings.\"}");
+
+    /** A cooler pair, to show that a low value still needs a line about BOTH of them. */
+    private static final LlmService.FewShotExample PAIR_EXAMPLE_COOL = new LlmService.FewShotExample(
+            """
+            Person A: Miren Oak (cranky; slow of foot).
+            Person B: Sella Vance (smug): counts every coin twice.""",
+            "{\"value\": -20, \"lean_a\": -6, \"lean_b\": 2, \"asymmetric\": false, \"flavor\": \"They share a wall and an old argument about whose goats ruined whose garden.\"}");
+
+    /** The strongest feeling generation may assign on the day two people meet. */
+    private static final int GENERATED_LIMIT = 60;
 
     private RelationshipService() {
     }
@@ -205,7 +221,8 @@ public final class RelationshipService {
 
     private static void requestPair(Village village, ServerLevel level, RealPerson newcomer, Candidate candidate) {
         String prompt = "Person A: " + describe(newcomer) + ".\nPerson B: " + candidate.descriptor() + ".";
-        LlmService.get().submitPersona(PAIR_SYSTEM, prompt, List.of(PAIR_EXAMPLE), PAIR_TOKENS, TEMPERATURE)
+        LlmService.get().submitPersona(PAIR_SYSTEM, prompt, List.of(PAIR_EXAMPLE, PAIR_EXAMPLE_COOL),
+                PAIR_TOKENS, TEMPERATURE)
                 .thenAccept(raw -> raw.ifPresent(text -> level.getServer().execute(() -> {
                     RelationshipPair pair = parsePair(newcomer.getUUID(), candidate.id(), text);
                     if (pair == null) {
@@ -213,6 +230,7 @@ public final class RelationshipService {
                                 newcomer.getFullName(), candidate.fullName());
                         return;
                     }
+                    pair = withoutBiography(pair, newcomer.getFullName(), candidate.fullName());
                     if (Math.abs(pair.value()) < RelationshipPair.NEUTRAL_BAND) {
                         return; // neutral pairs are represented by absence
                     }
@@ -223,6 +241,36 @@ public final class RelationshipService {
     }
 
     /** Lenient JSON extraction; any structural or range violation discards the pair. */
+    /**
+     * A flavour line that names one of the two and not the other is a
+     * biography that happened to be stored on a relationship, which the audit
+     * on #21 found in most pairs. Better to keep the numbers and drop the
+     * sentence than to let a villager describe their neighbour to themselves.
+     */
+    private static RelationshipPair withoutBiography(RelationshipPair pair, String nameA, String nameB) {
+        String flavor = pair.flavor();
+        if (flavor.isBlank()) {
+            return pair;
+        }
+        boolean mentionsA = mentionsAnyPartOf(flavor, nameA);
+        boolean mentionsB = mentionsAnyPartOf(flavor, nameB);
+        if (mentionsA == mentionsB) {
+            return pair;
+        }
+        Villagelife.LOGGER.debug("Dropped a one-sided flavour line: \"{}\"", flavor);
+        return new RelationshipPair(pair.personA(), pair.personB(), pair.value(),
+                pair.leanA(), pair.leanB(), pair.asymmetric(), "");
+    }
+
+    private static boolean mentionsAnyPartOf(String flavor, String fullName) {
+        for (String part : fullName.split(" +")) {
+            if (part.length() > 2 && flavor.contains(part)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static RelationshipPair parsePair(UUID a, UUID b, String raw) {
         int start = raw.indexOf('{');
         int end = raw.lastIndexOf('}');
@@ -232,12 +280,21 @@ public final class RelationshipService {
         try {
             JsonObject json = JsonParser.parseString(raw.substring(start, end + 1)).getAsJsonObject();
             int value = json.get("value").getAsInt();
+            // Generation meets people on their first day, so it may not hand out
+            // devotion or loathing; those are earned by drift and by what
+            // happens between them (#72).
+            value = net.minecraft.util.Mth.clamp(value, -GENERATED_LIMIT, GENERATED_LIMIT);
             if (value < -100 || value > 100) {
                 return null;
             }
             int leanA = json.has("lean_a") ? json.get("lean_a").getAsInt() : 0;
             int leanB = json.has("lean_b") ? json.get("lean_b").getAsInt() : 0;
             boolean asymmetric = json.has("asymmetric") && json.get("asymmetric").getAsBoolean();
+            // The flag only earns its name when the two leans actually diverge:
+            // a model that marks asymmetric while giving both people the same
+            // small lean has described a symmetric pair (#72). Believing it
+            // there would make asymmetry meaningless wherever it appears.
+            asymmetric = asymmetric && Math.abs(leanA - leanB) > RelationshipPair.LEAN_LIMIT;
             String flavor = json.has("flavor") ? json.get("flavor").getAsString() : "";
             return RelationshipPair.create(a, b, value, leanA, leanB, asymmetric, flavor);
         } catch (Exception e) {

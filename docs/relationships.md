@@ -51,6 +51,24 @@ Chat briefings include "People in your life": the person's 3 strongest pairs by
 conversation map). Future consumers (AI goals reacting to fondness, gift preferences)
 read `opinionOf`.
 
+## What generation may and may not do
+
+Tightened after the audit on [#21](https://github.com/Quzzar/villagelife/issues/21), which
+measured the first live webs and found the content wanting where the mechanism was sound.
+
+- **Flavour is about the pair, or it is nothing.** The prompt now forbids describing one
+  villager on their own, and a line that names one of the two and not the other is dropped
+  before storage: better to keep the numbers and lose the sentence than to let a villager
+  describe their neighbour to themselves. The audit found two thirds of lines were
+  biographies wearing a relationship's clothes.
+- **Asymmetry has to mean something.** The prompt asks for it in roughly one pair in ten,
+  and the parse only honours the flag when the two leans actually diverge — a model that
+  marks a pair asymmetric while giving both people the same small lean has described a
+  symmetric pair, and believing it would make asymmetry meaningless everywhere it appears.
+- **Generation meets people on their first day**, so it may not hand out devotion or
+  loathing: values are capped at 60 either way. Anything stronger is earned, by drift or by
+  something that happened between them.
+
 ## What changes a relationship after generation
 
 Generation writes the web once, on the day a villager arrives. These are the forces that
