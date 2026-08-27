@@ -1,0 +1,16 @@
+{
+  "structure": "well_taiga_1",
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 5
+    },
+    {
+      "item": "minecraft:cobblestone",
+      "count": 6
+    }
+  ],
+  "grants": [
+    "WATER"
+  ]
+}

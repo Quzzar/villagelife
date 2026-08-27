@@ -1,0 +1,16 @@
+{
+  "structure": "well_snowy_1",
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 2
+    },
+    {
+      "item": "minecraft:stone_bricks",
+      "count": 11
+    }
+  ],
+  "grants": [
+    "WATER"
+  ]
+}
