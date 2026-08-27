@@ -208,6 +208,58 @@ Two consequences:
   the planner, job claiming, site scoring. That is where the P99 spikes come from and where a
   future optimisation pass belongs.
 
+## What a worker chooses to gather: the village's shopping list
+
+**`SELECT` reads what the village is short of.** A worker prefers targets that yield a
+material the village currently needs, and falls back to its ordinary loop when it needs
+nothing or nothing is in reach. Only `SELECT` changes; `TRAVEL` and `ACT` are untouched.
+
+Today every `SELECT` is blind. `WorkInMineGoal` takes the next block down and outward from
+its station and nothing else, so a village that needs sand for its stoneworks will watch its
+miner dig straight past a sand bank to keep the spiral tidy. The worker is busy and the
+village is stuck, which reads as the mod being broken rather than the village being poor.
+
+**The shopping list already exists and needs no new machinery.** Three pieces are in place:
+
+- the brain picks a target building from options it can already see
+- that building has a `cost`, a flat list of items and counts. Every one of the 69 shipped
+  definitions now carries one ([building-spec.md](building-spec.md))
+- `hasItemStackInVillage` already measures stock against a recipe, against real container
+  contents
+
+So "what are we short of" is a subtraction over things the code computes anyway. Nothing has
+to be invented to know a village needs 38 sandstone; it is the difference between the current
+build target's recipe and what is in the chests.
+
+**This is a ranking, not a new scan.** The worker still walks its own per-worker scan and
+still respects the same budget; needed materials simply sort first among the candidates it
+already found. That matters given [the benchmark](https://github.com/Quzzar/villagelife/issues/62):
+village ticking dominates and workers are cheap, so a preference order costs nothing worth
+measuring, while a second village-level "who needs what" index would land squarely on the
+expensive half.
+
+**Read the list on the worker's own cadence, not per tick.** The brain's target can change
+between decisions, and a worker that re-reads it constantly walks halfway to three different
+things. It re-reads when it finishes a cycle, which is also when it would pick a new target
+anyway.
+
+**Failure is already contracted.** A miner who cannot find sandstone within its radius hits
+the existing "nothing to work on" path: a shortage event, one plain sentence in its own
+`PersonalLogData`, and wandering. That sentence, *"I cannot find sandstone for the
+stoneworks"*, surfaces in conversation and is the seed of an emergent quest, which is a far
+better outcome than a silent stall. The shortage also feeds attractiveness, so a village
+that cannot reach what it needs becomes measurably less attractive and the brain is told why.
+
+**Bounded by the same rules as everything else.** Working radius still grows with the
+settlement, so a camp cannot send its only miner across the world for one block of sand.
+Demand changes what a worker prefers, never how far it will go.
+
+**Two sizes, and they are not the same job.** The narrow version consults the current build
+target's unmet cost inside `WorkInMineGoal` and prefers those blocks: a small, contained
+change to one goal class. The real version is this section as written, and it only exists
+once the three verbs do. The narrow one is worth doing on its own terms and does not block
+the rewrite, because the ranking it encodes is the same ranking `SELECT` will want.
+
 ## Reviewing what gets built
 
 `/vldev village gallery [pos]` places every loaded building definition on labelled plinths, grouped
