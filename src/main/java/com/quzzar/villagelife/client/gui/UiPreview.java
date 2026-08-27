@@ -107,8 +107,7 @@ public final class UiPreview {
                             new MarketOffersPacket.Row("minecraft:wheat", 4, 1),
                             new MarketOffersPacket.Row("minecraft:iron_ingot", 2, 1),
                             new MarketOffersPacket.Row("minecraft:oak_log", 34, 1),
-                            new MarketOffersPacket.Row("minecraft:coal", 9, 1),
-                            new MarketOffersPacket.Row("minecraft:leather", 2, 1)),
+                            new MarketOffersPacket.Row("minecraft:coal", 9, 1)),
                     ""));
         }
     }

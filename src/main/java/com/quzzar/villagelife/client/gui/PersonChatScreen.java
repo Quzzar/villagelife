@@ -35,30 +35,30 @@ public class PersonChatScreen extends Screen {
   // Minecraft's own GUI palette: the grey panel, its bevel, and the inset
   // slot. Matching these is what makes a modded screen read as part of the
   // game rather than as something bolted on.
-  private static final int PANEL_FACE = 0xFFC6C6C6;
+  private static final int PANEL_FACE = 0xFFD0D0D0;
   private static final int PANEL_LIGHT = 0xFFFFFFFF;
   private static final int PANEL_DARK = 0xFF555555;
   private static final int PANEL_EDGE = 0xFF000000;
   private static final int SLOT_FACE = 0xFF8B8B8B;
   private static final int SLOT_DARK = 0xFF373737;
   private static final int DIVIDER = 0xFF8B8B8B;
-  private static final int TEXT_LABEL = 0xFF404040;
-  private static final int TEXT_VILLAGER = 0xFF404040;
-  private static final int TEXT_PLAYER = 0xFF29416B;
-  private static final int TEXT_PENDING = 0xFF7A7A7A;
+  private static final int TEXT_LABEL = 0xFF1C1C1C;
+  private static final int TEXT_VILLAGER = 0xFF1C1C1C;
+  private static final int TEXT_PLAYER = 0xFF16305C;
+  private static final int TEXT_PENDING = 0xFF6A6A6A;
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
 
   /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
-  private static final int PANEL_WIDTH = 276;
-  private static final int PANEL_HEIGHT = 218;
+  private static final int PANEL_WIDTH = 256;
+  private static final int PANEL_HEIGHT = 170;
   /** slot, arrow, slot: the width the two slots of one trade occupy. */
-  private static final int TRADE_WIDTH = 56;
+  private static final int TRADE_WIDTH = 52;
   private static final int SLOT_SIZE = 20;
   /** A trade plus the name of the goods, which is what fills a column. */
-  private static final int COLUMN_WIDTH = 130;
-  private static final int ROW_HEIGHT = 22;
+  private static final int COLUMN_WIDTH = 118;
+  private static final int ROW_HEIGHT = 21;
 
   private static final int LINE_GAP = 2;
 
@@ -156,8 +156,8 @@ public class PersonChatScreen extends Screen {
 
     if (canTrade) {
       int tabWidth = 58;
-      addRenderableWidget(new TabButton(panelLeft + 12, panelTop + 28, tabWidth, "Chat", Tab.CHAT));
-      addRenderableWidget(new TabButton(panelLeft + 14 + tabWidth, panelTop + 28, tabWidth, "Trade", Tab.TRADE));
+      addRenderableWidget(new TabButton(panelLeft + 10, panelTop + 24, tabWidth, "Chat", Tab.CHAT));
+      addRenderableWidget(new TabButton(panelLeft + 12 + tabWidth, panelTop + 24, tabWidth, "Trade", Tab.TRADE));
       toServer(
           com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
     }
@@ -175,7 +175,7 @@ public class PersonChatScreen extends Screen {
 
     this.sendButton = addRenderableWidget(new IconButton(panelRight - 30, inputRowTop, 20,
         IconButton.SEND, button -> send()));
-    addRenderableWidget(new IconButton(panelRight - 22, panelTop + 6, 16,
+    addRenderableWidget(new IconButton(panelRight - 20, panelTop + 3, 16,
         IconButton.CLOSE, button -> onClose()));
     applyTabVisibility();
 
@@ -187,7 +187,7 @@ public class PersonChatScreen extends Screen {
     // super gives the blurred, darkened world behind the panel.
     super.renderBackground(graphics, mouseX, mouseY, partialTick);
     panel(graphics, panelLeft, panelTop, panelRight, panelBottom);
-    graphics.fill(panelLeft + 6, panelTop + 24, panelRight - 6, panelTop + 25, DIVIDER);
+    graphics.fill(panelLeft + 6, panelTop + 20, panelRight - 6, panelTop + 21, DIVIDER);
 
     if (tab != Tab.CHAT) {
       return;
@@ -271,10 +271,20 @@ public class PersonChatScreen extends Screen {
       awaitingReply = false; // let the player speak again rather than wait forever
     }
 
-    // "Name, Title" on one line: the name carries, the title trails in grey.
-    Component header = Component.literal(headerName).withStyle(ChatFormatting.WHITE)
-        .append(Component.literal(", " + headerDetail).withStyle(ChatFormatting.GRAY));
-    graphics.drawCenteredString(this.font, header, (panelLeft + panelRight) / 2, panelTop + 13, 0xFFFFFF);
+    // "Name, Title" on one line, centred in the space the close button leaves
+    // rather than in the panel, and trimmed to fit: a long village name used to
+    // run straight through the X.
+    int headerLeft = panelLeft + 8;
+    int headerRight = panelRight - 26;
+    String detail = ", " + headerDetail;
+    int room = headerRight - headerLeft;
+    if (this.font.width(headerName + detail) > room) {
+      detail = this.font.plainSubstrByWidth(detail,
+          Math.max(0, room - this.font.width(headerName) - this.font.width(".."))) + "..";
+    }
+    String header = headerName + detail;
+    graphics.drawString(this.font, header,
+        headerLeft + Math.max(0, (room - this.font.width(header)) / 2), panelTop + 8, TEXT_LABEL, false);
 
     if (tab == Tab.TRADE) {
       renderTrade(graphics, mouseX, mouseY);
@@ -290,7 +300,7 @@ public class PersonChatScreen extends Screen {
 
     int textWidth = panelRight - panelLeft - 24;
     int left = panelLeft + 12;
-    int top = panelTop + (canTrade ? 52 : 34);
+    int top = panelTop + (canTrade ? 44 : 28);
     int bottom = inputRowTop - 6;
 
     List<FormattedCharSequence> rendered = new ArrayList<>();
@@ -343,7 +353,7 @@ public class PersonChatScreen extends Screen {
    */
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int y = panelTop + 50;
+    int y = panelTop + 42;
 
     if (offers == null) {
       centred(graphics, "Opening the stall...", (panelLeft + panelRight) / 2, y, TEXT_PENDING);
@@ -360,13 +370,13 @@ public class PersonChatScreen extends Screen {
 
     // Each column is centred in its own half, so a two-slot trade does not
     // sit marooned against the panel edge with a canyon between the columns.
-    int gap = Math.max(8, (panelRight - panelLeft) - COLUMN_WIDTH * 2 - 12);
+    int gap = Math.max(6, (panelRight - panelLeft) - COLUMN_WIDTH * 2 - 12);
     int leftColumn = panelLeft + 6;
     int rightColumn = leftColumn + COLUMN_WIDTH + gap;
 
     graphics.drawString(this.font, "For sale", leftColumn, y, TEXT_LABEL, false);
     graphics.drawString(this.font, "Looking for", rightColumn, y, TEXT_LABEL, false);
-    y += 14;
+    y += 12;
 
     drawColumn(graphics, offers.selling(), leftColumn, y, mouseX, mouseY, true);
     drawColumn(graphics, offers.wanted(), rightColumn, y, mouseX, mouseY, false);
@@ -389,7 +399,10 @@ public class PersonChatScreen extends Screen {
       return;
     }
     int right = left + TRADE_WIDTH;
-    for (var row : rows) {
+    // Never draw past the panel. The server caps the list too, but the client
+    // owns the panel height and must not depend on the two agreeing.
+    int fits = Math.max(1, (panelBottom - 6 - top) / ROW_HEIGHT);
+    for (var row : rows.size() > fits ? rows.subList(0, fits) : rows) {
       ItemStack goods = stackOf(row.itemId(), row.itemCount());
       ItemStack coins = new ItemStack(Items.EMERALD, row.emeralds());
       ItemStack from = playerBuys ? coins : goods;
@@ -404,7 +417,7 @@ public class PersonChatScreen extends Screen {
       graphics.renderItemDecorations(this.font, from, left + 2, y + 2);
       graphics.renderItem(into, right - SLOT_SIZE + 2, y + 2);
       graphics.renderItemDecorations(this.font, into, right - SLOT_SIZE + 2, y + 2);
-      arrow(graphics, left + 26, y + 8);
+      arrow(graphics, left + 24, y + 8);
 
       // Icons alone do not distinguish an oak log from a spruce one.
       int nameLeft = right + 5;
