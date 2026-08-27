@@ -1063,6 +1063,40 @@ public class Village {
   public void assignJob(UUID personId, JobAssignment job) {
     unassignedJobs.remove(job);
     jobAssignments.put(personId, job.setPersonUUID(personId));
+    preferWorkplaceBed(personId, job.getBuildingUUID());
+  }
+
+  /**
+   * A worker moves in above the shop. When someone takes a job in a building
+   * that has a free bed, they claim it and release whatever bed they held
+   * before, so a live-in workplace (a bed in its definition) reliably houses
+   * its own worker rather than handing that bed to the first newcomer in line.
+   *
+   * A no-op for the common case: a workplace with no beds leaves the worker
+   * wherever they already sleep. Only the building's own residents ever compete
+   * for its beds, and the first worker assigned wins a single bed, so a market
+   * with three merchants and one bed houses one of them and no more.
+   */
+  private void preferWorkplaceBed(UUID personId, UUID buildingUUID) {
+    int free = -1;
+    for (int i = 0; i < unassignedBeds.size(); i++) {
+      if (unassignedBeds.get(i).getBuildingUUID().equals(buildingUUID)) {
+        free = i;
+        break;
+      }
+    }
+    if (free < 0) {
+      return; // the workplace has no spare bed; keep the one they have
+    }
+    BedAssignment current = bedAssignments.get(personId);
+    if (current != null && current.getBuildingUUID().equals(buildingUUID)) {
+      return; // already sleeping at work
+    }
+    BedAssignment workplaceBed = unassignedBeds.remove(free);
+    bedAssignments.put(personId, workplaceBed.setPersonUUID(personId));
+    if (current != null) {
+      unassignedBeds.add(current.setPersonUUID(null)); // their old bed reopens
+    }
   }
 
   public String getID() {
