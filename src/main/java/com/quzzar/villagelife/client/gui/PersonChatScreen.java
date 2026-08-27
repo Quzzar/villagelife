@@ -227,6 +227,59 @@ public class PersonChatScreen
     return -1;
   }
 
+  /** Goods traded per unit of the selected deal (bread, oak log, etc.). */
+  public static int selectedGoodsCount() {
+    if (Minecraft.getInstance().screen instanceof PersonChatScreen screen
+        && screen.selected >= 0 && screen.selected < screen.allDeals.size()) {
+      Deal deal = screen.allDeals.get(screen.selected);
+      return deal.playerBuys() ? deal.into().getCount() : deal.from().getCount();
+    }
+    return 0;
+  }
+
+  /** Emeralds traded per unit of the selected deal. */
+  public static int selectedEmeraldCount() {
+    return selectedUnitPrice();
+  }
+
+  /** Goods per unit of deal {@code i}, read by explicit index (selection is server-side). */
+  public static int dealGoods(int i) {
+    if (Minecraft.getInstance().screen instanceof PersonChatScreen s
+        && i >= 0 && i < s.allDeals.size()) {
+      Deal d = s.allDeals.get(i);
+      return d.playerBuys() ? d.into().getCount() : d.from().getCount();
+    }
+    return 0;
+  }
+
+  /** Emeralds per unit of deal {@code i}. */
+  public static int dealEmeralds(int i) {
+    if (Minecraft.getInstance().screen instanceof PersonChatScreen s
+        && i >= 0 && i < s.allDeals.size()) {
+      Deal d = s.allDeals.get(i);
+      return d.playerBuys() ? d.from().getCount() : d.into().getCount();
+    }
+    return 0;
+  }
+
+  /** How many deals the open stall has, for a test that walks them. */
+  public static int dealCount() {
+    return Minecraft.getInstance().screen instanceof PersonChatScreen screen
+        ? screen.allDeals.size() : 0;
+  }
+
+  /** True when deal {@code i} is a SELL: the player hands goods over for emeralds. */
+  public static boolean dealIsSell(int i) {
+    return Minecraft.getInstance().screen instanceof PersonChatScreen screen
+        && i >= 0 && i < screen.allDeals.size() && !screen.allDeals.get(i).playerBuys();
+  }
+
+  /** The goods item id in deal {@code i}, so a test can hold and count it. */
+  public static String dealItemId(int i) {
+    return Minecraft.getInstance().screen instanceof PersonChatScreen screen
+        && i >= 0 && i < screen.allDeals.size() ? screen.allDeals.get(i).itemId() : "";
+  }
+
   static void previewChatTab() {
     previewTab = Tab.CHAT;
   }
