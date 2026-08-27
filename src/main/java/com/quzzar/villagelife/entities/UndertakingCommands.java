@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -134,7 +133,7 @@ public final class UndertakingCommands {
      * and whether a well-behaved model SHOULD emit an op. {@code expected} is the
      * op wanted, or empty string for "no op, this turn is not about a matter".
      */
-    private record Case(String context, String playerLine, String expected) {
+    private record Case(String context, String playerLine, String expected, boolean gatedIn) {
     }
 
     /** The measurement prompt. Deliberately its OWN prompt, not production RULES:
@@ -151,27 +150,33 @@ public final class UndertakingCommands {
             + "undertaking at all. Answer with ONLY a JSON object: {\"say\": \"...\"} optionally with "
             + "an \"undertaking\".";
 
+    // gatedIn: whether a realistic gate would OFFER the tool this turn — true when
+    // an open matter exists in the context OR the player's line is plausibly a
+    // commitment/offer/amends. Annotated by that rule, NOT by the expected answer,
+    // so the gated pass is an honest test and not a rigged one. Case 9 is gated in
+    // (a matter exists) though the line is mundane: the interesting one the gate
+    // cannot filter, where only the model's own discipline saves it.
     private static final List<Case> CASES = List.of(
             // should OPEN
             new Case("The player robbed your chest yesterday and you saw them.",
-                    "I'm sorry about your chest. How can I make it up to you?", "open"),
+                    "I'm sorry about your chest. How can I make it up to you?", "open", true),
             new Case("You are a builder short of oak for the next house.",
-                    "I could fetch you materials if you tell me what you need.", "open"),
+                    "I could fetch you materials if you tell me what you need.", "open", true),
             // should ADVANCE (an open matter is in play)
             new Case("Matter with this player: they owe you ten wheat for grain they took. "
-                    + "So far none brought.", "Here, I've brought you four wheat toward what I owe.", "advance"),
+                    + "So far none brought.", "Here, I've brought you four wheat toward what I owe.", "advance", true),
             new Case("Matter you are seeing through: saving for a bigger house; the frame is up.",
-                    "How's the house coming along?", "advance"),
+                    "How's the house coming along?", "advance", true),
             // should RESOLVE
             new Case("Matter with this player: they owe you ten wheat. They have brought nine.",
-                    "Here's the last wheat — that's all ten now.", "resolve"),
+                    "Here's the last wheat — that's all ten now.", "resolve", true),
             // should NOT fire (the bite: over-emission)
-            new Case("A calm day at your market stall.", "Lovely weather today, isn't it?", ""),
-            new Case("A calm day at your market stall.", "What do you sell here?", ""),
-            new Case("You are tending your field.", "Where would I find the blacksmith?", ""),
+            new Case("A calm day at your market stall.", "Lovely weather today, isn't it?", "", false),
+            new Case("A calm day at your market stall.", "What do you sell here?", "", false),
+            new Case("You are tending your field.", "Where would I find the blacksmith?", "", false),
             new Case("Matter with this player: they owe you ten wheat, none brought yet.",
-                    "Just passing through, don't mind me.", ""),
-            new Case("A quiet evening.", "Goodnight, then.", ""));
+                    "Just passing through, don't mind me.", "", true),
+            new Case("A quiet evening.", "Goodnight, then.", "", false));
 
     private static int audit(CommandSourceStack source) {
         if (!LlmService.get().isReady()) {
@@ -179,48 +184,78 @@ public final class UndertakingCommands {
             return 0;
         }
         source.sendSuccess(() -> Component.literal(
-                "Undertaking audit: " + CASES.size() + " scripted turns, measuring the model..."), false);
+                "Undertaking audit: " + CASES.size() + " turns, ungated then gated, measuring the model..."),
+                false);
 
-        AtomicInteger shouldFire = new AtomicInteger();
-        AtomicInteger didFire = new AtomicInteger();
-        AtomicInteger correctFire = new AtomicInteger();   // fired AND wanted, right op
-        AtomicInteger wrongOp = new AtomicInteger();        // fired when wanted but wrong op
-        AtomicInteger falseFire = new AtomicInteger();      // fired when NOT wanted
-        AtomicInteger missed = new AtomicInteger();         // wanted but silent
-        StringBuilder log = new StringBuilder("\n=== undertaking audit ===\n");
-
-        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-        for (Case c : CASES) {
-            chain = chain.thenCompose(v -> runCase(c, shouldFire, didFire, correctFire,
-                    wrongOp, falseFire, missed, log));
-        }
-        chain.whenComplete((v, e) -> {
-            int fires = didFire.get();
-            double precision = fires == 0 ? 1.0 : (double) correctFire.get() / fires;
-            double recall = shouldFire.get() == 0 ? 1.0 : (double) correctFire.get() / shouldFire.get();
-            log.append(String.format(
-                    "\nPRECISION %.0f%% (%d of %d ops were wanted, right op)\n"
-                    + "RECALL    %.0f%% (%d of %d wanted ops fired correctly)\n"
-                    + "false fires %d (ops on turns that should have been silent)\n"
-                    + "wrong op    %d (fired on a right turn, wrong op)\n"
-                    + "missed      %d (wanted an op, got none)\n",
-                    precision * 100, correctFire.get(), fires,
-                    recall * 100, correctFire.get(), shouldFire.get(),
-                    falseFire.get(), wrongOp.get(), missed.get()));
-            Villagelife.LOGGER.info(log.toString());
-            source.getServer().execute(() -> source.sendSuccess(() -> Component.literal(String.format(
-                    "Audit done: precision %.0f%%, recall %.0f%%, %d false fires. Full report in the log.",
-                    precision * 100, recall * 100, falseFire.get())), false));
-        });
+        // Run the ungated pass (tool offered every turn), then the gated pass
+        // (tool offered only when a matter is plausibly in play), so one run
+        // yields both numbers and the delta that justifies gating.
+        runPass(source, false).thenCompose(ungated ->
+                runPass(source, true).thenAccept(gated -> {
+                    StringBuilder out = new StringBuilder("\n=== undertaking audit (Llama vs the prompt) ===\n");
+                    out.append(ungated.render("UNGATED (tool every turn)"));
+                    out.append(gated.render("GATED   (tool only when plausible)"));
+                    out.append(String.format(
+                            "\nDELTA: gating cut false fires %d -> %d, precision %.0f%% -> %.0f%%\n",
+                            ungated.falseFire, gated.falseFire,
+                            ungated.precision() * 100, gated.precision() * 100));
+                    Villagelife.LOGGER.info(out.toString());
+                    source.getServer().execute(() -> source.sendSuccess(() -> Component.literal(String.format(
+                            "Audit done. Ungated: precision %.0f%%, %d false fires. "
+                            + "Gated: precision %.0f%%, %d false fires. Full report in the log.",
+                            ungated.precision() * 100, ungated.falseFire,
+                            gated.precision() * 100, gated.falseFire)), false));
+                }));
         return 1;
     }
 
-    private static CompletableFuture<Void> runCase(Case c, AtomicInteger shouldFire, AtomicInteger didFire,
-            AtomicInteger correctFire, AtomicInteger wrongOp, AtomicInteger falseFire, AtomicInteger missed,
-            StringBuilder log) {
+    /** One pass's tally. */
+    private static final class Tally {
+        int shouldFire, didFire, correctFire, wrongOp, falseFire, missed;
+        final StringBuilder rows = new StringBuilder();
+
+        double precision() {
+            return didFire == 0 ? 1.0 : (double) correctFire / didFire;
+        }
+
+        double recall() {
+            return shouldFire == 0 ? 1.0 : (double) correctFire / shouldFire;
+        }
+
+        String render(String title) {
+            return String.format("%s\n%s"
+                    + "  precision %.0f%% (%d/%d ops wanted+right)   recall %.0f%% (%d/%d)   "
+                    + "false fires %d, wrong op %d, missed %d\n",
+                    title, rows,
+                    precision() * 100, correctFire, didFire, recall() * 100, correctFire, shouldFire,
+                    falseFire, wrongOp, missed);
+        }
+    }
+
+    private static CompletableFuture<Tally> runPass(CommandSourceStack source, boolean gated) {
+        Tally t = new Tally();
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+        for (Case c : CASES) {
+            chain = chain.thenCompose(v -> runCase(c, gated, t));
+        }
+        return chain.thenApply(v -> t);
+    }
+
+    private static CompletableFuture<Void> runCase(Case c, boolean gated, Tally t) {
         boolean wanted = !c.expected().isBlank();
         if (wanted) {
-            shouldFire.incrementAndGet();
+            t.shouldFire++;
+        }
+        // Gating: a turn the gate would not offer the tool cannot fire. Every
+        // gated-out case here has no wanted op, so gating it out is a correct
+        // silence; if one ever had a wanted op, this would (rightly) count a miss.
+        if (gated && !c.gatedIn()) {
+            if (wanted) {
+                t.missed++;
+            }
+            t.rows.append(String.format("  [%-10s] want %-8s got %-8s  \"%s\"\n",
+                    "GATED-OUT", c.expected().isBlank() ? "(none)" : c.expected(), "(none)", c.playerLine()));
+            return CompletableFuture.completedFuture(null);
         }
         String user = "Situation: " + c.context() + "\nPlayer says: \"" + c.playerLine()
                 + "\"\nYour JSON answer:";
@@ -228,22 +263,22 @@ public final class UndertakingCommands {
                 .thenAccept(raw -> {
                     Optional<Op> op = raw.flatMap(UndertakingCommands::opOf);
                     if (op.isPresent()) {
-                        didFire.incrementAndGet();
+                        t.didFire++;
                         if (!wanted) {
-                            falseFire.incrementAndGet();
+                            t.falseFire++;
                         } else if (op.get().op().equals(c.expected())) {
-                            correctFire.incrementAndGet();
+                            t.correctFire++;
                         } else {
-                            wrongOp.incrementAndGet();
+                            t.wrongOp++;
                         }
                     } else if (wanted) {
-                        missed.incrementAndGet();
+                        t.missed++;
                     }
-                    String got = op.map(o -> o.op()).orElse("(none)");
+                    String got = op.map(Op::op).orElse("(none)");
                     String verdict = wanted
                             ? (op.map(o -> o.op().equals(c.expected())).orElse(false) ? "OK" : "MISS")
                             : (op.isPresent() ? "FALSE-FIRE" : "OK");
-                    log.append(String.format("  [%-10s] want %-8s got %-8s  \"%s\"\n",
+                    t.rows.append(String.format("  [%-10s] want %-8s got %-8s  \"%s\"\n",
                             verdict, c.expected().isBlank() ? "(none)" : c.expected(), got, c.playerLine()));
                 });
     }
