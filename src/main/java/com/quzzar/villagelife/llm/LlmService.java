@@ -20,8 +20,9 @@ import com.quzzar.villagelife.llm.provider.OpenAiCompatibleProvider;
 
 /**
  * Villager LLM requests, served by a config-selected {@link LlmProvider}:
- * the offline Jlama worker (default), or Claude / OpenAI / DeepSeek in the
- * cloud. Callers never learn which provider answered.
+ * the offline Jlama worker (default), a faster local runtime speaking the
+ * OpenAI protocol, or Claude / OpenAI / DeepSeek in the cloud. Callers never
+ * learn which provider answered.
  *
  * Queue order is chat > decide > persona: chats and decides dispatch
  * immediately (both foreground), and personas wait until nothing foreground
@@ -127,6 +128,9 @@ public final class LlmService {
           () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
       case "deepseek" -> new OpenAiCompatibleProvider(OpenAiCompatibleProvider.DEEPSEEK,
           () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
+      case "local" -> new OpenAiCompatibleProvider(
+          OpenAiCompatibleProvider.local(VillagelifeConfig.LlmLocalUrl, VillagelifeConfig.LlmCloudModel),
+          () -> "", () -> VillagelifeConfig.LlmCloudModel);
       case "jlama" -> new JlamaWorkerProvider();
       default -> {
         Villagelife.LOGGER.error("Unknown LLM provider '{}', using jlama", name);

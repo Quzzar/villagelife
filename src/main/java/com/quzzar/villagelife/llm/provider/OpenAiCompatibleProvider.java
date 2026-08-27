@@ -39,16 +39,30 @@ public final class OpenAiCompatibleProvider implements LlmProvider {
    * @param sendMinimalReasoning   send reasoning_effort: minimal (OpenAI
    *                               reasoning models; hidden reasoning tokens
    *                               count against the cap)
+   * @param keyless                a server on this machine that authenticates
+   *                               nobody. Demanding an API key from it would
+   *                               make the fast local path unreachable.
    */
   public record Spec(String name, String baseUrl, String defaultModel,
-      boolean useMaxCompletionTokens, boolean sendMinimalReasoning) {
+      boolean useMaxCompletionTokens, boolean sendMinimalReasoning, boolean keyless) {
+  }
+
+  /**
+   * A runtime on this machine speaking the same protocol: llama.cpp's server,
+   * Ollama, LM Studio, vLLM. They are several times faster than the in-process
+   * Java model and will run anything in their own format, which is the whole
+   * reason to reach for one.
+   */
+  public static Spec local(String baseUrl, String model) {
+    return new Spec("Local", baseUrl, model == null || model.isBlank() ? "local-model" : model,
+        false, false, true);
   }
 
   // sendMinimalReasoning stays false: gpt-5.6-luna hard-rejects
   // reasoning_effort=minimal (probed live); the generous token cap covers
   // hidden reasoning instead.
-  public static final Spec OPENAI = new Spec("OpenAI", "https://api.openai.com", "gpt-5.6-luna", true, false);
-  public static final Spec DEEPSEEK = new Spec("DeepSeek", "https://api.deepseek.com", "deepseek-chat", false, false);
+  public static final Spec OPENAI = new Spec("OpenAI", "https://api.openai.com", "gpt-5.6-luna", true, false, false);
+  public static final Spec DEEPSEEK = new Spec("DeepSeek", "https://api.deepseek.com", "deepseek-chat", false, false, false);
 
   private static final int MAX_RETRIES = 2;
 
@@ -75,7 +89,7 @@ public final class OpenAiCompatibleProvider implements LlmProvider {
 
   @Override
   public void start() {
-    if (apiKey.get() == null || apiKey.get().isBlank()) {
+    if (!spec.keyless() && (apiKey.get() == null || apiKey.get().isBlank())) {
       statusDetail = "no API key configured for " + spec.name()
           + ". Paste your key into villagelife-common.toml (treat that file like a password).";
       status.set(LlmService.Status.FAILED);
@@ -136,7 +150,7 @@ public final class OpenAiCompatibleProvider implements LlmProvider {
         .uri(URI.create(spec.baseUrl() + "/v1/chat/completions"))
         .timeout(Duration.ofSeconds(45))
         .header("Content-Type", "application/json")
-        .header("Authorization", "Bearer " + apiKey.get())
+        .header("Authorization", spec.keyless() ? "Bearer none" : "Bearer " + apiKey.get())
         .POST(HttpRequest.BodyPublishers.ofString(body))
         .build();
 

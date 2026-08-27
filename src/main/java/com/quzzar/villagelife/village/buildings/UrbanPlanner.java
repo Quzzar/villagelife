@@ -3,6 +3,7 @@ package com.quzzar.villagelife.village.buildings;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -14,7 +15,9 @@ import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
 
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 /**
  * Decides what a village builds next.
@@ -157,8 +160,44 @@ public class UrbanPlanner {
   }
 
   /**
-   * The best few buildings the village wants but cannot pay for. Ranked by the
-   * same need scoring, so what it saves for is what it actually lacks.
+   * Materials a village cannot simply dig up: each needs some building standing
+   * before any of it exists. Anything absent from this map comes straight out of
+   * the ground, and a village that has founded can always get it.
+   */
+  private static final Map<Item, String> MATERIAL_SOURCE = Map.of(
+      Items.OAK_LOG, "LOGS",
+      Items.OAK_PLANKS, "PLANKS",
+      Items.STONE, "CUT_STONE",
+      Items.STONE_BRICKS, "CUT_STONE",
+      Items.SANDSTONE, "CUT_STONE",
+      Items.CUT_SANDSTONE, "CUT_STONE");
+
+  /**
+   * Whether a village could ever pay for this, which is a different question
+   * from whether it can today. A goal it has no way to work toward is not a
+   * goal, it is a wait until the timeout: a plains village that names a snowy
+   * farm saves for stone brick it cannot make, expires, and names another.
+   */
+  private static boolean withinReach(Village village, BuildingInfo info) {
+    for (ItemStack cost : info.getMaterialCost()) {
+      String capability = MATERIAL_SOURCE.get(cost.getItem());
+      if (capability == null || village.canDo(capability)) {
+        continue;
+      }
+      // Some already in store counts: whoever put it there can get more, and a
+      // village part-way to a goal should be allowed to finish it.
+      if (village.hasItemStackInVillage(new ItemStack(cost.getItem(), 1))) {
+        continue;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * The best few buildings the village wants but cannot pay for. Ranked by
+   * whether it can actually work toward them first, then by the same need
+   * scoring, so what it saves for is something it both lacks and can reach.
    */
   private static List<Candidate> outOfReach(Village village) {
     Needs needs = Needs.of(village);
@@ -180,7 +219,12 @@ public class UrbanPlanner {
       }
       unaffordable.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
     }
-    unaffordable.sort(Comparator.comparingDouble(Candidate::score).reversed());
+    // Reach first, then need. Ranking by need alone had plains villages saving
+    // for desert and snowy farms, whose sandstone and stone brick they had no
+    // mason to make, cycling through unreachable goals a timeout at a time.
+    Comparator<Candidate> byReach = Comparator.comparing((Candidate c) -> withinReach(village, c.info()));
+    unaffordable.sort(byReach.reversed()
+        .thenComparing(Comparator.comparingDouble(Candidate::score).reversed()));
     return unaffordable.subList(0, Math.min(GOALS_OFFERED, unaffordable.size()));
   }
 
