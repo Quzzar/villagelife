@@ -4,17 +4,18 @@
 this document count the full map of the possible, not the shipping set — see
 [The cut](#the-cut) for which categories stand and why the rest went.
 
-**Proposed, not yet decided. 64 of 218 structures exist.** Reality check before reading:
+**Proposed, not yet decided. 69 of 224 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, eight exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,
 and `farm` ships in all five variants at all three levels. `mine` ships at level 1 in all five variants, so the
 founding set above is buildable for the first time. `stoneworks` ships at level 1 in all five variants,
-with a real MASON occupation behind it, and `tannery` likewise with TANNER. `hunting_lodge` ships likewise with HUNTER. Still
-missing: `fishery`, and levels 2 and 3 of `mine`, `stoneworks`, `tannery` and
-`hunting_lodge`.
+with a real MASON occupation behind it, and `tannery` likewise with TANNER. `hunting_lodge` ships likewise with HUNTER, and
+`fishery` with FISHER. **All eleven minimum-playable buildings now exist.** Still
+missing: levels 2 and 3 of `mine`, `stoneworks`, `tannery`, `hunting_lodge` and
+`fishery`.
 
-**Two occupations exist only as names in these tables**: FISHER and
-HERDER are not in the Occupation enum, and a definition naming one fails the codec
+**One occupation exists only as a name in these tables**: HERDER is not in the
+Occupation enum, and a definition naming one fails the codec
 outright, so such a building cannot load at all. MASON and TANNER were added when
 their buildings shipped. Anything below that names a worker should be checked
 against the enum before it is authored.
@@ -615,12 +616,22 @@ Feathers at L2 are what make the fletcher possible at all.
 
 #### `fishery`
 
-Worker: **FISHER**  ·  Phase 1  ·  Variants: `plains`, `marsh`
+Worker: **FISHER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert`, `savanna`
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | fishing hut | 7x7 | 12 oak log, 16 oak planks, 16 cobblestone, 4 glass, 2 wool | MEAT (fish) |
+| 1 | fishing hut | 9x7 | 12 oak log, 16 oak planks, 16 cobblestone, 4 glass, 2 wool | MEAT (fish), WATER |
 | 2 (upgrade) | fishery | 11x11 | 16 oak log, 24 oak planks, 28 cobblestone, 4 glass, 4 wool | MEAT more, docks |
+
+**It grants WATER, because it contains a 2x2 of source blocks**, which is an
+infinite water source in Minecraft. That does not make the `well` redundant: a
+well is cheap and lifts attractiveness, a fishery feeds people. Neither ranks
+above the other, they differ.
+
+Carrying its own water is also what makes this shippable at all. A fishery is the
+one category whose SITE matters, and site-selection does not understand
+shorelines; a self-contained source means it can be built anywhere. Requiring a
+real shore belongs with the level-2 docks.
 
 Keys off adjacent water, not off a biome, so it serves coast, river, lake, and swamp alike.
 
@@ -792,13 +803,13 @@ Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
 | Set | What it buys | Structures |
 | --- | --- | --- |
 | **Minimum playable** | One level-1 building per phase 1 category, plains variant only. A village that founds, feeds, houses, and defends itself. | **11** |
-| Phase 1 | A village survives in any biome, at every level | 132 |
+| Phase 1 | A village survives in any biome, at every level | 138 |
 | Phase 2 | It thrives: processed food, iron, faith, trade | 32 |
 | Phase 3 | It deepens: brewing, cloth, brick, glass, learning | 25 |
 | Phase 4 | It fights: soldiers, walls, arrows, potions | 29 |
-| | **Total** | **218** |
+| | **Total** | **224** |
 
-36 categories, 83 category-variant pairs, 218 structures. That total is the honest number and it
+36 categories, 86 category-variant pairs, 224 structures. That total is the honest number and it
 is large. Two things make it tractable:
 
 - **The minimum playable set is 11 structures.** One level-1 plains building per phase 1 category.

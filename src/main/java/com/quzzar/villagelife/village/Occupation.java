@@ -17,6 +17,7 @@ public enum Occupation {
     MASON,
     TANNER,
     HUNTER,
+    FISHER,
     LEADER;
 
     public boolean isIdle() {

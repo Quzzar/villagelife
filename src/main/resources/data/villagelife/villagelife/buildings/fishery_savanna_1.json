@@ -1,0 +1,28 @@
+{
+  "structure": "fishery_savanna_1",
+  "category": "fishery",
+  "variant": "savanna",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        6,
+        2,
+        2
+      ],
+      "occupation": "FISHER"
+    }
+  ],
+  "containers": [
+    [
+      6,
+      2,
+      2
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "MEAT",
+    "WATER"
+  ]
+}

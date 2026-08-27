@@ -1,0 +1,28 @@
+{
+  "structure": "fishery_plains_1",
+  "category": "fishery",
+  "variant": "plains",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        6,
+        2,
+        2
+      ],
+      "occupation": "FISHER"
+    }
+  ],
+  "containers": [
+    [
+      6,
+      2,
+      2
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "MEAT",
+    "WATER"
+  ]
+}

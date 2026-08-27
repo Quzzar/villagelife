@@ -1,0 +1,28 @@
+{
+  "structure": "fishery_snowy_1",
+  "category": "fishery",
+  "variant": "snowy",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        6,
+        2,
+        2
+      ],
+      "occupation": "FISHER"
+    }
+  ],
+  "containers": [
+    [
+      6,
+      2,
+      2
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "MEAT",
+    "WATER"
+  ]
+}
