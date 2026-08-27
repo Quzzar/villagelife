@@ -49,15 +49,27 @@ public class WorkOnMakingPathsGoal extends Goal {
     if (person.getVillage() == null) {
       return false;
     }
-    if (shouldInterrupt()) {
+    if (shouldInterrupt() || hasSomethingToBuild()) {
       return false;
     }
-    return true;
+    // A path runs between two buildings, so a village with only one has
+    // nowhere to wear a route.
+    return person.getVillage().getBuildings().size() >= 2;
   }
 
   @Override
   public boolean canContinueToUse() {
-    return !shouldInterrupt();
+    return !shouldInterrupt() && !hasSomethingToBuild();
+  }
+
+  /**
+   * Paths are what a builder does when there is nothing to build. Neither work
+   * goal declares a movement flag, so without this check both run at once and
+   * take turns calling moveTo on the same villager, who then walks to neither
+   * target and lays no path at all.
+   */
+  private boolean hasSomethingToBuild() {
+    return person.getVillage().getCurrentProject() != null;
   }
 
   @Override
