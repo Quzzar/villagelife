@@ -72,9 +72,9 @@ public class PersonChatScreen extends Screen {
   private static final ResourceLocation TRADE_ARROW =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow");
   private static final int PANEL_WIDTH = 300;
-  private static final int PANEL_HEIGHT = 202;
+  private static final int PANEL_HEIGHT = 214;
   /** Height of the strip above the art: the villager's name and the tabs. */
-  private static final int HEAD_STRIP = 44;
+  private static final int HEAD_STRIP = 58;
   /** Width of the trades well: the buttons plus their scrollbar. */
   private static final int WELL_WIDTH = 104;
   /** Where the right-hand column (market, preview, inventory) begins. */
@@ -360,7 +360,7 @@ public class PersonChatScreen extends Screen {
 
     int textWidth = panelRight - panelLeft - 24;
     int left = panelLeft + 12;
-    int top = panelTop + (canTrade ? 46 : 24);
+    int top = panelTop + (canTrade ? 44 : 24);
     int bottom = inputRowTop - 6;
 
     List<FormattedCharSequence> rendered = new ArrayList<>();
@@ -430,7 +430,7 @@ public class PersonChatScreen extends Screen {
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
     int listLeft = panelLeft + 8;
-    int listTop = panelTop + HEAD_STRIP + 12;
+    int listTop = panelTop + HEAD_STRIP;
 
     if (offers == null) {
       graphics.drawString(this.font, "Opening the stall...", listLeft, listTop, TEXT_PENDING, false);
@@ -458,10 +458,10 @@ public class PersonChatScreen extends Screen {
     // centres the trader's name over its half of the screen.
     int rightLeft = panelLeft + RIGHT_COLUMN;
     int rightWidth = (panelRight - 8) - rightLeft;
-    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + HEAD_STRIP - 12);
+    centred(graphics, "Trades", listLeft + WELL_WIDTH / 2, panelTop + HEAD_STRIP - 13);
     if (!offers.villageName().isBlank()) {
       centred(graphics, offers.villageName() + " Market",
-          rightLeft + rightWidth / 2, panelTop + HEAD_STRIP - 12);
+          rightLeft + rightWidth / 2, panelTop + HEAD_STRIP - 13);
     }
 
     // The recessed well the trade buttons sit in, with the scrollbar's own
