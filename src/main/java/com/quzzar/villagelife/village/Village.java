@@ -705,6 +705,12 @@ public class Village {
     if (level == null || getTownCenter() == null) {
       return;
     }
+    // A village that has not managed to look inside its own chests yet holds
+    // still rather than acting on a cold ledger (#65). This lasts only until
+    // the first time any of its storage is resident.
+    if (!brain.hasReadStores()) {
+      return;
+    }
     VillageAttractiveness report = getAttractiveness();
     switch (report.status()) {
       case GROWING -> tryArrival(report);

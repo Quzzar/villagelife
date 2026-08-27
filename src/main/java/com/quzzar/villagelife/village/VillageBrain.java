@@ -64,6 +64,10 @@ public class VillageBrain {
    */
   private HashMap<String, RelationshipPair> relationships = new HashMap<>();
 
+  // What each container held the last time anyone could see it. Deliberately
+  // not persisted: it is a cache of the world, and the world is the truth.
+  private final transient HashMap<Long, Integer> foodLedger = new HashMap<>();
+
   public VillageBrain() {
 
   }
@@ -268,22 +272,57 @@ public class VillageBrain {
 
   }
 
-  /** Total count of edible items across all village containers. */
+  /**
+   * Total count of edible items across all village containers, from the books
+   * rather than by paging in the world ([#65](https://github.com/Quzzar/villagelife/issues/65)).
+   *
+   * This runs every ten seconds for every village that EXISTS, and a chest in
+   * a chunk nobody is near costs a synchronous read off disk to open. That one
+   * detail was 96% of the entire village tick: villages hundreds of blocks
+   * from any player were loading their own storage off disk, six times a
+   * minute, to answer a question about mood.
+   *
+   * So the village keeps a ledger. A container it can see is counted and the
+   * figure recorded; a container it cannot see reports what it held when
+   * anyone last looked. The number is exact whenever the village is observed
+   * and merely stale when it is not, which is the right failure: reading an
+   * unwatched chest as EMPTY would zero the food component of attractiveness
+   * and emigrate people out of a village that is doing fine.
+   */
   public int countFood(ServerLevelAccessor levelAccess) {
     int count = 0;
     for (Long longLoc : containerLocs) {
+      BlockPos pos = BlockPos.of(longLoc);
+      if (!levelAccess.getLevel().hasChunkAt(pos)) {
+        count += foodLedger.getOrDefault(longLoc, 0);
+        continue;
+      }
       Container container = containerAt(levelAccess, longLoc);
       if (container == null) {
         continue;
       }
+      int here = 0;
       for (int i = 0; i < container.getContainerSize(); i++) {
         ItemStack stack = container.getItem(i);
         if (!stack.isEmpty() && stack.has(net.minecraft.core.component.DataComponents.FOOD)) {
-          count += stack.getCount();
+          here += stack.getCount();
         }
       }
+      foodLedger.put(longLoc, here);
+      count += here;
     }
     return count;
+  }
+
+  /**
+   * Whether the village has ever actually seen inside its own storage since
+   * the server came up. False only in the window between load and the first
+   * time any of its containers is resident: the ledger is empty then, so a
+   * food count would read zero for want of looking rather than for want of
+   * food, and no population decision should be made on it.
+   */
+  public boolean hasReadStores() {
+    return containerLocs.isEmpty() || !foodLedger.isEmpty();
   }
 
   public float totalImpact(Class<? extends BookkeepingEvent> type) {
@@ -317,6 +356,7 @@ public class VillageBrain {
       }
       boolean gone = !(levelAccess.getBlockEntity(pos) instanceof Container);
       if (gone) {
+        foodLedger.remove(pos.asLong());
         Villagelife.LOGGER.debug("Forgetting a container at {}: nothing is there any more",
             pos.toShortString());
       }
