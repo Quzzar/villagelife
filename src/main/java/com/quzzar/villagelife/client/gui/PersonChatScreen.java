@@ -42,6 +42,9 @@ public class PersonChatScreen extends Screen {
   private static final int PANEL_EDGE = 0xFF000000;
   private static final int SLOT_FACE = 0xFF8B8B8B;
   private static final int SLOT_DARK = 0xFF373737;
+  /** The grey villager.png paints its long arrow in, sampled from the file. */
+  private static final int ARROW_GREY = 0xFF8B8B8B;
+  private static final int ARROW_BLOCKED = 0xFFAA3333;
   private static final int DIVIDER = 0xFF8B8B8B;
   private static final int TEXT_LABEL = 0xFF1C1C1C;
   private static final int TEXT_VILLAGER = 0xFF1C1C1C;
@@ -50,6 +53,8 @@ public class PersonChatScreen extends Screen {
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
+  /** A wash over the chosen tab, so it is not the window's own grey. */
+  private static final int TAB_ACTIVE = 0x33566E8C;
   /** A trade row reads as a button: dark face, light edge, brighter on hover. */
   private static final int DEAL_FACE = 0xFF5B5B5B;
 
@@ -81,6 +86,9 @@ public class PersonChatScreen extends Screen {
       ResourceLocation.withDefaultNamespace("container/villager/scroller_disabled");
   private static final ResourceLocation TRADE_ARROW =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow");
+  /** Vanilla's struck-out arrow, used when the whole stall cannot trade. */
+  private static final ResourceLocation TRADE_ARROW_BLOCKED =
+      ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
   private static final int PANEL_WIDTH = 300;
   private static final int PANEL_HEIGHT = 196;
   /** Height of the strip above the art: the villager's name and the tabs. */
@@ -493,7 +501,7 @@ public class PersonChatScreen extends Screen {
     for (int i = 0; i < visible; i++) {
       drawDeal(graphics, deals.get(i), listLeft + 2, listTop + 2 + i * LIST_ROW, mouseX, mouseY);
     }
-    graphics.blitSprite(deals.size() > LIST_ROWS ? SCROLLER : SCROLLER_DISABLED,
+    graphics.blitSprite(SCROLLER,
         trackLeft + 1, listTop + 3, 6, 27);
 
     // The trade under the cursor, shown the way vanilla shows a selected one.
@@ -505,18 +513,21 @@ public class PersonChatScreen extends Screen {
         break;
       }
     }
-    int previewWidth = 18 + 4 + 18 + 14 + 18;
+    int previewWidth = 18 + 8 + 18 + 29 + 26;
     int previewLeft = rightLeft + (rightWidth - previewWidth) / 2;
     int previewTop = listTop + 10;
     slot(graphics, previewLeft, previewTop, previewLeft + 18, previewTop + 18);
-    slot(graphics, previewLeft + 22, previewTop, previewLeft + 40, previewTop + 18);
-    graphics.blitSprite(TRADE_ARROW, previewLeft + 42, previewTop + 5, 10, 9);
-    slot(graphics, previewLeft + 54, previewTop, previewLeft + 72, previewTop + 18);
+    slot(graphics, previewLeft + 26, previewTop, previewLeft + 44, previewTop + 18);
+    bigArrow(graphics, previewLeft + 51, previewTop + 8, offers.blocked());
+    // The result slot is 26 wide, not 18: vanilla gives what you receive more
+    // room than what it costs.
+    int resultLeft = previewLeft + previewWidth - 26;
+    slot(graphics, resultLeft, previewTop - 4, resultLeft + 26, previewTop + 22);
     if (shown != null) {
       graphics.renderItem(shown.from(), previewLeft + 1, previewTop + 1);
       graphics.renderItemDecorations(this.font, shown.from(), previewLeft + 1, previewTop + 1);
-      graphics.renderItem(shown.into(), previewLeft + 55, previewTop + 1);
-      graphics.renderItemDecorations(this.font, shown.into(), previewLeft + 55, previewTop + 1);
+      graphics.renderItem(shown.into(), resultLeft + 5, previewTop + 1);
+      graphics.renderItemDecorations(this.font, shown.into(), resultLeft + 5, previewTop + 1);
     }
 
     int gridLeft = rightLeft + (rightWidth - 9 * 18) / 2;
@@ -537,7 +548,11 @@ public class PersonChatScreen extends Screen {
     int itemY = top + 2;
     graphics.renderItem(deal.from(), left + 5, itemY);
     graphics.renderItemDecorations(this.font, deal.from(), left + 5, itemY);
-    graphics.blitSprite(TRADE_ARROW, left + 55, itemY + 3, 10, 9);
+    // Struck out while the market cannot trade at all. Individual trades are
+    // never blocked: a village that runs low just prices the item up until it
+    // stops listing it, which the numbers say on their own.
+    graphics.blitSprite(offers != null && offers.blocked() ? TRADE_ARROW_BLOCKED : TRADE_ARROW,
+        left + 55, itemY + 3, 10, 9);
     graphics.renderItem(deal.into(), left + 68, itemY);
     graphics.renderItemDecorations(this.font, deal.into(), left + 68, itemY);
     rowHits.add(new Row(top, left, left + LIST_WIDTH, deal.itemId(), deal.playerBuys()));
@@ -567,6 +582,19 @@ public class PersonChatScreen extends Screen {
     }
   }
 
+  /**
+   * The long arrow between cost and result. It is baked into villager.png
+   * rather than published as a sprite, so it is drawn: 22 wide, a three pixel
+   * shaft, in the mid grey the texture uses.
+   */
+  private static void bigArrow(GuiGraphics graphics, int x, int y, boolean blocked) {
+    int colour = blocked ? ARROW_BLOCKED : ARROW_GREY;
+    graphics.fill(x, y, x + 17, y + 3, colour);
+    for (int i = 0; i < 5; i++) {
+      graphics.fill(x + 14 + i, y - 5 + i, x + 15 + i, y + 8 - i, colour);
+    }
+  }
+
   /** The trade arrow, drawn rather than blitted so no atlas lookup can fail. */
   private static void arrow(GuiGraphics graphics, int x, int y) {
     graphics.fill(x, y + 1, x + 11, y + 3, TEXT_LABEL);
@@ -589,7 +617,9 @@ public class PersonChatScreen extends Screen {
 
   @Override
   public boolean mouseClicked(double mouseX, double mouseY, int button) {
-    if (tab == Tab.TRADE && offers != null) {
+    // A struck-out arrow has to mean it: no request goes out while the market
+    // cannot deal, or the screen says one thing and does another.
+    if (tab == Tab.TRADE && offers != null && !offers.blocked()) {
       for (Row row : rowHits) {
         if (mouseY >= row.y() && mouseY <= row.y() + 18
             && mouseX >= row.left() && mouseX <= row.right()) {
@@ -632,9 +662,10 @@ public class PersonChatScreen extends Screen {
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
       boolean active = tab == target;
       if (active) {
-        // The active tab is a raised stub that breaks the rule beneath it,
-        // which is how a tab says it belongs to the page below.
+        // A raised stub that breaks the rule beneath it, tinted so the chosen
+        // tab is not the same grey as everything else on the window.
         panel(graphics, getX() - 2, getY() - 3, getX() + width + 2, getY() + height + 2);
+        graphics.fill(getX() - 1, getY() - 2, getX() + width + 1, getY() + height + 1, TAB_ACTIVE);
       }
       int colour = active ? ICON_HOVER : (isHovered() ? ICON_HOVER : ICON_IDLE);
       // drawCenteredString always shadows; on a light panel that reads as

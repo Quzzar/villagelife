@@ -23,7 +23,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
  * can pay with, and the result of whatever the player just did. One packet
  * carries the whole screen, so the client never assembles a half-updated view.
  */
-public record MarketOffersPacket(int entityId, String villageName, int treasury,
+public record MarketOffersPacket(int entityId, String villageName, boolean blocked,
     List<Row> selling, List<Row> wanted, String message) implements CustomPacketPayload {
 
   /** One stall line as a trade: this many of the item against this many emeralds. */
@@ -41,7 +41,7 @@ public record MarketOffersPacket(int entityId, String villageName, int treasury,
   public static final StreamCodec<ByteBuf, MarketOffersPacket> STREAM_CODEC = StreamCodec.composite(
       ByteBufCodecs.VAR_INT, MarketOffersPacket::entityId,
       ByteBufCodecs.stringUtf8(128), MarketOffersPacket::villageName,
-      ByteBufCodecs.VAR_INT, MarketOffersPacket::treasury,
+      ByteBufCodecs.BOOL, MarketOffersPacket::blocked,
       Row.STREAM_CODEC.apply(ByteBufCodecs.list()), MarketOffersPacket::selling,
       Row.STREAM_CODEC.apply(ByteBufCodecs.list()), MarketOffersPacket::wanted,
       ByteBufCodecs.stringUtf8(256), MarketOffersPacket::message,
@@ -56,20 +56,18 @@ public record MarketOffersPacket(int entityId, String villageName, int treasury,
   public static void sendTo(ServerPlayer player, RealPerson merchant, Village village, ServerLevel level,
       String message) {
     String blocker = Treasury.tradeBlocker(village, level).orElse("");
-    // An empty stall plus a reason is the whole story; no separate field needed.
+    // The stall is still listed when it cannot trade, so the screen can strike
+    // the arrows out rather than going blank. A blank stall says "no trades
+    // exist"; a struck-out one says "not with you, not right now".
     String note = blocker.isEmpty() ? message : "This market cannot trade: " + blocker + ".";
-    List<Row> selling = blocker.isEmpty()
-        ? MarketOffers.selling(village, level).stream()
-            .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
-            .toList()
-        : List.of();
-    List<Row> wanted = blocker.isEmpty()
-        ? MarketOffers.wanted(village, level).stream()
-            .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
-            .toList()
-        : List.of();
+    List<Row> selling = MarketOffers.selling(village, level).stream()
+        .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
+        .toList();
+    List<Row> wanted = MarketOffers.wanted(village, level).stream()
+        .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
+        .toList();
     PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(), village.getName(),
-        Treasury.balance(village, level), selling, wanted, note));
+        !blocker.isEmpty(), selling, wanted, note));
   }
 
   public static void handle(MarketOffersPacket msg, IPayloadContext context) {

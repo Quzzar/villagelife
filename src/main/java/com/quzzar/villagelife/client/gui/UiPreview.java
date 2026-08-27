@@ -86,6 +86,7 @@ public final class UiPreview {
 
     private static void openSample(Minecraft client) {
         boolean trade = !"chat".equalsIgnoreCase(MODE);
+        // "blocked" renders the trade tab with the market unable to deal.
         // Always a merchant: the tabs and the chat input only ever share a
         // screen on someone who has both, so that is the case worth seeing.
         if (!trade) {
@@ -113,7 +114,7 @@ public final class UiPreview {
                 net.minecraft.world.item.Items.DIAMOND_PICKAXE, 1));
         {
             // The awkward cases on purpose: a long name, a two-digit stack.
-            PersonChatScreen.onMarketOffers(new MarketOffersPacket(0, "Larkspur Creek", 83,
+            PersonChatScreen.onMarketOffers(new MarketOffersPacket(0, "Larkspur Creek", "blocked".equalsIgnoreCase(MODE),
                     List.of(new MarketOffersPacket.Row("minecraft:bread", 1, 4),
                             new MarketOffersPacket.Row("minecraft:slime_ball", 1, 2)),
                     List.of(new MarketOffersPacket.Row("minecraft:bread", 2, 1),
