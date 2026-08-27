@@ -245,8 +245,14 @@ public class Village {
     // an ordinary placement would refuse - so this reports how rough the ground
     // was but does not refuse a camp a caller asked to found here.
     SitePreparation.SiteCost cost = SitePreparation.score(level, this, platCenter, plat);
+    // The score is advisory - founding levels and builds regardless - so an
+    // "impossible" here is a note about the ground, not a failure. In practice
+    // it only reads impossible when a plat column reports unloaded, which the
+    // levelling then works on anyway (the block ops load on demand where the
+    // stricter isLoaded check does not).
     Villagelife.LOGGER.info("Founding '{}' on a {}x{} plat at {}: {}", name,
-        plat.getXSpan(), plat.getZSpan(), platCenter.toShortString(), cost.describe());
+        plat.getXSpan(), plat.getZSpan(), platCenter.toShortString(),
+        cost.impossible() ? "settling rough or unassessed ground (" + cost.reason() + ")" : cost.describe());
 
     // Level the camp to the plane, then plan and raise all three flush on it.
     // Companions keep normal recipes; the founding path skips payment exactly as
