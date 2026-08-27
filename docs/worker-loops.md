@@ -125,8 +125,19 @@ simply cannot walk there. The navigator never calls this stuck, because a path t
 found cannot stall, so a worker in that state stands still forever holding a job nobody else
 will take. A worker who walks without ever getting closer therefore says so in their own log,
 lets go of the work so everything else gets a turn, and after repeated failures is brought back
-to the village center — the same recovery a lost villager already gets. Implemented for the
-BUILDER; the other work loops are [#75](https://github.com/Quzzar/villagelife/issues/75).
+to the village center — the same recovery a lost villager already gets.
+
+This is one implementation, not four: the builder, the miner, the lumberjack and the worker
+carrying a haul home all hold the same watch. Standing down is also a gate on whether the
+goal may start again, which is the half that makes it work — a goal that gives up and is
+immediately re-entered has not given up, it has only changed how it spins.
+
+**Two work loops turned out not to walk at all.** Harvesting and tilling act on whatever is
+within reach of wherever the villager already happens to be, so a farmer never sets out for
+their field: they work it only when ambient wandering has left them standing in it. Nothing
+can strand them because nothing is trying to take them anywhere. That is a gap in the loop
+rather than a bug in it, and it is the clearest argument in this document for the verb array
+above — a job that has to say "walk to the field" cannot forget to.
 
 ## Rate, night, and unloaded chunks
 
