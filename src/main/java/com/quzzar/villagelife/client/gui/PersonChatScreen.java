@@ -52,15 +52,17 @@ public class PersonChatScreen extends Screen {
 
   /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
   private static final int PANEL_WIDTH = 264;
-  private static final int PANEL_HEIGHT = 240;
+  private static final int PANEL_HEIGHT = 216;
   /** slot, arrow, slot: the width the two slots of one trade occupy. */
   private static final int TRADE_WIDTH = 54;
   /** Left edge to left edge of the two trade columns. */
   private static final int TRADE_COLUMN = 82;
   /** Most rows one column shows, so panel height is not hostage to the stall. */
-  private static final int TRADE_ROWS = 4;
+  private static final int TRADE_ROWS = 3;
   /** Nine slots of eighteen: the width every other thing aligns to. */
   private static final int GRID_WIDTH = 162;
+  /** Three rows of pack, a gap, then the hotbar. */
+  private static final int GRID_HEIGHT = 3 * 18 + 4 + 18;
   private static final int SLOT_SIZE = 20;
   /** A trade plus the name of the goods, which is what fills a column. */
   private static final int COLUMN_WIDTH = 118;
@@ -415,7 +417,13 @@ public class PersonChatScreen extends Screen {
 
     // Two columns only because a stall offers more than fits in one; each
     // entry is the same shape either way, unlike the old buy/sell split.
-    int shown = Math.min(deals.size(), TRADE_ROWS * 2);
+    // The inventory is not negotiable: reserve its space first and give the
+    // trades whatever is left. The panel is clamped to the viewport at high GUI
+    // scales, so a layout with fixed heights spills its bottom row off the
+    // panel on exactly the setups that can least afford it.
+    int reserved = 11 + GRID_HEIGHT + 8;
+    int rowsFit = Math.max(1, ((panelBottom - reserved) - y) / ROW_HEIGHT);
+    int shown = Math.min(deals.size(), Math.min(TRADE_ROWS, rowsFit) * 2);
     int perColumn = Math.max(1, (int) Math.ceil(shown / 2.0D));
     for (int i = 0; i < shown; i++) {
       int rowLeft = gridLeft + (i / perColumn) * TRADE_COLUMN;

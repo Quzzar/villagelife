@@ -26,7 +26,7 @@ import net.minecraft.world.item.ItemStack;
 public final class MarketOffers {
 
   /** How many rows each column shows before it stops being a market and starts being a spreadsheet. */
-  public static final int MAX_ROWS = 5;
+  public static final int MAX_ROWS = 3;
 
   /**
    * One trade on the stall, in whole items for whole emeralds, the way a
