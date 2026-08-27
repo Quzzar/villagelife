@@ -46,7 +46,39 @@ public final class UndertakingCommands {
     public static LiteralArgumentBuilder<CommandSourceStack> branch() {
         return Commands.literal("undertaking")
                 .then(Commands.literal("selftest").executes(c -> selftest(c.getSource())))
-                .then(Commands.literal("audit").executes(c -> audit(c.getSource())));
+                .then(Commands.literal("audit").executes(c -> audit(c.getSource())))
+                .then(Commands.literal("show")
+                        .then(Commands.argument("target", net.minecraft.commands.arguments.EntityArgument.entity())
+                                .executes(c -> show(c.getSource(),
+                                        net.minecraft.commands.arguments.EntityArgument.getEntity(c, "target")))));
+    }
+
+    /**
+     * Prints a villager's undertakings and the Tester's standing with them, so the
+     * write path can be eyeballed end to end after a {@code /vlbrain chat} turn:
+     * does a real conversation actually persist, advance, resolve, and bump standing.
+     */
+    private static int show(CommandSourceStack source, net.minecraft.world.entity.Entity target) {
+        if (!(target instanceof RealPerson person)) {
+            source.sendFailure(Component.literal("Target is not a villager."));
+            return 0;
+        }
+        List<Undertaking> all = person.getData(VillagelifeAttachments.UNDERTAKINGS.get()).undertakings();
+        if (all.isEmpty()) {
+            source.sendSuccess(() -> Component.literal(person.getFullName() + " has no undertakings."), false);
+        } else {
+            source.sendSuccess(() -> Component.literal(person.getFullName() + " has " + all.size() + " undertaking(s):"), false);
+            for (Undertaking u : all) {
+                String line = "  [" + u.state() + "/" + u.valence() + "] " + u.summary()
+                        + u.progressNote().map(n -> " | note: " + n).orElse("")
+                        + u.resolution().map(r -> " | resolved: " + r).orElse("");
+                source.sendSuccess(() -> Component.literal(line), false);
+            }
+        }
+        UUID tester = UUID.nameUUIDFromBytes("villagelife-tester".getBytes());
+        int standing = person.getData(VillagelifeAttachments.SOCIAL.get()).relationships().getOrDefault(tester, 0);
+        source.sendSuccess(() -> Component.literal("  Tester standing: " + standing), false);
+        return 1;
     }
 
     // ---- the deterministic apply state machine -----------------------------
