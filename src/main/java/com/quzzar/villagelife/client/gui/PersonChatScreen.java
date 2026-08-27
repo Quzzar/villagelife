@@ -45,8 +45,9 @@ public class PersonChatScreen extends Screen {
   /** The grey villager.png paints its long arrow in, sampled from the file. */
   private static final int ARROW_W = 22;
   private static final int ARROW_H = 15;
-  /** The stroke of a closed-for-trade cross, in the panel's own dark grey. */
-  private static final int CROSS = 0xFF4A4A4A;
+  /** The stroke of a closed-for-trade cross. Red on the cross reads fine; it
+   * was recolouring the ARROW that looked like an error rather than a shut shop. */
+  private static final int CROSS = 0xFFAA3333;
   private static final int DIVIDER = 0xFF8B8B8B;
   private static final int TEXT_LABEL = 0xFF1C1C1C;
   private static final int TEXT_VILLAGER = 0xFF1C1C1C;
@@ -92,7 +93,7 @@ public class PersonChatScreen extends Screen {
   private static final ResourceLocation TRADE_ARROW_BLOCKED =
       ResourceLocation.withDefaultNamespace("container/villager/trade_arrow_out_of_stock");
   private static final int PANEL_WIDTH = 300;
-  private static final int PANEL_HEIGHT = 196;
+  private static final int PANEL_HEIGHT = 212;
   /** Height of the strip above the art: the villager's name and the tabs. */
   private static final int HEAD_STRIP = 58;
   /** Where the rule under the tabs sits, measured from the panel top. */
@@ -109,7 +110,7 @@ public class PersonChatScreen extends Screen {
   private static final int LIST_ROW = 20;
   private static final int LIST_WIDTH = 88;
   /** Rows the vanilla list shows before it must scroll. */
-  private static final int LIST_ROWS = 6;
+  private static final int LIST_ROWS = 7;
   /** Its player inventory: 3x9 from (108, 84), hotbar at y 142. */
   private static final int INV_LEFT = 108;
   private static final int INV_TOP = 84;
@@ -223,6 +224,7 @@ public class PersonChatScreen extends Screen {
 
   @Override
   protected void init() {
+    scrollOff = 0; // a stall always opens at the top of its list
     // A fixed, compact window, the way every vanilla screen is sized. Scaling
     // to the viewport stretched this into a near-fullscreen grey rectangle
     // with its content marooned at the edges.
@@ -430,6 +432,11 @@ public class PersonChatScreen extends Screen {
 
   /** Rows the player can click, recomputed each frame so hit-testing matches what is drawn. */
   private final List<Row> rowHits = new ArrayList<>();
+  /** The deals actually drawn this frame, parallel to {@link #rowHits}. */
+  private List<Deal> shown = new ArrayList<>();
+  /** First trade shown, once the stall offers more than the well holds. */
+  private int scrollOff;
+  private int overflowRows;
 
   private record Row(int y, int left, int right, String itemId, boolean playerBuys) {
   }
@@ -495,24 +502,34 @@ public class PersonChatScreen extends Screen {
 
     // The recessed well the trade buttons sit in, with the scrollbar's own
     // track sunk into its right edge.
-    int listBottom = listTop + LIST_ROWS * LIST_ROW + 2;
+    int listBottom = listTop + LIST_ROWS * LIST_ROW + 4;
     slot(graphics, listLeft, listTop, listLeft + WELL_WIDTH, listBottom);
     int trackLeft = listLeft + WELL_WIDTH - 10;
     slot(graphics, trackLeft, listTop + 2, trackLeft + 8, listBottom - 2);
 
+    int overflow = Math.max(0, deals.size() - LIST_ROWS);
+    overflowRows = overflow;
+    scrollOff = Math.min(scrollOff, overflow);
     int visible = Math.min(deals.size(), LIST_ROWS);
+    shown = new ArrayList<>();
     for (int i = 0; i < visible; i++) {
-      drawDeal(graphics, deals.get(i), listLeft + 2, listTop + 2 + i * LIST_ROW, mouseX, mouseY);
+      Deal deal = deals.get(i + scrollOff);
+      shown.add(deal);
+      drawDeal(graphics, deal, listLeft + 2, listTop + 2 + i * LIST_ROW, mouseX, mouseY);
     }
-    graphics.blitSprite(SCROLLER,
-        trackLeft + 1, listTop + 3, 6, 27);
+    int trackTop = listTop + 3;
+    int trackRun = (listBottom - 3) - trackTop - 27;
+    int handle = overflow == 0 ? 0 : Math.round((float) scrollOff / overflow * trackRun);
+    graphics.blitSprite(overflow == 0 ? SCROLLER_DISABLED : SCROLLER,
+        trackLeft + 1, trackTop + handle, 6, 27);
 
     // The trade under the cursor, shown the way vanilla shows a selected one.
-    Deal shown = null;
-    for (Row row : rowHits) {
+    Deal under = null;
+    for (int i = 0; i < rowHits.size(); i++) {
+      Row row = rowHits.get(i);
       if (mouseX >= row.left() && mouseX < row.right()
           && mouseY >= row.y() && mouseY < row.y() + LIST_ROW) {
-        shown = deals.get(rowHits.indexOf(row));
+        under = shown.get(i);
         break;
       }
     }
@@ -526,15 +543,17 @@ public class PersonChatScreen extends Screen {
     // room than what it costs.
     int resultLeft = previewLeft + previewWidth - 26;
     slot(graphics, resultLeft, previewTop - 4, resultLeft + 26, previewTop + 22);
-    if (shown != null) {
-      graphics.renderItem(shown.from(), previewLeft + 1, previewTop + 1);
-      graphics.renderItemDecorations(this.font, shown.from(), previewLeft + 1, previewTop + 1);
-      graphics.renderItem(shown.into(), resultLeft + 5, previewTop + 1);
-      graphics.renderItemDecorations(this.font, shown.into(), resultLeft + 5, previewTop + 1);
+    if (under != null) {
+      graphics.renderItem(under.from(), previewLeft + 1, previewTop + 1);
+      graphics.renderItemDecorations(this.font, under.from(), previewLeft + 1, previewTop + 1);
+      graphics.renderItem(under.into(), resultLeft + 5, previewTop + 1);
+      graphics.renderItemDecorations(this.font, under.into(), resultLeft + 5, previewTop + 1);
     }
 
     int gridLeft = rightLeft + (rightWidth - 9 * 18) / 2;
-    int invTop = previewTop + 18 + 24;
+    // The pack's last row lands on the well's last row: the two columns end
+    // together, which is what makes the layout read as one block.
+    int invTop = listBottom - (3 * 18 + HOTBAR_GAP + 18);
     graphics.drawString(this.font, "Inventory", gridLeft, invTop - 11, TEXT_LABEL, false);
     drawInventory(graphics, gridLeft, invTop, mouseX, mouseY);
   }
@@ -629,6 +648,15 @@ public class PersonChatScreen extends Screen {
   private static String shortName(String itemId) {
     String path = itemId.contains(":") ? itemId.substring(itemId.indexOf(':') + 1) : itemId;
     return path.replace('_', ' ');
+  }
+
+  @Override
+  public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+    if (tab == Tab.TRADE && overflowRows > 0) {
+      scrollOff = Math.max(0, Math.min(overflowRows, scrollOff - (int) Math.signum(deltaY)));
+      return true;
+    }
+    return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
   }
 
   @Override

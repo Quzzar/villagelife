@@ -116,11 +116,15 @@ public final class UiPreview {
             // The awkward cases on purpose: a long name, a two-digit stack.
             PersonChatScreen.onMarketOffers(new MarketOffersPacket(0, "Larkspur Creek", "blocked".equalsIgnoreCase(MODE),
                     List.of(new MarketOffersPacket.Row("minecraft:bread", 1, 4),
-                            new MarketOffersPacket.Row("minecraft:slime_ball", 1, 2)),
+                            new MarketOffersPacket.Row("minecraft:slime_ball", 1, 2),
+                            new MarketOffersPacket.Row("minecraft:golden_apple", 1, 32)),
                     List.of(new MarketOffersPacket.Row("minecraft:bread", 2, 1),
                             new MarketOffersPacket.Row("minecraft:wheat", 4, 1),
                             new MarketOffersPacket.Row("minecraft:iron_ingot", 2, 1),
-                            new MarketOffersPacket.Row("minecraft:oak_log", 34, 1)),
+                            new MarketOffersPacket.Row("minecraft:oak_log", 34, 1),
+                            new MarketOffersPacket.Row("minecraft:coal", 9, 1),
+                            new MarketOffersPacket.Row("minecraft:leather", 2, 1),
+                            new MarketOffersPacket.Row("minecraft:cobblestone", 24, 1)),
                     ""));
         }
     }

@@ -13,7 +13,6 @@ import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
-import com.quzzar.villagelife.village.buildings.UrbanPlanner;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
 import net.minecraft.server.level.ServerLevel;
@@ -57,6 +56,13 @@ public final class VillageTrading {
 
   /** Below this there is nothing worth walking to the bank for. */
   private static final int MIN_BUNDLE = 8;
+
+  /**
+   * How many things to sell the brain is asked to choose between. A small model
+   * choosing from a long list picks worse than one choosing from a short one,
+   * and the first list this produced ran to everything the village owned.
+   */
+  private static final int MAX_SELL_OPTIONS = 3;
 
   private static final String NO_TRADE = "nothing: keep what we have";
 
@@ -154,7 +160,11 @@ public final class VillageTrading {
     }
     deals.sort((a, b) -> Integer.compare(b.emeralds(), a.emeralds()));
 
-    ItemStack missing = UrbanPlanner.firstUnaffordableMaterial(village);
+    if (deals.size() > MAX_SELL_OPTIONS) {
+      deals = new ArrayList<>(deals.subList(0, MAX_SELL_OPTIONS));
+    }
+
+    ItemStack missing = blockingMaterial(village);
     if (missing != null) {
       Optional<Double> unit = Bank.sellPrice(missing.getItem(), level.getServer());
       int balance = Treasury.balance(village, level);
@@ -163,14 +173,48 @@ public final class VillageTrading {
         int count = Math.min(Math.min(missing.getCount(), MAX_BUNDLE), affordable);
         int cost = (int) Math.ceil(unit.get() * count);
         if (count > 0 && cost <= balance) {
-          // A village that cannot build for want of one material is exactly the
-          // village the bank's bad rate exists for.
-          deals.add(0, new Deal(false, missing.getItem(), count, cost,
-              "buy " + count + " " + plain(missing.getItem()) + " from the bank for " + cost + " emeralds"));
+          // A village that cannot finish what it started for want of one
+          // material is exactly the village the bank's bad rate exists for.
+          deals.add(new Deal(false, missing.getItem(), count, cost,
+              "buy " + count + " " + plain(missing.getItem()) + " from the bank for " + cost
+                  + " emeralds, to finish what we are building"));
         }
       }
     }
     return deals;
+  }
+
+  /**
+   * The one material standing between the village and the thing it is actually
+   * doing: what its current project, or the goal it is saving for, still needs
+   * and does not have. Deliberately NOT "anything in the catalogue it cannot
+   * afford" — that answers a question nobody asked, and a village asked it
+   * bought cobblestone it was standing on.
+   */
+  private static ItemStack blockingMaterial(Village village) {
+    StructureInProgress project = village.getCurrentProject();
+    ItemStack missing = project == null || project.getBuilding() == null
+        ? null
+        : shortfall(village, project.getBuilding().getInfo());
+    if (missing != null) {
+      return missing;
+    }
+    String goal = VillageGoal.current(village);
+    return goal == null ? null : shortfall(village, Buildings.getByName(goal));
+  }
+
+  /** The first cost item this building needs more of than the village holds. */
+  private static ItemStack shortfall(Village village, BuildingInfo info) {
+    if (info == null) {
+      return null;
+    }
+    for (ItemStack cost : info.getMaterialCost()) {
+      int short_ = cost.getCount() - VillagePricing.countHeld(village, cost.getItem());
+      if (short_ > 0) {
+        return new ItemStack(cost.getItem(), short_);
+      }
+    }
+    return null;
   }
 
   /** Moves the goods and the money, in an order that cannot half-complete. */
