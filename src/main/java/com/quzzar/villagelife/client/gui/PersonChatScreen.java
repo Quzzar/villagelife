@@ -66,14 +66,14 @@ public class PersonChatScreen extends Screen {
   private static final int INPUT_TEXT_Y = 7;
   /** Conversation colours, chosen for the sunken well rather than the panel. */
   private static final int CHAT_VILLAGER = 0xFFF0F0F0;
-  private static final int CHAT_PLAYER = 0xFFA9C7F5;
+  private static final int CHAT_PLAYER = 0xFF8FD3FF;
   private static final int CHAT_PENDING = 0xFFB4B4B4;
   /** The send glyph, dark on a live button and washed out on a dead one. */
   /** Six by twelve, so it divides exactly into the twenty pixel button. */
   private static final int ARROW_GLYPH_W = 6;
   private static final int ARROW_GLYPH_H = 12;
   private static final int SEND_ON = 0xFFFFFFFF;
-  private static final int SEND_OFF = 0xFF8A8A8A;
+  private static final int SEND_OFF = 0xFF9A9A9A;
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
@@ -460,8 +460,11 @@ public class PersonChatScreen extends Screen {
       }
     }
     if (awaitingReply) {
-      rendered.add(new Line(Component.literal(headerName + " ...").getVisualOrderText(),
-          CHAT_PENDING, true));
+      // Cycles ., .., ... roughly three times a second, so a slow reply reads
+      // as working rather than as hung.
+      int dots = 1 + (int) ((System.currentTimeMillis() / 350L) % 3L);
+      rendered.add(new Line(Component.literal(headerName + " " + ".".repeat(dots))
+          .getVisualOrderText(), CHAT_PENDING, true));
     }
 
     // Height per line INCLUDING the gap that precedes it. Measuring capacity in
@@ -568,6 +571,10 @@ public class PersonChatScreen extends Screen {
   /** Where the result slot is this frame, since that is what completes a trade. */
   private int resultLeft;
   private int resultTop;
+  /** Whether the picked trade can actually be paid for out of the pack. */
+  private boolean affordable;
+  /** Cost items shown as moved into the trade, so the pack reads as vanilla's does. */
+  private java.util.Map<Integer, Integer> reserved = new java.util.HashMap<>();
   /** Lines the conversation is scrolled back from its newest. */
   private int chatScrollUp;
   private int chatOverflow;
@@ -671,19 +678,24 @@ public class PersonChatScreen extends Screen {
     resultLeft = previewLeft + previewWidth - 26;
     resultTop = previewTop - 4;
     slot(graphics, resultLeft, previewTop - 4, resultLeft + 26, previewTop + 22);
+    affordable = false;
+    reserved.clear();
     if (under != null) {
-      graphics.renderItem(under.from(), previewLeft + 1, previewTop + 1);
-      graphics.renderItemDecorations(this.font, under.from(), previewLeft + 1, previewTop + 1);
-      graphics.renderItem(under.into(), resultLeft + 5, previewTop + 1);
-      graphics.renderItemDecorations(this.font, under.into(), resultLeft + 5, previewTop + 1);
-    }
-
-    if (!marketNote.isBlank()) {
-      int noteY = previewTop + 26;
-      for (FormattedCharSequence line : this.font.split(
-          Component.literal(marketNote), rightWidth)) {
-        graphics.drawString(this.font, line, rightLeft, noteY, TEXT_PENDING, false);
-        noteY += this.font.lineHeight;
+      int need = under.from().getCount();
+      int have = countHeld(under.from().getItem());
+      affordable = have >= need && !offers.blocked();
+      // Vanilla moves what it can and leaves the rest empty; it never invents
+      // items you do not own to fill the slot with.
+      int moved = Math.min(have, need);
+      reserve(under.from().getItem(), moved);
+      if (moved > 0) {
+        ItemStack cost = new ItemStack(under.from().getItem(), moved);
+        graphics.renderItem(cost, previewLeft + 1, previewTop + 1);
+        graphics.renderItemDecorations(this.font, cost, previewLeft + 1, previewTop + 1);
+      }
+      if (affordable) {
+        graphics.renderItem(under.into(), resultLeft + 5, previewTop + 1);
+        graphics.renderItemDecorations(this.font, under.into(), resultLeft + 5, previewTop + 1);
       }
     }
 
@@ -724,6 +736,44 @@ public class PersonChatScreen extends Screen {
     rowHits.add(new Row(top, left, left + LIST_WIDTH, deal.itemId(), deal.playerBuys()));
   }
 
+  /** Marks pack slots as spent on the held trade, nearest slot first. */
+  private void reserve(Item item, int count) {
+    var player = Minecraft.getInstance().player;
+    int left = count;
+    for (int i = 0; i < 36 && left > 0; i++) {
+      ItemStack stack = player != null ? player.getInventory().getItem(i)
+          : previewInventory.getOrDefault(i, ItemStack.EMPTY);
+      if (stack.isEmpty() || stack.getItem() != item) {
+        continue;
+      }
+      int take = Math.min(left, stack.getCount());
+      reserved.put(i, take);
+      left -= take;
+    }
+  }
+
+  /** How many of an item the pack holds, which is what a trade is judged against. */
+  private int countHeld(Item item) {
+    var player = Minecraft.getInstance().player;
+    if (player == null) {
+      int total = 0;
+      for (ItemStack stack : previewInventory.values()) {
+        if (stack.getItem() == item) {
+          total += stack.getCount();
+        }
+      }
+      return total;
+    }
+    int total = 0;
+    for (int i = 0; i < 36; i++) {
+      ItemStack stack = player.getInventory().getItem(i);
+      if (stack.getItem() == item) {
+        total += stack.getCount();
+      }
+    }
+    return total;
+  }
+
   /** The player's own pack, so a trade can be judged without closing the screen. */
   private void drawInventory(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
     // The slots are drawn here now. They used to come from the container
@@ -737,6 +787,12 @@ public class PersonChatScreen extends Screen {
       slot(graphics, x, y, x + 18, y + 18);
       ItemStack stack = player != null ? player.getInventory().getItem(index)
           : previewInventory.getOrDefault(index, ItemStack.EMPTY);
+      int held = reserved.getOrDefault(index, 0);
+      if (held > 0) {
+        stack = stack.getCount() > held
+            ? new ItemStack(stack.getItem(), stack.getCount() - held)
+            : ItemStack.EMPTY;
+      }
       if (stack.isEmpty()) {
         continue;
       }
@@ -902,10 +958,14 @@ public class PersonChatScreen extends Screen {
         // Always a button, so the control is where you expect it; disabled art
         // until there is something to send, then it lifts into a live one.
         boolean ready = sendReveal > 0.5F;
-        // Not widget/button_disabled: its face is (45,45,45), meant for a dark
-        // screen, and on this panel it reads as a black hole. The same button
-        // with a washed-out glyph says "not yet" without shouting.
-        graphics.blitSprite(ready && hovered ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
+        if (ready) {
+          graphics.blitSprite(hovered ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
+        } else {
+          // Dormant is the window's own light grey, so it recedes; waking makes
+          // it DARKER rather than lighter, which is the direction that reads as
+          // a control coming forward.
+          panel(graphics, getX(), getY(), getX() + width, getY() + height);
+        }
         // No lift. It was meant to make the arrow rise as it woke up, but the
         // offset was 2 at rest when dormant and 0 when live, so the two resting
         // states sat at different heights: an animation whose endpoints do not
