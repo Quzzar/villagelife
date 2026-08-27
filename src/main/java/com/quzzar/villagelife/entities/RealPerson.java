@@ -860,6 +860,32 @@ public class RealPerson extends Person {
           8,
           SoundEvents.SMITHING_TABLE_USE));
     }
+    if (getOccupation() == Occupation.MASON) {
+      // The mason does not dig. The mine brings cobblestone up; this is the
+      // chain that turns it into something a village can build with, which is
+      // why stone_bricks are the most-used crafted block in the catalogue.
+      this.goalSelector.addGoal(3, new DepositHaulGoal(this));
+      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          new ItemStack(Items.COBBLESTONE, 8),
+          new ItemStack(Items.STONE, 8),
+          8,
+          SoundEvents.FURNACE_FIRE_CRACKLE));
+      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          new ItemStack(Items.STONE, 4),
+          new ItemStack(Items.STONE_BRICKS, 4),
+          6,
+          SoundEvents.UI_STONECUTTER_TAKE_RESULT));
+      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          new ItemStack(Items.SAND, 4),
+          new ItemStack(Items.SANDSTONE, 1),
+          6,
+          SoundEvents.UI_STONECUTTER_TAKE_RESULT));
+      this.goalSelector.addGoal(8, new ProcessItemGoal(this,
+          new ItemStack(Items.SANDSTONE, 4),
+          new ItemStack(Items.CUT_SANDSTONE, 4),
+          6,
+          SoundEvents.UI_STONECUTTER_TAKE_RESULT));
+    }
     if (getOccupation() == Occupation.FARMER) {
       this.goalSelector.addGoal(4, new UseBonemealGoal(this, true));
       this.goalSelector.addGoal(4, new HarvestCropGoal(this, true));
