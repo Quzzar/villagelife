@@ -42,10 +42,14 @@ public final class SitePreparation {
   /** How far above the build plane each column is checked for obstructions. */
   public static final int CLEARANCE_HEIGHT = 8;
 
-  /** One candidate site's bill, in blocks moved. */
-  public record SiteCost(int clearCount, int cutCount, int fillCount, boolean impossible) {
+  /** One candidate site's bill, in blocks moved, and why it failed if it did. */
+  public record SiteCost(int clearCount, int cutCount, int fillCount, boolean impossible, String reason) {
 
-    public static final SiteCost IMPOSSIBLE = new SiteCost(0, 0, 0, true);
+    public static final SiteCost IMPOSSIBLE = new SiteCost(0, 0, 0, true, "unknown");
+
+    static SiteCost impossible(String reason) {
+      return new SiteCost(0, 0, 0, true, reason);
+    }
 
     public int blocksMoved() {
       return clearCount + cutCount + fillCount;
@@ -57,7 +61,7 @@ public final class SitePreparation {
 
     public String describe() {
       if (impossible) {
-        return "impossible (protected blocks, claimed ground, or terrain past the levelling budget)";
+        return "impossible: " + reason;
       }
       return String.format("%d blocks moved (clear %d, cut %d, fill %d)%s",
           blocksMoved(), clearCount, cutCount, fillCount, isFree() ? " - free" : "");
@@ -162,8 +166,11 @@ public final class SitePreparation {
         BlockPos groundProbe = new BlockPos(worldX, plane, worldZ);
 
         // Never scan unloaded chunks; never touch claimed ground.
-        if (!level.getLevel().isLoaded(groundProbe) || village.hasClaimed(groundProbe)) {
-          return SiteCost.IMPOSSIBLE;
+        if (!level.getLevel().isLoaded(groundProbe)) {
+          return SiteCost.impossible("chunk not loaded");
+        }
+        if (village.hasClaimed(groundProbe)) {
+          return SiteCost.impossible("overlaps ground the village has already built on");
         }
 
         // Walk down from the clearance top: clearable blocks are tier 0 cost,
@@ -179,7 +186,7 @@ public final class SitePreparation {
             continue;
           }
           if (level.getBlockEntity(pos) != null) {
-            return SiteCost.IMPOSSIBLE;
+            return SiteCost.impossible("something with contents is in the way at " + pos.toShortString());
           }
           if (state.is(CLEARABLE)) {
             clear++;
@@ -197,12 +204,13 @@ public final class SitePreparation {
         if (surface == Integer.MIN_VALUE) {
           // No real ground within reach of the budget below the plane: a
           // ravine, cave mouth, or deep water. That is shape, not surface.
-          return SiteCost.IMPOSSIBLE;
+          return SiteCost.impossible("no ground under " + worldX + "," + worldZ);
         }
 
         int delta = surface - (plane - 1);
         if (Math.abs(delta) > MAX_COLUMN_DELTA) {
-          return SiteCost.IMPOSSIBLE;
+          return SiteCost.impossible("ground at " + worldX + "," + worldZ + " is " + delta
+              + " off the build plane, past the levelling budget");
         }
         if (delta > 0) {
           cut += delta;
@@ -215,9 +223,10 @@ public final class SitePreparation {
     }
 
     if (columns > 0 && (double) deltaSum / columns > MAX_AVERAGE_DELTA) {
-      return SiteCost.IMPOSSIBLE;
+      return SiteCost.impossible(String.format("too uneven: %.1f blocks per column against a budget of %.1f",
+          (double) deltaSum / columns, MAX_AVERAGE_DELTA));
     }
-    return new SiteCost(clear, cut, fill, false);
+    return new SiteCost(clear, cut, fill, false, "");
   }
 
 }

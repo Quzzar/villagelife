@@ -49,12 +49,26 @@ public class LocationValidator {
       if (!levelAccess.getLevel().isLoaded(column)) {
         continue;
       }
+      // Never start from ground the village has already built on. Without this
+      // the heightmap hands back the ROOF of an existing building as the
+      // surface, and every such candidate is scored as a site metres above the
+      // ground it is supposed to sit on.
+      if (village.hasClaimed(column)) {
+        continue;
+      }
       // Build on the ground, not at a guessed elevation. Sites used to be
       // scored at the village centre's height plus a blind offset, which the
       // levelling budget then rejected for being metres above or below the
       // actual terrain: every candidate came back impossible.
       BlockPos candidate = levelAccess.getLevel()
           .getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, column);
+      // The footprint extends from the origin, so a candidate whose far corner
+      // sits on someone's roof is no better than one that starts there.
+      if (village.hasClaimed(candidate.offset(bounds.maxX(), 0, bounds.maxZ()))
+          || village.hasClaimed(candidate.offset(bounds.maxX(), 0, 0))
+          || village.hasClaimed(candidate.offset(0, 0, bounds.maxZ()))) {
+        continue;
+      }
 
       SitePreparation.SiteCost cost = SitePreparation.score(levelAccess, village, candidate, bounds);
       if (cost.isFree()) {
