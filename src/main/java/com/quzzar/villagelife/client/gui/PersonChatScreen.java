@@ -11,6 +11,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -474,6 +476,39 @@ public class PersonChatScreen extends Screen {
   private record Line(FormattedCharSequence seq, int colour, boolean first) {
   }
 
+  /**
+   * A conversation ends when either party is hurt. Standing in a chat window
+   * while something is hitting you is not a conversation, and the screen has
+   * no business holding the cursor through it.
+   *
+   * Watched on the client from the health both sides already sync, rather than
+   * from a damage event and a new packet: the screen only has to notice, and
+   * a drop it can see is a drop worth closing on.
+   */
+  @Override
+  public void tick() {
+    super.tick();
+    Minecraft client = Minecraft.getInstance();
+    if (client.player == null || client.level == null) {
+      return;
+    }
+    float playerHealth = client.player.getHealth();
+    Entity person = client.level.getEntity(entityId);
+    float personHealth = person instanceof LivingEntity living ? living.getHealth() : Float.NaN;
+
+    boolean playerHurt = !Float.isNaN(lastPlayerHealth) && playerHealth < lastPlayerHealth;
+    boolean personHurt = !Float.isNaN(lastPersonHealth) && !Float.isNaN(personHealth)
+        && personHealth < lastPersonHealth;
+    // A villager who has died or unloaded is no longer someone to talk to.
+    boolean personGone = person == null || (person instanceof LivingEntity living && !living.isAlive());
+
+    lastPlayerHealth = playerHealth;
+    lastPersonHealth = personHealth;
+    if (playerHurt || personHurt || personGone) {
+      onClose();
+    }
+  }
+
   @Override
   public void removed() {
     // Tell the server the conversation ended so the villager goes back to life.
@@ -497,6 +532,9 @@ public class PersonChatScreen extends Screen {
   private int chatOverflow;
   /** 0 while there is nothing to send, easing to 1 as the arrow arrives. */
   private float sendReveal;
+  /** Health both sides had last tick; NaN until the first tick has seen them. */
+  private float lastPlayerHealth = Float.NaN;
+  private float lastPersonHealth = Float.NaN;
   private int overflowRows;
 
   private record Row(int y, int left, int right, String itemId, boolean playerBuys) {
