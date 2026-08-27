@@ -66,7 +66,7 @@ public class UrbanPlanner {
   public record Candidate(BuildingInfo info, double score, String description) {}
 
   /** What a village is short of, sampled once and applied to every candidate. */
-  private record Needs(double housing, double work, double food, double safety) {
+  private record Needs(double housing, double work, double food, double safety, double storage) {
     static Needs of(Village village) {
       int population = village.getPopulation().size();
       int beds = village.getTotalBeds();
@@ -77,7 +77,8 @@ public class UrbanPlanner {
           Math.max(0, population + 2 - beds),
           Math.max(0, idle - openJobs),
           report != null && report.foodPerCapita() < 8.0 ? 8.0 - report.foodPerCapita() : 0.0,
-          report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0);
+          report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0,
+          village.isStorageStrained() ? 3.0 : 0.0);
     }
   }
 
@@ -94,6 +95,11 @@ public class UrbanPlanner {
       if (occupation == Occupation.FARMER || occupation == Occupation.LUMBERJACK) {
         score += needs.food() * 0.5;
       }
+    }
+    // A full storehouse is a real pull toward more storage: the quartermaster
+    // has raised the strain flag and cannot shelve what the village holds.
+    if (info.getGrants().contains("STORAGE")) {
+      score += needs.storage();
     }
     // Never stack a third of the same thing while anything else is wanted.
     score -= countBuilt(village, info.getName()) * 2.0;

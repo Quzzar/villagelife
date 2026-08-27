@@ -132,6 +132,14 @@ public class Village {
 
   private StructureInProgress currentProject;
 
+  /**
+   * Set when the quartermaster cannot fit a haul into the storehouse, read by
+   * the planner as a reason to want more storage. Transient on purpose: it is a
+   * live symptom, not saved state, and the quartermaster re-raises it on the
+   * next overflow, so it need not survive a reload.
+   */
+  private transient boolean storageStrained;
+
   private ArrayList<UUID> people;
   private HashMap<UUID, Building> buildings;
   private HashMap<UUID, JobAssignment> jobAssignments;
@@ -1097,6 +1105,15 @@ public class Village {
     if (current != null) {
       unassignedBeds.add(current.setPersonUUID(null)); // their old bed reopens
     }
+  }
+
+  /** The quartermaster raises this when the storehouse overflows; the planner reads it. */
+  public void setStorageStrained(boolean strained) {
+    this.storageStrained = strained;
+  }
+
+  public boolean isStorageStrained() {
+    return this.storageStrained;
   }
 
   public String getID() {

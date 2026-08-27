@@ -1,5 +1,15 @@
 {
   "structure": "storehouse_plains_1",
+  "work_stations": [
+    {
+      "pos": [
+        9,
+        1,
+        6
+      ],
+      "occupation": "QUARTERMASTER"
+    }
+  ],
   "containers": [
     [
       14,

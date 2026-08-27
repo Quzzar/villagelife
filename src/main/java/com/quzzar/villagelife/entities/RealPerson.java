@@ -44,6 +44,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.entities.ai.goals.work.ConsolidateStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal;
 import com.quzzar.villagelife.entities.ai.goals.work.BonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.ChopStep;
@@ -890,6 +891,9 @@ public class RealPerson extends Person {
     }
     if (getOccupation() == Occupation.MERCHANT) {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MarketStep()));
+    }
+    if (getOccupation() == Occupation.QUARTERMASTER) {
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new ConsolidateStep()));
     }
     if (getOccupation() == Occupation.LUMBERJACK) {
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));

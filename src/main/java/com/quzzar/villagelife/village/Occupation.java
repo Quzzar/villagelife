@@ -18,6 +18,7 @@ public enum Occupation {
     TANNER,
     HUNTER,
     FISHER,
+    QUARTERMASTER,
     LEADER;
 
     public boolean isIdle() {
