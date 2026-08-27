@@ -368,6 +368,14 @@ public class Village {
       if (projectDecisionPending || time < planningQuietUntil) {
         return;
       }
+      // Nothing can be sited on ground that is not loaded, and asking the brain
+      // to choose would spend a model call on an answer no one can act on. A
+      // village out of everyone's sight waits instead of planning.
+      Building centre = getTownCenter();
+      if (level != null && centre != null
+          && !level.hasChunkAt(BlockPos.of(centre.getCenterLocation()))) {
+        return;
+      }
       projectDecisionPending = true;
       UrbanPlanner.chooseNextProject(this).whenComplete((chosen, error) -> {
         if (level == null) {

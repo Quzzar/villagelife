@@ -65,9 +65,8 @@ public class LocationValidator {
       }
 
       BlockPos column = centerPos.offset(rel_x, 0, rel_z);
-      // Chunk presence, not isLoaded: isLoaded also fails a position outside
-      // the world's build height, which a search column can be while the
-      // ground beneath it is perfectly real and loaded.
+      // Ask about the chunk, not this exact block: the column carries the town
+      // centre's Y, which says nothing about where the ground actually is.
       if (!levelAccess.getLevel().hasChunkAt(column)) {
         unloaded++;
         continue;
@@ -111,8 +110,12 @@ public class LocationValidator {
     // One line that says what the whole search saw. Without it a search that
     // skips every candidate before scoring is indistinguishable from one where
     // every site was genuinely bad.
-    Villagelife.LOGGER.debug("Site search for '{}' around {} within {}: {} scored, {} on claimed ground, {} unloaded",
-        village.getName(), centerPos.toShortString(), searchRadius, priced, claimed, unloaded);
+    Villagelife.LOGGER.debug(
+        "Site search for '{}' around {} within {} in {} ({} chunks loaded): {} scored, {} on claimed ground, {} unloaded",
+        village.getName(), centerPos.toShortString(), searchRadius,
+        levelAccess.getLevel().dimension().location(),
+        levelAccess.getLevel().getChunkSource().getLoadedChunksCount(),
+        priced, claimed, unloaded);
 
     if (best != null) {
       Villagelife.LOGGER.debug("No free site; taking {} at a cost of {} blocks moved",
