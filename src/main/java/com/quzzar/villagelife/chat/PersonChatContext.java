@@ -36,7 +36,7 @@ public final class PersonChatContext {
 
   private static final String RULES = "Rules: Answer in one or two short sentences, always in character. "
       + "Never invent events, people, places, or items that are not in your briefing above. "
-      + "You may hand an item from your pockets to the player with \"give\" when you are willing. "
+      + "You may hand an item from your pockets to the player with \"give\", but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
       + "When this moment genuinely changes how you feel about them, add \"opinion\": a whole number "
       + "from -10 to 10; omit it when your feeling is unchanged. "
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
@@ -70,8 +70,17 @@ public final class PersonChatContext {
     return kept;
   }
 
+  /**
+   * Delegates to the dispatcher's comparison so the transcript collapses on the
+   * same rule the retry guard uses. Whole line OR the same opening sentence:
+   * the model locks onto an opening and varies the tail, so four replies that
+   * all begin "Just a bit on my mind, that's all." are four distinct lines and
+   * a whole-line check leaves every one of them in the transcript to reinforce
+   * the next.
+   */
   private static boolean sameAnswer(Turn a, Turn b) {
-    return a.villagerLine() != null && a.villagerLine().equalsIgnoreCase(b.villagerLine());
+    return a.villagerLine() != null && b.villagerLine() != null
+        && PersonChatDispatcher.sameAnswer(a.villagerLine(), b.villagerLine());
   }
 
   private static final List<FewShotExample> EXAMPLES = List.of(

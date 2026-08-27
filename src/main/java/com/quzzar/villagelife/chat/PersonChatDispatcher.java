@@ -60,6 +60,22 @@ public final class PersonChatDispatcher {
   /** Hotter and pushed harder, for the one retry after a verbatim repeat. */
   private static final double RETRY_TEMPERATURE = 0.85D;
   private static final double RETRY_REPETITION_PENALTY = 0.7D;
+
+  /**
+   * Words compared at the head of a reply to decide it is the same answer again.
+   *
+   * First tried as "the first sentence", which misses the commonest shape: a
+   * model whose every reply opens "Ah, Quzzar! ..." has a TWO word first
+   * sentence, so a sentence-based rule waves all twelve of them through. A
+   * fixed number of leading words does not care where the punctuation falls.
+   */
+  private static final int OPENER_WORDS = 5;
+
+  /** How long a villager keeps their hands in their pockets after parting with something. */
+  private static final long GIVE_COOLDOWN_MS = 5L * 60L * 1000L;
+
+  /** Last give per villager-and-player pair. Runtime only; generosity resets on restart. */
+  private static final Map<String, Long> LAST_GIVE = new java.util.concurrent.ConcurrentHashMap<>();
   private static final long HISTORY_EXPIRY_MS = 10 * 60 * 1000;
 
   private static final Set<UUID> IN_FLIGHT = ConcurrentHashMap.newKeySet();
@@ -208,13 +224,13 @@ public final class PersonChatDispatcher {
 
     return ask(chat, CHAT_TEMPERATURE, CHAT_REPETITION_PENALTY)
         .thenCompose(first -> {
-          if (!repeatsVerbatim(first, lastAnswer)) {
+          if (!echoesLastAnswer(first, lastAnswer)) {
             return CompletableFuture.completedFuture(first);
           }
-          Villagelife.LOGGER.debug("{} answered exactly as they did last time; sampling once more",
+          Villagelife.LOGGER.debug("{} opened exactly as they did last time; sampling once more",
               person.getFullName());
           return ask(chat, RETRY_TEMPERATURE, RETRY_REPETITION_PENALTY)
-              .thenApply(second -> repeatsVerbatim(second, lastAnswer) ? first : second);
+              .thenApply(second -> echoesLastAnswer(second, lastAnswer) ? first : second);
         })
         .thenApply(result -> {
           String say = null;
@@ -245,13 +261,21 @@ public final class PersonChatDispatcher {
   }
 
   /**
-   * Whether a raw reply says word for word what the villager last said.
+   * Whether a raw reply is the villager saying their last answer over again.
    *
    * Compared on the parsed "say" rather than the raw JSON, so a differing
    * "give" or "opinion" does not disguise the same sentence, and loosely
    * enough that trailing punctuation or capitalisation is not a difference.
+   *
+   * <b>The opening sentence counts on its own.</b> The first version of this
+   * compared whole lines, which is what the failure looked like in the sample
+   * I had. In real play it takes another shape: the model locks onto an
+   * OPENING and varies the tail, so "Just a bit on my mind, that's all. How are
+   * you?" is followed by "Just a bit on my mind, that's all. What's in your
+   * inventory?" - four such replies in a row, every one of them a distinct
+   * line, and a whole-line check waves all of them through.
    */
-  private static boolean repeatsVerbatim(Optional<String> raw, String lastAnswer) {
+  private static boolean echoesLastAnswer(Optional<String> raw, String lastAnswer) {
     if (raw == null || raw.isEmpty() || lastAnswer == null || lastAnswer.isBlank()) {
       return false;
     }
@@ -259,7 +283,27 @@ public final class PersonChatDispatcher {
     if (parsed == null || parsed.say() == null || parsed.say().isBlank()) {
       return false; // unparseable is a different problem, with its own fallback
     }
-    return flatten(parsed.say()).equals(flatten(lastAnswer));
+    return sameAnswer(parsed.say(), lastAnswer);
+  }
+
+  /** Same whole line, or the same handful of opening words twice running. */
+  static boolean sameAnswer(String a, String b) {
+    if (flatten(a).equals(flatten(b))) {
+      return true;
+    }
+    String openA = opener(a);
+    String openB = opener(b);
+    // A reply too short to have an opener is not evidence of anything.
+    return !openA.isEmpty() && openA.equals(openB);
+  }
+
+  /** The first few words, flattened; empty when the reply is shorter than that. */
+  private static String opener(String line) {
+    String[] words = flatten(line).split(" ");
+    if (words.length < OPENER_WORDS) {
+      return "";
+    }
+    return String.join(" ", java.util.Arrays.copyOfRange(words, 0, OPENER_WORDS));
   }
 
   private static String flatten(String line) {
@@ -379,8 +423,31 @@ public final class PersonChatDispatcher {
     return applied;
   }
 
-  /** A give is honored only for an item actually in the villager's pockets. */
+  /**
+   * A give is honoured only for an item actually in the villager's pockets, and
+   * only once in a while.
+   *
+   * The pockets check was the ONLY gate, which turned out not to be a gate at
+   * all: the model offers items on ordinary conversational turns - a torch when
+   * asked how business is, a diamond when asked what is in her inventory - and
+   * anything a villager happened to be carrying could be handed over on any
+   * turn. Aaron was given a diamond for asking a question.
+   *
+   * The prompt now tells them to give only when asked, which helps and cannot
+   * be relied on: it is a request to a 3B model, not a rule. This is the rule.
+   * A villager parting with something occasionally is the charm; a villager
+   * emptying their pockets over a conversation is the bug, and a cooldown
+   * bounds the second without touching the first.
+   */
   private static void executeGive(RealPerson person, ServerPlayer player, String itemId) {
+    long now = System.currentTimeMillis();
+    String pair = person.getUUID() + ":" + player.getUUID();
+    Long last = LAST_GIVE.get(pair);
+    if (last != null && now - last < GIVE_COOLDOWN_MS) {
+      Villagelife.LOGGER.debug("Chat give refused, {} already gave something recently",
+          person.getFullName());
+      return;
+    }
     ResourceLocation id = ResourceLocation.tryParse(itemId.contains(":") ? itemId : "minecraft:" + itemId);
     if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
       Villagelife.LOGGER.debug("Chat give rejected, unknown item: {}", itemId);
@@ -396,6 +463,9 @@ public final class PersonChatDispatcher {
         drop.setDeltaMovement(toward);
         drop.setNoPickUpDelay();
         person.level().addFreshEntity(drop);
+        LAST_GIVE.put(pair, now);
+        Villagelife.LOGGER.info("[chat] {} handed {} to {}", person.getFullName(), itemId,
+            player.getGameProfile().getName());
         return;
       }
     }
