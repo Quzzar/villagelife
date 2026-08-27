@@ -1,5 +1,5 @@
 {
-  "structure": "storehouse_plains_1",
+  "structure": "storehouse_snowy_1",
   "work_stations": [
     {
       "pos": [
@@ -30,11 +30,11 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 5
+      "count": 4
     },
     {
-      "item": "minecraft:cobblestone",
-      "count": 6
+      "item": "minecraft:stone_bricks",
+      "count": 8
     },
     {
       "item": "minecraft:white_wool",

@@ -1,6 +1,6 @@
 {
   "structure": "storehouse_savanna_2",
-  "upgrades_from": "storehouse_savanna_1",
+  "upgrades_from": "storehouse_plains_1",
   "work_stations": [
     {
       "pos": [

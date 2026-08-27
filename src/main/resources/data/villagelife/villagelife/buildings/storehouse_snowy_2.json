@@ -1,6 +1,6 @@
 {
   "structure": "storehouse_snowy_2",
-  "upgrades_from": "storehouse_snowy_1",
+  "upgrades_from": "storehouse_plains_1",
   "work_stations": [
     {
       "pos": [
