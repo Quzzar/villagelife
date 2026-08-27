@@ -1,0 +1,33 @@
+{
+  "structure": "mine_plains_1",
+  "category": "mine",
+  "variant": "plains",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        3,
+        0,
+        3
+      ],
+      "occupation": "MINER"
+    }
+  ],
+  "containers": [
+    [
+      1,
+      1,
+      0
+    ],
+    [
+      5,
+      1,
+      0
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "ORES",
+    "FUEL"
+  ]
+}

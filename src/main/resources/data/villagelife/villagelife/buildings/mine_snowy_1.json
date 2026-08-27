@@ -1,0 +1,33 @@
+{
+  "structure": "mine_snowy_1",
+  "category": "mine",
+  "variant": "snowy",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        3,
+        0,
+        3
+      ],
+      "occupation": "MINER"
+    }
+  ],
+  "containers": [
+    [
+      1,
+      1,
+      0
+    ],
+    [
+      5,
+      1,
+      0
+    ]
+  ],
+  "cost": [],
+  "grants": [
+    "ORES",
+    "FUEL"
+  ]
+}

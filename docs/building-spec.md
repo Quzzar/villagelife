@@ -1,11 +1,18 @@
 # Building spec: every building, variant, level, recipe, and unlock
 
-**Proposed, not yet decided. 44 of 179 structures exist.** Reality check before reading:
-of the eleven "minimum playable" files, seven exist. `house` ships in all five variants at
+**Proposed, not yet decided. 49 of 191 structures exist.** Reality check before reading:
+of the eleven "minimum playable" files, eight exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,
-and `farm` ships in all five variants at all three levels. Still missing: `mine`,
-`quarry`, `hunting_lodge`, `fishery` — and `mine_plains_1` is named in the founding set
-above, which therefore cannot be built as written.
+and `farm` ships in all five variants at all three levels. `mine` ships at level 1 in all five variants, so the
+founding set above is buildable for the first time. Still missing: `quarry`,
+`hunting_lodge`, `fishery`, and levels 2 and 3 of `mine`.
+
+**A mine cannot ship its shaft.** A structure's y=0 lands on the topmost solid block
+(`InstantBuildStructure.setOriginLocation` subtracts one from the WORLD_SURFACE
+heightmap), so nothing in a file can sit below ground: the footprint below is dug at
+runtime. `mine_*_1` is therefore a headframe over an open mouth, and its MINER station
+sits in the middle of that mouth so `WorkInMineGoal` deepens the hole rather than
+undermining the apron. The 7x7 footprint in the table is the headframe, not the mine.
 
 **No house or farm has a `cost` yet**, so nothing gates building one. The recipes, and the
 sprawl-versus-upgrade pricing the section below argues about, are still unset.
@@ -637,7 +644,7 @@ Worker: **MASON**  ·  Phase 1  ·  Variants: `plains`
 
 #### `mine`  (founding building)
 
-Worker: **MINER**  ·  Phase 1  ·  Variants: `plains`
+Worker: **MINER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert`, `savanna`
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
@@ -732,13 +739,13 @@ Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
 | Set | What it buys | Structures |
 | --- | --- | --- |
 | **Minimum playable** | One level-1 building per phase 1 category, plains variant only. A village that founds, feeds, houses, and defends itself. | **11** |
-| Phase 1 | A village survives in any biome, at every level | 87 |
+| Phase 1 | A village survives in any biome, at every level | 99 |
 | Phase 2 | It thrives: processed food, iron, faith, trade | 38 |
 | Phase 3 | It deepens: brewing, cloth, brick, glass, learning | 25 |
 | Phase 4 | It fights: soldiers, walls, arrows, potions | 29 |
-| | **Total** | **179** |
+| | **Total** | **191** |
 
-36 categories, 69 category-variant pairs, 179 structures. That total is the honest number and it
+36 categories, 73 category-variant pairs, 191 structures. That total is the honest number and it
 is large. Two things make it tractable:
 
 - **The minimum playable set is 11 structures.** One level-1 plains building per phase 1 category.
@@ -797,6 +804,10 @@ lumberjack_plains_1           lumberjack_plains_2           lumberjack_plains_3
 lumberjack_taiga_1            lumberjack_taiga_2            lumberjack_taiga_3
 quarry_plains_1               quarry_plains_2               quarry_plains_3
 mine_plains_1                 mine_plains_2                 mine_plains_3
+mine_taiga_1                  mine_taiga_2                  mine_taiga_3
+mine_snowy_1                  mine_snowy_2                  mine_snowy_3
+mine_desert_1                 mine_desert_2                 mine_desert_3
+mine_savanna_1                mine_savanna_2                mine_savanna_3
 watchtower_plains_1           watchtower_plains_2           watchtower_plains_3
 watchtower_taiga_1            watchtower_taiga_2            watchtower_taiga_3
 watchtower_desert_1           watchtower_desert_2           watchtower_desert_3
