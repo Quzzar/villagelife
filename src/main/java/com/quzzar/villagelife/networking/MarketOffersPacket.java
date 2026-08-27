@@ -26,12 +26,12 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 public record MarketOffersPacket(int entityId, String villageName, int treasury,
     List<Row> selling, List<Row> wanted, String message) implements CustomPacketPayload {
 
-  /** One stall line: the item, how many the village holds, and the unit price. */
-  public record Row(String itemId, int quantity, double unitPrice) {
+  /** One stall line as a trade: this many of the item against this many emeralds. */
+  public record Row(String itemId, int itemCount, int emeralds) {
     public static final StreamCodec<ByteBuf, Row> STREAM_CODEC = StreamCodec.composite(
         ByteBufCodecs.stringUtf8(256), Row::itemId,
-        ByteBufCodecs.VAR_INT, Row::quantity,
-        ByteBufCodecs.DOUBLE, Row::unitPrice,
+        ByteBufCodecs.VAR_INT, Row::itemCount,
+        ByteBufCodecs.VAR_INT, Row::emeralds,
         Row::new);
   }
 
@@ -60,12 +60,12 @@ public record MarketOffersPacket(int entityId, String villageName, int treasury,
     String note = blocker.isEmpty() ? message : "This market cannot trade: " + blocker + ".";
     List<Row> selling = blocker.isEmpty()
         ? MarketOffers.selling(village, level).stream()
-            .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.quantity(), offer.unitPrice()))
+            .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
             .toList()
         : List.of();
     List<Row> wanted = blocker.isEmpty()
         ? MarketOffers.wanted(village, level).stream()
-            .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.quantity(), offer.unitPrice()))
+            .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
             .toList()
         : List.of();
     PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(), village.getName(),

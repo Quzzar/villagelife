@@ -945,6 +945,11 @@ public class Village {
     this.brain.logEvent(event);
   }
 
+  /** Seconds this village has been alive, its own clock for goals and staggering. */
+  public int getVillageTime() {
+    return time;
+  }
+
   public VillageBrain getBrain() {
     return brain;
   }

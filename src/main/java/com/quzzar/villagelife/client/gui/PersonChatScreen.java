@@ -8,6 +8,11 @@ import com.quzzar.villagelife.networking.PersonChatMessagePacket;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -27,16 +32,23 @@ public class PersonChatScreen extends Screen {
   // Panel and text colours, kept together so the surface reads as one piece.
   private static final int PANEL_FILL = 0xE6101017;
   private static final int PANEL_BORDER = 0xFF4B4B5A;
-  private static final int PANEL_INNER_EDGE = 0x22FFFFFF;
-  private static final int DIVIDER = 0x33FFFFFF;
-  private static final int INPUT_FILL = 0x66000000;
-  private static final int INPUT_BORDER = 0xFF5A5A6B;
-  private static final int INPUT_BORDER_FOCUSED = 0xFF8D8DA6;
-  private static final int TEXT_VILLAGER = 0xFFF0F0F0;
-  private static final int TEXT_PLAYER = 0xFFE8B87A;
-  private static final int TEXT_PENDING = 0xFF80808C;
-  private static final int ICON_IDLE = 0xFFB8B8C4;
-  private static final int ICON_HOVER = 0xFFFFFFFF;
+  // Minecraft's own GUI palette: the grey panel, its bevel, and the inset
+  // slot. Matching these is what makes a modded screen read as part of the
+  // game rather than as something bolted on.
+  private static final int PANEL_FACE = 0xFFC6C6C6;
+  private static final int PANEL_LIGHT = 0xFFFFFFFF;
+  private static final int PANEL_DARK = 0xFF555555;
+  private static final int PANEL_EDGE = 0xFF000000;
+  private static final int SLOT_FACE = 0xFF8B8B8B;
+  private static final int SLOT_DARK = 0xFF373737;
+  private static final int DIVIDER = 0xFF8B8B8B;
+  private static final int TEXT_LABEL = 0xFF404040;
+  private static final int TEXT_VILLAGER = 0xFF404040;
+  private static final int TEXT_PLAYER = 0xFF29416B;
+  private static final int TEXT_PENDING = 0xFF7A7A7A;
+  private static final int ICON_IDLE = 0xFF404040;
+  private static final int ICON_HOVER = 0xFF000000;
+  private static final int ROW_HOVER = 0x40FFFFFF;
 
   private static final int LINE_GAP = 2;
 
@@ -56,6 +68,7 @@ public class PersonChatScreen extends Screen {
   private String marketNote = "";
 
   private EditBox input;
+  private Button sendButton;
   private boolean awaitingReply;
   /** Never let a lost or unanswered reply lock the input for good. */
   private long awaitingSinceMs;
@@ -128,45 +141,57 @@ public class PersonChatScreen extends Screen {
           com.quzzar.villagelife.networking.MarketActionPacket.refresh(entityId));
     }
 
-    int iconSize = 20;
-    int inputWidth = panelWidth - 24 - iconSize - 6;
-    this.input = new EditBox(this.font, panelLeft + 12 + 5, inputRowTop + 6, inputWidth - 10, 12,
+    // The field sits inside the sunken box drawn in renderBackground, and its
+    // text is centred on that box: an 8px line in a 20px box starts 6px down.
+    int fieldLeft = panelLeft + 8;
+    int fieldRight = panelRight - 34;
+    this.input = new EditBox(this.font, fieldLeft + 4, inputRowTop + 4, fieldRight - fieldLeft - 8, 12,
         Component.translatable("villagelife.chat.say"));
     this.input.setMaxLength(PersonChatMessagePacket.MAX_TEXT_LENGTH);
     this.input.setBordered(false);
+    this.input.setTextColor(TEXT_VILLAGER);
     this.input.setHint(Component.translatable("villagelife.chat.say").withStyle(ChatFormatting.DARK_GRAY));
     addRenderableWidget(this.input);
 
-    addRenderableWidget(new IconButton(panelLeft + 12 + inputWidth + 6, inputRowTop + 2, iconSize,
+    this.sendButton = addRenderableWidget(new IconButton(panelRight - 30, inputRowTop, 20,
         IconButton.SEND, button -> send()));
-    this.input.visible = tab == Tab.CHAT;
-    addRenderableWidget(new IconButton(panelRight - 24, panelTop + 6, 16,
+    addRenderableWidget(new IconButton(panelRight - 22, panelTop + 6, 16,
         IconButton.CLOSE, button -> onClose()));
+    applyTabVisibility();
 
     setInitialFocus(this.input);
   }
 
   @Override
   public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    // super gives the blurred, darkened world behind the panel.
     super.renderBackground(graphics, mouseX, mouseY, partialTick);
-
-    // Bordered panel: outer border, fill, and a faint inner edge for depth.
-    graphics.fill(panelLeft - 1, panelTop - 1, panelRight + 1, panelBottom + 1, PANEL_BORDER);
-    graphics.fill(panelLeft, panelTop, panelRight, panelBottom, PANEL_FILL);
-    graphics.fill(panelLeft, panelTop, panelRight, panelTop + 1, PANEL_INNER_EDGE);
-
-    // Header divider.
-    graphics.fill(panelLeft + 8, panelTop + 26, panelRight - 8, panelTop + 27, DIVIDER);
+    panel(graphics, panelLeft, panelTop, panelRight, panelBottom);
+    graphics.fill(panelLeft + 6, panelTop + 24, panelRight - 6, panelTop + 25, DIVIDER);
 
     if (tab != Tab.CHAT) {
       return;
     }
-    // Input field, framed and brightened while focused.
-    boolean focused = this.input != null && this.input.isFocused();
-    int fieldRight = panelRight - 12 - 26;
-    graphics.fill(panelLeft + 12, inputRowTop + 2, fieldRight, inputRowTop + 22,
-        focused ? INPUT_BORDER_FOCUSED : INPUT_BORDER);
-    graphics.fill(panelLeft + 13, inputRowTop + 3, fieldRight - 1, inputRowTop + 21, INPUT_FILL);
+    slot(graphics, panelLeft + 8, inputRowTop, panelRight - 34, inputRowTop + 20);
+  }
+
+  /** The raised grey panel Minecraft draws every one of its own windows with. */
+  private static void panel(GuiGraphics graphics, int left, int top, int right, int bottom) {
+    graphics.fill(left - 1, top - 1, right + 1, bottom + 1, PANEL_EDGE);
+    graphics.fill(left, top, right, bottom, PANEL_FACE);
+    graphics.fill(left, top, right - 1, top + 1, PANEL_LIGHT);
+    graphics.fill(left, top, left + 1, bottom - 1, PANEL_LIGHT);
+    graphics.fill(left + 1, bottom - 1, right, bottom, PANEL_DARK);
+    graphics.fill(right - 1, top + 1, right, bottom, PANEL_DARK);
+  }
+
+  /** The sunken box Minecraft uses for slots and text fields: the panel inverted. */
+  private static void slot(GuiGraphics graphics, int left, int top, int right, int bottom) {
+    graphics.fill(left, top, right, bottom, SLOT_FACE);
+    graphics.fill(left, top, right - 1, top + 1, SLOT_DARK);
+    graphics.fill(left, top, left + 1, bottom - 1, SLOT_DARK);
+    graphics.fill(left + 1, bottom - 1, right, bottom, PANEL_LIGHT);
+    graphics.fill(right - 1, top + 1, right, bottom, PANEL_LIGHT);
   }
 
   @Override
@@ -176,6 +201,18 @@ public class PersonChatScreen extends Screen {
       return true;
     }
     return super.keyPressed(keyCode, scanCode, modifiers);
+  }
+
+  /** Chat widgets belong to the chat tab only; the stall has no text entry. */
+  private void applyTabVisibility() {
+    boolean chatting = tab == Tab.CHAT;
+    if (input != null) {
+      input.visible = chatting;
+    }
+    if (sendButton != null) {
+      sendButton.visible = chatting;
+      sendButton.active = chatting;
+    }
   }
 
   private void send() {
@@ -205,6 +242,13 @@ public class PersonChatScreen extends Screen {
 
     if (tab == Tab.TRADE) {
       renderTrade(graphics, mouseX, mouseY);
+      for (Row row : rowHits) {
+        if (mouseY >= row.y() && mouseY <= row.y() + 18
+            && mouseX >= row.left() && mouseX <= row.right()) {
+          graphics.renderTooltip(this.font, stackOf(row.itemId(), 1), mouseX, mouseY);
+          break;
+        }
+      }
       return;
     }
 
@@ -256,73 +300,86 @@ public class PersonChatScreen extends Screen {
   }
 
   /**
-   * The stall: what they sell on the left, what they want on the right. Their
-   * wants are the point - a village's shortages are a job board - so the two
-   * columns are given equal weight rather than burying the wanted list.
+   * The stall, written the way a Minecraft trade is written: a slot, an arrow,
+   * a slot. What you hand over on the left of the arrow, what you get on the
+   * right. No prices, because an item count IS the price here, and "3.80" was
+   * never something a player could act on.
    */
   private void renderTrade(GuiGraphics graphics, int mouseX, int mouseY) {
     rowHits.clear();
-    int left = panelLeft + 12;
-    int right = panelRight - 12;
+    int left = panelLeft + 10;
+    int right = panelRight - 10;
     int mid = (left + right) / 2;
-    int y = panelTop + 56;
+    int y = panelTop + 52;
 
     if (offers == null) {
-      graphics.drawString(this.font, Component.literal("Opening the stall...")
-          .withStyle(ChatFormatting.DARK_GRAY), left, y, TEXT_PENDING);
+      graphics.drawString(this.font, Component.literal("Opening the stall..."), left, y, TEXT_PENDING, false);
+      return;
+    }
+    if (!marketNote.isBlank()) {
+      for (FormattedCharSequence line : this.font.split(
+          Component.literal(marketNote), panelRight - panelLeft - 20)) {
+        graphics.drawString(this.font, line, left, y, TEXT_LABEL, false);
+        y += this.font.lineHeight + 1;
+      }
       return;
     }
 
-    graphics.drawString(this.font, Component.literal(offers.villageName())
-        .withStyle(ChatFormatting.WHITE), left, y, TEXT_VILLAGER);
-    String purse = offers.treasury() + (offers.treasury() == 1 ? " emerald" : " emeralds");
-    graphics.drawString(this.font, Component.literal(purse).withStyle(ChatFormatting.GRAY),
-        right - this.font.width(purse), y, 0xFFAAAAAA);
-    y += 14;
-
-    graphics.drawString(this.font, Component.literal("For sale").withStyle(ChatFormatting.GRAY),
-        left, y, 0xFF9FD0FF);
-    graphics.drawString(this.font, Component.literal("Wanted").withStyle(ChatFormatting.GRAY),
-        mid + 6, y, TEXT_PLAYER);
+    graphics.drawString(this.font, Component.literal("For sale"), left, y, TEXT_LABEL, false);
+    graphics.drawString(this.font, Component.literal("Looking for"), mid + 6, y, TEXT_LABEL, false);
     y += 12;
 
-    int rowsTop = y;
-    drawColumn(graphics, offers.selling(), left, mid - 6, rowsTop, mouseX, mouseY, true);
-    drawColumn(graphics, offers.wanted(), mid + 6, right, rowsTop, mouseX, mouseY, false);
-
-    int bottom = inputRowTop + 8;
-    if (!marketNote.isBlank()) {
-      for (FormattedCharSequence line : this.font.split(
-          Component.literal(marketNote), panelRight - panelLeft - 24)) {
-        graphics.drawString(this.font, line, left, bottom, TEXT_VILLAGER);
-        bottom += this.font.lineHeight + 1;
-      }
-    } else {
-      graphics.drawString(this.font, Component.literal("Click to trade one, shift-click for eight.")
-          .withStyle(ChatFormatting.DARK_GRAY), left, bottom, TEXT_PENDING);
-    }
+    drawColumn(graphics, offers.selling(), left, mid - 6, y, mouseX, mouseY, true);
+    drawColumn(graphics, offers.wanted(), mid + 6, right, y, mouseX, mouseY, false);
   }
 
+  /**
+   * One column of trades. {@code playerBuys} decides which way round the arrow
+   * reads: buying costs emeralds and yields goods, selling is the reverse.
+   */
   private void drawColumn(GuiGraphics graphics, List<com.quzzar.villagelife.networking.MarketOffersPacket.Row> rows,
       int left, int right, int top, int mouseX, int mouseY, boolean playerBuys) {
     int y = top;
     if (rows.isEmpty()) {
-      graphics.drawString(this.font, Component.literal(playerBuys ? "nothing spare" : "nothing needed")
-          .withStyle(ChatFormatting.DARK_GRAY), left, y, TEXT_PENDING);
+      graphics.drawString(this.font, Component.literal(playerBuys ? "nothing spare" : "nothing needed"),
+          left, y + 5, TEXT_PENDING, false);
       return;
     }
     for (var row : rows) {
-      boolean hovered = mouseX >= left && mouseX <= right && mouseY >= y - 1 && mouseY <= y + 9;
+      ItemStack goods = stackOf(row.itemId(), row.itemCount());
+      ItemStack coins = new ItemStack(Items.EMERALD, row.emeralds());
+      ItemStack from = playerBuys ? coins : goods;
+      ItemStack into = playerBuys ? goods : coins;
+
+      boolean hovered = mouseX >= left && mouseX <= right && mouseY >= y && mouseY <= y + 18;
       if (hovered) {
-        graphics.fill(left - 2, y - 2, right, y + 10, 0x22FFFFFF);
+        graphics.fill(left, y, right, y + 18, ROW_HOVER);
       }
-      String name = shortName(row.itemId());
-      String price = String.format("%.2f", row.unitPrice());
-      graphics.drawString(this.font, name, left, y, playerBuys ? 0xFF9FD0FF : TEXT_PLAYER);
-      graphics.drawString(this.font, price, right - this.font.width(price), y, 0xFFAAAAAA);
+      slot(graphics, left, y, left + 18, y + 18);
+      slot(graphics, left + 40, y, left + 58, y + 18);
+      graphics.renderItem(from, left + 1, y + 1);
+      graphics.renderItemDecorations(this.font, from, left + 1, y + 1);
+      graphics.renderItem(into, left + 41, y + 1);
+      graphics.renderItemDecorations(this.font, into, left + 41, y + 1);
+      arrow(graphics, left + 22, y + 7);
+
       rowHits.add(new Row(y, left, right, row.itemId(), playerBuys));
-      y += this.font.lineHeight + 3;
+      y += 21;
     }
+  }
+
+  /** The trade arrow, drawn rather than blitted so no atlas lookup can fail. */
+  private static void arrow(GuiGraphics graphics, int x, int y) {
+    graphics.fill(x, y + 1, x + 11, y + 3, TEXT_LABEL);
+    for (int i = 0; i < 3; i++) {
+      graphics.fill(x + 8 + i, y - 1 + i, x + 9 + i, y + 5 - i, TEXT_LABEL);
+    }
+  }
+
+  private static ItemStack stackOf(String itemId, int count) {
+    ResourceLocation id = ResourceLocation.tryParse(itemId);
+    Item item = id == null ? null : BuiltInRegistries.ITEM.get(id);
+    return item == null ? ItemStack.EMPTY : new ItemStack(item, count);
   }
 
   /** "minecraft:oak_log" reads as "oak log" on a market stall. */
@@ -335,8 +392,8 @@ public class PersonChatScreen extends Screen {
   public boolean mouseClicked(double mouseX, double mouseY, int button) {
     if (tab == Tab.TRADE && offers != null) {
       for (Row row : rowHits) {
-        if (mouseY >= row.y() - 1 && mouseY <= row.y() + 9
-            && mouseX >= row.left() - 2 && mouseX <= row.right()) {
+        if (mouseY >= row.y() && mouseY <= row.y() + 18
+            && mouseX >= row.left() && mouseX <= row.right()) {
           int count = hasShiftDown() ? 8 : 1;
           PacketDistributor.sendToServer(new com.quzzar.villagelife.networking.MarketActionPacket(
               entityId, row.playerBuys(), row.itemId(), count));

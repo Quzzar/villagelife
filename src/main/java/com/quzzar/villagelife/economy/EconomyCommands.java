@@ -100,8 +100,8 @@ public final class EconomyCommands {
       return;
     }
     for (MarketOffers.Offer offer : offers) {
-      source.sendSuccess(() -> Component.literal(String.format("  %s: %s x%d at %.2f",
-          heading, MarketOffers.idOf(offer.item()), offer.quantity(), offer.unitPrice())), false);
+      source.sendSuccess(() -> Component.literal(String.format("  %s: %d x %s for %d emeralds",
+          heading, offer.itemCount(), MarketOffers.idOf(offer.item()), offer.emeralds())), false);
     }
   }
 

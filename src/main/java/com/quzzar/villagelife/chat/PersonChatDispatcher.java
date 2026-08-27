@@ -114,17 +114,37 @@ public final class PersonChatDispatcher {
     dispatch(person, player, GREETING_CUE, "");
   }
 
-  /** Shared tail: converse, execute any give, answer the player's screen. */
+  /**
+   * Shared tail: converse, execute any give, answer the player's screen.
+   *
+   * The in-flight guard is cleared on EVERY outcome, not just success. It used
+   * to be released inside thenAccept, so one failed request left the player's
+   * entry behind for good, and from then on both greetings and sends were
+   * dropped in silence: the villager never spoke and the send button looked
+   * broken. A guard that can leak is worse than no guard at all.
+   */
   private static void dispatch(RealPerson person, ServerPlayer player, String message, String historyLine) {
-    converse(person, player.getGameProfile().getName(), player.getUUID(), message, historyLine)
-        .thenAccept(reply -> player.getServer().execute(() -> {
-          IN_FLIGHT.remove(player.getUUID());
-          String say = reply.say();
-          if (reply.give() != null && person.isAlive()) {
-            executeGive(person, player, reply.give());
-          }
-          PacketDistributor.sendToPlayer(player, new PersonChatReplyPacket(person.getId(), say));
-        }));
+    CompletableFuture<Reply> pending;
+    try {
+      pending = converse(person, player.getGameProfile().getName(), player.getUUID(), message, historyLine);
+    } catch (RuntimeException e) {
+      IN_FLIGHT.remove(player.getUUID());
+      throw e;
+    }
+    pending.whenComplete((reply, error) -> player.getServer().execute(() -> {
+      IN_FLIGHT.remove(player.getUUID());
+      if (error != null || reply == null) {
+        Villagelife.LOGGER.warn("Chat with {} failed for {}", person.getFullName(),
+            player.getGameProfile().getName(), error);
+        PacketDistributor.sendToPlayer(player,
+            new PersonChatReplyPacket(person.getId(), "..."));
+        return;
+      }
+      if (reply.give() != null && person.isAlive()) {
+        executeGive(person, player, reply.give());
+      }
+      PacketDistributor.sendToPlayer(player, new PersonChatReplyPacket(person.getId(), reply.say()));
+    }));
   }
 
   /**

@@ -43,8 +43,46 @@ public class UrbanPlanner {
   /** Chosen when the village would rather wait than spend what it has. */
   private static final String WAIT_OPTION = "nothing yet: keep what we have and wait";
 
+  /** How many out-of-reach buildings are offered as things to save toward. */
+  private static final int GOALS_OFFERED = 2;
+
   /** A candidate building, with why the village might want it. */
   public record Candidate(BuildingInfo info, double score, String description) {}
+
+  /** What a village is short of, sampled once and applied to every candidate. */
+  private record Needs(double housing, double work, double food, double safety) {
+    static Needs of(Village village) {
+      int population = village.getPopulation().size();
+      int beds = village.getTotalBeds();
+      int idle = village.idlePeople().size();
+      int openJobs = village.getUnassignedJobs().size();
+      VillageAttractiveness report = village.getAttractiveness();
+      return new Needs(
+          Math.max(0, population + 2 - beds),
+          Math.max(0, idle - openJobs),
+          report != null && report.foodPerCapita() < 8.0 ? 8.0 - report.foodPerCapita() : 0.0,
+          report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0);
+    }
+  }
+
+  /** How badly this village wants this building, given what it lacks. */
+  private static double scoreOf(Village village, BuildingInfo info, Needs needs) {
+    double score = 0.0;
+    score += info.getBedLocations().size() * (1.0 + needs.housing());
+    score += info.getWorkLocations().size() * (1.0 + needs.work());
+    score += info.getContainerLocations().size() * 0.25;
+    for (Occupation occupation : info.getWorkLocations().values()) {
+      if (occupation == Occupation.GUARD) {
+        score += needs.safety();
+      }
+      if (occupation == Occupation.FARMER || occupation == Occupation.LUMBERJACK) {
+        score += needs.food() * 0.5;
+      }
+    }
+    // Never stack a third of the same thing while anything else is wanted.
+    score -= countBuilt(village, info.getName()) * 2.0;
+    return score;
+  }
 
   /**
    * Chooses the next project asynchronously: affordable candidates are ranked
@@ -52,41 +90,106 @@ public class UrbanPlanner {
    * can build nothing right now.
    */
   public static CompletableFuture<BuildingInfo> chooseNextProject(Village village) {
+    // A village that is saving does not deliberate: it spends on the thing it
+    // named, the moment it can, and otherwise waits. That is what saving is.
+    String goal = VillageGoal.current(village);
+    if (goal != null) {
+      if (VillageGoal.hasExpired(village, village.getVillageTime())) {
+        VillageGoal.clear(village, "waited too long");
+      } else {
+        BuildingInfo wanted = Buildings.getByName(goal);
+        if (wanted == null) {
+          VillageGoal.clear(village, "the definition is gone");
+        } else if (hasMaterialsToConstruct(village, wanted)) {
+          VillageGoal.clear(village, "affordable at last");
+          Villagelife.LOGGER.info("Village '{}' saved up and is building {}",
+              village.getName(), wanted.getName());
+          return CompletableFuture.completedFuture(wanted);
+        } else {
+          return CompletableFuture.completedFuture(null);
+        }
+      }
+    }
+
     List<Candidate> candidates = rankCandidates(village);
-    if (candidates.isEmpty()) {
+    List<Candidate> offered = candidates.subList(0, Math.min(optionsOffered(), candidates.size()));
+
+    // Things worth wanting but out of reach today, offered as goals rather
+    // than as builds. A village with nothing affordable is exactly the village
+    // that most needs to name something and save for it, so these are gathered
+    // even when there is nothing to build.
+    List<Candidate> goals = outOfReach(village);
+    if (offered.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
 
-    List<Candidate> offered = candidates.subList(0, Math.min(optionsOffered(), candidates.size()));
-    Candidate ruleChoice = offered.get(0);
-    if (offered.size() == 1 || !LlmService.get().isReady()) {
-      return CompletableFuture.completedFuture(ruleChoice.info());
+    Candidate ruleChoice = offered.isEmpty() ? null : offered.get(0);
+    if (!LlmService.get().isReady()) {
+      return CompletableFuture.completedFuture(ruleChoice == null ? null : ruleChoice.info());
     }
 
     // Waiting is a real move: a brain that can only build will build until it
     // physically cannot, and a village that is saving up should be able to say so.
     List<String> options = new ArrayList<>(offered.stream().map(Candidate::description).toList());
     options.add(WAIT_OPTION);
+    for (Candidate goalCandidate : goals) {
+      options.add("save up for " + goalCandidate.description());
+    }
     return LlmService.get().decide(situationOf(village), options)
-        .thenApply(decision -> pick(village, offered, ruleChoice, decision));
+        .thenApply(decision -> pick(village, offered, goals, ruleChoice, decision));
   }
 
-  private static BuildingInfo pick(Village village, List<Candidate> offered, Candidate ruleChoice,
-      Optional<LlmDecision> decision) {
+  /**
+   * The best few buildings the village wants but cannot pay for. Ranked by the
+   * same need scoring, so what it saves for is what it actually lacks.
+   */
+  private static List<Candidate> outOfReach(Village village) {
+    Needs needs = Needs.of(village);
+    List<Candidate> unaffordable = new ArrayList<>();
+    for (BuildingInfo info : Buildings.allBuildings().values()) {
+      if (info.getName().equals(Buildings.VILLAGE_CENTER_NAME) || info.getUpgradesFrom() != null) {
+        continue;
+      }
+      if (info.hasWellFormedId() && info.getLevel() > 1) {
+        continue;
+      }
+      if (hasMaterialsToConstruct(village, info)) {
+        continue;
+      }
+      unaffordable.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
+    }
+    unaffordable.sort(Comparator.comparingDouble(Candidate::score).reversed());
+    return unaffordable.subList(0, Math.min(GOALS_OFFERED, unaffordable.size()));
+  }
+
+  private static BuildingInfo pick(Village village, List<Candidate> offered, List<Candidate> goals,
+      Candidate ruleChoice, Optional<LlmDecision> decision) {
     if (decision.isEmpty()) {
+      if (ruleChoice == null) {
+        return null;
+      }
       Villagelife.LOGGER.debug("Village '{}' had no answer from the brain; building {} on the rules' advice",
           village.getName(), ruleChoice.info().getName());
       return ruleChoice.info();
     }
     LlmDecision chosen = decision.get();
     int index = chosen.choiceIndex();
+    if (index > offered.size()) {
+      int goalIndex = index - offered.size() - 1;
+      if (goalIndex >= 0 && goalIndex < goals.size()) {
+        VillageGoal.set(village, goals.get(goalIndex).info().getName(),
+            chosen.reason(), village.getVillageTime());
+        return null;
+      }
+      return ruleChoice == null ? null : ruleChoice.info();
+    }
     if (index == offered.size()) {
       Villagelife.LOGGER.info("Village '{}' decided to build nothing for now: {}",
           village.getName(), chosen.reason());
       return null;
     }
-    if (index < 0 || index > offered.size()) {
-      return ruleChoice.info();
+    if (index < 0 || index >= offered.size()) {
+      return ruleChoice == null ? null : ruleChoice.info();
     }
     Candidate candidate = offered.get(index);
     Villagelife.LOGGER.info("Village '{}' decided to build {}: {}",
@@ -140,17 +243,7 @@ public class UrbanPlanner {
    * never be built.
    */
   public static List<Candidate> rankCandidates(Village village) {
-    int population = village.getPopulation().size();
-    int beds = village.getTotalBeds();
-    int idle = village.idlePeople().size();
-    int openJobs = village.getUnassignedJobs().size();
-    VillageAttractiveness report = village.getAttractiveness();
-
-    // How badly each kind of building is wanted, from real state.
-    double housingNeed = Math.max(0, population + 2 - beds);
-    double workNeed = Math.max(0, idle - openJobs);
-    double foodNeed = report != null && report.foodPerCapita() < 8.0 ? 8.0 - report.foodPerCapita() : 0.0;
-    double safetyNeed = report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0;
+    Needs needs = Needs.of(village);
 
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
@@ -163,26 +256,7 @@ public class UrbanPlanner {
       if (!hasMaterialsToConstruct(village, info)) {
         continue;
       }
-
-      double score = 0.0;
-      score += info.getBedLocations().size() * (1.0 + housingNeed);
-      score += info.getWorkLocations().size() * (1.0 + workNeed);
-      score += info.getContainerLocations().size() * 0.25;
-      for (Occupation occupation : info.getWorkLocations().values()) {
-        if (occupation == Occupation.GUARD) {
-          score += safetyNeed;
-        }
-        if (occupation == Occupation.FARMER || occupation == Occupation.LUMBERJACK) {
-          score += foodNeed * 0.5;
-        }
-      }
-      // No style preference by design (#50): a variant is just a recipe for the
-      // same building, so the village builds whichever one it can afford. The
-      // affordability filter above has already made that choice.
-      // Never stack a third of the same thing while anything else is wanted.
-      score -= countBuilt(village, info.getName()) * 2.0;
-
-      candidates.add(new Candidate(info, score, describe(info)));
+      candidates.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
     }
 
     candidates.sort(Comparator.comparingDouble(Candidate::score).reversed());

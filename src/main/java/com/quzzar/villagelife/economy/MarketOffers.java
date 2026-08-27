@@ -28,8 +28,39 @@ public final class MarketOffers {
   /** How many rows each column shows before it stops being a market and starts being a spreadsheet. */
   public static final int MAX_ROWS = 6;
 
-  /** One line on the stall: what it is, how many, and what an emerald buys. */
-  public record Offer(Item item, int quantity, double unitPrice) {
+  /**
+   * One trade on the stall, in whole items for whole emeralds, the way a
+   * Minecraft trade reads: {@code itemCount} of {@code item} against
+   * {@code emeralds} gems. Which side gives which depends on the column.
+   * Fractional prices are never shown to a player, because "0.03" is not a
+   * price anyone can act on; a cheap good is bundled until it is worth a gem.
+   */
+  public record Offer(Item item, int itemCount, int emeralds) {
+  }
+
+  /**
+   * Bundles an item until the trade is worth at least one emerald, so cheap
+   * staples stay tradeable instead of rounding away to nothing. The emerald
+   * figure uses the SAME rounding the trade itself will apply, so the price on
+   * the stall is the price charged.
+   */
+  private static Optional<Offer> bundle(Item item, double unitValue, int available, boolean playerBuys) {
+    if (unitValue <= 0) {
+      return Optional.empty();
+    }
+    int count = Math.max(1, (int) Math.ceil(1.0D / unitValue));
+    count = Math.min(count, item.getDefaultMaxStackSize());
+    if (available > 0) {
+      count = Math.min(count, available);
+    }
+    // villageSells rounds up and villageBuys rounds down; match each exactly.
+    int emeralds = playerBuys
+        ? (int) Math.ceil(unitValue * count)
+        : (int) Math.floor(unitValue * count);
+    if (emeralds < 1 || count < 1) {
+      return Optional.empty(); // not worth a gem even by the stack
+    }
+    return Optional.of(new Offer(item, count, emeralds));
   }
 
   /** Staples a village always cares about, so a new market is never empty. */
@@ -57,9 +88,9 @@ public final class MarketOffers {
       if (price.isEmpty()) {
         continue; // nothing can value it, so it is not tradeable
       }
-      offers.add(new Offer(item, held, price.get()));
+      bundle(item, price.get(), held, true).ifPresent(offers::add);
     }
-    offers.sort(Comparator.comparingDouble((Offer offer) -> offer.unitPrice() * offer.quantity()).reversed());
+    offers.sort(Comparator.comparingInt(Offer::emeralds).reversed());
     return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;
   }
 
@@ -82,9 +113,10 @@ public final class MarketOffers {
       if (price.isEmpty()) {
         continue;
       }
-      offers.add(new Offer(item.get(), VillagePricing.countHeld(village, item.get()), price.get()));
+      // No stock cap: the village is asking the player to bring these.
+      bundle(item.get(), price.get(), 0, false).ifPresent(offers::add);
     }
-    offers.sort(Comparator.comparingDouble(Offer::unitPrice).reversed());
+    offers.sort(Comparator.comparingInt(Offer::emeralds).reversed());
     return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;
   }
 
