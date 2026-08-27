@@ -72,10 +72,16 @@ public record MarketOffersPacket(int entityId, String villageName, boolean block
     String note = blocker.isEmpty() ? message
         : (standing.isEmpty() ? "This market cannot trade: " : "'" + village.getName()
             + "' will not trade with you: ") + blocker + ".";
-    List<Row> selling = MarketOffers.selling(village, level, markup).stream()
+    com.quzzar.villagelife.menu.MarketMenu menu =
+        player.containerMenu instanceof com.quzzar.villagelife.menu.MarketMenu open ? open : null;
+    List<MarketOffers.Offer> sellingOffers = menu != null ? menu.sellingSnapshot()
+        : MarketOffers.selling(village, level, markup);
+    List<MarketOffers.Offer> wantedOffers = menu != null ? menu.wantedSnapshot()
+        : MarketOffers.wanted(village, level, markup);
+    List<Row> selling = sellingOffers.stream()
         .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
         .toList();
-    List<Row> wanted = MarketOffers.wanted(village, level, markup).stream()
+    List<Row> wanted = wantedOffers.stream()
         .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
         .toList();
     PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(), village.getName(),

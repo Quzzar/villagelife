@@ -55,6 +55,8 @@ public class MarketMenu extends AbstractContainerMenu {
 
   /** Which trade is staged, as an index into the stall's current offers. */
   private int selected = -1;
+  /** The stall as it was when the screen opened; row order must not move. */
+  private final java.util.List<Deal> deals = new java.util.ArrayList<>();
 
   public MarketMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf buffer) {
     this(containerId, inventory, buffer.readVarInt(), buffer.readUtf(), buffer.readUtf(), buffer.readBoolean());
@@ -84,6 +86,8 @@ public class MarketMenu extends AbstractContainerMenu {
     for (int column = 0; column < 9; column++) {
       addSlot(new Slot(inventory, column, PACK_X + column * 18, HEAD + 104));
     }
+
+    refreshOffers();
 
     addSlotListener(new ContainerListener() {
       @Override
@@ -239,21 +243,42 @@ public class MarketMenu extends AbstractContainerMenu {
   }
 
   private Deal offerAt(int index) {
-    if (index < 0 || !(player instanceof ServerPlayer serverPlayer)
-        || !(serverPlayer.level() instanceof ServerLevel level)) {
+    if (index < 0 || deals.isEmpty()) {
       return null;
+    }
+    return index < deals.size() ? deals.get(index) : null;
+  }
+
+  /**
+   * Snapshots the stall. Everything downstream indexes into THIS list, so a
+   * row means the same trade for as long as the screen is open, whatever the
+   * villagers do to the stock in the meantime.
+   */
+  public void refreshOffers() {
+    deals.clear();
+    if (!(player instanceof ServerPlayer serverPlayer)
+        || !(serverPlayer.level() instanceof ServerLevel level)) {
+      return;
     }
     Village village = villageOf(serverPlayer);
     if (village == null) {
-      return null;
+      return;
     }
-    java.util.List<MarketOffers.Offer> selling = MarketOffers.selling(village, level);
-    if (index < selling.size()) {
-      return new Deal(selling.get(index), true);
+    for (MarketOffers.Offer offer : MarketOffers.selling(village, level)) {
+      deals.add(new Deal(offer, true));
     }
-    java.util.List<MarketOffers.Offer> wanted = MarketOffers.wanted(village, level);
-    int into = index - selling.size();
-    return into < wanted.size() ? new Deal(wanted.get(into), false) : null;
+    for (MarketOffers.Offer offer : MarketOffers.wanted(village, level)) {
+      deals.add(new Deal(offer, false));
+    }
+  }
+
+  /** The snapshot, so the screen and the menu cannot disagree about row order. */
+  public java.util.List<MarketOffers.Offer> sellingSnapshot() {
+    return deals.stream().filter(Deal::playerBuys).map(Deal::offer).toList();
+  }
+
+  public java.util.List<MarketOffers.Offer> wantedSnapshot() {
+    return deals.stream().filter(d -> !d.playerBuys()).map(Deal::offer).toList();
   }
 
   private Village villageOf(ServerPlayer serverPlayer) {
@@ -315,6 +340,15 @@ public class MarketMenu extends AbstractContainerMenu {
     } else {
       slot.setChanged();
     }
+    if (stack.getCount() == moved.getCount()) {
+      return ItemStack.EMPTY;
+    }
+    // The line my version was missing. Vanilla calls onTake here, AFTER the
+    // branches, and that is what charges for the trade: shift-clicking the
+    // result moved the goods out and never ran completeTrade, so the stall
+    // handed them over for nothing.
+    slot.onTake(who, stack);
     return moved;
   }
+
 }
