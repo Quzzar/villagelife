@@ -25,6 +25,7 @@ import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.InstantBuildStructure;
 import com.quzzar.villagelife.village.buildings.LocationValidator;
+import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.UrbanPlanner;
 import com.quzzar.villagelife.persona.PersonaSpawner;
@@ -100,6 +101,8 @@ public class Village {
   private final int CHECK_PROJECT_PROGRESS = 60; // 60 // seconds
   /** Longest a stalled village waits between planning attempts. */
   private static final int MAX_PLANNING_BACKOFF = 600; // seconds
+  /** Project-progress checks a gather gets before the village abandons it and re-plans. */
+  private static final int MAX_GATHERING_CHECKS = 15;
 
   private int time = 0;
 
@@ -139,6 +142,9 @@ public class Village {
    * next overflow, so it need not survive a reload.
    */
   private transient boolean storageStrained;
+
+  /** Consecutive project checks the current build has spent gathering; abandons past the cap. */
+  private transient int gatheringChecks;
 
   private ArrayList<UUID> people;
   private HashMap<UUID, Building> buildings;
@@ -202,25 +208,55 @@ public class Village {
       return;
     }
 
+    // The whole camp sits on ONE plane, so it reads as a level camp rather than
+    // three buildings snapped to three different surface heights - which is what
+    // founding did before, and why a camp on any slope came out as scattered
+    // buildings at scattered elevations (docs/building-spec.md, "The camp is
+    // placed as one plat"). The plane is the ground at the founding point; the
+    // centre sits at the middle with a companion a clearance out on each side.
+    int centerSpan = templateSpan(centerInfo);
+    int clearance = centerSpan + 4;
+    int half = (maxFoundingSpan(centerSpan) + 1) / 2 + 1;
+    int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY();
+    BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
+
+    // The camp footprint: wide enough in X to hold both companions, only as deep
+    // in Z as the buildings themselves, so founding levels the ground the camp
+    // stands on rather than scarring a whole square for a row of three.
+    BoundingBox plat = new BoundingBox(
+        platCenter.getX() - clearance - half, planeY, platCenter.getZ() - half,
+        platCenter.getX() + clearance + half, planeY, platCenter.getZ() + half);
+
+    // One site check over the whole footprint (docs: "one composite footprint,
+    // one site check"), taken BEFORE anything is claimed or placed so it reads
+    // the terrain and not the village's own fresh claims. Founding is pickier
+    // than growth because it needs the entire plat at once, and pays preparation
+    // an ordinary placement would refuse - so this reports how rough the ground
+    // was but does not refuse a camp a caller asked to found here.
+    SitePreparation.SiteCost cost = SitePreparation.score(level, this, platCenter, plat);
+    Villagelife.LOGGER.info("Founding '{}' on a {}x{} plat at {}: {}", name,
+        plat.getXSpan(), plat.getZSpan(), platCenter.toShortString(), cost.describe());
+
+    // Level the camp to the plane, then plan and raise all three flush on it.
+    // Companions keep normal recipes; the founding path skips payment exactly as
+    // buildInstantly does.
+    levelPlatTo(plat, planeY);
+
     InstantBuildStructure centerStruct = new InstantBuildStructure(
         new Building(centerInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]), random, level)
-        .setOriginLocation(centerLoc, claimGrid);
-    centerStruct.buildInstantly();
+        .setOriginLocation(platCenter, claimGrid);
+    InstantBuildStructure mineStruct =
+        planFoundingCompanion(Buildings.FOUNDING_MINE_NAME, platCenter.offset(clearance, 0, 0));
+    InstantBuildStructure storeStruct =
+        planFoundingCompanion(Buildings.FOUNDING_STOREHOUSE_NAME, platCenter.offset(-clearance, 0, 0));
 
     Building centerBuilding = centerStruct.getBuilding();
-
+    centerStruct.buildInstantly();
     this.townCenterUUID = centerBuilding.getUUID();
     addBuilding(centerBuilding);
-
     placeCampfireIfMissing();
-
-    // The rest of the founding set (docs/building-spec.md, "How a village
-    // starts"): companions share the camp plat on opposite sides of the
-    // center, placed free. Their definitions keep normal recipes; only the
-    // founding path skips payment, which buildInstantly inherently does.
-    int clearance = foundingClearance(centerInfo);
-    placeFoundingCompanion(Buildings.FOUNDING_MINE_NAME, centerLoc.offset(clearance, 0, 0));
-    placeFoundingCompanion(Buildings.FOUNDING_STOREHOUSE_NAME, centerLoc.offset(-clearance, 0, 0));
+    buildFoundingCompanion(mineStruct);
+    buildFoundingCompanion(storeStruct);
 
     // No founding crew is spawned directly: personas are generated before any
     // spawn (persona map #4), so the first villagers arrive through the
@@ -228,30 +264,78 @@ public class Village {
 
   }
 
-  /**
-   * How far from the center origin a founding companion sits: past the
-   * center's own template span in any rotation, plus a walkway gap.
-   */
-  private int foundingClearance(BuildingInfo centerInfo) {
-    var template = level.getStructureManager().getOrCreate(
-        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, centerInfo.getPath()));
-    var size = template.getSize();
-    return Math.max(size.getX(), size.getZ()) + 4;
+  /** The widest of the founding buildings, so the plat is deep enough for all three. */
+  private int maxFoundingSpan(int centerSpan) {
+    int span = centerSpan;
+    for (String name : new String[] { Buildings.FOUNDING_MINE_NAME, Buildings.FOUNDING_STOREHOUSE_NAME }) {
+      BuildingInfo info = Buildings.getByName(name);
+      if (info != null) {
+        span = Math.max(span, templateSpan(info));
+      }
+    }
+    return span;
   }
 
-  /** Places one founding-set companion free, or skips it loudly when its definition is missing. */
-  private void placeFoundingCompanion(String name, BlockPos near) {
+  /** The larger horizontal span of a building's template, for laying out the plat. */
+  private int templateSpan(BuildingInfo info) {
+    var template = level.getStructureManager().getOrCreate(
+        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, info.getPath()));
+    var size = template.getSize();
+    return Math.max(size.getX(), size.getZ());
+  }
+
+  /** A founding companion planned at the shared plane, or null when its definition is not loaded. */
+  @javax.annotation.Nullable
+  private InstantBuildStructure planFoundingCompanion(String name, BlockPos at) {
     BuildingInfo info = Buildings.getByName(name);
     if (info == null) {
       Villagelife.LOGGER.warn("Founding set building '{}' is not loaded; the camp founds without it", name);
+      return null;
+    }
+    return new InstantBuildStructure(new Building(info.getName(), Rotation.NONE), random, level)
+        .setOriginLocation(at, claimGrid);
+  }
+
+  /** Raises a planned companion on the prepared plat, or does nothing when it was skipped. */
+  private void buildFoundingCompanion(@javax.annotation.Nullable InstantBuildStructure struct) {
+    if (struct == null) {
       return;
     }
-    BlockPos ground = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, near);
-    InstantBuildStructure struct = new InstantBuildStructure(
-        new Building(info.getName(), Rotation.NONE), random, level)
-        .setOriginLocation(ground, claimGrid);
     struct.buildInstantly();
     addBuilding(struct.getBuilding());
+  }
+
+  /** How far below the plane founding will fill a dip before giving up on it. */
+  private static final int FOUNDING_MAX_FILL = 6;
+
+  /**
+   * Flattens the camp footprint to a single plane: clears whatever stands above
+   * it and fills whatever falls below, so all three buildings sit flush on one
+   * surface. Founding pays this for free, which is how it can settle ground that
+   * ordinary placement would refuse. Columns holding a block entity are left
+   * alone rather than destroying someone's chest.
+   */
+  private void levelPlatTo(BoundingBox plat, int planeY) {
+    BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+    for (int x = plat.minX(); x <= plat.maxX(); x++) {
+      for (int z = plat.minZ(); z <= plat.maxZ(); z++) {
+        for (int y = planeY; y < planeY + SitePreparation.CLEARANCE_HEIGHT; y++) {
+          pos.set(x, y, z);
+          if (!level.getBlockState(pos).isAir() && level.getBlockEntity(pos) == null) {
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+          }
+        }
+        for (int y = planeY - 1; y >= planeY - FOUNDING_MAX_FILL; y--) {
+          pos.set(x, y, z);
+          var state = level.getBlockState(pos);
+          if (state.isAir() || !state.getFluidState().isEmpty()) {
+            level.setBlock(pos, Blocks.DIRT.defaultBlockState(), 3);
+          } else {
+            break; // solid ground reached; the rest of the column is fine
+          }
+        }
+      }
+    }
   }
 
   /** Places the gathering-point campfire if the datapack defines one and the block isn't there yet. */
@@ -406,12 +490,24 @@ public class Village {
         }
         currentProject = null;
 
+      } else if (currentProject.isGathering()) {
+        // A project stuck gathering would freeze the village: it holds a
+        // currentProject, so it plans nothing new, while its recipe never comes
+        // together (the builder died mid-trip, or the materials were traded away
+        // after the affordability check). Give the gather a generous window - big
+        // recipes take many trips - then abandon so the village can choose
+        // something it can actually carry. Any partial recipe stays in the
+        // builder's pack and counts toward whatever they gather next.
+        if (++gatheringChecks > MAX_GATHERING_CHECKS) {
+          Villagelife.LOGGER.info("Village '{}' abandons {}: its recipe never came together",
+              name, currentProject.getBuilding().getInfo().getName());
+          currentProject = null;
+          gatheringChecks = 0;
+        }
+
       } else {
-        // Building is being worked on...
-
-        // TODO, if project is in progress but builder has never placed first block. Make note.
-        // After X number of progress updates, give up and abandon project.
-
+        // Construction has begun; a gather that committed does not linger.
+        gatheringChecks = 0;
       }
     } else {
 
@@ -566,12 +662,15 @@ public class Village {
       return false;
     }
 
-    Villagelife.LOGGER.info("Village '{}' is building {} at {}",
+    Villagelife.LOGGER.info("Village '{}' will build {} at {}: gathering materials",
         name, buildingInfo.getName(), projectLocation.toShortString());
 
-    UrbanPlanner.payForBuilding(this, buildingInfo);
-
+    // No payment here any more. The project opens in GATHERING, and the builder
+    // carries the recipe home and has it consumed at commit (StructureInProgress
+    // .commitFromBuilder), so the materials leave the village through a pack
+    // rather than vanishing from a chest the instant a site is chosen.
     currentProject = project.setOriginLocation(projectLocation);
+    gatheringChecks = 0;
 
     if (!prep.isEmpty()) {
       currentProject.setPrepWork(prep);
