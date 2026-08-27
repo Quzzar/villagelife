@@ -95,6 +95,17 @@ public class LocationManager {
     }
 
     @Nullable
+    /** Where the nearest village container is, for a worker who needs to walk to it. */
+    public static BlockPos getNearestContainerPos(RealPerson person){
+
+        Village village = person.getVillage();
+        if(village == null){ return null; }
+
+        BlockPos location = village.getNearestContainer(BlockPos.containing(person.getEyePosition()));
+        return location == BlockPos.ZERO ? null : location;
+
+    }
+
     public static Container getNearestContainer(RealPerson person){
 
         Village village = person.getVillage();

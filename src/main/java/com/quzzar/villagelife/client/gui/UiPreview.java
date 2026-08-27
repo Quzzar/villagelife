@@ -98,6 +98,19 @@ public final class UiPreview {
                         new com.quzzar.villagelife.networking.OpenPersonChatPacket.ExchangeLine(
                                 "Do you sell bread?",
                                 "Aye, though the harvest was thin and I cannot let it go cheap.")));
+        // A believable pack: a couple of stacks, a hotbar, and gaps.
+        PersonChatScreen.previewInventory.put(0, new net.minecraft.world.item.ItemStack(
+                net.minecraft.world.item.Items.EMERALD, 41));
+        PersonChatScreen.previewInventory.put(1, new net.minecraft.world.item.ItemStack(
+                net.minecraft.world.item.Items.OAK_LOG, 64));
+        PersonChatScreen.previewInventory.put(2, new net.minecraft.world.item.ItemStack(
+                net.minecraft.world.item.Items.BREAD, 7));
+        PersonChatScreen.previewInventory.put(9, new net.minecraft.world.item.ItemStack(
+                net.minecraft.world.item.Items.IRON_INGOT, 12));
+        PersonChatScreen.previewInventory.put(13, new net.minecraft.world.item.ItemStack(
+                net.minecraft.world.item.Items.COAL, 33));
+        PersonChatScreen.previewInventory.put(22, new net.minecraft.world.item.ItemStack(
+                net.minecraft.world.item.Items.DIAMOND_PICKAXE, 1));
         {
             // The awkward cases on purpose: a long name, a two-digit stack.
             PersonChatScreen.onMarketOffers(new MarketOffersPacket(0, "Larkspur Creek", 83,

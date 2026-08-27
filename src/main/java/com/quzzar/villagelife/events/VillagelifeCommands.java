@@ -198,11 +198,15 @@ public class VillagelifeCommands {
         }
         if (!village.startProjectAt(info, pos)) {
             source.sendFailure(Component.literal("'" + village.getName()
-                    + "' is already building something."));
+                    + "' is already building something, or could not start there."));
             return 0;
         }
+        // An upgrade ignores the position and goes where the building stands,
+        // so report where the work actually is rather than what was asked for.
+        BlockPos site = village.getCurrentProject() == null ? pos
+                : BlockPos.of(village.getCurrentProject().getBuilding().getOriginLocation());
         source.sendSuccess(() -> Component.literal(
-                "'" + village.getName() + "' has started " + building + " at " + pos.toShortString()), true);
+                "'" + village.getName() + "' has started " + building + " at " + site.toShortString()), true);
         return 1;
     }
 

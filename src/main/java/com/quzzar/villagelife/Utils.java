@@ -42,14 +42,25 @@ public class Utils {
         : InteractionHand.OFF_HAND;
   }
 
+  /**
+   * Puts items into a container, dropping only what genuinely does not fit.
+   *
+   * This used to spawn the item on the ground first and then hoover it into the
+   * container, which meant a full container silently left the item lying there:
+   * a miner with a full pack littered their own shaft, and the haul was lost
+   * rather than merely delayed. Insert first, drop only the remainder.
+   */
   public static void insertItems(Container container, List<ItemStack> items, Entity entity) {
 
     for (ItemStack item : items) {
-      if (item.getCount() > 0) {
-        ItemEntity itemEntity = entity.spawnAtLocation(item);
-        if (container != null && itemEntity != null) {
-          HopperBlockEntity.addItem(container, itemEntity);
-        }
+      if (item.isEmpty()) {
+        continue;
+      }
+      ItemStack leftover = container == null
+          ? item
+          : HopperBlockEntity.addItem(null, container, item, null);
+      if (!leftover.isEmpty()) {
+        entity.spawnAtLocation(leftover);
       }
     }
 

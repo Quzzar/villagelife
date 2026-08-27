@@ -103,7 +103,8 @@ public class WorkInMineGoal extends Goal {
                 List<ItemStack> items = Block.getDrops(this.block.defaultBlockState(), (ServerLevel) this.person.level(), blockPos, this.person.level().getBlockEntity(blockPos), this.person, this.person.getMainHandItem());
                 this.person.level().removeBlock(blockPos, false);
 
-                //Utils.insertItems(LocationManager.getNearestContainer(this.person), items, this.person);
+                // Straight into the pack; DepositHaulGoal walks it to the
+                // workplace container once the pack is worth a trip.
                 this.person.addItems(items);
 
                 this.hasBrokenBlock = true;

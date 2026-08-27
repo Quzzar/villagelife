@@ -117,7 +117,8 @@ public class WorkOnWoodcuttingGoal extends Goal {
                   }
                 }
                 
-                //Utils.insertItems(LocationManager.getNearestContainer(this.person), items, this.person);
+                // Straight into the pack; DepositHaulGoal walks it to the
+                // workplace container once the pack is worth a trip.
                 this.person.addItems(items);
 
                 this.hasAcquiredWood = true;

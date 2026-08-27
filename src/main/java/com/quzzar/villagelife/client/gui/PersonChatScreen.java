@@ -52,9 +52,15 @@ public class PersonChatScreen extends Screen {
 
   /** Vanilla's villager screen is 276x166; this is that, with room for chat. */
   private static final int PANEL_WIDTH = 264;
-  private static final int PANEL_HEIGHT = 218;
+  private static final int PANEL_HEIGHT = 240;
   /** slot, arrow, slot: the width the two slots of one trade occupy. */
-  private static final int TRADE_WIDTH = 52;
+  private static final int TRADE_WIDTH = 54;
+  /** Left edge to left edge of the two trade columns. */
+  private static final int TRADE_COLUMN = 82;
+  /** Most rows one column shows, so panel height is not hostage to the stall. */
+  private static final int TRADE_ROWS = 4;
+  /** Nine slots of eighteen: the width every other thing aligns to. */
+  private static final int GRID_WIDTH = 162;
   private static final int SLOT_SIZE = 20;
   /** A trade plus the name of the goods, which is what fills a column. */
   private static final int COLUMN_WIDTH = 118;
@@ -74,6 +80,9 @@ public class PersonChatScreen extends Screen {
 
   /** Set only by {@link UiPreview}, so either face can be photographed. */
   static Tab previewTab;
+
+  /** Stand-in pack for the preview harness, which renders with no player. */
+  static final java.util.Map<Integer, ItemStack> previewInventory = new java.util.HashMap<>();
 
   static void previewChatTab() {
     previewTab = Tab.CHAT;
@@ -382,7 +391,11 @@ public class PersonChatScreen extends Screen {
       return;
     }
 
-    graphics.drawString(this.font, "Trades", left, y, TEXT_LABEL, false);
+    // Everything lines up on the inventory grid, which is the widest fixed
+    // thing on the screen; the trades hang off its left edge rather than
+    // floating at their own margin.
+    int gridLeft = panelLeft + (panelRight - panelLeft - GRID_WIDTH) / 2;
+    graphics.drawString(this.font, "Trades", gridLeft, y, TEXT_LABEL, false);
     y += 11;
 
     List<Deal> deals = new ArrayList<>();
@@ -400,21 +413,19 @@ public class PersonChatScreen extends Screen {
       return;
     }
 
-    // Two columns of trades only because a stall can offer more than fits in
-    // one; each entry is still the same shape, unlike the old buy/sell split.
-    int perColumn = Math.max(1, (int) Math.ceil(deals.size() / 2.0D));
-    int columnWidth = (panelRight - panelLeft - 24) / 2;
-    for (int i = 0; i < deals.size(); i++) {
-      int column = i / perColumn;
-      int rowIndex = i % perColumn;
-      int rowLeft = left + column * (columnWidth + 8);
-      int rowTop = y + rowIndex * ROW_HEIGHT;
-      drawDeal(graphics, deals.get(i), rowLeft, rowTop, columnWidth, mouseX, mouseY);
+    // Two columns only because a stall offers more than fits in one; each
+    // entry is the same shape either way, unlike the old buy/sell split.
+    int shown = Math.min(deals.size(), TRADE_ROWS * 2);
+    int perColumn = Math.max(1, (int) Math.ceil(shown / 2.0D));
+    for (int i = 0; i < shown; i++) {
+      int rowLeft = gridLeft + (i / perColumn) * TRADE_COLUMN;
+      int rowTop = y + (i % perColumn) * ROW_HEIGHT;
+      drawDeal(graphics, deals.get(i), rowLeft, rowTop, TRADE_WIDTH, mouseX, mouseY);
     }
 
     int inventoryTop = y + perColumn * ROW_HEIGHT + 6;
-    graphics.drawString(this.font, "Inventory", left, inventoryTop, TEXT_LABEL, false);
-    drawInventory(graphics, left, inventoryTop + 11, mouseX, mouseY);
+    graphics.drawString(this.font, "Inventory", gridLeft, inventoryTop, TEXT_LABEL, false);
+    drawInventory(graphics, gridLeft, inventoryTop + 11, mouseX, mouseY);
   }
 
   /** One trade: what you hand over, what you get back. */
@@ -441,7 +452,9 @@ public class PersonChatScreen extends Screen {
 
   /** The player's own pack, so a trade can be judged without closing the screen. */
   private void drawInventory(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-    var inventory = Minecraft.getInstance().player.getInventory();
+    // No player when the preview harness renders this, and none either if the
+    // screen outlives a disconnect; an empty grid is the honest drawing.
+    var player = Minecraft.getInstance().player;
     for (int index = 0; index < 36; index++) {
       int column = index % 9;
       // The hotbar reads as the bottom row, the way every other screen shows it.
@@ -449,7 +462,8 @@ public class PersonChatScreen extends Screen {
       int x = left + column * 18;
       int slotY = top + rowIndex * 18 + (index < 9 ? 4 : 0);
       slot(graphics, x, slotY, x + 18, slotY + 18);
-      ItemStack stack = inventory.getItem(index);
+      ItemStack stack = player != null ? player.getInventory().getItem(index)
+          : previewInventory.getOrDefault(index, ItemStack.EMPTY);
       if (!stack.isEmpty()) {
         graphics.renderItem(stack, x + 1, slotY + 1);
         graphics.renderItemDecorations(this.font, stack, x + 1, slotY + 1);
