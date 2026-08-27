@@ -136,27 +136,44 @@ public final class UndertakingCommands {
     private record Case(String context, String playerLine, String expected, boolean gatedIn) {
     }
 
-    /** The measurement prompt. Deliberately its OWN prompt, not production RULES:
-     *  this measures the MODEL's capability so the production wording can be tuned
-     *  against a number. The undertaking tool is only offered here because every
-     *  case is one where it is plausibly in play. */
-    private static final String AUDIT_SYSTEM =
+    /**
+     * The measurement prompt, kept in step with production (PersonChatContext,
+     * commit 1354aec): the base rules, the SAME undertaking clause the live
+     * gate adds, and the SAME three few-shots. Mirroring rather than importing,
+     * because PersonChatContext keeps these private; if that wording changes,
+     * this must re-sync, and the comment there and here both say so.
+     */
+    private static final String AUDIT_BASE =
             "You are a villager in a medieval village, talking to a player. Answer in character, "
-            + "one or two short sentences. When the moment calls for it you may track a matter you "
-            + "are seeing through, with an \"undertaking\" field: {\"op\": \"open\"} to begin one "
-            + "(give \"summary\" and \"valence\": positive or negative), {\"op\": \"advance\"} when "
-            + "it moves forward (give a \"note\"), {\"op\": \"resolve\"} when it is done. Only use it "
-            + "when something is genuinely begun, advanced, or finished. Most turns have no "
-            + "undertaking at all. Answer with ONLY a JSON object: {\"say\": \"...\"} optionally with "
-            + "an \"undertaking\".";
+            + "one or two short sentences.";
 
-    // gatedIn: whether a realistic gate would OFFER the tool this turn — true when
-    // an open matter exists in the context OR the player's line is plausibly a
-    // commitment/offer/amends. Annotated by that rule, NOT by the expected answer,
-    // so the gated pass is an honest test and not a rigged one. Case 9 is gated in
-    // (a matter exists) though the line is mundane: the interesting one the gate
-    // cannot filter, where only the model's own discipline saves it.
-    private static final List<Case> CASES = List.of(
+    private static final String UNDERTAKING_CLAUSE =
+            " A lasting matter between you and this person can be recorded with \"undertaking\", but ONLY on the turn "
+            + "it actually happens - most replies have none. When they make amends or promise something that will take "
+            + "time, open it: {\"op\": \"open\", \"summary\": \"<what is to be done>\", \"valence\": "
+            + "\"positive\" for a kindness or \"negative\" for a wrong to right}. When an existing matter moves "
+            + "forward, {\"op\": \"advance\", \"note\": \"<what moved>\"}. When it is settled, "
+            + "{\"op\": \"resolve\", \"note\": \"<how it ended>\"}. You never name which matter.";
+
+    private static final String ANSWER_RULE =
+            " Answer with ONLY a JSON object: {\"say\": \"...\"}, adding \"undertaking\" only when it applies.";
+
+    private static final List<LlmService.FewShotExample> UNDERTAKING_FEWSHOTS = List.of(
+            new LlmService.FewShotExample(
+                    "Player says: \"I'm sorry I broke into your chest. How can I make it right?\"\nYour JSON answer:",
+                    "{\"say\": \"Bring back the ten wheat you took and we're square.\", \"undertaking\": "
+                    + "{\"op\": \"open\", \"summary\": \"Bring back the ten wheat taken from my chest\", "
+                    + "\"valence\": \"negative\"}}"),
+            new LlmService.FewShotExample(
+                    "Player says: \"Here's four wheat toward what I owe you.\"\nYour JSON answer:",
+                    "{\"say\": \"Four - a start. Six more and we're even.\", \"undertaking\": "
+                    + "{\"op\": \"advance\", \"note\": \"Four of the ten wheat brought back\"}}"),
+            new LlmService.FewShotExample(
+                    "Player says: \"That's the last of the ten wheat.\"\nYour JSON answer:",
+                    "{\"say\": \"Then we're square. No hard feelings.\", \"undertaking\": "
+                    + "{\"op\": \"resolve\", \"note\": \"The wheat debt is paid in full\"}}"));
+
+        private static final List<Case> CASES = List.of(
             // should OPEN
             new Case("The player robbed your chest yesterday and you saw them.",
                     "I'm sorry about your chest. How can I make it up to you?", "open", true),
@@ -257,9 +274,13 @@ public final class UndertakingCommands {
                     "GATED-OUT", c.expected().isBlank() ? "(none)" : c.expected(), "(none)", c.playerLine()));
             return CompletableFuture.completedFuture(null);
         }
+        // Any turn that reaches the model here is one the tool is OFFERED on
+        // (gated-out turns returned above), so it gets the undertaking clause and
+        // the few-shots, exactly as production does when its gate is open.
+        String system = AUDIT_BASE + UNDERTAKING_CLAUSE + ANSWER_RULE;
         String user = "Situation: " + c.context() + "\nPlayer says: \"" + c.playerLine()
                 + "\"\nYour JSON answer:";
-        return LlmService.get().submitChat(AUDIT_SYSTEM, user, List.of(), 96, 0.4D, 0.3D)
+        return LlmService.get().submitChat(system, user, UNDERTAKING_FEWSHOTS, 96, 0.4D, 0.3D)
                 .thenAccept(raw -> {
                     Optional<Op> op = raw.flatMap(UndertakingCommands::opOf);
                     if (op.isPresent()) {
