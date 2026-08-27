@@ -46,6 +46,18 @@ public class UrbanPlanner {
   /** How many out-of-reach buildings are offered as things to save toward. */
   private static final int GOALS_OFFERED = 2;
 
+  /**
+   * A village center is placed once, at founding, and never chosen again. The
+   * check is by CATEGORY, not by id: there is a center variant per biome, and
+   * matching only the default id let a village decide to build itself a second
+   * town hall in a different architectural style.
+   */
+  private static boolean isFoundingOnly(BuildingInfo info) {
+    return info.hasWellFormedId()
+        ? "village_center".equals(info.getCategory())
+        : info.getName().equals(Buildings.VILLAGE_CENTER_NAME);
+  }
+
   /** A candidate building, with why the village might want it. */
   public record Candidate(BuildingInfo info, double score, String description) {}
 
@@ -147,7 +159,7 @@ public class UrbanPlanner {
     Needs needs = Needs.of(village);
     List<Candidate> unaffordable = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
-      if (info.getName().equals(Buildings.VILLAGE_CENTER_NAME) || info.getUpgradesFrom() != null) {
+      if (isFoundingOnly(info) || info.getUpgradesFrom() != null) {
         continue;
       }
       if (info.hasWellFormedId() && info.getLevel() > 1) {
@@ -247,7 +259,7 @@ public class UrbanPlanner {
 
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
-      if (info.getName().equals(Buildings.VILLAGE_CENTER_NAME) || info.getUpgradesFrom() != null) {
+      if (isFoundingOnly(info) || info.getUpgradesFrom() != null) {
         continue;
       }
       if (info.hasWellFormedId() && info.getLevel() > 1) {
@@ -321,7 +333,7 @@ public class UrbanPlanner {
    */
   public static ItemStack firstUnaffordableMaterial(Village village){
     for(BuildingInfo build : Buildings.allBuildings().values()){
-      if (build.getName().equals(Buildings.VILLAGE_CENTER_NAME) || build.getUpgradesFrom() != null) {
+      if (isFoundingOnly(build) || build.getUpgradesFrom() != null) {
         continue;
       }
       for(ItemStack itemCost : build.getMaterialCost()){
