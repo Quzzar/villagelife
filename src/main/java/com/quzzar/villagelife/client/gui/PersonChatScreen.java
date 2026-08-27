@@ -53,6 +53,12 @@ public class PersonChatScreen extends Screen {
   private static final int TEXT_VILLAGER = 0xFF1C1C1C;
   private static final int TEXT_PLAYER = 0xFF16305C;
   private static final int TEXT_PENDING = 0xFF6A6A6A;
+  /** Typed text is white on the sunken field, with the hint a step down from it. */
+  private static final int INPUT_TEXT = 0xFFFFFFFF;
+  private static final int INPUT_HINT = 0xFFBCBCBC;
+  /** The send glyph, dark on a live button and washed out on a dead one. */
+  private static final int SEND_ON = 0xFF1E1E1E;
+  private static final int SEND_OFF = 0xFF8E8E8E;
   private static final int ICON_IDLE = 0xFF404040;
   private static final int ICON_HOVER = 0xFF000000;
   private static final int ROW_HOVER = 0x40FFFFFF;
@@ -264,7 +270,7 @@ public class PersonChatScreen extends Screen {
         Component.translatable("villagelife.chat.say"));
     this.input.setMaxLength(PersonChatMessagePacket.MAX_TEXT_LENGTH);
     this.input.setBordered(false);
-    this.input.setTextColor(TEXT_VILLAGER);
+    this.input.setTextColor(INPUT_TEXT);
     addRenderableWidget(this.input);
 
     this.sendButton = addRenderableWidget(new IconButton(panelRight - 30, inputRowTop, 20,
@@ -300,7 +306,7 @@ public class PersonChatScreen extends Screen {
     slot(graphics, panelLeft + 8, inputRowTop, panelRight - 34, inputRowTop + 20);
     if (input != null && input.getValue().isEmpty()) {
       graphics.drawString(this.font, Component.translatable("villagelife.chat.say"),
-          panelLeft + 20, inputRowTop + 6, TEXT_PENDING, false);
+          panelLeft + 20, inputRowTop + 6, INPUT_HINT, true);
     }
   }
 
@@ -340,7 +346,6 @@ public class PersonChatScreen extends Screen {
     }
     if (sendButton != null) {
       sendButton.visible = chatting;
-      sendButton.active = chatting;
     }
   }
 
@@ -377,6 +382,9 @@ public class PersonChatScreen extends Screen {
     // sitting there greyed out, which is how a chat box tells you it is ready.
     boolean ready = tab == Tab.CHAT && input != null && !input.getValue().isBlank();
     sendReveal = Math.max(0.0F, Math.min(1.0F, sendReveal + (ready ? 0.2F : -0.25F)));
+    if (sendButton != null) {
+      sendButton.active = ready;
+    }
 
     if (awaitingReply && System.currentTimeMillis() - awaitingSinceMs > AWAIT_RELEASE_MS) {
       awaitingReply = false; // let the player speak again rather than wait forever
@@ -806,15 +814,18 @@ public class PersonChatScreen extends Screen {
         graphics.drawCenteredString(PersonChatScreen.this.font, "✕",
             getX() + width / 2, getY() + (height - 8) / 2, colour);
       } else {
-        if (sendReveal <= 0.01F) {
-          return; // nothing to send, nothing to show
-        }
-        // Rises into place as it appears, rather than blinking on.
-        int lift = Math.round((1.0F - sendReveal) * 4.0F);
-        int size = Math.max(1, Math.round(5.0F * sendReveal));
+        // Always a button, so the control is where you expect it; disabled art
+        // until there is something to send, then it lifts into a live one.
+        boolean ready = sendReveal > 0.5F;
+        // Not widget/button_disabled: its face is (45,45,45), meant for a dark
+        // screen, and on this panel it reads as a black hole. The same button
+        // with a washed-out glyph says "not yet" without shouting.
+        graphics.blitSprite(ready && hovered ? BUTTON_HOVER : BUTTON, getX(), getY(), width, height);
+        int lift = Math.round((1.0F - sendReveal) * 2.0F);
+        int glyph = ready ? SEND_ON : SEND_OFF;
+        int size = 5;
         int x0 = getX() + (width - size) / 2;
         int y0 = getY() + (height - (size * 2 - 1)) / 2 + lift;
-        int glyph = hovered ? ICON_HOVER : ICON_IDLE;
         for (int i = 0; i < size; i++) {
           graphics.fill(x0 + i, y0 + i, x0 + i + 1, y0 + (size * 2 - 1) - i, glyph);
         }
