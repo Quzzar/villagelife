@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
+import java.util.EnumSet;
 import java.util.List;
 
 import com.quzzar.villagelife.entities.RealPerson;
@@ -14,6 +15,9 @@ public class ArmorerRepairPersonArmorGoal extends Goal {
     private RealPerson blacksmith;
 
     public ArmorerRepairPersonArmorGoal(RealPerson person) {
+        // This goal walks to the person whose armour it is mending, so it competes for movement rather
+        // than running alongside the goals that also move them (#74).
+        this.setFlags(EnumSet.of(Flag.MOVE));
         this.person = person;
     }
 

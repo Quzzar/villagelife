@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
+import java.util.EnumSet;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
@@ -14,6 +15,9 @@ public class SleepAtNightGoal extends Goal {
   private RealPerson person;
 
   public SleepAtNightGoal(RealPerson person) {
+    // This goal walks the villager to their bed, so it competes for movement rather
+    // than running alongside the goals that also move them (#74).
+    this.setFlags(EnumSet.of(Flag.MOVE));
     this.person = person;
     this.bedLoc = LocationManager.getBedLocation(person);
     this.jobLoc = LocationManager.getJobLocation(person);
