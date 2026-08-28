@@ -57,6 +57,9 @@ import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MarketStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HealStep;
+import com.quzzar.villagelife.entities.ai.goals.work.HuntStep;
+import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
+import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.DefendOthersFromPlayerGoal;
@@ -959,6 +962,81 @@ public class RealPerson extends Person {
             4,
             SoundEvents.COMPOSTER_FILL_SUCCESS)));
       }
+    }
+    if (getOccupation() == Occupation.BLACKSMITH) {
+      // The forge's SMELTING half: raw iron the mine brings up becomes ingots, the stock
+      // everything iron is priced in (docs/buildings.md, mine -> ORES -> blacksmith). Tools
+      // and REPAIR are the blacksmith's other grants; REPAIR already has its own goal below.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.RAW_IRON, 1),
+          new ItemStack(Items.IRON_INGOT, 1),
+          8,
+          SoundEvents.FURNACE_FIRE_CRACKLE)));
+    }
+    if (getOccupation() == Occupation.TANNER) {
+      // Hides off the hunter and the pasture become worked leather -- the armoury
+      // (docs/buildings.md: LEATHER -> tannery -> armoury). The TANNER occupation stays
+      // even as the category is renamed tannery -> workshop.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.LEATHER, 8),
+          new ItemStack(Items.LEATHER_CHESTPLATE, 1),
+          8,
+          SoundEvents.SMITHING_TABLE_USE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.LEATHER, 4),
+          new ItemStack(Items.LEATHER_BOOTS, 1),
+          8,
+          SoundEvents.SMITHING_TABLE_USE)));
+    }
+    if (getOccupation() == Occupation.BAKER) {
+      // The bakery absorbed the mill, so the baker grinds their own grain into bread
+      // (building-spec.md:449; farm -> GRAIN -> bakery -> BREAD).
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.WHEAT, 3),
+          new ItemStack(Items.BREAD, 1),
+          6,
+          SoundEvents.COMPOSTER_FILL_SUCCESS)));
+    }
+    if (getOccupation() == Occupation.BUTCHER) {
+      // Raw meat off the pasture, lodge and fishery is cooked into keeping food
+      // (docs/buildings.md: MEAT -> butchery). One recipe per meat the village can bring in.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.BEEF, 4), new ItemStack(Items.COOKED_BEEF, 4),
+          6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.PORKCHOP, 4), new ItemStack(Items.COOKED_PORKCHOP, 4),
+          6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.CHICKEN, 4), new ItemStack(Items.COOKED_CHICKEN, 4),
+          6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.MUTTON, 4), new ItemStack(Items.COOKED_MUTTON, 4),
+          6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.COD, 4), new ItemStack(Items.COOKED_COD, 4),
+          6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
+          new ItemStack(Items.SALMON, 4), new ItemStack(Items.COOKED_SALMON, 4),
+          6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+    }
+    if (getOccupation() == Occupation.HUNTER) {
+      // Fells game on the ground around the lodge; the kill's meat and leather fall
+      // for pickup, and a full pack goes home ahead of the next quarry.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HuntStep()));
+    }
+    if (getOccupation() == Occupation.FISHER) {
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FishStep()));
+    }
+    if (getOccupation() == Occupation.HERDER) {
+      // Shears wool and breeds the herd rather than culling it -- the pasture's
+      // renewable half, distinct from the hunter's.
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HerdStep()));
     }
 
     // this.goalSelector.addGoal(3, new FollowHeroGoal(this)); Doesn't work?
