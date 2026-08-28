@@ -28,7 +28,7 @@ Per person:
 | Eyesight | physical trait | Same numeric treatment as an ability score |
 | Personality / virtues | already exists | The five `Virtue` floats generating `Personality` |
 | First name, last name | already exists | |
-| Title | future, TBD | Optional honorific slot ("the Brave"); reserved, not designed |
+| Title | partial | Optional honorific slot ("the Brave"). A per-villager string now exists on `RealPerson` (`getTitle`/`setTitle`, persisted) and is surfaced on the name tag in place of the occupation when set (`getRoleLabel`). Nothing grants titles yet, so it is empty for everyone; the granting system is still TBD |
 
 Ability scores use the D&D scale: integers, 10 is average, typical rolls land 8 to 14,
 hard floor 3 and ceiling 18. The scale is the point: it is instantly legible to players,

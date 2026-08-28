@@ -40,20 +40,20 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
     }
 
     /**
-     * Renders the name, then the person's village as a smaller gray second
-     * line beneath it. Villagers without a village (wanderers, summoned test
-     * entities) show the name alone.
+     * Renders the name, then the person's role as a smaller gray second line
+     * beneath it: their title if they have one, otherwise their occupation.
+     * Only RealPersons carry a role, so plain Persons show the name alone.
      */
     @Override
     protected void renderNameTag(Person entity, net.minecraft.network.chat.Component displayName,
             PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick) {
         super.renderNameTag(entity, displayName, poseStack, bufferSource, packedLight, partialTick);
         if (entity instanceof com.quzzar.villagelife.entities.RealPerson person
-                && !person.getVillageName().isBlank()) {
+                && !person.getRoleLabel().isBlank()) {
             poseStack.pushPose();
             poseStack.translate(0.0D, -0.25D, 0.0D);
             super.renderNameTag(entity,
-                    net.minecraft.network.chat.Component.literal(person.getVillageName())
+                    net.minecraft.network.chat.Component.literal(person.getRoleLabel())
                             .withStyle(net.minecraft.ChatFormatting.GRAY),
                     poseStack, bufferSource, packedLight, partialTick);
             poseStack.popPose();

@@ -128,6 +128,8 @@ public class RealPerson extends Person {
       EntityDataSerializers.STRING);
   private static final EntityDataAccessor<String> GENDER = SynchedEntityData.defineId(RealPerson.class,
       EntityDataSerializers.STRING);
+  private static final EntityDataAccessor<String> TITLE = SynchedEntityData.defineId(RealPerson.class,
+      EntityDataSerializers.STRING);
 
   public int callToBedCoolDown = 0;
 
@@ -246,6 +248,7 @@ public class RealPerson extends Person {
     builder.define(MARRIAGE_STATUS, "SINGLE");
     builder.define(OCCUPATION, "IDLE");
     builder.define(GENDER, "NONBINARY");
+    builder.define(TITLE, "");
 
   }
 
@@ -264,6 +267,7 @@ public class RealPerson extends Person {
     setStringIfPresent(compound, "Personality", PERSONALITY);
     setStringIfPresent(compound, "MarriageStatus", MARRIAGE_STATUS);
     setStringIfPresent(compound, "Occupation", OCCUPATION);
+    setStringIfPresent(compound, "Title", TITLE);
     setStringIfPresent(compound, "Gender", GENDER);
 
     this.callToBedCoolDown = compound.getInt("CallToBedCooldown");
@@ -294,6 +298,7 @@ public class RealPerson extends Person {
     compound.putString("Personality", this.entityData.get(PERSONALITY));
     compound.putString("MarriageStatus", this.entityData.get(MARRIAGE_STATUS));
     compound.putString("Occupation", this.entityData.get(OCCUPATION));
+    compound.putString("Title", this.entityData.get(TITLE));
     compound.putString("Gender", this.entityData.get(GENDER));
 
     compound.putInt("CallToBedCooldown", this.callToBedCoolDown);
@@ -374,6 +379,28 @@ public class RealPerson extends Person {
     this.entityData.set(OCCUPATION, occupation.name());
   }
 
+  public String getTitle() {
+    return this.entityData.get(TITLE);
+  }
+
+  public void setTitle(String title) {
+    this.entityData.set(TITLE, title == null ? "" : title);
+  }
+
+  /**
+   * The line shown under the villager's name: their honorific title if they have
+   * one, otherwise their occupation. Titles are not granted anywhere yet (the
+   * slot is reserved, docs/genetics-and-attributes.md), so today this reads as
+   * the occupation for everyone.
+   */
+  public String getRoleLabel() {
+    String title = getTitle();
+    if (!title.isBlank()) {
+      return title;
+    }
+    return Utils.capitalize(getOccupation().name().toLowerCase());
+  }
+
   public void reloadState() {
     this.temp_setDefaultEquipment();
 
@@ -409,7 +436,12 @@ public class RealPerson extends Person {
     for (ItemStack item : items) {
       boolean addedItem = this.getVillage().placeItemStackIntoVillage(item, this, depositToLoc);
       if (!addedItem) {
-        // TODO, make note to build more storage, high priority
+        // Storage is full and the item stays in the pack rather than dropping on
+        // the ground silently. Flag the village so it knows to build more storage,
+        // the same signal ConsolidateStep raises on storehouse overflow. (Not a
+        // NoResourceBookkeepingEvent: that reports a shortage, and a surplus we
+        // cannot shelve is the opposite of one.)
+        this.getVillage().setStorageStrained(true);
       }
     }
 
@@ -418,7 +450,10 @@ public class RealPerson extends Person {
     // Grab replacement gear if not holding any
     if (getOccupation() == Occupation.GUARD) {
 
-      equipBestPossibleGear(SwordItem.class, null, true, depositToLoc);
+      // includeArmor is false on purpose: a guard upgrades its sword from village
+      // stock but takes no armor for now. Armor waits on the leather chain (see the
+      // GUARD case in populateDefaultEquipmentSlots); re-enable this when it lands.
+      equipBestPossibleGear(SwordItem.class, null, false, depositToLoc);
 
       // Find up to 16 bread
       if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
@@ -557,13 +592,12 @@ public class RealPerson extends Person {
   protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
     switch (getOccupation()) {
       case GUARD:
+        // Sword and rations only, no armor. Armor is deliberately withheld until
+        // the village can make its own: the leather chain (butchery -> leather) is
+        // the intended source, and crafted armor comes later as an upgrade. A fresh
+        // guard stands watch with a stone sword and bread.
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
         this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.BREAD, 16));
-        this.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
-        this.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.LEATHER_CHESTPLATE));
-        this.setItemSlot(EquipmentSlot.LEGS, new ItemStack(Items.LEATHER_LEGGINGS));
-        this.setItemSlot(EquipmentSlot.FEET, new ItemStack(Items.LEATHER_BOOTS));
-        // super.populateDefaultEquipmentSlots(difficulty);
         break;
       case LUMBERJACK:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
@@ -595,9 +629,9 @@ public class RealPerson extends Person {
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
       case QUARTERMASTER:
-        // The quartermaster keeps the village's stores; a sheet of paper reads as
-        // the manifest they are forever taking count against.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.PAPER));
+        // The quartermaster keeps the village's stores; a writable book reads as
+        // the ledger they are forever taking count in.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
         break;
       case NITWIT:
         break;
@@ -944,6 +978,10 @@ public class RealPerson extends Person {
           SoundEvents.UI_STONECUTTER_TAKE_RESULT)));
     }
     if (getOccupation() == Occupation.FARMER) {
+      // Ahead of the work goals, like every other gatherer: a full pack is worth
+      // a trip to a chest before harvesting more, or the crops overflow the pack
+      // and drop on the ground. The farmer was the only gatherer missing this.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HarvestStep(true)));
