@@ -10,6 +10,7 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.VillageManager;
+import com.quzzar.villagelife.village.VillageGeneration;
 import com.quzzar.villagelife.village.bookkeeping.DeathBookkeepingEvent;
 import com.quzzar.villagelife.village.bookkeeping.HurtByPlayerBookkeepingEvent;
 import com.quzzar.villagelife.village.buildings.Building;
@@ -224,6 +225,7 @@ public class CoreEvents {
     // Every 1 second
     if (serverLevel.getGameTime() % 20 == 0) {
       VillageManager.get(serverLevel).tick(serverLevel);
+      VillageGeneration.tick(serverLevel);
     }
   }
 
