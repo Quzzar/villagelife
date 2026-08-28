@@ -1,0 +1,34 @@
+{
+  "structure": "bakery_snowy_1",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        8,
+        1,
+        6
+      ],
+      "occupation": "BAKER"
+    }
+  ],
+  "containers": [
+    [
+      3,
+      4,
+      3
+    ]
+  ],
+  "cost": [
+    {
+      "item": "minecraft:spruce_log",
+      "count": 124
+    },
+    {
+      "item": "minecraft:stone_bricks",
+      "count": 112
+    }
+  ],
+  "grants": [
+    "BREAD"
+  ]
+}
