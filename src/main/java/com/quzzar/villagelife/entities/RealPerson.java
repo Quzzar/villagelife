@@ -1035,7 +1035,9 @@ public class RealPerson extends Person {
     }
     if (getOccupation() == Occupation.HERDER) {
       // Shears wool and breeds the herd rather than culling it -- the pasture's
-      // renewable half, distinct from the hunter's.
+      // renewable half, distinct from the hunter's. Haul carries the sheared wool
+      // home; without it the CLOTH output strands in the herder's own pack.
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HerdStep()));
     }
 

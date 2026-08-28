@@ -9,6 +9,9 @@ import com.quzzar.villagelife.village.Village;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.Chicken;
+import net.minecraft.world.entity.animal.Cow;
+import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -21,6 +24,11 @@ import net.minecraft.world.phys.AABB;
  * nothing. Non-lethal on purpose -- taking meat and leather off the herd is the
  * hunter's job; keeping it alive and multiplying is this one's. Wool falls where
  * the shear happens and is gathered like any dropped item.
+ *
+ * Only farm stock is tended, and grain is only ever spent on an animal that has
+ * a breeding partner of its own kind on the ground: a lone animal, an odd one
+ * out, or a stray wolf is left alone rather than fed wheat it can do nothing
+ * with.
  */
 public final class HerdStep implements WorkStep<Animal> {
 
@@ -34,10 +42,9 @@ public final class HerdStep implements WorkStep<Animal> {
     if (pasture == BlockPos.ZERO) {
       return null;
     }
-    AABB ground = new AABB(pasture).inflate(PASTURE_RADIUS, 4.0D, PASTURE_RADIUS);
     Animal best = null;
     double nearest = Double.MAX_VALUE;
-    for (Animal animal : person.level().getEntitiesOfClass(Animal.class, ground)) {
+    for (Animal animal : person.level().getEntitiesOfClass(Animal.class, ground(pasture))) {
       if (!animal.isAlive() || !needsTending(person, animal)) {
         continue;
       }
@@ -66,8 +73,8 @@ public final class HerdStep implements WorkStep<Animal> {
       sheep.shear(SoundSource.PLAYERS); // drops wool where it stands, for pickup
       return false;
     }
-    // Otherwise a grown animal worth breeding: spend a little grain to set it
-    // courting, and vanilla pairs two that are in love near each other.
+    // Otherwise a grown animal with a partner worth breeding: spend a little grain
+    // to set it courting, and vanilla pairs two that are in love near each other.
     Village village = person.getVillage();
     if (village != null && spendGrain(village)) {
       target.setInLove(null);
@@ -91,15 +98,39 @@ public final class HerdStep implements WorkStep<Animal> {
   }
 
   private boolean needsTending(RealPerson person, Animal animal) {
-    if (animal.isBaby()) {
+    if (!isStock(animal) || animal.isBaby()) {
       return false;
     }
     if (animal instanceof Sheep sheep && sheep.readyForShearing()) {
       return true;
     }
-    // A grown animal not already courting is a breeding candidate, but only while
-    // there is grain to spend on it.
-    return animal.canFallInLove() && hasGrain(person.getVillage());
+    // A grown animal is worth walking to only when there is grain to spend AND a
+    // partner of its own kind to spend it on -- otherwise the wheat is wasted on
+    // an animal that cannot breed.
+    return animal.canFallInLove() && hasGrain(person.getVillage())
+        && hasBreedingPartner(person, animal);
+  }
+
+  private boolean hasBreedingPartner(RealPerson person, Animal animal) {
+    BlockPos pasture = LocationManager.getJobLocation(person);
+    if (pasture == BlockPos.ZERO) {
+      return false;
+    }
+    for (Animal other : person.level().getEntitiesOfClass(Animal.class, ground(pasture))) {
+      if (other != animal && other.getClass() == animal.getClass() && other.canFallInLove()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static AABB ground(BlockPos pasture) {
+    return new AABB(pasture).inflate(PASTURE_RADIUS, 4.0D, PASTURE_RADIUS);
+  }
+
+  private static boolean isStock(Animal animal) {
+    return animal instanceof Cow || animal instanceof Pig
+        || animal instanceof Sheep || animal instanceof Chicken;
   }
 
   private boolean hasGrain(@Nullable Village village) {

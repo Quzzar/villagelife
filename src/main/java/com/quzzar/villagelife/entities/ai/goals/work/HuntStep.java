@@ -62,6 +62,14 @@ public final class HuntStep implements WorkStep<Animal> {
     if (!target.isAlive()) {
       return false; // down: its drops fall for pickup, and select finds the next
     }
+    // Bounded roaming, actually enforced: select only picks game on the ground, but
+    // a beast that bolts off it mid-fight is let go rather than chased arbitrarily far
+    // -- the "not a chase" property the loop cannot keep on select's behalf.
+    BlockPos lodge = LocationManager.getJobLocation(person);
+    if (lodge == BlockPos.ZERO
+        || target.blockPosition().distSqr(lodge) > GROUND_RADIUS * GROUND_RADIUS) {
+      return false;
+    }
     person.getLookControl().setLookAt(target, 30.0F, 30.0F);
     person.swing(person.getUsedItemHand());
     person.doHurtTarget(target);
