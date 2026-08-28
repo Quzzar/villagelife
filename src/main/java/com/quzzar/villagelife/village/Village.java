@@ -234,13 +234,26 @@ public class Village {
     int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY();
     BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
 
-    // Plan the centre first (its rotation is chosen here) so we know its ACTUAL
-    // placed footprint and where its campfire lands, before deciding how much
-    // ground to level and where the companions sit.
-    InstantBuildStructure centerStruct = new InstantBuildStructure(
-        new Building(centerInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]), random, level)
-        .setOriginLocation(platCenter, claimGrid);
-    Rotation centreRot = centerStruct.getRotation();
+    // Anchor the whole camp on the CAMPFIRE, not the centre building's midpoint, so a
+    // village generates FROM the fire: whoever founds one stands at the gathering point
+    // with the buildings arrayed around them, rather than inside the centre building. The
+    // gathering point sits off-centre in the centre, so a throwaway first placement measures
+    // where the fire would land, then platCenter shifts by that offset so the fire lands
+    // exactly on the requested point. Rotation is fixed up front so probe and real agree;
+    // if the centre defines no gathering point, the probe returns platCenter and nothing shifts.
+    Building centerBuilding = new Building(centerInfo.getName(),
+        Rotation.values()[random.nextInt(Rotation.values().length)]);
+    Rotation centreRot = centerBuilding.getRotation();
+    BlockPos probeFire = campfireWorldPos(
+        new InstantBuildStructure(centerBuilding, random, level).setOriginLocation(platCenter, new java.util.HashSet<>()),
+        centerInfo, centreRot, platCenter);
+    platCenter = platCenter.offset(centerLoc.getX() - probeFire.getX(), 0, centerLoc.getZ() - probeFire.getZ());
+
+    // Plan the centre at the anchored platCenter so we know its ACTUAL placed footprint
+    // and where its campfire lands, before deciding how much ground to level and where
+    // the companions sit.
+    InstantBuildStructure centerStruct =
+        new InstantBuildStructure(centerBuilding, random, level).setOriginLocation(platCenter, claimGrid);
     BoundingBox centreBounds = centerStruct.getBounds();
 
     // Flank the CAMPFIRE, not the centre building's midpoint. The gathering point
@@ -283,7 +296,6 @@ public class Village {
     // normal recipes; the founding path skips payment exactly as buildInstantly does.
     levelPlatTo(plat, planeY);
 
-    Building centerBuilding = centerStruct.getBuilding();
     centerStruct.buildInstantly();
     this.townCenterUUID = centerBuilding.getUUID();
     addBuilding(centerBuilding);
@@ -367,13 +379,12 @@ public class Village {
       Villagelife.LOGGER.warn("Founding set building '{}' is not loaded; the camp founds without it", name);
       return null;
     }
-    // Turn each companion so its front (local -Z) faces the campfire: out across the
-    // flank axis, door pointing back toward the centre. Mapping verified in-world
-    // against the mine's door. Both founding companions are odd-dimensioned, so the
-    // rotation only changes which way they face, not where they centre.
-    Rotation facing = flankAlongX
-        ? (side > 0 ? Rotation.COUNTERCLOCKWISE_90 : Rotation.CLOCKWISE_90)
-        : (side > 0 ? Rotation.NONE : Rotation.CLOCKWISE_180);
+    // Turn each companion so its DOOR faces the campfire. The mine's front is local
+    // -Z (verified in-world) and the storehouse's is local +Z (authored opposite) --
+    // so from opposite sides of the fire they take the SAME rotation to point inward.
+    // (The store came out 180 off when this assumed a shared -Z front; hence no `side`
+    // term.) Both companions are odd-dimensioned, so rotation only changes facing.
+    Rotation facing = flankAlongX ? Rotation.COUNTERCLOCKWISE_90 : Rotation.NONE;
     InstantBuildStructure struct =
         new InstantBuildStructure(new Building(info.getName(), facing), random, level);
     BoundingBox bounds = struct.getBounds();
