@@ -16,6 +16,9 @@ import com.quzzar.villagelife.llm.LlmService.FewShotExample;
 import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
+import com.quzzar.villagelife.village.buildings.BuildingInfo;
+import com.quzzar.villagelife.village.buildings.Buildings;
+import com.quzzar.villagelife.village.buildings.VillageGoal;
 
 import net.minecraft.world.item.ItemStack;
 
@@ -239,6 +242,23 @@ public final class PersonChatContext {
     if (village != null) {
       system.append("Your village: ").append(villageName).append(", a ")
           .append(tierName(village)).append(". ").append(situationLine(village)).append('\n');
+      // What the village is saving toward, in its own words, so the villager can
+      // speak to it. The planner names a goal and then declines to spend until it
+      // can afford it (VillageGoal); without this line the brain has no way to know
+      // its own village is holding out for something, and cannot mention it.
+      String goal = VillageGoal.current(village);
+      if (goal != null) {
+        BuildingInfo wanted = Buildings.getByName(goal);
+        String label = wanted != null && wanted.hasWellFormedId()
+            ? wanted.getCategory().replace('_', ' ')
+            : (wanted != null ? wanted.getName() : goal);
+        system.append("Your village is saving up to build a ").append(label);
+        String why = VillageGoal.reason(village);
+        if (why != null && !why.isEmpty()) {
+          system.append(" (").append(why).append(')');
+        }
+        system.append(".\n");
+      }
     }
 
     // Everything on their person is ALWAYS stated, even when empty: an omitted
