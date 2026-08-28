@@ -6,6 +6,10 @@ import com.quzzar.villagelife.village.LocationManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.HorizontalDirectionalBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
 
 public class SleepAtNightGoal extends Goal {
 
@@ -53,14 +57,17 @@ public class SleepAtNightGoal extends Goal {
     if (bedLoc.equals(BlockPos.ZERO)) {
       return;
     }
+    // Sleep in the HEAD half of the bed, not the foot the def points at, or the
+    // villager lies half off the block with its feet hanging into the air.
+    BlockPos sleepAt = bedHead(bedLoc);
 
     if (!person.isSleeping()) {
 
-      if (bedLoc.distSqr(person.blockPosition()) <= 4.0D) {
+      if (sleepAt.distSqr(person.blockPosition()) <= 4.0D) {
         person.setDaysSinceSleep(0);
-        person.startSleeping(bedLoc);
+        person.startSleeping(sleepAt);
       } else if (!person.getNavigation().isInProgress()) {
-        person.getNavigation().moveTo(bedLoc.getX(), bedLoc.getY(), bedLoc.getZ(), 0.5D);
+        person.getNavigation().moveTo(sleepAt.getX(), sleepAt.getY(), sleepAt.getZ(), 0.5D);
       }
 
     }
@@ -72,5 +79,20 @@ public class SleepAtNightGoal extends Goal {
       this.stop();
     }
 
+  }
+
+  /**
+   * The head (pillow) half of a bed, given either of its blocks. A bed is two
+   * blocks and its FACING points foot->head, so the head of a foot block is one
+   * step along the facing; a head block, or anything that is not a bed, is
+   * returned unchanged.
+   */
+  private BlockPos bedHead(BlockPos bedPos) {
+    BlockState state = person.level().getBlockState(bedPos);
+    if (state.getBlock() instanceof BedBlock
+        && state.getValue(BedBlock.PART) == BedPart.FOOT) {
+      return bedPos.relative(state.getValue(HorizontalDirectionalBlock.FACING));
+    }
+    return bedPos;
   }
 }
