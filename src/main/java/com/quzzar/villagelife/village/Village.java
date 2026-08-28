@@ -231,7 +231,10 @@ public class Village {
     // as the world floor and founds the whole camp far underground.
     forceLoadCamp(centerLoc, clearance + half);
 
-    int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY();
+    // WORLD_SURFACE points one above the top solid block; the camp seats a block lower
+    // than that (Aaron: "the whole village is one block too high, it should be a block
+    // lower"), so the buildings' floors land on the surface rather than hovering over it.
+    int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY() - 1;
     BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
 
     // Anchor the whole camp on the CAMPFIRE, not the centre building's midpoint, so a
@@ -292,9 +295,16 @@ public class Village {
         plat.getXSpan(), plat.getZSpan(), platCenter.toShortString(),
         cost.impossible() ? "settling rough or unassessed ground (" + cost.reason() + ")" : cost.describe());
 
-    // Level the camp to the plane, then raise all three on it. Companions keep
-    // normal recipes; the founding path skips payment exactly as buildInstantly does.
-    levelPlatTo(plat, planeY);
+    // Level ONLY the ground each building stands on -- not a shared plat -- so the camp
+    // reads as buildings plopped on the natural surface, with no grass/dirt platform
+    // around them (Aaron: "just plop the buildings... no grass platform"). Each footprint
+    // is levelled then hidden under its building; the ground BETWEEN buildings is left
+    // natural. Companions keep normal recipes; founding skips payment as buildInstantly.
+    for (InstantBuildStructure struct : new InstantBuildStructure[] { centerStruct, mineStruct, storeStruct }) {
+      if (struct != null) {
+        levelPlatTo(buildingFootprint(struct, planeY), planeY);
+      }
+    }
 
     centerStruct.buildInstantly();
     this.townCenterUUID = centerBuilding.getUUID();
@@ -397,6 +407,20 @@ public class Village {
   }
 
   /**
+   * A single building's own footprint at the plane, no margin -- the exact ground it
+   * stands on. Levelling each companion by its own footprint (rather than the union)
+   * keeps the terrain BETWEEN buildings natural, so no platform shows.
+   */
+  private BoundingBox buildingFootprint(InstantBuildStructure struct, int planeY) {
+    BlockPos center = BlockPos.of(struct.getBuilding().getCenterLocation());
+    BoundingBox bounds = struct.getBounds();
+    int halfX = (bounds.getXSpan() + 1) / 2;
+    int halfZ = (bounds.getZSpan() + 1) / 2;
+    return new BoundingBox(center.getX() - halfX, planeY, center.getZ() - halfZ,
+        center.getX() + halfX, planeY, center.getZ() + halfZ);
+  }
+
+  /**
    * The union footprint of the founding buildings at the plane, with a small margin,
    * so levelling touches only the ground the camp actually stands on. Skips any
    * companion that failed to plan.
@@ -473,16 +497,6 @@ public class Village {
           } else {
             break; // solid ground reached; the rest of the column is fine
           }
-        }
-        // Cap the levelled surface with grass so a cut mound or a filled dip reads as
-        // ground, not the bare dirt/stone scar Aaron flagged ("get rid of the weird
-        // extra dirt"). Only the exposed top block, only where it's solid ground; the
-        // buildings overwrite their own footprint, so this shows at the camp's edges.
-        pos.set(x, planeY - 1, z);
-        var surfaceBlock = level.getBlockState(pos);
-        if (!surfaceBlock.isAir() && surfaceBlock.getFluidState().isEmpty()
-            && level.getBlockEntity(pos) == null && !surfaceBlock.is(Blocks.GRASS_BLOCK)) {
-          level.setBlock(pos, Blocks.GRASS_BLOCK.defaultBlockState(), 3);
         }
       }
     }
