@@ -101,21 +101,13 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       -0.25D, AttributeModifier.Operation.ADD_VALUE);
 
   /**
-   * Skins are gender-specific pools: {@code person_<male|female|nonbinary>_N.png}. A
-   * villager draws from the pool matching its gender, so a man never wears a dress nor a
-   * woman a beard. Bump these counts when skins are added to a pool.
+   * Skins are gender-specific pools of content-hash-named textures, listed per gender in
+   * {@link PersonSkins}. A villager draws from the pool matching its gender, so a man
+   * never wears a dress nor a woman a beard. The pools and their {@code <hash>.png} files
+   * are regenerated together by {@code scratchpad/build_skins.py}.
    */
-  public static final int MALE_SKIN_COUNT = 3;
-  public static final int FEMALE_SKIN_COUNT = 8;
-  public static final int NONBINARY_SKIN_COUNT = 3;
-
-  /** How many skins the given gender's pool holds. */
   public static int skinCountFor(Gender gender) {
-    return switch (gender) {
-      case MALE -> MALE_SKIN_COUNT;
-      case FEMALE -> FEMALE_SKIN_COUNT;
-      case NONBINARY -> NONBINARY_SKIN_COUNT;
-    };
+    return PersonSkins.forGender(gender).size();
   }
 
   /**

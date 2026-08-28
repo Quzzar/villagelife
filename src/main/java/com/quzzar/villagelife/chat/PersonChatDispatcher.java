@@ -510,15 +510,30 @@ public final class PersonChatDispatcher {
   private static void executeGive(RealPerson person, ServerPlayer player, String itemId) {
     long now = System.currentTimeMillis();
     String pair = person.getUUID() + ":" + player.getUUID();
+    // Full give logging: exactly what the villager has when a give is attempted,
+    // at INFO so a rejection is never a mystery in the normal server log.
+    String held = person.getMainHandItem().isEmpty() ? "empty-handed"
+        : BuiltInRegistries.ITEM.getKey(person.getMainHandItem().getItem()).toString();
+    StringBuilder pocketList = new StringBuilder();
+    for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
+      ItemStack s = person.personMainInv.getItem(i);
+      if (!s.isEmpty()) {
+        pocketList.append(s.getCount()).append("x ")
+            .append(BuiltInRegistries.ITEM.getKey(s.getItem())).append(", ");
+      }
+    }
+    String carry = pocketList.length() == 0 ? "nothing" : pocketList.substring(0, pocketList.length() - 2);
+    Villagelife.LOGGER.info("[chat give] {} wants to give '{}' to {} | holding: {} | carry-inventory: {}",
+        person.getFullName(), itemId, player.getGameProfile().getName(), held, carry);
     Long last = LAST_GIVE.get(pair);
     if (last != null && now - last < GIVE_COOLDOWN_MS) {
-      Villagelife.LOGGER.debug("Chat give refused, {} already gave something recently",
-          person.getFullName());
+      Villagelife.LOGGER.info("[chat give] REFUSED '{}': {} already gave something {}s ago (cooldown is {}s)",
+          itemId, person.getFullName(), (now - last) / 1000L, GIVE_COOLDOWN_MS / 1000L);
       return;
     }
     ResourceLocation id = ResourceLocation.tryParse(itemId.contains(":") ? itemId : "minecraft:" + itemId);
     if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
-      Villagelife.LOGGER.debug("Chat give rejected, unknown item: {}", itemId);
+      Villagelife.LOGGER.info("[chat give] REJECTED '{}': not a valid item id", itemId);
       return;
     }
     var item = BuiltInRegistries.ITEM.get(id);
@@ -537,7 +552,8 @@ public final class PersonChatDispatcher {
         return;
       }
     }
-    Villagelife.LOGGER.debug("Chat give rejected, not in pockets: {}", itemId);
+    Villagelife.LOGGER.info("[chat give] REJECTED '{}': not in carry-inventory. The give only checks "
+        + "carry-inventory (personMainInv), NOT the held item ({}) or any chest.", itemId, held);
   }
 
   private static String fallbackLine(RealPerson person) {

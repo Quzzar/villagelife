@@ -10,11 +10,13 @@ import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.buildings.Building;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
@@ -29,12 +31,14 @@ import net.minecraft.world.level.block.Rotation;
  * datapack JSON without inventing a scripting language. The job definition can
  * name this selector; it cannot describe it.
  *
- * The target given to the loop is the shaft ENTRANCE rather than the block
- * being broken. That is deliberate and matches what the goal this replaces did:
- * a miner stands at the mouth and works the face at reach, because the block
- * they are about to break is inside solid rock and walking to it is not
- * possible. Targeting the block itself would have every miner fail to path,
- * stall, and eventually be teleported home as stranded.
+ * The miner walks DOWN into the shaft to work the face, rather than reaching it
+ * from the mouth. The trick that keeps that from stalling: the block being
+ * broken is always computed from the job location and the cursor, never from
+ * where the miner is standing, so the loop's TARGET is free to be a foothold
+ * beside the face ({@link #standToMine}). The shaft therefore advances the same
+ * way it always did, and the descent is layered on top - when no footing near
+ * the face can be found the target falls back to the mouth, so the digging can
+ * never fail even if the footing search comes up empty.
  */
 public final class MineStep implements BlockWorkStep {
 
@@ -48,11 +52,15 @@ public final class MineStep implements BlockWorkStep {
    */
   private static final int MAX_CURSOR_STEPS = 4096;
 
+  /** Blocks broken between torches, so a deepening shaft does not go dark. */
+  private static final int BLOCKS_PER_TORCH = 6;
+
   private BlockPos offset;
   private Block block;
   private int inward = 1;
   private int breakTime;
   private int lastProgress = -1;
+  private int sinceTorch;
 
   @Override
   @Nullable
@@ -61,12 +69,21 @@ public final class MineStep implements BlockWorkStep {
     if (mouth == BlockPos.ZERO) {
       return null;
     }
-    return locateNext(person, mouth, rotation(person)) ? mouth : null;
+    if (!locateNext(person, mouth, rotation(person))) {
+      return null;
+    }
+    // Stand next to the face and work it, walking down into the shaft as it
+    // deepens. The face is still broken relative to the job location (see act),
+    // so if no footing near it can be found the miner falls back to the mouth
+    // and the shaft still advances: the descent never stalls the digging.
+    BlockPos stand = standToMine(person, face(mouth, rotation(person)));
+    return stand != null ? stand : mouth;
   }
 
   @Override
-  public boolean act(RealPerson person, BlockPos mouth) {
-    if (this.block == null || this.offset == null) {
+  public boolean act(RealPerson person, BlockPos standTarget) {
+    BlockPos mouth = LocationManager.getJobLocation(person);
+    if (mouth == BlockPos.ZERO || this.block == null || this.offset == null) {
       return false;
     }
     BlockPos face = face(mouth, rotation(person));
@@ -91,6 +108,7 @@ public final class MineStep implements BlockWorkStep {
       person.level().playSound((Player) null, face.getX(), face.getY(), face.getZ(),
           this.block.defaultBlockState().getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
           person.getRandom().nextFloat() * 0.4F + 0.8F);
+      maybeTorch(person, face);
     }
     person.level().destroyBlockProgress(person.getId(), face, -1);
     this.breakTime = 0;
@@ -99,8 +117,9 @@ public final class MineStep implements BlockWorkStep {
   }
 
   @Override
-  public void released(RealPerson person, BlockPos mouth) {
-    if (this.offset != null) {
+  public void released(RealPerson person, BlockPos standTarget) {
+    BlockPos mouth = LocationManager.getJobLocation(person);
+    if (mouth != BlockPos.ZERO && this.offset != null) {
       person.level().destroyBlockProgress(person.getId(), face(mouth, rotation(person)), -1);
     }
     this.breakTime = 0;
@@ -118,10 +137,10 @@ public final class MineStep implements BlockWorkStep {
     return 1;
   }
 
-  /** Measured to the mouth of the shaft, which is where the miner stands. */
+  /** Close, so the miner stands at the face they are working, deep in the shaft. */
   @Override
   public double reachSqr(RealPerson person) {
-    return 10.0D;
+    return 6.0D;
   }
 
   private int breakTicks() {
@@ -135,6 +154,65 @@ public final class MineStep implements BlockWorkStep {
   private Rotation rotation(RealPerson person) {
     Building building = LocationManager.getJobBuilding(person);
     return building == null ? Rotation.NONE : building.getRotation();
+  }
+
+  /**
+   * A block the miner can stand on to work {@code face}: the one nearest to
+   * where they already are, so each pick is a short reachable step deeper rather
+   * than a leap the navigator would give up on. Null when nothing around the
+   * face is footing, which sends the caller back to the mouth.
+   */
+  @Nullable
+  private BlockPos standToMine(RealPerson person, BlockPos face) {
+    Level level = person.level();
+    BlockPos[] candidates = {
+        face.above(),
+        face.north(), face.south(), face.east(), face.west(),
+        face.above().north(), face.above().south(), face.above().east(), face.above().west(),
+    };
+    BlockPos best = null;
+    double bestDist = Double.MAX_VALUE;
+    for (BlockPos candidate : candidates) {
+      if (!standable(level, candidate)) {
+        continue;
+      }
+      double dist = candidate.distSqr(person.blockPosition());
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = candidate;
+      }
+    }
+    return best;
+  }
+
+  /** Air to occupy, air above for headroom, and a sturdy top below to stand on. */
+  private boolean standable(Level level, BlockPos pos) {
+    return level.getBlockState(pos).isAir()
+        && level.getBlockState(pos.above()).isAir()
+        && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP);
+  }
+
+  /**
+   * Every so many blocks, stand a torch in the space just opened so the shaft
+   * does not go dark. Physical: the torch comes out of the miner's pack (kept
+   * stocked from village stores when they turn in for the night), so an unlit
+   * mine reads as a village with no torches to spare rather than a bug. The
+   * cursor skips torches, so one placed here is never mistaken for stone later.
+   */
+  private void maybeTorch(RealPerson person, BlockPos face) {
+    if (++this.sinceTorch < BLOCKS_PER_TORCH) {
+      return;
+    }
+    this.sinceTorch = 0; // one attempt per interval, whatever its outcome
+    Level level = person.level();
+    if (level.getMaxLocalRawBrightness(face) >= 8
+        || !level.getBlockState(face.below()).isFaceSturdy(level, face.below(), Direction.UP)) {
+      return;
+    }
+    if (person.removeItem(Items.TORCH, 1).getCount() < 1) {
+      return; // out of torches; the shaft stays dark until the miner restocks
+    }
+    level.setBlock(face, Blocks.TORCH.defaultBlockState(), 3);
   }
 
   /**

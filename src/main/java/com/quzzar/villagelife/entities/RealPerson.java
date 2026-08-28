@@ -485,6 +485,14 @@ public class RealPerson extends Person {
 
     }
 
+    // Restock torches for the miner to light the shaft as they dig. Physical:
+    // taken from village stores, so the mine goes dark only when the village has
+    // no torches to spare. MineStep places them from the pack a few blocks apart.
+    if (getOccupation() == Occupation.MINER) {
+      ItemStack torches = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.TORCH, 16), depositToLoc);
+      this.addItems(Arrays.asList(torches));
+    }
+
     // Grab bonemeal
     if (getOccupation() == Occupation.LUMBERJACK || getOccupation() == Occupation.FARMER) {
 
