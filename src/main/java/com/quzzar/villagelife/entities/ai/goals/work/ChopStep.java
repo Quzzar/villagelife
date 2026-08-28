@@ -5,6 +5,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
 import com.quzzar.villagelife.village.LocationManager;
 
 import net.minecraft.core.BlockPos;
@@ -14,6 +15,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -47,6 +49,8 @@ public final class ChopStep implements BlockWorkStep {
   /** Chance per scan of planting a sapling on an empty stand. */
   private static final float REPLANT_CHANCE = 0.01F;
 
+  private final ShortageWatch dry = new ShortageWatch();
+
   private BlockPos chopping;
   private int chopTime;
   private int lastProgress = -1;
@@ -56,9 +60,14 @@ public final class ChopStep implements BlockWorkStep {
   public BlockPos select(RealPerson person) {
     BlockPos stand = LocationManager.getJobLocation(person);
     if (stand == BlockPos.ZERO) {
-      return null;
+      return null; // no stand assigned yet: a misconfiguration, not a wood shortage
     }
     BlockState state = person.level().getBlockState(stand);
+
+    if (state.is(BlockTags.LOGS_THAT_BURN)) {
+      this.dry.foundWork();
+      return stand;
+    }
 
     // An empty stand over dirt is a felled tree waiting to be replanted. This
     // branch existed before and could never fire, because nothing ever cleared
@@ -67,9 +76,14 @@ public final class ChopStep implements BlockWorkStep {
       if (person.getRandom().nextFloat() < REPLANT_CHANCE) {
         person.level().setBlock(stand, Blocks.OAK_SAPLING.defaultBlockState(), 2);
       }
-      return null;
     }
-    return state.is(BlockTags.LOGS_THAT_BURN) ? stand : null;
+
+    // Nothing standing to fell: felled and regrowing, or a stand that will not
+    // regrow one. Most of these lulls are just the sapling coming back, so only a
+    // sustained dry stretch is reported, once, as a genuine wood shortage.
+    this.dry.wentDry(person, Items.OAK_LOG, 1,
+        "The trees at my stand are felled; I have no wood to cut until they grow back.");
+    return null;
   }
 
   @Override

@@ -6,6 +6,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
 import com.quzzar.villagelife.village.LocationManager;
 
 import net.minecraft.core.BlockPos;
@@ -34,6 +35,7 @@ public final class HarvestStep implements BlockWorkStep {
   private static final int SEARCH_RADIUS = 2;
 
   private final boolean useStation;
+  private final ShortageWatch dry = new ShortageWatch();
 
   public HarvestStep(boolean useStation) {
     this.useStation = useStation;
@@ -42,7 +44,15 @@ public final class HarvestStep implements BlockWorkStep {
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
-    return findRipe(person, origin(person));
+    BlockPos ripe = findRipe(person, origin(person));
+    if (ripe != null) {
+      this.dry.foundWork();
+      return ripe;
+    }
+    // A field with nothing ripe is usually just crops still growing; only a
+    // sustained empty stretch is reported, once, as a genuine food shortage.
+    this.dry.wentDry(person, Items.WHEAT, 1, "There is nothing ripe in the field to harvest yet.");
+    return null;
   }
 
   @Override

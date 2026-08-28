@@ -81,7 +81,8 @@ public class VillageEntryTitle {
   private static void announce(ServerPlayer player, String villageName, int population) {
     player.connection.send(new ClientboundSetTitlesAnimationPacket(FADE_IN, STAY, FADE_OUT));
     player.connection.send(new ClientboundSetSubtitleTextPacket(
-        Component.literal("Population " + population).withStyle(ChatFormatting.GRAY)));
+        // en-dash (U+2013) separators flanking the count, a UI flourish.
+        Component.literal("– Population " + population + " –").withStyle(ChatFormatting.GRAY)));
     player.connection.send(new ClientboundSetTitleTextPacket(
         Component.literal(villageName).withStyle(ChatFormatting.WHITE)));
   }

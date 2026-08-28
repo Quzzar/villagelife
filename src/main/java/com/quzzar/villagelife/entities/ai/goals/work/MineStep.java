@@ -144,8 +144,15 @@ public final class MineStep implements BlockWorkStep {
    * full of lava") and is the seed of a quest anyone or no one may resolve.
    */
   private boolean locateNext(RealPerson person, BlockPos mouth, Rotation rotation) {
+    // The shaft ramps down and AWAY from the mouth, toward local +Z. Local -Z is
+    // the mine's entrance/front, its opening and both chests sit there, so leaning
+    // the descent toward +Z digs deeper into the ground behind the mine instead of
+    // undermining its own entrance. Direction is in the mine's LOCAL frame; face()
+    // rotates it into the world by the founding rotation, so it is correct in every
+    // orientation. (Leaning -Z, which every prior angled version did, was Aaron's
+    // long-standing "mining the wrong way" bug: the ramp ate back under the door.)
     if (this.offset == null) {
-      this.offset = new BlockPos(-(RADIUS + 1), -1, RADIUS - 1);
+      this.offset = new BlockPos(-(RADIUS + 1), -1, -(RADIUS - 1));
     }
     int steps = 0;
     do {
@@ -155,10 +162,10 @@ public final class MineStep implements BlockWorkStep {
       }
       this.offset = this.offset.offset(1, 0, 0);
       if (this.offset.getX() >= RADIUS + 1) {
-        this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() - 1);
+        this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() + 1);
       }
-      if (this.offset.getZ() <= -(RADIUS + 1 + this.inward)) {
-        this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, 1 - this.inward);
+      if (this.offset.getZ() >= RADIUS + 1 + this.inward) {
+        this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, this.inward - 1);
         this.inward++;
       }
       this.block = person.level().getBlockState(face(mouth, rotation)).getBlock();

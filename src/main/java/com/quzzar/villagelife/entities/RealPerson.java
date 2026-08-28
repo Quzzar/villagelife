@@ -455,17 +455,17 @@ public class RealPerson extends Person {
       // GUARD case in populateDefaultEquipmentSlots); re-enable this when it lands.
       equipBestPossibleGear(SwordItem.class, null, false, depositToLoc);
 
-      // Find up to 16 bread
+      // Restock rations: apples for now, until a farm lets the village bake bread.
       if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
 
-        ItemStack breadItem = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BREAD, 16),
+        ItemStack rations = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.APPLE, 16),
             depositToLoc);
-        if (breadItem.getCount() >= 1) {
-          this.setItemSlot(EquipmentSlot.OFFHAND, breadItem);
+        if (rations.getCount() >= 1) {
+          this.setItemSlot(EquipmentSlot.OFFHAND, rations);
         } else {
           // A guard going to bed with no rations is a shortage worth remembering.
           this.getVillage().logEvent(
-              new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(Items.BREAD, 16));
+              new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(Items.APPLE, 16));
         }
 
       }
@@ -592,12 +592,12 @@ public class RealPerson extends Person {
   protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
     switch (getOccupation()) {
       case GUARD:
-        // Sword and rations only, no armor. Armor is deliberately withheld until
-        // the village can make its own: the leather chain (butchery -> leather) is
-        // the intended source, and crafted armor comes later as an upgrade. A fresh
-        // guard stands watch with a stone sword and bread.
+        // Sword and rations only, no armor, and both kept basic until the village
+        // can make better: armor waits on the leather chain (butchery -> leather),
+        // and the ration is foraged apples until a farm exists to bake bread. A
+        // fresh guard stands watch with a stone sword and apples.
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
-        this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.BREAD, 16));
+        this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.APPLE, 16));
         break;
       case LUMBERJACK:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
