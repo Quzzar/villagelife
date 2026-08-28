@@ -234,19 +234,41 @@ public class Village {
     int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY();
     BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
 
-    // The camp footprint: wide enough in X to hold both companions, only as deep
-    // in Z as the buildings themselves, so founding levels the ground the camp
-    // stands on rather than scarring a whole square for a row of three.
-    BoundingBox plat = new BoundingBox(
-        platCenter.getX() - clearance - half, planeY, platCenter.getZ() - half,
-        platCenter.getX() + clearance + half, planeY, platCenter.getZ() + half);
+    // Plan the centre first (its rotation is chosen here) so we know its ACTUAL
+    // placed footprint and where its campfire lands, before deciding how much
+    // ground to level and where the companions sit.
+    InstantBuildStructure centerStruct = new InstantBuildStructure(
+        new Building(centerInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]), random, level)
+        .setOriginLocation(platCenter, claimGrid);
+    Rotation centreRot = centerStruct.getRotation();
+    BoundingBox centreBounds = centerStruct.getBounds();
+
+    // Flank the CAMPFIRE, not the centre building's midpoint. The gathering point
+    // sits toward one end of the long centre (local [4,1,4]), so seating the mine
+    // and store either side of the fire pulls them to that end rather than the dead
+    // middle of the wall. They flank across the centre's SHORT axis, aligned with
+    // the fire on the long axis, two blocks off the wall - unstuck from the centre
+    // but still one tight cluster.
+    BlockPos fire = campfireWorldPos(centerStruct, centerInfo, centreRot, platCenter);
+    boolean flankAlongX = centreBounds.getXSpan() <= centreBounds.getZSpan();
+    int centreHalfShort = (flankAlongX ? centreBounds.getXSpan() : centreBounds.getZSpan()) / 2;
+    InstantBuildStructure mineStruct = planFlankingCompanion(
+        Buildings.FOUNDING_MINE_NAME, fire, platCenter, flankAlongX, +1, centreHalfShort, FOUNDING_FLANK_GAP);
+    InstantBuildStructure storeStruct = planFlankingCompanion(
+        Buildings.FOUNDING_STOREHOUSE_NAME, fire, platCenter, flankAlongX, -1, centreHalfShort, FOUNDING_FLANK_GAP);
+
+    // Level only the ground the three buildings actually stand on, plus a small
+    // margin - not a generous strip. Founding used to flatten a ~71-wide field for
+    // a ~35-wide cluster, which read in-world as the camp "clearing land far out in
+    // every direction". The union of the placed footprints is exactly what is built on.
+    BoundingBox plat = campFootprint(planeY, centerStruct, mineStruct, storeStruct);
 
     // One site check over the whole footprint (docs: "one composite footprint,
-    // one site check"), taken BEFORE anything is claimed or placed so it reads
-    // the terrain and not the village's own fresh claims. Founding is pickier
-    // than growth because it needs the entire plat at once, and pays preparation
-    // an ordinary placement would refuse - so this reports how rough the ground
-    // was but does not refuse a camp a caller asked to found here.
+    // one site check"), taken BEFORE anything is placed so it reads the terrain and
+    // not the village's own fresh claims. Founding is pickier than growth because it
+    // needs the entire plat at once, and pays preparation an ordinary placement would
+    // refuse - so this reports how rough the ground was but does not refuse a camp a
+    // caller asked to found here.
     SitePreparation.SiteCost cost = SitePreparation.score(level, this, platCenter, plat);
     // The score is advisory - founding levels and builds regardless - so an
     // "impossible" here is a note about the ground, not a failure. In practice
@@ -257,28 +279,9 @@ public class Village {
         plat.getXSpan(), plat.getZSpan(), platCenter.toShortString(),
         cost.impossible() ? "settling rough or unassessed ground (" + cost.reason() + ")" : cost.describe());
 
-    // Level the camp to the plane, then plan and raise all three flush on it.
-    // Companions keep normal recipes; the founding path skips payment exactly as
-    // buildInstantly does.
+    // Level the camp to the plane, then raise all three on it. Companions keep
+    // normal recipes; the founding path skips payment exactly as buildInstantly does.
     levelPlatTo(plat, planeY);
-
-    InstantBuildStructure centerStruct = new InstantBuildStructure(
-        new Building(centerInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]), random, level)
-        .setOriginLocation(platCenter, claimGrid);
-
-    // Sit the companions FLUSH against the centre, one on each side of the campfire,
-    // rather than a full templateSpan out. The old `clearance` used max(x,z), so on
-    // the centre's narrow axis the mine and store stood ~9 blocks adrift in an empty
-    // field. Measure the centre's ACTUAL placed half-width (getBounds() carries its
-    // rotation) and set each companion its own half-width plus one block off that edge,
-    // so their near wall kisses the centre and the camp reads as one tight cluster.
-    int centreHalfX = centerStruct.getBounds().getXSpan() / 2;
-    int mineOffset = centreHalfX + foundingHalfSpan(Buildings.FOUNDING_MINE_NAME) + 1;
-    int storeOffset = centreHalfX + foundingHalfSpan(Buildings.FOUNDING_STOREHOUSE_NAME) + 1;
-    InstantBuildStructure mineStruct =
-        planFoundingCompanion(Buildings.FOUNDING_MINE_NAME, platCenter.offset(mineOffset, 0, 0));
-    InstantBuildStructure storeStruct =
-        planFoundingCompanion(Buildings.FOUNDING_STOREHOUSE_NAME, platCenter.offset(-storeOffset, 0, 0));
 
     Building centerBuilding = centerStruct.getBuilding();
     centerStruct.buildInstantly();
@@ -332,22 +335,71 @@ public class Village {
     return Math.max(size.getX(), size.getZ());
   }
 
-  /** Half a founding companion's span, for placing it flush against the centre. */
-  private int foundingHalfSpan(String name) {
-    BuildingInfo info = Buildings.getByName(name);
-    return (info != null ? templateSpan(info) : 6) / 2;
+  /** Blocks of breathing room left between the centre wall and each flanking companion. */
+  private static final int FOUNDING_FLANK_GAP = 2;
+
+  /**
+   * The campfire's world position for a freshly planned centre, mirroring
+   * {@link #gatheringPointPos()} but reading the struct we hold rather than the
+   * registered town centre (which is not added until after levelling).
+   */
+  private BlockPos campfireWorldPos(InstantBuildStructure centerStruct, BuildingInfo centerInfo,
+      Rotation rotation, BlockPos fallback) {
+    Long offset = centerInfo.getGatheringPoint();
+    if (offset == null) {
+      return fallback;
+    }
+    return BlockPos.of(centerStruct.getBuilding().getOriginLocation())
+        .offset(BlockPos.of(offset).rotate(rotation));
   }
 
-  /** A founding companion planned at the shared plane, or null when its definition is not loaded. */
+  /**
+   * A founding companion turned a quarter-turn and seated beside the campfire: out
+   * along the centre's short axis (its own half-span plus the gap past the centre
+   * wall), aligned with the fire on the long axis. {@code side} is +1 or -1 for the
+   * two sides. Null when the definition is not loaded, so the camp founds without it.
+   */
   @javax.annotation.Nullable
-  private InstantBuildStructure planFoundingCompanion(String name, BlockPos at) {
+  private InstantBuildStructure planFlankingCompanion(String name, BlockPos fire, BlockPos platCenter,
+      boolean flankAlongX, int side, int centreHalfShort, int gap) {
     BuildingInfo info = Buildings.getByName(name);
     if (info == null) {
       Villagelife.LOGGER.warn("Founding set building '{}' is not loaded; the camp founds without it", name);
       return null;
     }
-    return new InstantBuildStructure(new Building(info.getName(), Rotation.NONE), random, level)
-        .setOriginLocation(at, claimGrid);
+    InstantBuildStructure struct =
+        new InstantBuildStructure(new Building(info.getName(), Rotation.CLOCKWISE_90), random, level);
+    BoundingBox bounds = struct.getBounds();
+    int companionHalfShort = (flankAlongX ? bounds.getXSpan() : bounds.getZSpan()) / 2;
+    int out = centreHalfShort + gap + companionHalfShort;
+    BlockPos at = flankAlongX
+        ? new BlockPos(platCenter.getX() + side * out, platCenter.getY(), fire.getZ())
+        : new BlockPos(fire.getX(), platCenter.getY(), platCenter.getZ() + side * out);
+    return struct.setOriginLocation(at, claimGrid);
+  }
+
+  /**
+   * The union footprint of the founding buildings at the plane, with a small margin,
+   * so levelling touches only the ground the camp actually stands on. Skips any
+   * companion that failed to plan.
+   */
+  private BoundingBox campFootprint(int planeY, InstantBuildStructure... structs) {
+    int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+    for (InstantBuildStructure struct : structs) {
+      if (struct == null) {
+        continue;
+      }
+      BlockPos center = BlockPos.of(struct.getBuilding().getCenterLocation());
+      BoundingBox bounds = struct.getBounds();
+      int halfX = (bounds.getXSpan() + 1) / 2;
+      int halfZ = (bounds.getZSpan() + 1) / 2;
+      minX = Math.min(minX, center.getX() - halfX);
+      maxX = Math.max(maxX, center.getX() + halfX);
+      minZ = Math.min(minZ, center.getZ() - halfZ);
+      maxZ = Math.max(maxZ, center.getZ() + halfZ);
+    }
+    return new BoundingBox(minX - FOUNDING_FLANK_GAP, planeY, minZ - FOUNDING_FLANK_GAP,
+        maxX + FOUNDING_FLANK_GAP, planeY, maxZ + FOUNDING_FLANK_GAP);
   }
 
   /** Raises a planned companion on the prepared plat, or does nothing when it was skipped. */
@@ -791,6 +843,11 @@ public class Village {
     long tb = VillageProfile.start();
     this.brain.update();
     VillageProfile.end("brain bookkeeping", tb);
+
+    // Hand any free beds to residents who arrived bedless (e.g. before the centre
+    // registered its beds), so a village with spare beds never leaves someone a
+    // permanent campfire camper. Self-gating: no-ops when no beds are free.
+    this.brain.reconcileBeds(people, bedAssignments, unassignedBeds);
 
     // Recompute attractiveness every 10 seconds, phase-staggered per village so
     // many villages don't all scan their containers on the same tick.

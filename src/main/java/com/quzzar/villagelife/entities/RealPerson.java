@@ -594,6 +594,11 @@ public class RealPerson extends Person {
       case MINER:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
+      case QUARTERMASTER:
+        // The quartermaster keeps the village's stores; a sheet of paper reads as
+        // the manifest they are forever taking count against.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.PAPER));
+        break;
       case NITWIT:
         break;
       default:

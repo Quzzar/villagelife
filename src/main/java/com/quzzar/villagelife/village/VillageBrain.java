@@ -468,6 +468,42 @@ public class VillageBrain {
 
   }
 
+  /**
+   * Hands free beds to residents who have none. Beds are otherwise assigned only
+   * at the instant a person arrives ({@code Village.confirmArrival}), so anyone
+   * who arrives while the pool is momentarily empty, or before the village
+   * centre has finished building and registered its beds, stays bedless for life
+   * even after a bed later frees up, because freed beds were only ever offered to
+   * the next arrival. That is why a founded village routinely ends up with empty
+   * beds and residents standing at the campfire all night. Reconciliation closes
+   * the gap: a bedless resident claims any free bed on the next tick.
+   *
+   * <p>By design the pool can still leave one or more residents bedless: the
+   * campfire reservoir is population over beds by up to the idle cap
+   * (population-and-labor.md), so this assigns every free bed and stops, it does
+   * not manufacture beds. Cheap: it returns at once when nothing is free, which
+   * is the steady state.
+   */
+  public void reconcileBeds(ArrayList<UUID> people, HashMap<UUID, BedAssignment> bedAssignments,
+      ArrayList<BedAssignment> unassignedBeds) {
+
+    if (unassignedBeds.isEmpty()) {
+      return;
+    }
+
+    for (UUID personUUID : people) {
+      if (unassignedBeds.isEmpty()) {
+        break;
+      }
+      if (bedAssignments.containsKey(personUUID)) {
+        continue;
+      }
+      BedAssignment bed = unassignedBeds.remove(0);
+      bedAssignments.put(personUUID, bed.setPersonUUID(personUUID));
+    }
+
+  }
+
   /** The free-form strategic state tag; callers may mutate what they put in it. */
   public CompoundTag getStrategy() {
     return strategy;

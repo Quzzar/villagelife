@@ -49,6 +49,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
@@ -357,6 +358,17 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   @Override
   public boolean isInvulnerable() {
     return super.isInvulnerable() || this.isSleeping();
+  }
+
+  @Override
+  public boolean isInvulnerableTo(DamageSource source) {
+    // The village gathering point is a lit campfire, and idle villagers cluster
+    // right up against it, some seated flush on either side. A campfire deals
+    // IN_FIRE damage to anything standing in the block, so the people who are
+    // meant to sit around it would slowly cook. Standing in fire never burns a
+    // villager; being set alight still does, so BURNING_TIME (genetics) stays
+    // meaningful and lava keeps its own teleport-home handling.
+    return source.is(DamageTypes.IN_FIRE) || super.isInvulnerableTo(source);
   }
 
   @Override
