@@ -140,6 +140,11 @@ public class Village {
 
   private HashSet<Long> claimGrid = new HashSet<>();
 
+  // Bounding box of the claim (x/z), cached and recomputed only when the claim grows. Backs
+  // hasClaimedWithin so the padded entry-title check stays O(1). Derived from claimGrid, not persisted.
+  private int claimBoundsAtSize = -1;
+  private int claimMinX, claimMaxX, claimMinZ, claimMaxZ;
+
   private StructureInProgress currentProject;
 
   /**
@@ -1502,6 +1507,37 @@ public class Village {
 
   public boolean hasClaimed(BlockPos pos) {
     return claimGrid.contains(BlockPos.asLong(pos.getX(), 0, pos.getZ()));
+  }
+
+  /**
+   * Whether {@code pos} is within {@code padding} blocks of the claim - i.e. inside the claim's
+   * bounding box grown by padding. Used to announce the village-entry title a little before the
+   * player actually reaches a building. O(1) after a lazy bounds recompute.
+   */
+  public boolean hasClaimedWithin(BlockPos pos, int padding) {
+    if (claimGrid.isEmpty()) {
+      return false;
+    }
+    ensureClaimBounds();
+    return pos.getX() >= claimMinX - padding && pos.getX() <= claimMaxX + padding
+        && pos.getZ() >= claimMinZ - padding && pos.getZ() <= claimMaxZ + padding;
+  }
+
+  /** Recomputes the claim's x/z bounds, but only when the claim has changed size (it only grows). */
+  private void ensureClaimBounds() {
+    if (claimBoundsAtSize == claimGrid.size()) {
+      return;
+    }
+    claimBoundsAtSize = claimGrid.size();
+    claimMinX = Integer.MAX_VALUE; claimMaxX = Integer.MIN_VALUE;
+    claimMinZ = Integer.MAX_VALUE; claimMaxZ = Integer.MIN_VALUE;
+    for (long packed : claimGrid) {
+      BlockPos p = BlockPos.of(packed);
+      claimMinX = Math.min(claimMinX, p.getX());
+      claimMaxX = Math.max(claimMaxX, p.getX());
+      claimMinZ = Math.min(claimMinZ, p.getZ());
+      claimMaxZ = Math.max(claimMaxZ, p.getZ());
+    }
   }
 
   public BlockPos getNearestContainer(BlockPos location) {
