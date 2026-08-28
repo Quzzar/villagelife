@@ -1025,14 +1025,14 @@ public class Village {
       return;
     }
 
-    BlockPos spawnPos = edgeSpawnPos();
-    if (spawnPos == null) {
-      return; // edge chunks not loaded: nobody would see the arrival anyway
-    }
-
     long deadline = level.getGameTime()
         + com.quzzar.villagelife.configuration.VillagelifeConfig.TravelTimeoutSeconds * 20L;
+    // Newcomers appear AT the campfire rather than trekking in from the village edge:
+    // they spawn on the gathering spot beside the fire and are counted on the very next
+    // traveler tick, which already sees them within arrival range of the fire. Wanderers
+    // still walk in from wherever they roam; departures still head out to the edge.
     BlockPos fire = getGatheringPoint();
+    BlockPos spawnPos = fire;
 
     // Wanderers before spawns (#59): someone already roaming the world is
     // recruited ahead of conjuring anyone new, so the same souls circulate
