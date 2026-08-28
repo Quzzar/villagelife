@@ -231,10 +231,13 @@ public class Village {
     // as the world floor and founds the whole camp far underground.
     forceLoadCamp(centerLoc, clearance + half);
 
-    // WORLD_SURFACE points one above the top solid block; the camp seats a block lower
-    // than that (Aaron: "the whole village is one block too high, it should be a block
-    // lower"), so the buildings' floors land on the surface rather than hovering over it.
-    int planeY = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, centerLoc).getY() - 1;
+    // MOTION_BLOCKING_NO_LEAVES gives the top block that stops movement but ISN'T a leaf,
+    // i.e. the real ground UNDER a tree canopy -- WORLD_SURFACE counts leaves/branches as
+    // surface, so founding under a tree seated the whole camp at canopy height and then
+    // dirt-filled a pillar down to the ground (Aaron's "sky village"). The heightmap points
+    // one above that block, and the camp seats a block lower still (Aaron: "the whole
+    // village is one block too high"), so floors land ON the ground, not hovering over it.
+    int planeY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, centerLoc).getY() - 1;
     BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
 
     // Anchor the whole camp on the CAMPFIRE, not the centre building's midpoint, so a
@@ -1129,7 +1132,7 @@ public class Village {
     if (!level.isLoaded(column)) {
       return null;
     }
-    return level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, column);
+    return level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
   }
 
   private void tryEmigration() {
