@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.economy.Treasury;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
@@ -122,6 +123,7 @@ public final class ConsolidateStep implements BlockWorkStep {
         stores.add(other);
       }
     }
+    int moved = 0;
     for (BlockPos pos : stores) {
       if (!(person.level().getBlockEntity(pos) instanceof Container into)) {
         continue;
@@ -131,8 +133,14 @@ public final class ConsolidateStep implements BlockWorkStep {
         if (stack.isEmpty()) {
           continue;
         }
+        int before = stack.getCount();
         pack.setItem(slot, HopperBlockEntity.addItem(pack, into, stack, null));
+        moved += before - pack.getItem(slot).getCount();
       }
+    }
+    if (moved > 0) {
+      Villagelife.LOGGER.debug("[resource-flow] {} (QUARTERMASTER) consolidated {} item(s) into the storehouse at {}",
+          person.getName().getString(), moved, target.toShortString());
     }
     if (village != null) {
       village.setStorageStrained(!packIsEmpty(pack));

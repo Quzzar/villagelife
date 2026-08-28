@@ -6,6 +6,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Utils;
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.BuildingUpgrade;
@@ -77,6 +78,8 @@ public final class GatherStep implements BlockWorkStep {
       return false; // re-select: more chests, or the site to commit
     }
     // Not a container: this is the build site, and the pack should be full.
+    Villagelife.LOGGER.debug("[resource-flow] {} (BUILDER) delivered a full recipe and is raising the {}",
+        person.getName().getString(), project.getBuilding().getName());
     project.commitFromBuilder(person.personMainInv, recipe(person, project));
     return false;
   }
@@ -110,6 +113,7 @@ public final class GatherStep implements BlockWorkStep {
   /** Lift what this chest can offer toward the still-missing part of the recipe. */
   private void pullNeeded(RealPerson person, Container chest, StructureInProgress project) {
     Container pack = person.personMainInv;
+    int pulledTotal = 0;
     for (ItemStack cost : recipe(person, project)) {
       int need = cost.getCount() - Utils.getAmountOfItemType(pack, cost.getItem());
       if (need <= 0) {
@@ -118,7 +122,12 @@ public final class GatherStep implements BlockWorkStep {
       ItemStack pulled = Utils.removeItem(chest, cost.getItem(), need);
       if (!pulled.isEmpty()) {
         Utils.insertItems(pack, List.of(pulled), person);
+        pulledTotal += pulled.getCount();
       }
+    }
+    if (pulledTotal > 0) {
+      Villagelife.LOGGER.debug("[resource-flow] {} (BUILDER) pulled {} material(s) for the {}",
+          person.getName().getString(), pulledTotal, project.getBuilding().getName());
     }
   }
 

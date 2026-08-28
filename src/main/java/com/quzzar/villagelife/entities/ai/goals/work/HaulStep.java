@@ -2,6 +2,7 @@ package com.quzzar.villagelife.entities.ai.goals.work;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.buildings.Building;
@@ -48,16 +49,25 @@ public final class HaulStep implements BlockWorkStep {
       return false; // the chest was taken out from under them
     }
     Container pack = person.personMainInv;
+    int moved = 0;
     for (int slot = 0; slot < pack.getContainerSize(); slot++) {
       ItemStack stack = pack.getItem(slot);
       if (stack.isEmpty()) {
         continue;
       }
+      int before = stack.getCount();
       ItemStack leftover = HopperBlockEntity.addItem(pack, into, stack, null);
       pack.setItem(slot, leftover);
+      moved += before - leftover.getCount();
       if (!leftover.isEmpty()) {
         break; // the container is full; the rest stays in the pack
       }
+    }
+    // Resource-flow trace: deposits are otherwise invisible. Grep "[resource-flow]"
+    // to review the whole pipeline (harvest -> deposit -> consolidate -> build).
+    if (moved > 0) {
+      Villagelife.LOGGER.debug("[resource-flow] {} ({}) deposited {} item(s) into the chest at {}",
+          person.getName().getString(), person.getOccupation(), moved, target.toShortString());
     }
     return false;
   }
