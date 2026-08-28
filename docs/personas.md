@@ -46,11 +46,32 @@ All in `persona/` (plus one registration line in `entities/VillagelifeAttachment
 | `PersonaParser` | Lenient tagged-line parser |
 | `PersonaService` | Generation orchestration on `LlmService.submitPersona`; attach/get helpers |
 | `PersonaSpawner` | **The** generate-before-spawn pipeline: `trySpawn(level, pos, configure)` rolls, generates, spawns on success, discards on failure. Server thread in, server thread out. |
-| `PersonaCommands` | `/vldev persona audit <n>` and `/vldev persona show <entity>` (permission 2) |
-| `PersonaAuditRun` | The audit command's loop: N serialized `PersonaSpawner` attempts plus a report file in `<game dir>/villagelife/` |
+| `PersonaCommands` | `/vldev persona audit <n>`, `/vldev persona show <entity>`, `/vldev persona judgetest` (permission 2) |
+| `PersonaAuditRun` | The audit command's loop: N serialized `PersonaSpawner` attempts, each scored by the judge, plus a report file in `<game dir>/villagelife/` |
+| `PersonaJudge` | Cloud judge that scores a blurb per trait: conveyed / contradicted / absent (issue #77) |
 
 Village arrival mechanics (campfire map) call the same `PersonaSpawner.trySpawn`, setting
 village membership in the `configure` hook. One pipeline, two callers; do not fork it.
+
+## Quality scoring: the judge (issue #77)
+
+`/vldev persona audit <n>` scores every generated blurb against the traits it was asked to
+convey. Scoring is a **cloud judge**, not keyword matching: for each intended trait the judge
+returns *conveyed* / *contradicted* / *absent*. Keyword matching failed both ways — it scored
+good paraphrase (`"a mountain of a man"` for `"a true giant"`) as a miss, and could not see a
+genuinely inverted trait (`"often sick"` for `"never ill"`), which scored the same as a faithful
+one. **Contradicted** is the bucket that catches the inversion, and the reason a model is needed.
+
+- **Judge model**: cloud, because a small local model cannot reliably make this call (measured;
+  it is the same weakness that motivated the issue). Configured by three dedicated keys in
+  `villagelife-common.toml`, separate from the villagers' model so the game can run a local
+  model while the judge calls the cloud: `Persona judge provider` (claude / openai / deepseek),
+  `Persona judge API key`, `Persona judge model`. A blank key runs the audit unscored.
+- **Traits** come from `PersonaPrompts.buildTraits` (the structured list behind the sheet — do
+  not split the sheet string on `", "`, some phrases carry an internal comma).
+- **Report**: an aggregate line (conveyed %, contradicted, absent) plus, per persona, the named
+  contradictions and absences. Written to `<game dir>/villagelife/persona-audit-<ts>.txt`.
+- `/vldev persona judgetest` runs a deterministic selftest of the reply parsing, no cloud call.
 
 ## Not yet built
 

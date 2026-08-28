@@ -68,6 +68,24 @@ final class PersonaPrompts {
 
     /** The user-message character sheet for one person, per the contract. */
     static String buildSheet(RealPerson person) {
+        List<String> traits = buildTraits(person);
+        String traitText = traits.isEmpty() ? "unremarkable in every measurable way" : String.join(", ", traits);
+
+        return "Name: " + person.getFullName()
+                + " (" + person.getGender().name().toLowerCase(Locale.ROOT) + "). Personality: "
+                + person.getPersonality().displayName() + ". Traits: " + traitText + ".";
+    }
+
+    /**
+     * The per-trait phrases that make up a person's character sheet, as a
+     * structured list rather than the joined string {@link #buildSheet} embeds.
+     * The persona judge (issue #77) scores each of these against the blurb, and it
+     * must NOT split the sheet on {@code ", "} to recover them: a phrase like
+     * "a true giant, towering over everyone" carries an internal comma. Derived
+     * only from the person's fixed genetics and virtues, so it is stable to call
+     * again after spawn and reproduces exactly what generation was asked to convey.
+     */
+    static List<String> buildTraits(RealPerson person) {
         List<String> traits = new ArrayList<>();
 
         StatBlock stats = person.getStatBlock();
@@ -130,11 +148,7 @@ final class PersonaPrompts {
         addVirtueTrait(traits, person, Virtue.PROTECT_OTHERS, "fiercely protective of others", "self-serving");
         addVirtueTrait(traits, person, Virtue.PROTECT_SELF, "cautious for their own skin", "recklessly bold");
 
-        String traitText = traits.isEmpty() ? "unremarkable in every measurable way" : String.join(", ", traits);
-
-        return "Name: " + person.getFullName()
-                + " (" + person.getGender().name().toLowerCase(Locale.ROOT) + "). Personality: "
-                + person.getPersonality().displayName() + ". Traits: " + traitText + ".";
+        return traits;
     }
 
     /** Virtues run -0.5..0.5; only pronounced ones (|v| >= 0.25) read as traits. */

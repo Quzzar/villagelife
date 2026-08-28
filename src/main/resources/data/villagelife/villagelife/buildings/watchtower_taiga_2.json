@@ -1,42 +1,51 @@
 {
-  "structure": "watchtower_plains_1",
+  "structure": "watchtower_taiga_2",
+  "upgrades_from": "watchtower_taiga_1",
   "beds": [
     [
-      3,
-      11,
+      9,
+      1,
+      4
+    ],
+    [
+      9,
+      1,
       5
     ]
   ],
   "work_stations": [
     {
       "pos": [
-        4,
-        20,
-        4
+        8,
+        30,
+        5
+      ],
+      "occupation": "GUARD"
+    },
+    {
+      "pos": [
+        8,
+        30,
+        6
       ],
       "occupation": "GUARD"
     }
   ],
   "containers": [
     [
+      6,
       2,
-      11,
-      3
-    ],
-    [
-      4,
-      2,
-      2
+      4
     ]
   ],
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 24
+      "count": 20
     },
     {
       "item": "minecraft:cobblestone",
-      "count": 40
+      "count": 60
     }
   ],
   "grants": [

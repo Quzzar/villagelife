@@ -146,12 +146,12 @@ public final class LlmService {
   }
 
   private static LlmProvider createProvider(String name) {
+    Optional<LlmProvider> cloud = cloudProvider(name,
+        () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
+    if (cloud.isPresent()) {
+      return cloud.get();
+    }
     return switch (name.toLowerCase(Locale.ROOT)) {
-      case "claude" -> new ClaudeProvider(() -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
-      case "openai" -> new OpenAiCompatibleProvider(OpenAiCompatibleProvider.OPENAI,
-          () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
-      case "deepseek" -> new OpenAiCompatibleProvider(OpenAiCompatibleProvider.DEEPSEEK,
-          () -> VillagelifeConfig.LlmApiKey, () -> VillagelifeConfig.LlmCloudModel);
       // Fetches llama.cpp and runs it itself: nothing to install, and several
       // times faster than the in-process Java model.
       case "llamacpp" -> new LocalRuntimeProvider();
@@ -164,6 +164,24 @@ public final class LlmService {
         Villagelife.LOGGER.error("Unknown LLM provider '{}', using jlama", name);
         yield new JlamaWorkerProvider();
       }
+    };
+  }
+
+  /**
+   * Builds a CLOUD provider ("claude"/"openai"/"deepseek") from the given key and
+   * model suppliers, or empty for any non-cloud name. The single cloud-construction
+   * site, shared by the global provider above and an ad-hoc judge that reads its
+   * OWN config keys (issue #77) rather than the global ones, so the two never drift.
+   * {@code complete()} on a cloud provider needs no {@link #startLoading()}, so a
+   * caller can use the returned provider directly.
+   */
+  public static Optional<LlmProvider> cloudProvider(String name,
+      java.util.function.Supplier<String> apiKey, java.util.function.Supplier<String> model) {
+    return switch (name.toLowerCase(Locale.ROOT)) {
+      case "claude" -> Optional.of(new ClaudeProvider(apiKey, model));
+      case "openai" -> Optional.of(new OpenAiCompatibleProvider(OpenAiCompatibleProvider.OPENAI, apiKey, model));
+      case "deepseek" -> Optional.of(new OpenAiCompatibleProvider(OpenAiCompatibleProvider.DEEPSEEK, apiKey, model));
+      default -> Optional.empty();
     };
   }
 

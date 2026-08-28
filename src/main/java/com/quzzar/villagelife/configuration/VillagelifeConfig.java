@@ -33,6 +33,9 @@ public class VillagelifeConfig {
     public static String LlmCloudModel;
     public static String LlmLocalModel;
     public static String LlmLocalUrl;
+    public static String PersonaJudgeProvider;
+    public static String PersonaJudgeApiKey;
+    public static String PersonaJudgeModel;
 
     public static double AttractivenessBase;
     public static double AttractivenessFoodMax;
@@ -78,6 +81,9 @@ public class VillagelifeConfig {
         LlmCloudModel = COMMON.LlmCloudModel.get();
         LlmLocalModel = COMMON.LlmLocalModel.get();
         LlmLocalUrl = COMMON.LlmLocalUrl.get();
+        PersonaJudgeProvider = COMMON.PersonaJudgeProvider.get();
+        PersonaJudgeApiKey = COMMON.PersonaJudgeApiKey.get();
+        PersonaJudgeModel = COMMON.PersonaJudgeModel.get();
         AttractivenessBase = COMMON.AttractivenessBase.get();
         AttractivenessFoodMax = COMMON.AttractivenessFoodMax.get();
         AttractivenessFoodTargetPerCapita = COMMON.AttractivenessFoodTargetPerCapita.get();
@@ -133,6 +139,9 @@ public class VillagelifeConfig {
         public final ModConfigSpec.ConfigValue<String> LlmApiKey;
         public final ModConfigSpec.ConfigValue<String> LlmCloudModel;
         public final ModConfigSpec.ConfigValue<String> LlmLocalModel;
+        public final ModConfigSpec.ConfigValue<String> PersonaJudgeProvider;
+        public final ModConfigSpec.ConfigValue<String> PersonaJudgeApiKey;
+        public final ModConfigSpec.ConfigValue<String> PersonaJudgeModel;
 
         public final ModConfigSpec.DoubleValue AttractivenessBase;
         public final ModConfigSpec.DoubleValue AttractivenessFoodMax;
@@ -180,6 +189,10 @@ public class VillagelifeConfig {
             LlmApiKey = builder.comment("Your API key for the chosen cloud provider (unused by jlama). Paste it here in plain text and TREAT THIS FILE LIKE A PASSWORD: anyone with this file can spend your account's money.").translation(Villagelife.MODID + ".config.LlmApiKey").define("LLM API key", "");
             LlmCloudModel = builder.comment("Model id for the cloud provider (unused by jlama and llamacpp, which use LLM local model). Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.LlmCloudModel").define("LLM cloud model", "");
             LlmLocalModel = builder.comment("Which model the 'llamacpp' provider downloads and runs (unused by every other provider): 'llama-3b' (default) or 'gemma-2-2b'. Llama was chosen for how it holds a conversation - it was the clear best of the candidates at replying in character without looping the same line, which is what a player notices first. Gemma is a slightly smaller alternative that talks nearly as well. A one-time download of about 2 GB.").translation(Villagelife.MODID + ".config.LlmLocalModel").define("LLM local model", "llama-3b");
+
+            PersonaJudgeProvider = builder.comment("Which cloud service scores persona quality in '/vldev persona audit' (developer benchmark only, never the live game): 'claude', 'openai', or 'deepseek'. A cloud judge is used because a small local model cannot reliably tell a well-paraphrased trait from a contradicted one. Leave the key blank to run the audit without scoring.").translation(Villagelife.MODID + ".config.PersonaJudgeProvider").define("Persona judge provider", "claude");
+            PersonaJudgeApiKey = builder.comment("API key for the persona-judge provider (developer benchmark only). Separate from the villagers' 'LLM API key' so the game can run a local model while the judge calls the cloud. Blank disables scoring. TREAT THIS FILE LIKE A PASSWORD.").translation(Villagelife.MODID + ".config.PersonaJudgeApiKey").define("Persona judge API key", "");
+            PersonaJudgeModel = builder.comment("Model id for the persona-judge provider. Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.PersonaJudgeModel").define("Persona judge model", "");
 
             AttractivenessBase = builder.comment("Attractiveness starting value before any inputs apply.").translation(Villagelife.MODID + ".config.AttractivenessBase").defineInRange("Attractiveness base", 50.0D, 0.0D, 100.0D);
             AttractivenessFoodMax = builder.comment("Maximum attractiveness bonus from stocked food.").translation(Villagelife.MODID + ".config.AttractivenessFoodMax").defineInRange("Attractiveness food max", 25.0D, 0.0D, 100.0D);
