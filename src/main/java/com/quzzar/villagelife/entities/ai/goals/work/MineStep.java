@@ -23,10 +23,9 @@ import net.minecraft.world.level.block.Rotation;
  * Driving the shaft: a BREAK step with the only genuinely algorithmic selector
  * in the set.
  *
- * The cursor sweeps the square shaft floor directly beneath the mouth, and when
- * that layer is clear drops one level and sweeps the same square again - a
- * straight vertical shaft down the open pit the mine is built around, which is
- * exactly the sort of thing the docs are right to say cannot be expressed as
+ * The cursor sweeps a row across the shaft face, wraps to the next row, steps
+ * down a level when the face is done, and pushes one deeper each time - which
+ * is exactly the sort of thing the docs are right to say cannot be expressed as
  * datapack JSON without inventing a scripting language. The job definition can
  * name this selector; it cannot describe it.
  *
@@ -39,10 +38,7 @@ import net.minecraft.world.level.block.Rotation;
  */
 public final class MineStep implements BlockWorkStep {
 
-  // Half-width of the square shaft, in blocks either side of the mouth. RADIUS 1
-  // is the 3x3 column that fits the open pit the mine structure is built around;
-  // the miner stands at its rim and the shaft descends straight down the centre.
-  private static final int RADIUS = 1;
+  private static final int RADIUS = 2;
 
   /**
    * How many blocks the cursor may step over in one search. The version this
@@ -54,6 +50,7 @@ public final class MineStep implements BlockWorkStep {
 
   private BlockPos offset;
   private Block block;
+  private int inward = 1;
   private int breakTime;
   private int lastProgress = -1;
 
@@ -148,7 +145,7 @@ public final class MineStep implements BlockWorkStep {
    */
   private boolean locateNext(RealPerson person, BlockPos mouth, Rotation rotation) {
     if (this.offset == null) {
-      this.offset = new BlockPos(-RADIUS, -1, -RADIUS);
+      this.offset = new BlockPos(-(RADIUS + 1), -1, RADIUS - 1);
     }
     int steps = 0;
     do {
@@ -156,16 +153,13 @@ public final class MineStep implements BlockWorkStep {
         resetShaft();
         return false; // nothing solid within reach of the pattern; try again later
       }
-      // Sweep the square floor left-to-right, front-to-back; when the layer is
-      // clear, drop one block and sweep the same square again. Centred on the
-      // mouth, so the shaft goes straight down the pit instead of chewing
-      // sideways into the walls the mine is built from.
       this.offset = this.offset.offset(1, 0, 0);
-      if (this.offset.getX() > RADIUS) {
-        this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() + 1);
+      if (this.offset.getX() >= RADIUS + 1) {
+        this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() - 1);
       }
-      if (this.offset.getZ() > RADIUS) {
-        this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, -RADIUS);
+      if (this.offset.getZ() <= -(RADIUS + 1 + this.inward)) {
+        this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, 1 - this.inward);
+        this.inward++;
       }
       this.block = person.level().getBlockState(face(mouth, rotation)).getBlock();
     } while (this.block == Blocks.AIR || this.block == Blocks.TORCH
@@ -201,6 +195,7 @@ public final class MineStep implements BlockWorkStep {
   private void resetShaft() {
     this.block = null;
     this.offset = null;
+    this.inward = 1;
     this.breakTime = 0;
     this.lastProgress = -1;
   }
