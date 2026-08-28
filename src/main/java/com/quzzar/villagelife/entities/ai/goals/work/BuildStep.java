@@ -11,7 +11,9 @@ import com.quzzar.villagelife.village.buildings.BuildProgress;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Raising the village's current project: an ADVANCE step, which attends a site
@@ -62,6 +64,7 @@ public final class BuildStep implements BlockWorkStep {
       return false;
     }
     if (project.getProgress() != BuildProgress.PREPARING) {
+      keepBuilderClearOfNextBlock(person, project);
       project.updateBuilding();
       return true;
     }
@@ -108,6 +111,43 @@ public final class BuildStep implements BlockWorkStep {
     }
     double radius = project.getBuilding().getRadius();
     return radius * radius * RADIUS_SLACK;
+  }
+
+  /**
+   * The builder used to stand where the next block landed and get walled into its own
+   * building -- a solid block placed in your head suffocates you (Aaron). Before the
+   * next block goes down, if it would materialise where the builder is standing, step
+   * them one block aside to a clear, standable spot (up onto the last course if boxed
+   * in). Only for blocks that actually collide; a torch or carpet in your square is
+   * harmless.
+   */
+  private void keepBuilderClearOfNextBlock(RealPerson person, StructureInProgress project) {
+    BlockPos next = project.peekNextBlockPos();
+    BlockPos feet = person.blockPosition();
+    if (next == null || (!next.equals(feet) && !next.equals(feet.above()))) {
+      return;
+    }
+    BlockState state = project.peekNextBlockState();
+    if (state == null || state.getCollisionShape(person.level(), next).isEmpty()) {
+      return;
+    }
+    for (Direction dir : Direction.Plane.HORIZONTAL) {
+      BlockPos cand = feet.relative(dir);
+      if (!cand.equals(next) && !cand.above().equals(next) && standable(person, cand)) {
+        person.teleportTo(cand.getX() + 0.5D, cand.getY(), cand.getZ() + 0.5D);
+        return;
+      }
+    }
+    // Boxed in on all sides: step up onto the course just laid rather than into it.
+    person.teleportTo(feet.getX() + 0.5D, feet.getY() + 1.0D, feet.getZ() + 0.5D);
+  }
+
+  /** A spot the builder can stand: body space clear, solid ground underfoot. */
+  private boolean standable(RealPerson person, BlockPos at) {
+    var level = person.level();
+    return level.getBlockState(at).getCollisionShape(level, at).isEmpty()
+        && level.getBlockState(at.above()).getCollisionShape(level, at.above()).isEmpty()
+        && !level.getBlockState(at.below()).getCollisionShape(level, at.below()).isEmpty();
   }
 
   @Nullable

@@ -355,6 +355,24 @@ public class StructureInProgress {
         }
     }
 
+    /** World position of the next block this build will place, or null when none remains. */
+    @javax.annotation.Nullable
+    public BlockPos peekNextBlockPos() {
+        if (temp_structBlockInfoList == null || index >= temp_structBlockInfoList.size()) {
+            return null;
+        }
+        return temp_structBlockInfoList.get(index).pos();
+    }
+
+    /** State of the next block this build will place, or null when none remains. */
+    @javax.annotation.Nullable
+    public BlockState peekNextBlockState() {
+        if (temp_structBlockInfoList == null || index >= temp_structBlockInfoList.size()) {
+            return null;
+        }
+        return temp_structBlockInfoList.get(index).state();
+    }
+
     private boolean buildFirstPhase() {
 
         StructureTemplate template = getStructureTemplate();
