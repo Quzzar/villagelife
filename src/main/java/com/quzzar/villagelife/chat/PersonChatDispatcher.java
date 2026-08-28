@@ -30,6 +30,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.world.entity.EquipmentSlot;
 
 /**
  * The conversation pipeline (conversation map #28): assembles the villager's
@@ -510,21 +511,31 @@ public final class PersonChatDispatcher {
   private static void executeGive(RealPerson person, ServerPlayer player, String itemId) {
     long now = System.currentTimeMillis();
     String pair = person.getUUID() + ":" + player.getUUID();
-    // Full give logging: exactly what the villager has when a give is attempted,
-    // at INFO so a rejection is never a mystery in the normal server log.
-    String held = person.getMainHandItem().isEmpty() ? "empty-handed"
-        : BuiltInRegistries.ITEM.getKey(person.getMainHandItem().getItem()).toString();
-    StringBuilder pocketList = new StringBuilder();
+
+    // Full give logging: a complete snapshot of EVERY slot the villager owns, at
+    // INFO, so a rejection is never a mystery. A villager can give from any slot
+    // it has: main hand, off-hand, worn armour, or its carry-inventory. (Our
+    // villagers carry no Curios/Artifacts slots, since that mod isn't a
+    // dependency; if it ever is, those slots get enumerated here too.)
+    StringBuilder snapshot = new StringBuilder();
+    for (EquipmentSlot eq : EquipmentSlot.values()) {
+      ItemStack worn = person.getItemBySlot(eq);
+      if (!worn.isEmpty()) {
+        snapshot.append(eq.getName()).append('=').append(worn.getCount()).append("x ")
+            .append(BuiltInRegistries.ITEM.getKey(worn.getItem())).append(", ");
+      }
+    }
     for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
       ItemStack s = person.personMainInv.getItem(i);
       if (!s.isEmpty()) {
-        pocketList.append(s.getCount()).append("x ")
+        snapshot.append("carry=").append(s.getCount()).append("x ")
             .append(BuiltInRegistries.ITEM.getKey(s.getItem())).append(", ");
       }
     }
-    String carry = pocketList.length() == 0 ? "nothing" : pocketList.substring(0, pocketList.length() - 2);
-    Villagelife.LOGGER.info("[chat give] {} wants to give '{}' to {} | holding: {} | carry-inventory: {}",
-        person.getFullName(), itemId, player.getGameProfile().getName(), held, carry);
+    String slots = snapshot.length() == 0 ? "nothing" : snapshot.substring(0, snapshot.length() - 2);
+    Villagelife.LOGGER.info("[chat give] {} wants to give '{}' to {} | all slots: {}",
+        person.getFullName(), itemId, player.getGameProfile().getName(), slots);
+
     Long last = LAST_GIVE.get(pair);
     if (last != null && now - last < GIVE_COOLDOWN_MS) {
       Villagelife.LOGGER.info("[chat give] REFUSED '{}': {} already gave something {}s ago (cooldown is {}s)",
@@ -537,23 +548,46 @@ public final class PersonChatDispatcher {
       return;
     }
     var item = BuiltInRegistries.ITEM.get(id);
-    for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
-      ItemStack stack = person.personMainInv.getItem(i);
-      if (!stack.isEmpty() && stack.getItem() == item) {
-        ItemStack handed = person.personMainInv.removeItem(i, 1);
-        ItemEntity drop = new ItemEntity(person.level(), person.getX(), person.getEyeY() - 0.3, person.getZ(), handed);
-        Vec3 toward = player.position().add(0, 0.5, 0).subtract(drop.position()).normalize().scale(0.3);
-        drop.setDeltaMovement(toward);
-        drop.setNoPickUpDelay();
-        person.level().addFreshEntity(drop);
-        LAST_GIVE.put(pair, now);
-        Villagelife.LOGGER.info("[chat] {} handed {} to {}", person.getFullName(), itemId,
-            player.getGameProfile().getName());
-        return;
+
+    // Search every slot the villager has. Equipment first (hand, off-hand,
+    // armour) so a held tool is what gets handed over, then carry-inventory.
+    ItemStack handed = ItemStack.EMPTY;
+    String from = null;
+    for (EquipmentSlot eq : EquipmentSlot.values()) {
+      ItemStack worn = person.getItemBySlot(eq);
+      if (!worn.isEmpty() && worn.getItem() == item) {
+        handed = worn.copy();
+        handed.setCount(1);
+        worn.shrink(1);
+        person.setItemSlot(eq, worn.isEmpty() ? ItemStack.EMPTY : worn);
+        from = eq.getName();
+        break;
       }
     }
-    Villagelife.LOGGER.info("[chat give] REJECTED '{}': not in carry-inventory. The give only checks "
-        + "carry-inventory (personMainInv), NOT the held item ({}) or any chest.", itemId, held);
+    if (handed.isEmpty()) {
+      for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
+        ItemStack stack = person.personMainInv.getItem(i);
+        if (!stack.isEmpty() && stack.getItem() == item) {
+          handed = person.personMainInv.removeItem(i, 1);
+          from = "carry";
+          break;
+        }
+      }
+    }
+    if (handed.isEmpty()) {
+      Villagelife.LOGGER.info("[chat give] REJECTED '{}': {} has none in any slot "
+          + "(hand, off-hand, armour, or carry-inventory)", itemId, person.getFullName());
+      return;
+    }
+
+    ItemEntity drop = new ItemEntity(person.level(), person.getX(), person.getEyeY() - 0.3, person.getZ(), handed);
+    Vec3 toward = player.position().add(0, 0.5, 0).subtract(drop.position()).normalize().scale(0.3);
+    drop.setDeltaMovement(toward);
+    drop.setNoPickUpDelay();
+    person.level().addFreshEntity(drop);
+    LAST_GIVE.put(pair, now);
+    Villagelife.LOGGER.info("[chat give] {} handed {} to {} (from {})", person.getFullName(), itemId,
+        player.getGameProfile().getName(), from);
   }
 
   private static String fallbackLine(RealPerson person) {
