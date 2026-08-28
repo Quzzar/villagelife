@@ -1,0 +1,39 @@
+{
+  "structure": "tavern_desert_1",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        8,
+        2,
+        7
+      ],
+      "occupation": "INNKEEPER"
+    }
+  ],
+  "containers": [
+    [
+      3,
+      7,
+      5
+    ],
+    [
+      12,
+      3,
+      5
+    ]
+  ],
+  "cost": [
+    {
+      "item": "minecraft:acacia_log",
+      "count": 150
+    },
+    {
+      "item": "minecraft:cut_sandstone",
+      "count": 169
+    }
+  ],
+  "grants": [
+    "WANDERERS"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "structure": "tavern_taiga_1",
+  "beds": [],
+  "work_stations": [
+    {
+      "pos": [
+        8,
+        2,
+        7
+      ],
+      "occupation": "INNKEEPER"
+    }
+  ],
+  "containers": [
+    [
+      3,
+      7,
+      5
+    ],
+    [
+      12,
+      3,
+      5
+    ]
+  ],
+  "cost": [
+    {
+      "item": "minecraft:spruce_log",
+      "count": 150
+    },
+    {
+      "item": "minecraft:stone_bricks",
+      "count": 169
+    }
+  ],
+  "grants": [
+    "WANDERERS"
+  ]
+}
