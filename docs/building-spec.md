@@ -437,10 +437,10 @@ loop describable in one sentence, must not be another category wearing a differe
 must not exist solely to feed something else. Stronghold, the stated model, shipped roughly
 25 building types.
 
-**Survivors (21).** Infrastructure: `village_center`, `house`, `well`, `storehouse`,
-`watchtower`. Extraction: `farm`, `pasture`, `lumberjack`, `stoneworks`, `mine`. Food:
-`hunting_lodge`, `fishery`, `bakery`, `butchery`, `brewery`. Craft: `blacksmith`,
-`workshop`. Civic: `market`, `church`, `inn`, `library`.
+**Survivors (17).** Infrastructure: `village_center`, `house`, `well`, `storehouse`,
+`watchtower`. Extraction: `farm`, `lumberjack`, `stoneworks`, `mine`. Food:
+`hunting_lodge`, `fishery`, `bakery`, `butchery`. Craft: `blacksmith`. Civic: `market`,
+`church`, `tavern`.
 
 **Cut, and why.** These are gone rather than deferred, so nobody re-proposes them in six
 months:
@@ -449,7 +449,11 @@ months:
 - `mill` — collapsed into `bakery` — the baker grinds their own grain; a step nobody watches is complexity with no audience
 - `charcoal_burner` — collapsed into `blacksmith` — the smith burns their own charcoal
 - `kiln` (with the `pottery` and `glassworks` it had absorbed) — cut — Aaron's call: the village needs no dedicated brick/glass producer. No building costs brick, and glass is bought through the market like any other traded good (`glass_pane` derives to an authored value, so it is always purchasable). This takes the survivor count from 22 to 21.
-- `weaver` — merged into `workshop` — structurally identical to the tannery: turn an animal product into goods
+- `weaver` and `workshop` — folded into `butchery` — Aaron built the old `tannery` as a livestock butchery (a fenced pen of cows and sheep with a worker who makes meat, leather, and wool), which produces leather directly, so there is no separate leather-goods building. The `tannery` is accordingly renamed `butchery`.
+- `pasture` — folded into `butchery` — the butchery already holds the cows and sheep; a separate livestock building is redundant.
+- `brewery` — cut — Aaron's call: pure flavour, and there is no ale item for the brewer to make.
+- `library` — cut — Aaron's call: knowledge grants nothing the design uses.
+- `inn` — renamed `tavern` — it is a bar that draws wanderers (grant `WANDERERS`), not lodging: no beds and no residents. Together with the four cuts above, this takes the survivor count from 21 to 17.
 - `mushroom_cellar` — a `farm` variant, not a category
 - `apiary` — no worker and no capability it uniquely grants
 - `graveyard` — its only purpose was MORALE, and there is no second happiness stat

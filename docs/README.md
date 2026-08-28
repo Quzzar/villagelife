@@ -39,7 +39,7 @@ in it, and update it in the same change that moves what it describes.
   the builder's prepare phase, and the runtime budget that keeps site search off the tick.
 - [building-spec.md](building-spec.md): the complete enumeration. Every variant, every level,
   its cost in build points, its special materials, and the capabilities it grants the village.
-  The enumeration maps 36 categories, of which 22 survived the cut — see its "The cut"
+  The enumeration maps 36 categories, of which 17 survived the cut — see its "The cut"
   section for the survivors and the casualties. Ends in the structure-file manifest used for
   sourcing.
 - [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
