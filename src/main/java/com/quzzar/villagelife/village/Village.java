@@ -367,8 +367,15 @@ public class Village {
       Villagelife.LOGGER.warn("Founding set building '{}' is not loaded; the camp founds without it", name);
       return null;
     }
+    // Turn each companion so its front (local -Z) faces the campfire: out across the
+    // flank axis, door pointing back toward the centre. Mapping verified in-world
+    // against the mine's door. Both founding companions are odd-dimensioned, so the
+    // rotation only changes which way they face, not where they centre.
+    Rotation facing = flankAlongX
+        ? (side > 0 ? Rotation.COUNTERCLOCKWISE_90 : Rotation.CLOCKWISE_90)
+        : (side > 0 ? Rotation.NONE : Rotation.CLOCKWISE_180);
     InstantBuildStructure struct =
-        new InstantBuildStructure(new Building(info.getName(), Rotation.CLOCKWISE_90), random, level);
+        new InstantBuildStructure(new Building(info.getName(), facing), random, level);
     BoundingBox bounds = struct.getBounds();
     int companionHalfShort = (flankAlongX ? bounds.getXSpan() : bounds.getZSpan()) / 2;
     int out = centreHalfShort + gap + companionHalfShort;
@@ -455,6 +462,16 @@ public class Village {
           } else {
             break; // solid ground reached; the rest of the column is fine
           }
+        }
+        // Cap the levelled surface with grass so a cut mound or a filled dip reads as
+        // ground, not the bare dirt/stone scar Aaron flagged ("get rid of the weird
+        // extra dirt"). Only the exposed top block, only where it's solid ground; the
+        // buildings overwrite their own footprint, so this shows at the camp's edges.
+        pos.set(x, planeY - 1, z);
+        var surfaceBlock = level.getBlockState(pos);
+        if (!surfaceBlock.isAir() && surfaceBlock.getFluidState().isEmpty()
+            && level.getBlockEntity(pos) == null && !surfaceBlock.is(Blocks.GRASS_BLOCK)) {
+          level.setBlock(pos, Blocks.GRASS_BLOCK.defaultBlockState(), 3);
         }
       }
     }
