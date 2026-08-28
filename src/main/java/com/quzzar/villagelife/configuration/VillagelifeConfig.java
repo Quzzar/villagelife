@@ -23,6 +23,7 @@ public class VillagelifeConfig {
     }
 
     public static int DaysInYear;
+    public static boolean OverrideVillages;
     public static boolean LlmEnabled;
     public static String LlmModel;
     public static int LlmMaxNewTokens;
@@ -71,6 +72,7 @@ public class VillagelifeConfig {
 
     public static void bakeCommonConfig() {
         DaysInYear = COMMON.DaysInYear.get();
+        OverrideVillages = COMMON.OverrideVillages.get();
         LlmEnabled = COMMON.LlmEnabled.get();
         LlmModel = COMMON.LlmModel.get();
         LlmMaxNewTokens = COMMON.LlmMaxNewTokens.get();
@@ -129,6 +131,7 @@ public class VillagelifeConfig {
 
     public static class CommonConfig {
         public final ModConfigSpec.IntValue DaysInYear;
+        public final ModConfigSpec.BooleanValue OverrideVillages;
         public final ModConfigSpec.BooleanValue LlmEnabled;
         public final ModConfigSpec.ConfigValue<String> LlmModel;
         public final ModConfigSpec.ConfigValue<String> LlmLocalUrl;
@@ -178,6 +181,8 @@ public class VillagelifeConfig {
         public CommonConfig(ModConfigSpec.Builder builder) {
 
             DaysInYear = builder.comment("Days in one Minecraft year (there are 8 days in one full lunar cycle).").translation(Villagelife.MODID + ".config.DaysInYear").defineInRange("Days in Year", 96, 8, 79992);
+
+            OverrideVillages = builder.comment("Replace vanilla Minecraft villages with villagelife villages during world generation. On (default): vanilla villages stop generating and a living villagelife village is founded where each one would have been. Off: vanilla village worldgen is left untouched and villagelife villages appear only via /villagelife create-village - use this when another village mod should own generation. Only vanilla minecraft:village is affected; other mods' villages are never touched.").translation(Villagelife.MODID + ".config.OverrideVillages").define("Override villages", true);
 
             LlmEnabled = builder.comment("Enable the local LLM that helps villagers make decisions. The model (a few hundred MB) is downloaded from HuggingFace on first server start and cached in <game dir>/villagelife/models. Runs in its own small worker process, so no launcher setup is needed; budget roughly 1.5GB of RAM beyond the game's needs (on small hosted servers, pick the 0.5B model or disable this). Check /vlbrain status in-game.").translation(Villagelife.MODID + ".config.LlmEnabled").define("Enable villager LLM?", true);
             LlmModel = builder.comment("Offline model for the jlama provider (any Jlama-compatible JQ4 HuggingFace id works). tjake/Llama-3.2-1B-Instruct-JQ4 is the default and the only actively tested model. Untested alternates some players use: tjake/granite-3.0-2b-instruct-JQ4 (~1.4GB) and tjake/gemma-2-2b-it-JQ4 (~1.6GB) — bigger and slower, not routinely verified. Downloaded on first server start.").translation(Villagelife.MODID + ".config.LlmModel").define("LLM model id", "tjake/Llama-3.2-1B-Instruct-JQ4");
