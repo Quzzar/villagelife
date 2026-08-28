@@ -1,5 +1,5 @@
 {
-  "structure": "church_plains_1",
+  "structure": "church_savanna_1",
   "beds": [
     [
       4,
@@ -40,7 +40,7 @@
       "count": 1800
     },
     {
-      "item": "minecraft:oak_log",
+      "item": "minecraft:acacia_log",
       "count": 133
     },
     {

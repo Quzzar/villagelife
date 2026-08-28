@@ -1,5 +1,5 @@
 {
-  "structure": "church_plains_1",
+  "structure": "church_taiga_1",
   "beds": [
     [
       4,
@@ -40,7 +40,7 @@
       "count": 1800
     },
     {
-      "item": "minecraft:oak_log",
+      "item": "minecraft:spruce_log",
       "count": 133
     },
     {
