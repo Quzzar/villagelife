@@ -1,7 +1,7 @@
 {
-  "structure": "tannery_taiga_1",
+  "structure": "butchery_plains_1",
   "category": "tannery",
-  "variant": "taiga",
+  "variant": "plains",
   "beds": [],
   "work_stations": [
     {
@@ -10,7 +10,7 @@
         0,
         4
       ],
-      "occupation": "TANNER"
+      "occupation": "BUTCHER"
     }
   ],
   "containers": [
@@ -32,6 +32,7 @@
   ],
   "grants": [
     "MEAT",
-    "LEATHER"
+    "LEATHER",
+    "WOOL"
   ]
 }

@@ -1,7 +1,7 @@
 {
-  "structure": "tannery_plains_1",
+  "structure": "butchery_snowy_1",
   "category": "tannery",
-  "variant": "plains",
+  "variant": "snowy",
   "beds": [],
   "work_stations": [
     {
@@ -10,7 +10,7 @@
         0,
         4
       ],
-      "occupation": "TANNER"
+      "occupation": "BUTCHER"
     }
   ],
   "containers": [
@@ -23,15 +23,16 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 31
+      "count": 13
     },
     {
-      "item": "minecraft:cobblestone",
-      "count": 41
+      "item": "minecraft:stone_bricks",
+      "count": 77
     }
   ],
   "grants": [
     "MEAT",
-    "LEATHER"
+    "LEATHER",
+    "WOOL"
   ]
 }

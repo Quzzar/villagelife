@@ -1,5 +1,5 @@
 {
-  "structure": "tannery_savanna_1",
+  "structure": "butchery_savanna_1",
   "category": "tannery",
   "variant": "savanna",
   "beds": [],
@@ -10,7 +10,7 @@
         0,
         4
       ],
-      "occupation": "TANNER"
+      "occupation": "BUTCHER"
     }
   ],
   "containers": [
@@ -32,6 +32,7 @@
   ],
   "grants": [
     "MEAT",
-    "LEATHER"
+    "LEATHER",
+    "WOOL"
   ]
 }

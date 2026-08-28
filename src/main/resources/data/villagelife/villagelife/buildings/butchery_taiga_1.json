@@ -1,7 +1,7 @@
 {
-  "structure": "tannery_desert_1",
+  "structure": "butchery_taiga_1",
   "category": "tannery",
-  "variant": "desert",
+  "variant": "taiga",
   "beds": [],
   "work_stations": [
     {
@@ -10,7 +10,7 @@
         0,
         4
       ],
-      "occupation": "TANNER"
+      "occupation": "BUTCHER"
     }
   ],
   "containers": [
@@ -23,15 +23,16 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 10
+      "count": 31
     },
     {
-      "item": "minecraft:sandstone",
-      "count": 82
+      "item": "minecraft:cobblestone",
+      "count": 41
     }
   ],
   "grants": [
     "MEAT",
-    "LEATHER"
+    "LEATHER",
+    "WOOL"
   ]
 }
