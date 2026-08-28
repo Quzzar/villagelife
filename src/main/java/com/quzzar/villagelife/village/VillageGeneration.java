@@ -58,12 +58,20 @@ public final class VillageGeneration {
         }
     }
 
-    /** Founds this region's village if its site is loaded, dry, and not already settled. */
+    /** Chunks out from the site that must be loaded before founding (covers the ~35-block camp reach). */
+    private static final int FOOTPRINT_CHUNK_RADIUS = 3;
+
+    /** Founds this region's village if its footprint is loaded, dry, and not already settled. */
     private static boolean tryFoundInRegion(ServerLevel level, long seed, int regionX, int regionZ) {
         ChunkPos site = villageChunk(seed, regionX, regionZ);
         BlockPos column = new BlockPos(site.getMiddleBlockX(), level.getSeaLevel(), site.getMiddleBlockZ());
-        if (!level.isLoaded(column)) {
-            return false; // no player has this site loaded yet
+        // Require the whole camp FOOTPRINT loaded, not just the site chunk. Founding levels the
+        // ground under the camp, and an ungenerated neighbour column reads as the world floor -
+        // which fills a giant dirt pillar at the village edge (the "settling rough / no ground
+        // under X" advisory). Waiting until a player has genuinely generated the footprint makes
+        // the leveller read real terrain everywhere.
+        if (!footprintLoaded(level, column)) {
+            return false;
         }
         BlockPos surface = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE, column);
         if (level.getFluidState(surface.below()).is(FluidTags.WATER)) {
@@ -76,6 +84,18 @@ public final class VillageGeneration {
             return false; // a village already stands near this site
         }
         VillageManager.get(level).registerVillage(level, surface);
+        return true;
+    }
+
+    /** True only when every chunk within FOOTPRINT_CHUNK_RADIUS of the site is genuinely loaded. */
+    private static boolean footprintLoaded(ServerLevel level, BlockPos center) {
+        for (int cx = -FOOTPRINT_CHUNK_RADIUS; cx <= FOOTPRINT_CHUNK_RADIUS; cx++) {
+            for (int cz = -FOOTPRINT_CHUNK_RADIUS; cz <= FOOTPRINT_CHUNK_RADIUS; cz++) {
+                if (!level.isLoaded(center.offset(cx * 16, 0, cz * 16))) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 
