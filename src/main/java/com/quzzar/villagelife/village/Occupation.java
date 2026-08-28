@@ -18,6 +18,14 @@ public enum Occupation {
     TANNER,
     HUNTER,
     FISHER,
+    // New-category occupations (bakery, butchery, brewery, pasture, inn). Present so their
+    // building defs load through forEnum; their work loops are still to come (#47). Until
+    // those land they behave like the other loop-less jobs: assigned, but producing nothing.
+    BAKER,
+    BUTCHER,
+    BREWER,
+    HERDER,
+    INNKEEPER,
     QUARTERMASTER,
     LEADER;
 
