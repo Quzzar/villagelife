@@ -437,9 +437,9 @@ loop describable in one sentence, must not be another category wearing a differe
 must not exist solely to feed something else. Stronghold, the stated model, shipped roughly
 25 building types.
 
-**Survivors (22).** Infrastructure: `village_center`, `house`, `well`, `storehouse`,
+**Survivors (21).** Infrastructure: `village_center`, `house`, `well`, `storehouse`,
 `watchtower`. Extraction: `farm`, `pasture`, `lumberjack`, `stoneworks`, `mine`. Food:
-`hunting_lodge`, `fishery`, `bakery`, `butchery`, `brewery`. Craft: `blacksmith`, `kiln`,
+`hunting_lodge`, `fishery`, `bakery`, `butchery`, `brewery`. Craft: `blacksmith`,
 `workshop`. Civic: `market`, `church`, `inn`, `library`.
 
 **Cut, and why.** These are gone rather than deferred, so nobody re-proposes them in six
@@ -448,7 +448,7 @@ months:
 - `granary` — absorbed into `storehouse` — it was a storehouse that only held food
 - `mill` — collapsed into `bakery` — the baker grinds their own grain; a step nobody watches is complexity with no audience
 - `charcoal_burner` — collapsed into `blacksmith` — the smith burns their own charcoal
-- `glassworks` — merged into `kiln` — structurally identical to pottery: turn a worthless local resource into building material
+- `kiln` (with the `pottery` and `glassworks` it had absorbed) — cut — Aaron's call: the village needs no dedicated brick/glass producer. No building costs brick, and glass is bought through the market like any other traded good (`glass_pane` derives to an authored value, so it is always purchasable). This takes the survivor count from 22 to 21.
 - `weaver` — merged into `workshop` — structurally identical to the tannery: turn an animal product into goods
 - `mushroom_cellar` — a `farm` variant, not a category
 - `apiary` — no worker and no capability it uniquely grants
@@ -462,8 +462,9 @@ months:
 Walls and gatehouses are not in the count either way: they are linear rather than footprints
 and are probably not `Building`s at all.
 
-**The structure manifest below predates this cut** and still counts 173 files across 36
-categories. It needs regenerating against the 22.
+**The structure manifest below predates these cuts** and still counts 173 files across 36
+categories. It needs regenerating against the 21 (it still enumerates the cut `kiln`,
+`pottery`, and `glassworks`, along with every other cut category).
 
 ## Beds belong to houses
 
@@ -746,19 +747,6 @@ Worker: **MINER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `deser
 
 Founding building, placed free, and the only job a new camp has besides its builder. Two upgrades for one capability: DIAMOND at L3 is what makes blacksmith L3 mean anything, and the pairing is deliberate. The deepest mine and the greatest forge are a village's endgame together.
 
-#### `kiln`
-
-Worker: **POTTER**  ·  Phase 3  ·  Variants: `plains`, `desert`
-
-*Merged category: absorbs the old `glassworks`: fires clay into brick and sand into glass.*
-
-| Level | Name | Footprint | Recipe (plains) | Grants |
-| --- | --- | --- | --- | --- |
-| 1 | kiln | 7x7 | 12 oak log, 20 oak planks, 20 cobblestone, 4 glass, 2 wool | BRICK, pots |
-| 2 (upgrade) | pottery | 11x11 | 20 oak log, 28 oak planks, 28 cobblestone, 4 glass, 4 wool | BRICK more, glazed and decorated |
-
-Turns clay, otherwise a worthless biome resource, into building material. Half of why a river or badlands village stops being materially poor.
-
 ### Craft
 
 #### `blacksmith`
@@ -829,6 +817,11 @@ Pairs with `wall`. Same phase, same blocker.
 ---
 
 ## Structure manifest
+
+> **Superseded.** This manifest predates the 36→21 category cut and still enumerates cut
+> categories (`kiln`/`pottery`/`glassworks`, `graveyard`, `apiary`, `charcoal_burner`,
+> `weaver`, and all of Phase 4). It needs regenerating against the 21 survivors; until then
+> the per-category tables above are authoritative, not this list.
 
 Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
 

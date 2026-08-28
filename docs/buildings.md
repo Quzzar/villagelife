@@ -1,7 +1,9 @@
 # Buildings: the catalog
 
-**Superseded in part: the catalogue was cut from 36 categories to 22** on
-[#57](https://github.com/Quzzar/villagelife/issues/57); see the "The cut" section of
+**Superseded in part: the catalogue was cut from 36 categories to 21** on
+[#57](https://github.com/Quzzar/villagelife/issues/57) and after (the `kiln`, with the
+`pottery` and `glassworks` it had absorbed, was later cut as well: the village buys glass
+and needs no brick producer); see the "The cut" section of
 [building-spec.md](building-spec.md) for the survivors and the casualties with reasons.
 The reasoning below still explains WHY the categories exist and how they group, which is
 why it is kept, but where it lists a category the spec has cut, the spec wins.
