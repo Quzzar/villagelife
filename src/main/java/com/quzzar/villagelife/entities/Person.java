@@ -100,8 +100,31 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   private static final AttributeModifier USE_ITEM_SPEED_PENALTY = new AttributeModifier(SPEED_MODIFIER_ID,
       -0.25D, AttributeModifier.Operation.ADD_VALUE);
 
-  /** Number of skins in {@code textures/entity/person/person_N.png}. */
-  public static final int SKIN_VARIANT_COUNT = 7;
+  /**
+   * Skins are gender-specific pools: {@code person_<male|female|nonbinary>_N.png}. A
+   * villager draws from the pool matching its gender, so a man never wears a dress nor a
+   * woman a beard. Bump these counts when skins are added to a pool.
+   */
+  public static final int MALE_SKIN_COUNT = 3;
+  public static final int FEMALE_SKIN_COUNT = 8;
+  public static final int NONBINARY_SKIN_COUNT = 3;
+
+  /** How many skins the given gender's pool holds. */
+  public static int skinCountFor(Gender gender) {
+    return switch (gender) {
+      case MALE -> MALE_SKIN_COUNT;
+      case FEMALE -> FEMALE_SKIN_COUNT;
+      case NONBINARY -> NONBINARY_SKIN_COUNT;
+    };
+  }
+
+  /**
+   * The skin variant is rolled at spawn BEFORE the gender is known (finalizeSpawn sets
+   * the skin; the identity roll sets gender afterward), so it is stored as a wide
+   * gender-agnostic index and the renderer maps it into the villager's own-gender pool
+   * as {@code index % poolSize}. A large prime range keeps that modulo close to even.
+   */
+  public static final int SKIN_INDEX_RANGE = 100_003;
 
   private static final EntityDataAccessor<Integer> SKIN_VARIANT = SynchedEntityData.defineId(Person.class,
       EntityDataSerializers.INT);
@@ -179,7 +202,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   public SpawnGroupData finalizeSpawn(ServerLevelAccessor worldIn, DifficultyInstance difficultyIn,
       MobSpawnType reason, @Nullable SpawnGroupData spawnDataIn) {
     this.setPersistenceRequired();
-    this.setSkinVariant(this.random.nextInt(SKIN_VARIANT_COUNT));
+    this.setSkinVariant(this.random.nextInt(SKIN_INDEX_RANGE));
     return super.finalizeSpawn(worldIn, difficultyIn, reason, spawnDataIn);
   }
 
@@ -253,7 +276,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     } else {
       // Saved before skins were rolled at all. Give them a face now rather than leaving
       // every pre-existing villager wearing skin 0.
-      this.setSkinVariant(this.random.nextInt(SKIN_VARIANT_COUNT));
+      this.setSkinVariant(this.random.nextInt(SKIN_INDEX_RANGE));
     }
     this.guiOpen = compound.getBoolean("GuiOpen");
     this.immobile = compound.getBoolean("Immobile");
@@ -552,7 +575,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
    * variant saved by a build with a larger skin pool can never point at a missing texture.
    */
   public void setSkinVariant(int variant) {
-    this.entityData.set(SKIN_VARIANT, Math.floorMod(variant, SKIN_VARIANT_COUNT));
+    this.entityData.set(SKIN_VARIANT, Math.floorMod(variant, SKIN_INDEX_RANGE));
   }
 
   @Override

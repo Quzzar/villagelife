@@ -5,7 +5,9 @@ import javax.annotation.Nullable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.client.models.PersonModel;
+import com.quzzar.villagelife.entities.Gender;
 import com.quzzar.villagelife.entities.Person;
+import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.events.PersonClientEvents;
 
 import net.minecraft.client.model.HumanoidModel;
@@ -130,7 +132,20 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
     @Nullable
     @Override
     public ResourceLocation getTextureLocation(Person entity) {
-        return ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, 
-                        "textures/entity/person/person_" + entity.getSkinVariant() + ".png");
+        // Pick a skin from the villager's OWN-gender pool. The variant is a wide
+        // gender-agnostic index (rolled before gender is known); map it into the pool
+        // with index % poolSize so a man draws a man's skin, a woman a woman's.
+        Gender gender = (entity instanceof RealPerson realPerson) ? realPerson.getGender() : Gender.NONBINARY;
+        // A pool can be empty before its skins are added; fall back to any populated
+        // pool so a villager never renders the missing-texture checkerboard.
+        if (Person.skinCountFor(gender) == 0) {
+            for (Gender alt : Gender.values()) {
+                if (Person.skinCountFor(alt) > 0) { gender = alt; break; }
+            }
+        }
+        int count = Math.max(1, Person.skinCountFor(gender));
+        int index = Math.floorMod(entity.getSkinVariant(), count);
+        return ResourceLocation.fromNamespaceAndPath(Villagelife.MODID,
+                "textures/entity/person/person_" + gender.name().toLowerCase() + "_" + index + ".png");
     }
 }
