@@ -265,10 +265,20 @@ public class Village {
     InstantBuildStructure centerStruct = new InstantBuildStructure(
         new Building(centerInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]), random, level)
         .setOriginLocation(platCenter, claimGrid);
+
+    // Sit the companions FLUSH against the centre, one on each side of the campfire,
+    // rather than a full templateSpan out. The old `clearance` used max(x,z), so on
+    // the centre's narrow axis the mine and store stood ~9 blocks adrift in an empty
+    // field. Measure the centre's ACTUAL placed half-width (getBounds() carries its
+    // rotation) and set each companion its own half-width plus one block off that edge,
+    // so their near wall kisses the centre and the camp reads as one tight cluster.
+    int centreHalfX = centerStruct.getBounds().getXSpan() / 2;
+    int mineOffset = centreHalfX + foundingHalfSpan(Buildings.FOUNDING_MINE_NAME) + 1;
+    int storeOffset = centreHalfX + foundingHalfSpan(Buildings.FOUNDING_STOREHOUSE_NAME) + 1;
     InstantBuildStructure mineStruct =
-        planFoundingCompanion(Buildings.FOUNDING_MINE_NAME, platCenter.offset(clearance, 0, 0));
+        planFoundingCompanion(Buildings.FOUNDING_MINE_NAME, platCenter.offset(mineOffset, 0, 0));
     InstantBuildStructure storeStruct =
-        planFoundingCompanion(Buildings.FOUNDING_STOREHOUSE_NAME, platCenter.offset(-clearance, 0, 0));
+        planFoundingCompanion(Buildings.FOUNDING_STOREHOUSE_NAME, platCenter.offset(-storeOffset, 0, 0));
 
     Building centerBuilding = centerStruct.getBuilding();
     centerStruct.buildInstantly();
@@ -320,6 +330,12 @@ public class Village {
         net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, info.getPath()));
     var size = template.getSize();
     return Math.max(size.getX(), size.getZ());
+  }
+
+  /** Half a founding companion's span, for placing it flush against the centre. */
+  private int foundingHalfSpan(String name) {
+    BuildingInfo info = Buildings.getByName(name);
+    return (info != null ? templateSpan(info) : 6) / 2;
   }
 
   /** A founding companion planned at the shared plane, or null when its definition is not loaded. */
