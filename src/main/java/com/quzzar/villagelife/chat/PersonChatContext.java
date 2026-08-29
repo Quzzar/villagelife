@@ -13,6 +13,7 @@ import com.quzzar.villagelife.entities.UndertakingData;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService.FewShotExample;
+import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
@@ -292,6 +293,11 @@ public final class PersonChatContext {
     system.append("Your pockets: ").append(pockets.isEmpty() ? "empty" : pockets).append(".\n");
 
     system.append("It is now ").append(PersonalLogData.formatDay(person.level().getDayTime())).append(".\n");
+    // Villagers reckon the year from the world's age (the Days in Year config),
+    // one-based so a fresh world is year 1. The time of day above says where in
+    // the day they are; this gives the larger calendar for a chat to lean on.
+    int worldYear = (int) YearManager.getYears(person.level()) + 1;
+    system.append("The year is ").append(worldYear).append(".\n");
 
     PersonalLogData log = person.getData(VillagelifeAttachments.PERSONAL_LOG.get());
     String remembered = pickupSummary(person, log, 5);
