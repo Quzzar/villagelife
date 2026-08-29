@@ -721,12 +721,15 @@ public class Village {
     }
     List<Long> ring;
     java.util.Set<Long> gates;
+    List<Integer> ground;
     if (wallProject != null && tier == wallProject.getTier().next()) {
       ring = wallProject.getRing(); // an upgrade re-walks the standing ring
       gates = wallProject.getGates();
+      ground = wallProject.getGround(); // and its captured ground, not the wall now standing there
     } else {
       ring = traceWallRing(WALL_PADDING);
       gates = wallGates(WALL_PADDING);
+      ground = com.quzzar.villagelife.village.buildings.WallRaiser.groundProfile(level, ring);
     }
     if (ring.isEmpty()) {
       return false;
@@ -738,7 +741,8 @@ public class Village {
       maybeLogShortage(new ItemStack(tier.material(), estimate));
       return false;
     }
-    wallProject = new WallProject(new ArrayList<>(ring), new HashSet<>(gates), tier);
+    wallProject = new WallProject(new ArrayList<>(ring), new HashSet<>(gates),
+        new ArrayList<>(ground), tier);
     Villagelife.LOGGER.info("Village '{}' raises a {} wall around itself: {} segments",
         name, tier.name().toLowerCase(), ring.size());
     return true;
@@ -758,12 +762,17 @@ public class Village {
     if (ring.isEmpty()) {
       return 0;
     }
-    for (long column : ring) {
+    List<Integer> ground =
+        com.quzzar.villagelife.village.buildings.WallRaiser.groundProfile(level, ring);
+    for (int i = 0; i < ring.size(); i++) {
+      long column = ring.get(i);
       int x = BlockPos.getX(column);
       int z = BlockPos.getZ(column);
       boolean gate = gates.contains(column);
+      int base = ground.get(i);
+      int floor = com.quzzar.villagelife.village.buildings.WallRaiser.seamFloor(ground, i);
       int[] range = com.quzzar.villagelife.village.buildings.WallRaiser
-          .segmentRange(level, x, z, tier, gate);
+          .segmentRange(level, x, z, tier, gate, base, floor);
       if (range != null) {
         com.quzzar.villagelife.village.buildings.WallRaiser.place(level, x, z, range, tier);
         if (gate && getTownCenter() != null) {
@@ -773,7 +782,8 @@ public class Village {
         }
       }
     }
-    wallProject = WallProject.completed(new ArrayList<>(ring), new HashSet<>(gates), tier);
+    wallProject = WallProject.completed(new ArrayList<>(ring), new HashSet<>(gates),
+        new ArrayList<>(ground), tier);
     Villagelife.LOGGER.info("Village '{}' ringed with a {} wall (dev): {} segments",
         name, tier.name().toLowerCase(), ring.size());
     return ring.size();

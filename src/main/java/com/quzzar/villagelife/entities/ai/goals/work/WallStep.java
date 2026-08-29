@@ -114,7 +114,17 @@ public final class WallStep implements BlockWorkStep {
     int z = BlockPos.getZ(column);
     WallTier tier = wall.getTier();
     boolean gate = wall.isGate(column);
-    int[] range = WallRaiser.segmentRange(level, x, z, tier, gate);
+    int base;
+    int floor;
+    if (wall.hasGround()) {
+      int i = wall.getCursor();
+      base = wall.groundAt(i);
+      floor = wall.seamFloor(i);
+    } else {
+      base = WallRaiser.surfaceY(level, x, z); // a wall saved before the ground profile existed
+      floor = base;
+    }
+    int[] range = WallRaiser.segmentRange(level, x, z, tier, gate, base, floor);
     if (range == null) {
       return true; // nothing to place here; treat the column as done
     }
