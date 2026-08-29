@@ -34,9 +34,6 @@ public class PersonChatScreen
     extends net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<
         com.quzzar.villagelife.menu.MarketMenu> {
 
-  // Panel and text colours, kept together so the surface reads as one piece.
-  private static final int PANEL_FILL = 0xE6101017;
-  private static final int PANEL_BORDER = 0xFF4B4B5A;
   // Minecraft's own GUI palette: the grey panel, its bevel, and the inset
   // slot. Matching these is what makes a modded screen read as part of the
   // game rather than as something bolted on.
@@ -442,14 +439,31 @@ public class PersonChatScreen
     }
   }
 
-  /** The raised grey panel Minecraft draws every one of its own windows with. */
+  /**
+   * The raised grey panel Minecraft draws every one of its own windows with,
+   * matched to vanilla's container art (villager.png): the same grey face, a 2px
+   * light bevel on the top and left, a 2px dark bevel on the bottom and right, a
+   * 1px black outline, and the four corners rounded off with a chamfer. The
+   * square black corner a hand-drawn panel leaves is the tell that it is not the
+   * game's own; the chamfer is the "border radius" vanilla actually has.
+   */
   private static void panel(GuiGraphics graphics, int left, int top, int right, int bottom) {
-    graphics.fill(left - 1, top - 1, right + 1, bottom + 1, PANEL_EDGE);
     graphics.fill(left, top, right, bottom, PANEL_FACE);
-    graphics.fill(left, top, right - 1, top + 1, PANEL_LIGHT);
-    graphics.fill(left, top, left + 1, bottom - 1, PANEL_LIGHT);
-    graphics.fill(left + 1, bottom - 1, right, bottom, PANEL_DARK);
-    graphics.fill(right - 1, top + 1, right, bottom, PANEL_DARK);
+    graphics.fill(left, top, right, top + 2, PANEL_LIGHT);
+    graphics.fill(left, top, left + 2, bottom, PANEL_LIGHT);
+    graphics.fill(left, bottom - 2, right, bottom, PANEL_DARK);
+    graphics.fill(right - 2, top, right, bottom, PANEL_DARK);
+    // The outline: four edges each held a pixel off the corners, then a single
+    // diagonal pixel closing each corner, so the corner is chamfered rather than
+    // a hard square.
+    graphics.fill(left + 1, top - 1, right - 1, top, PANEL_EDGE);
+    graphics.fill(left + 1, bottom, right - 1, bottom + 1, PANEL_EDGE);
+    graphics.fill(left - 1, top + 1, left, bottom - 1, PANEL_EDGE);
+    graphics.fill(right, top + 1, right + 1, bottom - 1, PANEL_EDGE);
+    graphics.fill(left, top, left + 1, top + 1, PANEL_EDGE);
+    graphics.fill(right - 1, top, right, top + 1, PANEL_EDGE);
+    graphics.fill(left, bottom - 1, left + 1, bottom, PANEL_EDGE);
+    graphics.fill(right - 1, bottom - 1, right, bottom, PANEL_EDGE);
   }
 
   /** The sunken box Minecraft uses for slots and text fields: the panel inverted. */
