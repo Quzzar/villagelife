@@ -42,6 +42,10 @@ in it, and update it in the same change that moves what it describes.
   The enumeration maps 36 categories, of which 17 survived the cut — see its "The cut"
   section for the survivors and the casualties. Ends in the structure-file manifest used for
   sourcing.
+- [walls.md](walls.md): the perimeter defense system. Why a wall is not a `Building` (linear,
+  not a footprint), how its ring is derived from `claimGrid` and built by a terrain-following
+  builder step, the two tiers (wood palisade upgrading in place to stone brick), and the
+  safety-need trigger. The site-selection pass the parked `wall`/`gatehouse` spec was waiting on.
 - [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
   from. License survey of vanilla, CTOV, Towns and Towers, YUNG's, and community schematic
   sites, each read from its own LICENSE file, plus the realistic paths forward.
