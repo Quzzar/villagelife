@@ -19,6 +19,8 @@ import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.UndertakingData;
 import com.quzzar.villagelife.entities.UndertakingService;
+import com.quzzar.villagelife.village.Village;
+import com.quzzar.villagelife.village.VillageRequests;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.networking.PersonChatReplyPacket;
@@ -239,6 +241,7 @@ public final class PersonChatDispatcher {
           int giveCount = 1;
           int opinion = 0;
           JsonObject undertaking = null;
+          JsonObject request = null;
           if (result.isPresent()) {
             Reply parsed = parseReply(result.get());
             if (parsed != null) {
@@ -247,6 +250,7 @@ public final class PersonChatDispatcher {
               giveCount = parsed.giveCount();
               opinion = parsed.opinionDelta();
               undertaking = parsed.undertaking();
+              request = parsed.request();
             }
           }
           if (say == null || say.isBlank()) {
@@ -255,10 +259,11 @@ public final class PersonChatDispatcher {
             giveCount = 1;
             opinion = 0;
             undertaking = null; // a fallback line committed to nothing; record nothing
+            request = null;
           }
           finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, giveCount, opinion, undertaking,
-              System.currentTimeMillis() - askedAtMs);
-          return new Reply(say, give, giveCount, opinion, undertaking);
+              request, System.currentTimeMillis() - askedAtMs);
+          return new Reply(say, give, giveCount, opinion, undertaking, request);
         });
   }
 
@@ -326,7 +331,7 @@ public final class PersonChatDispatcher {
    */
   private static void finalizeExchange(RealPerson person, String speakerName, UUID speakerUUID,
       String playerLine, String reply, String give, int giveCount, int requestedOpinion, JsonObject undertaking,
-      long elapsedMs) {
+      JsonObject request, long elapsedMs) {
     var server = person.getServer();
     if (server == null) {
       return;
@@ -338,10 +343,12 @@ public final class PersonChatDispatcher {
               .withExchange(speakerUUID,
                   new ChatHistoryData.Exchange(playerLine, reply, person.level().getDayTime())));
       String matter = applyUndertaking(person, speakerUUID, undertaking);
-      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
+      String asked = applyRequest(person, request);
+      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
           give != null ? " [give: " + giveCount + "x " + give + "]" : "",
           applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "",
-          matter != null ? " [" + matter + "]" : "");
+          matter != null ? " [" + matter + "]" : "",
+          asked != null ? " [" + asked + "]" : "");
     });
   }
 
@@ -386,6 +393,35 @@ public final class PersonChatDispatcher {
     return result.action();
   }
 
+  /**
+   * The write path for the request tool: the villager's ask is queued on the
+   * village for the brain to weigh at its next decision (VillageRequests,
+   * UrbanPlanner). A request decides nothing here; it only records what this
+   * villager put forward and why. Returns a short line for the log, or null when
+   * there was nothing to record (no village, or an empty subject).
+   */
+  private static String applyRequest(RealPerson person, JsonObject request) {
+    if (request == null) {
+      return null;
+    }
+    Village village = person.getVillage();
+    if (village == null) {
+      return null;
+    }
+    String subject = request.has("subject") && request.get("subject").isJsonPrimitive()
+        ? request.get("subject").getAsString().strip()
+        : "";
+    if (subject.isEmpty()) {
+      return null;
+    }
+    String reason = request.has("reason") && request.get("reason").isJsonPrimitive()
+        ? request.get("reason").getAsString().strip()
+        : "";
+    VillageRequests.add(village, person.getUUID(), person.getFullName(), subject, reason,
+        village.getVillageTime());
+    return "request: " + subject;
+  }
+
 
   /**
    * A parsed reply. {@code undertaking} carries the raw {@code "undertaking"}
@@ -393,7 +429,8 @@ public final class PersonChatDispatcher {
    * side effect in {@link #finalizeExchange}, not by the caller, which only
    * reads {@code say}/{@code give}.
    */
-  public record Reply(String say, String give, int giveCount, int opinionDelta, JsonObject undertaking) {
+  public record Reply(String say, String give, int giveCount, int opinionDelta, JsonObject undertaking,
+      JsonObject request) {
   }
 
   /** Largest single-call opinion step the model may take. */
@@ -442,7 +479,10 @@ public final class PersonChatDispatcher {
             JsonObject undertaking = node.has("undertaking") && node.get("undertaking").isJsonObject()
                 ? node.getAsJsonObject("undertaking")
                 : null;
-            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking);
+            JsonObject request = node.has("request") && node.get("request").isJsonObject()
+                ? node.getAsJsonObject("request")
+                : null;
+            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking, request);
           }
         } catch (Exception ignored) {
           // fall through to the regex pass
@@ -461,7 +501,7 @@ public final class PersonChatDispatcher {
           give.find() ? give.group(1) : null,
           giveCount.find() ? Math.max(1, Integer.parseInt(giveCount.group(1))) : 1,
           opinion.find() ? clampStep(Integer.parseInt(opinion.group(1))) : 0,
-          null);
+          null, null);
     }
     return null;
   }

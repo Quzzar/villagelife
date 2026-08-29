@@ -17,6 +17,7 @@ import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
+import com.quzzar.villagelife.village.VillageRequests;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
@@ -218,6 +219,60 @@ public final class PersonChatContext {
     return all;
   }
 
+  /**
+   * Offered when the player is urging a village-wide direction. The villager may
+   * forward it to the brain as a request but never decides it: the request only
+   * reaches the planner's option list and states its case (VillageRequests,
+   * UrbanPlanner). Gated like the undertaking tool so a small model is not tempted
+   * to file a request on a turn that is not one.
+   */
+  private static final String RULES_REQUEST = RULES_BODY
+      + "This person is urging a direction for the whole village. You do NOT decide what the village "
+      + "does. But if you genuinely agree it should, you may put the idea to the village's judgement: "
+      + "\"request\": {\"subject\": \"<what to build, a word or two>\", \"reason\": \"<why, a few words>\"}. "
+      + "Add it only when you truly back the idea; if you do not, simply answer in character with no request. "
+      + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding \"give\", \"opinion\", or \"request\" "
+      + "only when it applies.";
+
+  /** Teaches the request field, and (second) that most urgings are declined, not forwarded. */
+  private static final List<FewShotExample> REQUEST_EXAMPLES = List.of(
+      new FewShotExample("Steve says: \"With those wolves about, you lot should build a wall.\"\nYour JSON answer:",
+          "{\"say\": \"Aye, a wall would let us sleep easier. I'll put it to the village.\", "
+          + "\"request\": {\"subject\": \"walls\", \"reason\": \"wolves at the fields after dark\"}}"),
+      new FewShotExample("Steve says: \"You should build a great statue of me in the square.\"\nYour JSON answer:",
+          "{\"say\": \"Ha. I think the village has better uses for its stone, friend.\"}"));
+
+  /** The base examples plus the request few-shots, for a village-direction turn. */
+  private static List<FewShotExample> withRequestExamples() {
+    List<FewShotExample> all = new ArrayList<>(EXAMPLES);
+    all.addAll(REQUEST_EXAMPLES);
+    return all;
+  }
+
+  /**
+   * Whether the player's line plausibly urges a village-wide building direction,
+   * the gate for offering the request tool. Deliberately narrow: it looks for
+   * building and priority language, so an ordinary "you should rest" does not
+   * open it.
+   */
+  private static boolean proposesVillageChange(String playerLine) {
+    String line = playerLine.toLowerCase(java.util.Locale.ROOT);
+    for (String marker : VILLAGE_CHANGE_MARKERS) {
+      if (line.contains(marker)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static final String[] VILLAGE_CHANGE_MARKERS = {
+      "should build", "should make", "let's build", "let us build", "build a ", "build the ",
+      "build some ", "build more ", "build walls", "build a wall", "put up a ", "we need a ",
+      "we need more ", "we need walls", "start building", "save up for", "save for a ",
+      "prioriti", "focus on building", "instead of building", "the village should", "ought to build",
+      "you lot should", "you should build"
+  };
+
   private PersonChatContext() {
   }
 
@@ -275,6 +330,14 @@ public final class PersonChatContext {
           system.append('\n');
         }
       }
+      // How the brain answered a request this villager put to it, told once so the
+      // loop the player opened in chat visibly closes. takeUnheard marks it heard,
+      // so it colours the next reply and is not raised again.
+      VillageRequests.takeUnheard(village, person.getUUID()).ifPresent(request ->
+          system.append(request.status() == VillageRequests.Status.ACCEPTED
+              ? "The village took up your idea to build " + request.subject() + ". "
+              : "The village weighed your idea to build " + request.subject()
+                  + " but chose otherwise for now. ").append('\n'));
     }
 
     // Everything on their person is ALWAYS stated, even when empty: an omitted
@@ -322,29 +385,40 @@ public final class PersonChatContext {
     }
     system.append(". ").append(opinionLine(person, playerName, playerUUID)).append('\n');
 
-    // The undertaking tool is offered only when a matter is plausibly in play,
-    // and then only the ops legal in the current state (undertakings map #24).
-    // A matter already standing takes precedence: the model is shown advance/
-    // resolve, never open, because the server knows one stands and coerces a
-    // stray open anyway. Only when nothing stands and the line opens a new
-    // commitment is "open" offered. On any other turn the field is not mentioned
-    // at all. Open matters are stated so an advance or resolve knows its target.
+    // At most one structured tool is offered per turn: a small model reaches for
+    // an always-present optional field on turns that do not warrant it (the
+    // undertaking audit, #24). A village-direction the player is urging takes the
+    // turn - the villager may forward it to the brain as a request - and the
+    // undertaking tool stands down until a plainer turn.
+    //
+    // Otherwise the undertaking tool is offered only when a matter is plausibly in
+    // play, and then only the ops legal in the current state. A matter already
+    // standing takes precedence: the model is shown advance/resolve, never open,
+    // because the server knows one stands and coerces a stray open anyway. Only
+    // when nothing stands and the line opens a new commitment is "open" offered.
+    // Open matters are stated so an advance or resolve knows its target.
+    boolean proposesChange = village != null && proposesVillageChange(playerLine);
     List<UndertakingData.Undertaking> openMatters =
         person.getData(VillagelifeAttachments.UNDERTAKINGS.get()).openWith(playerUUID);
-    UndertakingMode mode = !openMatters.isEmpty() ? UndertakingMode.OPEN_MATTER
+    UndertakingMode mode = proposesChange ? UndertakingMode.NONE
+        : !openMatters.isEmpty() ? UndertakingMode.OPEN_MATTER
         : opensACommitment(playerLine) ? UndertakingMode.NEW_MATTER
         : UndertakingMode.NONE;
-    if (mode == UndertakingMode.OPEN_MATTER) {
-      system.append("Still between you and ").append(playerName).append(": ")
-          .append(openMatters.stream().map(UndertakingData.Undertaking::summary)
-              .collect(java.util.stream.Collectors.joining("; ")))
-          .append(". If one moves forward or is settled now, mark it.\n");
+    if (proposesChange) {
+      system.append(RULES_REQUEST);
+    } else {
+      if (mode == UndertakingMode.OPEN_MATTER) {
+        system.append("Still between you and ").append(playerName).append(": ")
+            .append(openMatters.stream().map(UndertakingData.Undertaking::summary)
+                .collect(java.util.stream.Collectors.joining("; ")))
+            .append(". If one moves forward or is settled now, mark it.\n");
+      }
+      system.append(switch (mode) {
+        case OPEN_MATTER -> RULES_OPEN_MATTER;
+        case NEW_MATTER -> RULES_NEW_MATTER;
+        case NONE -> RULES;
+      });
     }
-    system.append(switch (mode) {
-      case OPEN_MATTER -> RULES_OPEN_MATTER;
-      case NEW_MATTER -> RULES_NEW_MATTER;
-      case NONE -> RULES;
-    });
 
     StringBuilder user = new StringBuilder();
     List<Turn> transcript = withoutRepeats(history);
@@ -357,7 +431,8 @@ public final class PersonChatContext {
     }
     user.append(playerName).append(" says: \"").append(playerLine).append("\"\nYour JSON answer:");
 
-    return new AssembledChat(system.toString(), user.toString(), examplesFor(mode));
+    return new AssembledChat(system.toString(), user.toString(),
+        proposesChange ? withRequestExamples() : examplesFor(mode));
   }
 
   private static String tierName(Village village) {
