@@ -3,6 +3,7 @@ package com.quzzar.villagelife.entities.ai.goals;
 import java.util.EnumSet;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.Village;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -13,37 +14,57 @@ import net.minecraft.world.level.block.state.properties.BedPart;
 
 public class SleepAtNightGoal extends Goal {
 
+  /**
+   * How close (squared) a bedless villager comes to the campfire before lying
+   * down. Sized so a handful of homeless villagers settle in a loose ring around
+   * the fire rather than stacking on the single gathering block. A bed, by
+   * contrast, is exact: the villager walks right up to it.
+   */
+  private static final double CAMPFIRE_REST_RANGE_SQR = 9.0D;
+
   private final RealPerson person;
 
   public SleepAtNightGoal(RealPerson person) {
-    // This goal walks the villager to their bed, so it competes for movement rather
-    // than running alongside the goals that also move them (#74).
+    // This goal walks the villager to their rest spot, so it competes for
+    // movement rather than running alongside the goals that also move them (#74).
     this.setFlags(EnumSet.of(Flag.MOVE));
     this.person = person;
   }
 
   @Override
   public boolean canUse() {
-    // Bed location is read FRESH every check, never cached at construction. A
-    // villager is given its bed after its goals are built (the normal founding
-    // order: arrive -> claim job/bed -> reloadState), so a cached location was
-    // ZERO for life and the villager stood at the campfire all night without ever
-    // resting. Requiring a real bed also means a bedless villager does not engage
-    // this goal at all -- it used to activate on the job location, hold the MOVE
-    // flag through canContinueToUse, and then do nothing in tick, freezing them.
-    return person.level().isNight()
-        && !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
+    // The rest target is read FRESH every check, never cached at construction: a
+    // villager is given its bed after its goals are built, so a cached location
+    // was ZERO for life and the villager stood at the campfire all night without
+    // ever resting (1d4523f). A bedless villager still engages this goal, but
+    // rests at the campfire instead of a bed (see restTarget): the reservoir is
+    // population over beds by up to the idle cap (population-and-labor.md), so
+    // someone is routinely homeless, and "sleep like anyone else" is the design.
+    // The old freeze this used to cause is gone because tick() actually walks
+    // them to the fire and lies them down rather than holding the MOVE flag and
+    // doing nothing.
+    return person.level().isNight() && !restTarget().equals(BlockPos.ZERO);
   }
 
   @Override
   public boolean canContinueToUse() {
-    return person.level().isNight()
-        && !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
+    return person.level().isNight() && !restTarget().equals(BlockPos.ZERO);
   }
 
   @Override
   public void start() {
-    person.goToBed(0.5D);
+    if (hasBed()) {
+      // A bed also gets the villager to stow their pack on the way there.
+      person.goToBed(0.5D);
+    } else {
+      // Bedless: head for the fire to doze. Not goToBed, whose target is the bed
+      // or, failing that, the job station: a homeless villager rests at the
+      // campfire like any other idle camper, not at a post they may still hold.
+      BlockPos fire = campfireRest();
+      if (!fire.equals(BlockPos.ZERO)) {
+        person.getNavigation().moveTo(fire.getX(), fire.getY(), fire.getZ(), 0.5D);
+      }
+    }
   }
 
   @Override
@@ -53,23 +74,31 @@ public class SleepAtNightGoal extends Goal {
 
   @Override
   public void tick() {
-    BlockPos bedLoc = LocationManager.getBedLocation(person);
-    if (bedLoc.equals(BlockPos.ZERO)) {
+    BlockPos bed = LocationManager.getBedLocation(person);
+    boolean hasBed = !bed.equals(BlockPos.ZERO);
+
+    // A bed points at its foot; sleep in the HEAD half or the villager lies half
+    // off the block with its feet in the air. Bedless villagers doze beside the
+    // fire instead.
+    BlockPos target = hasBed ? bedHead(bed) : campfireRest();
+    if (target.equals(BlockPos.ZERO)) {
       return;
     }
-    // Sleep in the HEAD half of the bed, not the foot the def points at, or the
-    // villager lies half off the block with its feet hanging into the air.
-    BlockPos sleepAt = bedHead(bedLoc);
 
     if (!person.isSleeping()) {
+      // A bed is a single square the villager walks right up to and lies in. The
+      // campfire is one shared spot, so a bedless villager lies down a few blocks
+      // out at its OWN position, spreading the homeless around the fire instead
+      // of stacking them all on the one gathering block.
+      double rangeSqr = hasBed ? 4.0D : CAMPFIRE_REST_RANGE_SQR;
+      BlockPos sleepAt = hasBed ? target : person.blockPosition();
 
-      if (sleepAt.distSqr(person.blockPosition()) <= 4.0D) {
+      if (target.distSqr(person.blockPosition()) <= rangeSqr) {
         person.setDaysSinceSleep(0);
         person.startSleeping(sleepAt);
       } else if (!person.getNavigation().isInProgress()) {
-        person.getNavigation().moveTo(sleepAt.getX(), sleepAt.getY(), sleepAt.getZ(), 0.5D);
+        person.getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.5D);
       }
-
     }
 
     if (person.level().isDay()) {
@@ -78,7 +107,28 @@ public class SleepAtNightGoal extends Goal {
       }
       this.stop();
     }
+  }
 
+  /** Whether this villager has a real, reachable bed right now. */
+  private boolean hasBed() {
+    return !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
+  }
+
+  /**
+   * The night's rest spot: the head of this villager's own bed if they have one,
+   * otherwise a standing spot beside the village campfire. Returns ZERO only when
+   * the villager has neither a bed nor a village to gather in, and the goal then
+   * does not engage at all.
+   */
+  private BlockPos restTarget() {
+    BlockPos bed = LocationManager.getBedLocation(person);
+    return bed.equals(BlockPos.ZERO) ? campfireRest() : bedHead(bed);
+  }
+
+  /** A standing spot beside the village campfire, or ZERO if there is no village. */
+  private BlockPos campfireRest() {
+    Village village = person.getVillage();
+    return village == null ? BlockPos.ZERO : village.getGatheringPoint();
   }
 
   /**
