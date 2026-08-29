@@ -111,18 +111,25 @@ hooks it needs:
   is offered later as a safety project too, re-runs `WallStep` on the stored ring with the stone
   palette, and charges only the delta.
 
-## Open for decision
+## Status
 
-Settled: two defensive tiers, in-place upgrade, safety-triggered and built once the village is
-established, ring-once from `claimGrid`, procedural runs plus an authored gatehouse, and a
-terrain-following builder step. Still to pin down, with the proposed defaults above as starting
-points:
+Implemented (commits `e961b3c`, `5090616`): the ring from `claimGrid`, the save state, the
+terrain-following `WallStep`, the wood-to-stone in-place upgrade, and the safety trigger. A dev
+command, `/vldev village wall <wood|stone>`, rings a village at once for inspection.
 
-- padding size for the ring,
-- exact heights and thickness per tier,
-- the gate-closing mechanism,
-- whether the material palette varies by biome (as the parked spec's `wall_plains` /
-  `wall_desert` / `wall_taiga` manifest assumed) or stays one look per tier.
+Concrete choices the code now makes, all one line to tune:
+
+- ring padding: 8 blocks beyond the claim bounds,
+- heights: 3 courses for wood, 5 for stone (a merlon on alternate stone columns),
+- gateways: one at the midpoint of each edge, left open below a lintel,
+- material: one palette per tier (oak log, stone brick), not varied by biome.
+
+Deferred, and the honest gaps against "real defence":
+
+- **Gates that close.** The gateways are open passages today. Sealing them at night needs a
+  villager able to work a gate or portcullis, which is its own behaviour and not yet built.
+- **The authored gatehouse.** A gateway is a plain opening in the run; the hand-built gatehouse
+  NBT the design calls for still needs authoring in-world and capturing.
 
 ## Relationship to the rest of the docs
 
