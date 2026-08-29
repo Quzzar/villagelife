@@ -745,6 +745,35 @@ public class Village {
   }
 
   /**
+   * Rings the village with a finished wall in one pass, free of materials: a dev
+   * command's way to see the geometry (terrain-following, gateways, tier) at once,
+   * without waiting for the builder to walk the ring.
+   */
+  public int devBuildWall(WallTier tier) {
+    if (level == null) {
+      return 0;
+    }
+    List<Long> ring = traceWallRing(WALL_PADDING);
+    java.util.Set<Long> gates = wallGates(WALL_PADDING);
+    if (ring.isEmpty()) {
+      return 0;
+    }
+    for (long column : ring) {
+      int x = BlockPos.getX(column);
+      int z = BlockPos.getZ(column);
+      int[] range = com.quzzar.villagelife.village.buildings.WallRaiser
+          .segmentRange(level, x, z, tier, gates.contains(column));
+      if (range != null) {
+        com.quzzar.villagelife.village.buildings.WallRaiser.place(level, x, z, range, tier);
+      }
+    }
+    wallProject = WallProject.completed(new ArrayList<>(ring), new HashSet<>(gates), tier);
+    Villagelife.LOGGER.info("Village '{}' ringed with a {} wall (dev): {} segments",
+        name, tier.name().toLowerCase(), ring.size());
+    return ring.size();
+  }
+
+  /**
    * The ring the wall follows: the claim's bounding box pushed out by padding and
    * walked as one continuous loop, so the builder treads it without backtracking.
    * Y is left at zero; each column's real height is read from the surface when it

@@ -88,6 +88,13 @@ public class VillagelifeCommands {
                                                 .executes(ctx -> startProject(ctx.getSource(),
                                                         BlockPosArgument.getLoadedBlockPos(ctx, "pos"),
                                                         StringArgumentType.getString(ctx, "building"))))))
+                        .then(Commands.literal("wall")
+                                .executes(ctx -> raiseWall(ctx.getSource(),
+                                        BlockPos.containing(ctx.getSource().getPosition()), "wood"))
+                                .then(Commands.argument("tier", StringArgumentType.word())
+                                        .executes(ctx -> raiseWall(ctx.getSource(),
+                                                BlockPos.containing(ctx.getSource().getPosition()),
+                                                StringArgumentType.getString(ctx, "tier")))))
                         .then(Commands.literal("capabilities")
                                 .executes(ctx -> reportCapabilities(ctx.getSource(),
                                         BlockPos.containing(ctx.getSource().getPosition())))
@@ -302,6 +309,37 @@ public class VillagelifeCommands {
         source.sendSuccess(() -> Component.literal(
                 "'" + village.getName() + "' has started " + building + " at " + site.toShortString()), true);
         return 1;
+    }
+
+    /**
+     * Rings the nearest village with a finished wall on the spot, so its shape,
+     * terrain-following, gateways, and tier can be seen without waiting for the
+     * builder to raise it over time.
+     */
+    private static int raiseWall(CommandSourceStack source, BlockPos pos, String tierName) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        com.quzzar.villagelife.village.buildings.WallTier tier;
+        try {
+            tier = com.quzzar.villagelife.village.buildings.WallTier.valueOf(tierName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            source.sendFailure(Component.literal(
+                    "Wall tier must be 'wood' or 'stone', not '" + tierName + "'."));
+            return 0;
+        }
+        int segments = village.devBuildWall(tier);
+        if (segments <= 0) {
+            source.sendFailure(Component.literal("'" + village.getName()
+                    + "' could not be walled: it has no claimed ground yet."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(
+                "Ringed '" + village.getName() + "' with a " + tierName + " wall: "
+                        + segments + " segments."), true);
+        return segments;
     }
 
     /** What the nearest village can currently do, and what each building contributes. */
