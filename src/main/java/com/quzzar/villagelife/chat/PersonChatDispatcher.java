@@ -75,11 +75,6 @@ public final class PersonChatDispatcher {
    */
   private static final int OPENER_WORDS = 5;
 
-  /** How long a villager keeps their hands in their pockets after parting with something. */
-  private static final long GIVE_COOLDOWN_MS = 5L * 60L * 1000L;
-
-  /** Last give per villager-and-player pair. Runtime only; generosity resets on restart. */
-  private static final Map<String, Long> LAST_GIVE = new java.util.concurrent.ConcurrentHashMap<>();
   private static final long HISTORY_EXPIRY_MS = 10 * 60 * 1000;
 
   private static final Set<UUID> IN_FLIGHT = ConcurrentHashMap.newKeySet();
@@ -178,7 +173,7 @@ public final class PersonChatDispatcher {
         return;
       }
       if (reply.give() != null && person.isAlive()) {
-        executeGive(person, player, reply.give());
+        executeGive(person, player, reply.give(), reply.giveCount());
       }
       PacketDistributor.sendToPlayer(player, new PersonChatReplyPacket(person.getId(), reply.say()));
     }));
@@ -240,6 +235,7 @@ public final class PersonChatDispatcher {
         .thenApply(result -> {
           String say = null;
           String give = null;
+          int giveCount = 1;
           int opinion = 0;
           JsonObject undertaking = null;
           if (result.isPresent()) {
@@ -247,6 +243,7 @@ public final class PersonChatDispatcher {
             if (parsed != null) {
               say = parsed.say();
               give = parsed.give();
+              giveCount = parsed.giveCount();
               opinion = parsed.opinionDelta();
               undertaking = parsed.undertaking();
             }
@@ -254,12 +251,13 @@ public final class PersonChatDispatcher {
           if (say == null || say.isBlank()) {
             say = fallbackLine(person);
             give = null;
+            giveCount = 1;
             opinion = 0;
             undertaking = null; // a fallback line committed to nothing; record nothing
           }
-          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, opinion, undertaking,
+          finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, giveCount, opinion, undertaking,
               System.currentTimeMillis() - askedAtMs);
-          return new Reply(say, give, opinion, undertaking);
+          return new Reply(say, give, giveCount, opinion, undertaking);
         });
   }
 
@@ -326,7 +324,7 @@ public final class PersonChatDispatcher {
    * are invisible to RCON sources, so headless capture reads the log.
    */
   private static void finalizeExchange(RealPerson person, String speakerName, UUID speakerUUID,
-      String playerLine, String reply, String give, int requestedOpinion, JsonObject undertaking,
+      String playerLine, String reply, String give, int giveCount, int requestedOpinion, JsonObject undertaking,
       long elapsedMs) {
     var server = person.getServer();
     if (server == null) {
@@ -340,7 +338,7 @@ public final class PersonChatDispatcher {
                   new ChatHistoryData.Exchange(playerLine, reply, person.level().getDayTime())));
       String matter = applyUndertaking(person, speakerUUID, undertaking);
       Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
-          give != null ? " [give: " + give + "]" : "",
+          give != null ? " [give: " + giveCount + "x " + give + "]" : "",
           applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "",
           matter != null ? " [" + matter + "]" : "");
     });
@@ -394,7 +392,7 @@ public final class PersonChatDispatcher {
    * side effect in {@link #finalizeExchange}, not by the caller, which only
    * reads {@code say}/{@code give}.
    */
-  public record Reply(String say, String give, int opinionDelta, JsonObject undertaking) {
+  public record Reply(String say, String give, int giveCount, int opinionDelta, JsonObject undertaking) {
   }
 
   /** Largest single-call opinion step the model may take. */
@@ -412,6 +410,7 @@ public final class PersonChatDispatcher {
 
   private static final Pattern SAY_PATTERN = Pattern.compile("\"say\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
   private static final Pattern GIVE_PATTERN = Pattern.compile("\"give\"\\s*:\\s*\"([a-z0-9_.:/-]+)\"");
+  private static final Pattern GIVE_COUNT_PATTERN = Pattern.compile("\"give_count\"\\s*:\\s*(\\d+)");
   private static final Pattern OPINION_PATTERN = Pattern.compile("\"opinion\"\\s*:\\s*(-?\\d+)");
 
   /** Strict-then-regex, the parsing discipline used everywhere in llm-land. */
@@ -425,6 +424,13 @@ public final class PersonChatDispatcher {
             String give = node.has("give") && node.get("give").isJsonPrimitive()
                 ? node.get("give").getAsString()
                 : null;
+            int giveCount = 1;
+            if (give != null && node.has("give_count") && node.get("give_count").isJsonPrimitive()) {
+              try {
+                giveCount = Math.max(1, node.get("give_count").getAsInt());
+              } catch (Exception ignored) {
+              }
+            }
             int opinion = 0;
             if (node.has("opinion") && node.get("opinion").isJsonPrimitive()) {
               try {
@@ -435,7 +441,7 @@ public final class PersonChatDispatcher {
             JsonObject undertaking = node.has("undertaking") && node.get("undertaking").isJsonObject()
                 ? node.getAsJsonObject("undertaking")
                 : null;
-            return new Reply(node.get("say").getAsString(), give, opinion, undertaking);
+            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking);
           }
         } catch (Exception ignored) {
           // fall through to the regex pass
@@ -445,12 +451,14 @@ public final class PersonChatDispatcher {
     Matcher say = SAY_PATTERN.matcher(raw);
     if (say.find()) {
       Matcher give = GIVE_PATTERN.matcher(raw);
+      Matcher giveCount = GIVE_COUNT_PATTERN.matcher(raw);
       Matcher opinion = OPINION_PATTERN.matcher(raw);
       // The regex fallback does not recover the nested undertaking object; it
       // only runs when the JSON failed to parse, and a malformed reply is not a
       // turn to be recording lasting commitments from anyway.
       return new Reply(say.group(1).replace("\\\"", "\""),
           give.find() ? give.group(1) : null,
+          giveCount.find() ? Math.max(1, Integer.parseInt(giveCount.group(1))) : 1,
           opinion.find() ? clampStep(Integer.parseInt(opinion.group(1))) : 0,
           null);
     }
@@ -508,15 +516,86 @@ public final class PersonChatDispatcher {
    * emptying their pockets over a conversation is the bug, and a cooldown
    * bounds the second without touching the first.
    */
-  private static void executeGive(RealPerson person, ServerPlayer player, String itemId) {
-    long now = System.currentTimeMillis();
-    String pair = person.getUUID() + ":" + player.getUUID();
+  private static void executeGive(RealPerson person, ServerPlayer player, String itemId, int requestedCount) {
+    ResourceLocation id = ResourceLocation.tryParse(itemId.contains(":") ? itemId : "minecraft:" + itemId);
+    if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
+      Villagelife.LOGGER.info("[chat give] REJECTED '{}': not a valid item id", itemId);
+      return;
+    }
+    var item = BuiltInRegistries.ITEM.get(id);
+    int want = Math.max(1, requestedCount);
+    int before = countHeld(person, item);
 
-    // Full give logging: a complete snapshot of EVERY slot the villager owns, at
-    // INFO, so a rejection is never a mystery. A villager can give from any slot
-    // it has: main hand, off-hand, worn armour, or its carry-inventory. (Our
-    // villagers carry no Curios/Artifacts slots, since that mod isn't a
-    // dependency; if it ever is, those slots get enumerated here too.)
+    // Snapshot every slot at INFO so a give is diagnosable end to end: what the
+    // villager held before, how much of it left them, and where the drop landed.
+    Villagelife.LOGGER.info("[chat give] {} wants to give {}x '{}' to {} | holds {} of it | all slots: {}",
+        person.getFullName(), want, itemId, player.getGameProfile().getName(), before, slotSnapshot(person));
+
+    if (before == 0) {
+      Villagelife.LOGGER.info("[chat give] REJECTED '{}': {} has none in any slot "
+          + "(hand, off-hand, armour, or carry-inventory)", itemId, person.getFullName());
+      return;
+    }
+
+    // Take up to `want` from the villager's slots. Equipment first (hand,
+    // off-hand, armour), then carry-inventory, across as many stacks as it takes.
+    int collected = 0;
+    for (EquipmentSlot eq : EquipmentSlot.values()) {
+      if (collected >= want) {
+        break;
+      }
+      ItemStack worn = person.getItemBySlot(eq);
+      if (!worn.isEmpty() && worn.getItem() == item) {
+        int take = Math.min(want - collected, worn.getCount());
+        worn.shrink(take);
+        person.setItemSlot(eq, worn.isEmpty() ? ItemStack.EMPTY : worn);
+        collected += take;
+      }
+    }
+    for (int i = 0; i < person.personMainInv.getContainerSize() && collected < want; i++) {
+      ItemStack stack = person.personMainInv.getItem(i);
+      if (!stack.isEmpty() && stack.getItem() == item) {
+        int take = Math.min(want - collected, stack.getCount());
+        person.personMainInv.removeItem(i, take);
+        collected += take;
+      }
+    }
+
+    // Drop what was taken on the ground and toss it toward the player, so a gift
+    // lands in front of them to pick up rather than teleporting into inventory.
+    ItemStack handed = new ItemStack(item, collected);
+    ItemEntity drop = new ItemEntity(person.level(), person.getX(), person.getEyeY() - 0.3, person.getZ(), handed);
+    Vec3 toward = player.position().add(0, 0.5, 0).subtract(drop.position()).normalize().scale(0.3);
+    drop.setDeltaMovement(toward);
+    drop.setNoPickUpDelay();
+    boolean spawned = person.level().addFreshEntity(drop);
+
+    Villagelife.LOGGER.info(
+        "[chat give] {} handed {}x {} to {} (asked {}); villager now holds {}; drop #{} spawned={} at {}",
+        person.getFullName(), collected, itemId, player.getGameProfile().getName(), want,
+        countHeld(person, item), drop.getId(), spawned, drop.blockPosition().toShortString());
+  }
+
+  /** How many of {@code item} the villager holds across every slot. */
+  private static int countHeld(RealPerson person, net.minecraft.world.item.Item item) {
+    int held = 0;
+    for (EquipmentSlot eq : EquipmentSlot.values()) {
+      ItemStack worn = person.getItemBySlot(eq);
+      if (worn.getItem() == item) {
+        held += worn.getCount();
+      }
+    }
+    for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
+      ItemStack stack = person.personMainInv.getItem(i);
+      if (stack.getItem() == item) {
+        held += stack.getCount();
+      }
+    }
+    return held;
+  }
+
+  /** A compact "slot=Nx item, ..." snapshot of everything the villager carries. */
+  private static String slotSnapshot(RealPerson person) {
     StringBuilder snapshot = new StringBuilder();
     for (EquipmentSlot eq : EquipmentSlot.values()) {
       ItemStack worn = person.getItemBySlot(eq);
@@ -526,68 +605,13 @@ public final class PersonChatDispatcher {
       }
     }
     for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
-      ItemStack s = person.personMainInv.getItem(i);
-      if (!s.isEmpty()) {
-        snapshot.append("carry=").append(s.getCount()).append("x ")
-            .append(BuiltInRegistries.ITEM.getKey(s.getItem())).append(", ");
+      ItemStack stack = person.personMainInv.getItem(i);
+      if (!stack.isEmpty()) {
+        snapshot.append("carry=").append(stack.getCount()).append("x ")
+            .append(BuiltInRegistries.ITEM.getKey(stack.getItem())).append(", ");
       }
     }
-    String slots = snapshot.length() == 0 ? "nothing" : snapshot.substring(0, snapshot.length() - 2);
-    Villagelife.LOGGER.info("[chat give] {} wants to give '{}' to {} | all slots: {}",
-        person.getFullName(), itemId, player.getGameProfile().getName(), slots);
-
-    Long last = LAST_GIVE.get(pair);
-    if (last != null && now - last < GIVE_COOLDOWN_MS) {
-      Villagelife.LOGGER.info("[chat give] REFUSED '{}': {} already gave something {}s ago (cooldown is {}s)",
-          itemId, person.getFullName(), (now - last) / 1000L, GIVE_COOLDOWN_MS / 1000L);
-      return;
-    }
-    ResourceLocation id = ResourceLocation.tryParse(itemId.contains(":") ? itemId : "minecraft:" + itemId);
-    if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
-      Villagelife.LOGGER.info("[chat give] REJECTED '{}': not a valid item id", itemId);
-      return;
-    }
-    var item = BuiltInRegistries.ITEM.get(id);
-
-    // Search every slot the villager has. Equipment first (hand, off-hand,
-    // armour) so a held tool is what gets handed over, then carry-inventory.
-    ItemStack handed = ItemStack.EMPTY;
-    String from = null;
-    for (EquipmentSlot eq : EquipmentSlot.values()) {
-      ItemStack worn = person.getItemBySlot(eq);
-      if (!worn.isEmpty() && worn.getItem() == item) {
-        handed = worn.copy();
-        handed.setCount(1);
-        worn.shrink(1);
-        person.setItemSlot(eq, worn.isEmpty() ? ItemStack.EMPTY : worn);
-        from = eq.getName();
-        break;
-      }
-    }
-    if (handed.isEmpty()) {
-      for (int i = 0; i < person.personMainInv.getContainerSize(); i++) {
-        ItemStack stack = person.personMainInv.getItem(i);
-        if (!stack.isEmpty() && stack.getItem() == item) {
-          handed = person.personMainInv.removeItem(i, 1);
-          from = "carry";
-          break;
-        }
-      }
-    }
-    if (handed.isEmpty()) {
-      Villagelife.LOGGER.info("[chat give] REJECTED '{}': {} has none in any slot "
-          + "(hand, off-hand, armour, or carry-inventory)", itemId, person.getFullName());
-      return;
-    }
-
-    ItemEntity drop = new ItemEntity(person.level(), person.getX(), person.getEyeY() - 0.3, person.getZ(), handed);
-    Vec3 toward = player.position().add(0, 0.5, 0).subtract(drop.position()).normalize().scale(0.3);
-    drop.setDeltaMovement(toward);
-    drop.setNoPickUpDelay();
-    person.level().addFreshEntity(drop);
-    LAST_GIVE.put(pair, now);
-    Villagelife.LOGGER.info("[chat give] {} handed {} to {} (from {})", person.getFullName(), itemId,
-        player.getGameProfile().getName(), from);
+    return snapshot.length() == 0 ? "nothing" : snapshot.substring(0, snapshot.length() - 2);
   }
 
   private static String fallbackLine(RealPerson person) {

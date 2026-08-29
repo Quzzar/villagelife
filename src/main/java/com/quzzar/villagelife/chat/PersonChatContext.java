@@ -40,13 +40,13 @@ public final class PersonChatContext {
 
   private static final String RULES_BODY = "Rules: Answer in one or two short sentences, always in character. "
       + "Never invent events, people, places, or items that are not in your briefing above. "
-      + "You may hand an item from your pockets to the player with \"give\", but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
+      + "You may hand an item from your pockets to the player with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
       + "When this moment genuinely changes how you feel about them, add \"opinion\": a whole number "
       + "from -10 to 10; omit it when your feeling is unchanged. ";
 
   private static final String RULES = RULES_BODY
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
-      + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"opinion\": <number>}.";
+      + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"give_count\": <how many>, \"opinion\": <number>}.";
 
   private static final String SHAPE_UNDERTAKING =
       "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", or "
@@ -165,8 +165,8 @@ public final class PersonChatContext {
           "{\"say\": \"Only some wheat by the field this morning, nothing grander.\"}"),
       new FewShotExample("Steve says: \"Remember the goblin king we robbed last summer?\"\nYour JSON answer:",
           "{\"say\": \"I recall no such thing, Steve.\"}"),
-      new FewShotExample("Steve says: \"Could I have one of your torches? You've always been kind to me.\"\nYour JSON answer:",
-          "{\"say\": \"Take it, and mind the dark.\", \"give\": \"minecraft:torch\", \"opinion\": 2}"));
+      new FewShotExample("Steve says: \"Could you spare a few torches? You've always been kind to me.\"\nYour JSON answer:",
+          "{\"say\": \"Take three, and mind the dark.\", \"give\": \"minecraft:torch\", \"give_count\": 3, \"opinion\": 2}"));
 
   /**
    * Shown when a NEW matter may open. Both are the villager's OWN matters - a
