@@ -55,6 +55,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
+import com.quzzar.villagelife.entities.ai.goals.work.WallStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MarketStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HuntStep;
@@ -939,6 +940,7 @@ public class RealPerson extends Person {
       // because they gate on the project's phase, but priority makes it plain.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new GatherStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new BuildStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new WallStep()));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new PathStep()));
     }
     if (getOccupation() == Occupation.MERCHANT) {

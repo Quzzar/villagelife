@@ -27,6 +27,8 @@ import com.quzzar.villagelife.village.buildings.InstantBuildStructure;
 import com.quzzar.villagelife.village.buildings.LocationValidator;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
+import com.quzzar.villagelife.village.buildings.WallProject;
+import com.quzzar.villagelife.village.buildings.WallTier;
 import com.quzzar.villagelife.village.buildings.UrbanPlanner;
 import com.quzzar.villagelife.persona.PersonaSpawner;
 import com.quzzar.villagelife.village.tiers.VillageTier;
@@ -55,7 +57,8 @@ public class Village {
       VillageBrain.CODEC.fieldOf("brain").forGetter(v -> v.brain),
       UUIDUtil.CODEC.optionalFieldOf("town_center").forGetter(v -> Optional.ofNullable(v.townCenterUUID)),
       Codec.LONG.listOf().fieldOf("claim_grid").forGetter(v -> List.copyOf(v.claimGrid)),
-      StructureInProgress.CODEC.optionalFieldOf("current_project").forGetter(v -> Optional.ofNullable(v.currentProject)),
+      ActiveProjects.CODEC.optionalFieldOf("project", ActiveProjects.NONE)
+          .forGetter(v -> new ActiveProjects(Optional.ofNullable(v.currentProject), Optional.ofNullable(v.wallProject))),
       UUIDUtil.CODEC.listOf().fieldOf("people").forGetter(v -> List.copyOf(v.people)),
       Building.CODEC.listOf().fieldOf("buildings").forGetter(v -> List.copyOf(v.buildings.values())),
       Codec.unboundedMap(UUIDUtil.STRING_CODEC, JobAssignment.CODEC).fieldOf("job_assignments").forGetter(v -> Map.copyOf(v.jobAssignments)),
@@ -76,8 +79,21 @@ public class Village {
     ).apply(inst, PendingTraveler::new));
   }
 
+  /**
+   * The village's one active project, if any: either a building rising or the
+   * wall being raised. They are mutually exclusive (one builder, one job at a
+   * time), so they share a single slot in the save.
+   */
+  public record ActiveProjects(Optional<StructureInProgress> building, Optional<WallProject> wall) {
+    public static final ActiveProjects NONE = new ActiveProjects(Optional.empty(), Optional.empty());
+    public static final Codec<ActiveProjects> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        StructureInProgress.CODEC.optionalFieldOf("building").forGetter(ActiveProjects::building),
+        WallProject.CODEC.optionalFieldOf("wall").forGetter(ActiveProjects::wall)
+    ).apply(inst, ActiveProjects::new));
+  }
+
   private static Village fromCodec(String id, String name, int time, VillageBrain brain, Optional<UUID> townCenter,
-      List<Long> claimGrid, Optional<StructureInProgress> currentProject, List<UUID> people, List<Building> buildings,
+      List<Long> claimGrid, ActiveProjects project, List<UUID> people, List<Building> buildings,
       Map<UUID, JobAssignment> jobAssignments, Map<UUID, BedAssignment> bedAssignments,
       List<JobAssignment> unassignedJobs, List<BedAssignment> unassignedBeds, String tierId,
       List<PendingTraveler> pendingArrivals, List<PendingTraveler> pendingDepartures) {
@@ -86,7 +102,8 @@ public class Village {
     village.brain = brain;
     village.townCenterUUID = townCenter.orElse(null);
     village.claimGrid = new HashSet<>(claimGrid);
-    village.currentProject = currentProject.orElse(null);
+    village.currentProject = project.building().orElse(null);
+    village.wallProject = project.wall().orElse(null);
     village.people = new ArrayList<>(people);
     buildings.forEach(b -> village.buildings.put(b.getUUID(), b));
     village.jobAssignments = new HashMap<>(jobAssignments);
@@ -146,6 +163,14 @@ public class Village {
   private int claimMinX, claimMaxX, claimMinZ, claimMaxZ;
 
   private StructureInProgress currentProject;
+
+  /**
+   * The wall being raised around the village, or null when there is none. Not a
+   * StructureInProgress: a wall is a route rather than a footprint (docs/walls.md).
+   * A completed wall stays here as the record that the village is walled, so its
+   * tier can be read when the stone upgrade is offered.
+   */
+  private WallProject wallProject;
 
   /**
    * Set when the quartermaster cannot fit a haul into the storehouse, read by
@@ -645,7 +670,135 @@ public class Village {
     return getCapabilities().contains(capability);
   }
 
+  /** The wall being raised around the village, or null when there is none. */
+  public WallProject getWallProject() {
+    return wallProject;
+  }
+
+  /** How far beyond the built area the wall rings the village (docs/walls.md). */
+  private static final int WALL_PADDING = 8;
+  /** Buildings a village needs before it is worth walling at all. */
+  private static final int WALL_MIN_BUILDINGS = 5;
+  /** Buildings past which a village walls itself even absent any recent threat. */
+  private static final int WALL_LARGE_BUILDINGS = 8;
+  /** Recent-death weight above which a village wants defending. */
+  private static final float WALL_SAFETY_THRESHOLD = 0.25F;
+
+  /**
+   * Considers raising or upgrading the village wall, and starts it if the moment
+   * is right (docs/walls.md). A wall is a large safety project, so it waits until
+   * the village is established, then goes up when there has been a threat or the
+   * town is simply large enough to want one. Returns true when a wall was
+   * started, so the caller does not also spend an LLM call choosing a building.
+   */
+  private boolean maybeStartWall() {
+    if (level == null || getTownCenter() == null || buildings.size() < WALL_MIN_BUILDINGS) {
+      return false;
+    }
+    VillageAttractiveness report = getAttractiveness();
+    boolean threatened = report != null && report.deathImpact() > WALL_SAFETY_THRESHOLD;
+    if (!threatened && buildings.size() < WALL_LARGE_BUILDINGS) {
+      return false;
+    }
+    // Wood first; once a wooden wall stands, the same safety pull upgrades it to
+    // stone on the very same ring.
+    WallTier desired = wallProject == null ? WallTier.WOOD : wallProject.getTier().next();
+    if (desired == null) {
+      return false; // already walled in stone; there is nothing more to raise
+    }
+    return startWall(desired);
+  }
+
+  /**
+   * Rings the village with a wall of the given tier: traces the ring from the
+   * claim (a fresh line for a new wall, the standing one for an upgrade), checks
+   * the village can afford it, and opens the project the builder then raises.
+   * Public so a command can raise a wall on demand to watch it happen.
+   */
+  public boolean startWall(WallTier tier) {
+    if (level == null || getTownCenter() == null) {
+      return false;
+    }
+    List<Long> ring;
+    java.util.Set<Long> gates;
+    if (wallProject != null && tier == wallProject.getTier().next()) {
+      ring = wallProject.getRing(); // an upgrade re-walks the standing ring
+      gates = wallProject.getGates();
+    } else {
+      ring = traceWallRing(WALL_PADDING);
+      gates = wallGates(WALL_PADDING);
+    }
+    if (ring.isEmpty()) {
+      return false;
+    }
+    // A rough bill, a course or two of slack per column for the slopes it steps
+    // down. The exact draw happens column by column as it builds.
+    int estimate = ring.size() * (tier.height() + 2);
+    if (stockTally().getOrDefault(tier.material(), 0) < estimate) {
+      maybeLogShortage(new ItemStack(tier.material(), estimate));
+      return false;
+    }
+    wallProject = new WallProject(new ArrayList<>(ring), new HashSet<>(gates), tier);
+    Villagelife.LOGGER.info("Village '{}' raises a {} wall around itself: {} segments",
+        name, tier.name().toLowerCase(), ring.size());
+    return true;
+  }
+
+  /**
+   * The ring the wall follows: the claim's bounding box pushed out by padding and
+   * walked as one continuous loop, so the builder treads it without backtracking.
+   * Y is left at zero; each column's real height is read from the surface when it
+   * is raised (docs/walls.md).
+   */
+  public List<Long> traceWallRing(int padding) {
+    ensureClaimBounds();
+    if (claimGrid.isEmpty()) {
+      return List.of();
+    }
+    int x0 = claimMinX - padding;
+    int x1 = claimMaxX + padding;
+    int z0 = claimMinZ - padding;
+    int z1 = claimMaxZ + padding;
+    List<Long> ring = new ArrayList<>();
+    for (int x = x0; x <= x1; x++) {
+      ring.add(BlockPos.asLong(x, 0, z0)); // north edge, west to east
+    }
+    for (int z = z0 + 1; z <= z1; z++) {
+      ring.add(BlockPos.asLong(x1, 0, z)); // east edge, north to south
+    }
+    for (int x = x1 - 1; x >= x0; x--) {
+      ring.add(BlockPos.asLong(x, 0, z1)); // south edge, east to west
+    }
+    for (int z = z1 - 1; z > z0; z--) {
+      ring.add(BlockPos.asLong(x0, 0, z)); // west edge, south to north
+    }
+    return ring;
+  }
+
+  /** A gateway at the midpoint of each edge, so every side of the town has a way in. */
+  private java.util.Set<Long> wallGates(int padding) {
+    ensureClaimBounds();
+    if (claimGrid.isEmpty()) {
+      return java.util.Set.of();
+    }
+    int mx = (claimMinX + claimMaxX) / 2;
+    int mz = (claimMinZ + claimMaxZ) / 2;
+    int x0 = claimMinX - padding;
+    int x1 = claimMaxX + padding;
+    int z0 = claimMinZ - padding;
+    int z1 = claimMaxZ + padding;
+    return java.util.Set.of(
+        BlockPos.asLong(mx, 0, z0),
+        BlockPos.asLong(mx, 0, z1),
+        BlockPos.asLong(x1, 0, mz),
+        BlockPos.asLong(x0, 0, mz));
+  }
+
   private void checkCurrentProject() {
+
+    if (wallProject != null && !wallProject.isComplete()) {
+      return; // the wall holds the village while it rises, like any project
+    }
 
     if (currentProject != null) {
       if (currentProject.getProgress() == BuildProgress.COMPLETE) {
@@ -705,6 +858,11 @@ public class Village {
       Building centre = getTownCenter();
       if (level != null && centre != null
           && !level.hasChunkAt(BlockPos.of(centre.getCenterLocation()))) {
+        return;
+      }
+      // A safety-triggered wall is decided by rules, not the brain, so it is
+      // weighed before an LLM call is spent choosing a building (docs/walls.md).
+      if (maybeStartWall()) {
         return;
       }
       projectDecisionPending = true;
