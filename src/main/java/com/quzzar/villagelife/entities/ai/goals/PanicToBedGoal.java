@@ -8,14 +8,20 @@ import net.minecraft.world.entity.ai.goal.PanicGoal;
 
 public class PanicToBedGoal extends PanicGoal {
 
-    private BlockPos bedLoc;
+    private final RealPerson person;
+
     public PanicToBedGoal(RealPerson person, double speedModifier) {
         super(person, speedModifier);
-        this.bedLoc = LocationManager.getBedLocation(person);
+        this.person = person;
     }
 
     @Override
     protected boolean findRandomPosition() {
+        // Read the bed location FRESH each panic, never cached at construction: a
+        // villager handed a bed by reconcileBeds after its goals were built keeps a
+        // stale ZERO otherwise and flees nowhere. Same trap SleepAtNightGoal hit
+        // (1d4523f).
+        BlockPos bedLoc = LocationManager.getBedLocation(person);
         if(!bedLoc.equals(BlockPos.ZERO)){
             this.posX = bedLoc.getX();
             this.posY = bedLoc.getY();

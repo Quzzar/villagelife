@@ -10,17 +10,21 @@ public class UnstuckPersonGoal extends Goal {
 
     protected static final int MAX_DAYS = 3;
 
-    private BlockPos bedLoc;
     protected RealPerson person;
 
     public UnstuckPersonGoal(RealPerson person){
         this.person = person;
-        this.bedLoc = LocationManager.getBedLocation(person);
     }
 
     @Override
     public boolean canUse() {
-        return (this.bedLoc != BlockPos.ZERO && this.person.getDaysSinceSleep() > MAX_DAYS) || person.getNavigation().isStuck();
+        // Read the bed location FRESH, never cached at construction: a villager is
+        // given its bed after its goals are built, and an idle villager handed one
+        // by reconcileBeds without a following reloadState keeps a stale ZERO
+        // forever, so the daysSinceSleep recovery never fires for them. Same trap
+        // SleepAtNightGoal hit (1d4523f).
+        boolean hasBed = !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
+        return (hasBed && this.person.getDaysSinceSleep() > MAX_DAYS) || person.getNavigation().isStuck();
     }
 
     @Override
