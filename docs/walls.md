@@ -91,9 +91,13 @@ scanning for existing `DIRT_PATH` where the ring passes.
   vertical seam wherever the ground steps, or a mob walks through the gap. `WallStep` closes
   each step down to the height of its lower neighbor.
 - **Gates that seal**: an open arch is a mob highway, so the gate has to close at night or under
-  threat. Proposed: a guard-operated closure at the gatehouse, which pairs with the `gatehouse`
-  GUARD station already in the spec. The exact mechanism, doors that mobs cannot open versus a
-  lowered portcullis, is open.
+  threat. Settled: a wooden door hangs in each gateway. Our villagers already open and close
+  doors as they path (`Person` sets `canOpenDoors`, `RealPerson` runs an `OpenDoorGoal`), so the
+  gate shuts behind them and stands closed at night, while a mob — bar a hard-difficulty zombie,
+  which can break a wooden door — cannot work it. A lowered portcullis or a guard-operated
+  closure was the alternative; the door reuses behaviour the village already has and needs no
+  new AI. The door is hung a single column wide below the lintel, so it fills the doorway with
+  no gap for a mob to slip past.
 
 ## Where it plugs into planning
 
@@ -113,23 +117,27 @@ hooks it needs:
 
 ## Status
 
-Implemented (commits `e961b3c`, `5090616`): the ring from `claimGrid`, the save state, the
-terrain-following `WallStep`, the wood-to-stone in-place upgrade, and the safety trigger. A dev
-command, `/vldev village wall <wood|stone>`, rings a village at once for inspection.
+Implemented: the ring from `claimGrid`, the save state, the terrain-following `WallStep`, the
+wood-to-stone in-place upgrade, and the safety trigger (commits `e961b3c`, `5090616`), and
+closing gates — a wooden door in each gateway that villagers work as they path and mobs cannot.
+A dev command, `/vldev village wall <wood|stone>`, rings a village at once for inspection.
 
 Concrete choices the code now makes, all one line to tune:
 
 - ring padding: 8 blocks beyond the claim bounds,
 - heights: 3 courses for wood, 5 for stone (a merlon on alternate stone columns),
-- gateways: one at the midpoint of each edge, left open below a lintel,
+- gateways: one at the midpoint of each edge, a wooden door below a lintel that faces the town
+  so it opens inward, which villagers open and close as they path,
 - material: one palette per tier (oak log, stone brick), not varied by biome.
 
 Deferred, and the honest gaps against "real defence":
 
-- **Gates that close.** The gateways are open passages today. Sealing them at night needs a
-  villager able to work a gate or portcullis, which is its own behaviour and not yet built.
-- **The authored gatehouse.** A gateway is a plain opening in the run; the hand-built gatehouse
-  NBT the design calls for still needs authoring in-world and capturing.
+- **The authored gatehouse.** A gateway is a plain door below a lintel; the hand-built gatehouse
+  NBT the design calls for — a proper arch with the `gatehouse` GUARD station — still needs
+  authoring in-world and capturing. The door already seals the opening, so this is a richer
+  build over a working gate, not a defence gap.
+- **Spiders.** A closed gate and an unbroken run stop a walking mob, but a spider still climbs a
+  flush wall; the lipped overhang noted above is the answer, not yet built.
 
 ## Relationship to the rest of the docs
 

@@ -3,7 +3,11 @@ package com.quzzar.villagelife.village.buildings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
@@ -64,5 +68,33 @@ public final class WallRaiser {
       level.setBlock(new BlockPos(x, y, z), state, 3);
     }
     return range[1] - range[0] + 1;
+  }
+
+  /**
+   * Hangs a wooden door in a gateway (docs/walls.md). Our villagers already open
+   * and close doors as they path (Person sets canOpenDoors, RealPerson runs an
+   * OpenDoorGoal), so a plain door is a gate that shuts behind them at night and
+   * that mobs, bar a hard-difficulty zombie, cannot work. It faces the town so it
+   * opens inward.
+   */
+  public static void placeGateDoor(Level level, int x, int z, int base, Direction facing) {
+    BlockState lower = Blocks.OAK_DOOR.defaultBlockState()
+        .setValue(DoorBlock.FACING, facing)
+        .setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER)
+        .setValue(DoorBlock.HINGE, DoorHingeSide.LEFT)
+        .setValue(DoorBlock.OPEN, Boolean.FALSE)
+        .setValue(DoorBlock.POWERED, Boolean.FALSE);
+    level.setBlock(new BlockPos(x, base, z), lower, 3);
+    level.setBlock(new BlockPos(x, base + 1, z),
+        lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER), 3);
+  }
+
+  /** The horizontal direction from a gate column toward a point, so a gate faces the town. */
+  public static Direction gateFacing(int x, int z, BlockPos toward) {
+    int dx = toward.getX() - x;
+    int dz = toward.getZ() - z;
+    return Math.abs(dx) >= Math.abs(dz)
+        ? (dx >= 0 ? Direction.EAST : Direction.WEST)
+        : (dz >= 0 ? Direction.SOUTH : Direction.NORTH);
   }
 }

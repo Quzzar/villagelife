@@ -113,7 +113,8 @@ public final class WallStep implements BlockWorkStep {
     int x = BlockPos.getX(column);
     int z = BlockPos.getZ(column);
     WallTier tier = wall.getTier();
-    int[] range = WallRaiser.segmentRange(level, x, z, tier, wall.isGate(column));
+    boolean gate = wall.isGate(column);
+    int[] range = WallRaiser.segmentRange(level, x, z, tier, gate);
     if (range == null) {
       return true; // nothing to place here; treat the column as done
     }
@@ -130,6 +131,11 @@ public final class WallStep implements BlockWorkStep {
     }
 
     WallRaiser.place(level, x, z, range, tier);
+    if (gate) {
+      BlockPos centre = village.getTownCenter() == null ? new BlockPos(x, 0, z)
+          : BlockPos.of(village.getTownCenter().getCenterLocation());
+      WallRaiser.placeGateDoor(level, x, z, range[2], WallRaiser.gateFacing(x, z, centre));
+    }
     level.playSound((Player) null, x, range[2], z,
         tier.block().defaultBlockState().getSoundType().getPlaceSound(),
         SoundSource.BLOCKS, 1.0F, person.getRandom().nextFloat() * 0.3F + 0.85F);

@@ -761,10 +761,16 @@ public class Village {
     for (long column : ring) {
       int x = BlockPos.getX(column);
       int z = BlockPos.getZ(column);
+      boolean gate = gates.contains(column);
       int[] range = com.quzzar.villagelife.village.buildings.WallRaiser
-          .segmentRange(level, x, z, tier, gates.contains(column));
+          .segmentRange(level, x, z, tier, gate);
       if (range != null) {
         com.quzzar.villagelife.village.buildings.WallRaiser.place(level, x, z, range, tier);
+        if (gate && getTownCenter() != null) {
+          com.quzzar.villagelife.village.buildings.WallRaiser.placeGateDoor(level, x, z, range[2],
+              com.quzzar.villagelife.village.buildings.WallRaiser.gateFacing(x, z,
+                  BlockPos.of(getTownCenter().getCenterLocation())));
+        }
       }
     }
     wallProject = WallProject.completed(new ArrayList<>(ring), new HashSet<>(gates), tier);
