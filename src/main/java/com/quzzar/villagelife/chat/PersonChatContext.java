@@ -20,6 +20,7 @@ import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -258,6 +259,20 @@ public final class PersonChatContext {
           system.append(" (").append(why).append(')');
         }
         system.append(".\n");
+        // The exact recipe and what is still short, so the villager speaks to the
+        // real cost instead of inventing one. With only the goal name and reason
+        // in the briefing, the small model filled the gap with plausible-but-wrong
+        // materials - a lumberjack asked for "wheat seeds" off the "we need food"
+        // reason, when the build actually costs cobblestone.
+        List<ItemStack> recipe = wanted != null ? wanted.getMaterialCost() : List.of();
+        if (!recipe.isEmpty()) {
+          system.append("To build it the village needs ").append(joinCosts(recipe)).append(". ");
+          String remaining = remainingCosts(recipe, village.stockTally());
+          system.append(remaining.isEmpty()
+              ? "Everything needed is gathered; building can begin soon."
+              : "Still short " + remaining + ".");
+          system.append('\n');
+        }
       }
     }
 
@@ -434,6 +449,32 @@ public final class PersonChatContext {
 
   private static String itemName(ItemStack stack) {
     return stack.getItem().toString().replace("minecraft:", "").replace('_', ' ');
+  }
+
+  /** The full recipe as "104 cobblestone, 8 iron ingot", for the goal briefing. */
+  private static String joinCosts(List<ItemStack> costs) {
+    List<String> parts = new ArrayList<>();
+    for (ItemStack cost : costs) {
+      parts.add(cost.getCount() + " " + itemName(cost));
+    }
+    return String.join(", ", parts);
+  }
+
+  /**
+   * Only the shortfall against current village stock, e.g. "40 cobblestone";
+   * empty when every material is already gathered. Stock is the same tally the
+   * planner affords against (chests plus what villagers carry), so what a
+   * villager says it still needs matches what the brain is actually waiting on.
+   */
+  private static String remainingCosts(List<ItemStack> costs, Map<Item, Integer> stock) {
+    List<String> parts = new ArrayList<>();
+    for (ItemStack cost : costs) {
+      int missing = cost.getCount() - stock.getOrDefault(cost.getItem(), 0);
+      if (missing > 0) {
+        parts.add(missing + " " + itemName(cost));
+      }
+    }
+    return String.join(", ", parts);
   }
 
   private static String pickupSummary(RealPerson person, PersonalLogData log, int limit) {
