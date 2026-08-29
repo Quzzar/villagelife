@@ -14,6 +14,7 @@ import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
+import com.quzzar.villagelife.village.VillageRequests;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
 
 import net.minecraft.world.item.Item;
@@ -134,14 +135,25 @@ public class UrbanPlanner {
       }
     }
 
-    List<Candidate> candidates = rankCandidates(village, stock);
-    List<Candidate> offered = candidates.subList(0, Math.min(optionsOffered(), candidates.size()));
+    List<Candidate> affordable = rankCandidates(village, stock);
+    List<Candidate> offered = new ArrayList<>(
+        affordable.subList(0, Math.min(optionsOffered(), affordable.size())));
 
     // Things worth wanting but out of reach today, offered as goals rather
     // than as builds. A village with nothing affordable is exactly the village
     // that most needs to name something and save for it, so these are gathered
     // even when there is nothing to build.
-    List<Candidate> goals = outOfReach(village, stock);
+    List<Candidate> reachableGoals = outOfReach(village, stock);
+    List<Candidate> goals = new ArrayList<>(
+        reachableGoals.subList(0, Math.min(GOALS_OFFERED, reachableGoals.size())));
+
+    // Put what the people asked for on the menu, even when the planner would not
+    // have ranked it, so the brain can actually act on a villager request. A
+    // request only widens the options and argues its case in the situation
+    // (situationOf); the model still chooses, so the villager proposes and the
+    // brain disposes - a villager is never the brain.
+    addRequestedOptions(village, affordable, reachableGoals, offered, goals);
+
     if (offered.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
@@ -203,9 +215,11 @@ public class UrbanPlanner {
   }
 
   /**
-   * The best few buildings the village wants but cannot pay for. Ranked by
-   * whether it can actually work toward them first, then by the same need
-   * scoring, so what it saves for is something it both lacks and can reach.
+   * The buildings the village wants but cannot pay for, ranked best first: by
+   * whether it can actually work toward them, then by the same need scoring, so
+   * what it saves for is something it both lacks and can reach. The caller takes
+   * the top {@link #GOALS_OFFERED}; the whole list is returned so a villager
+   * request can still find its match below the cut.
    */
   private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
     Needs needs = Needs.of(village);
@@ -245,7 +259,61 @@ public class UrbanPlanner {
     Comparator<Candidate> byReach = Comparator.comparing((Candidate c) -> reachable.get(c.info()));
     unaffordable.sort(byReach.reversed()
         .thenComparing(Comparator.comparingDouble(Candidate::score).reversed()));
-    return unaffordable.subList(0, Math.min(GOALS_OFFERED, unaffordable.size()));
+    return unaffordable;
+  }
+
+  /**
+   * Adds any building a villager asked for that the ranking left off the menu:
+   * an affordable match joins the build options, an out-of-reach match joins the
+   * save-for goals. A request already represented is left alone, and one that
+   * names nothing in the catalogue (walls are a separate system) simply argues
+   * its case in the situation without a build option. This never chooses - it
+   * only ensures the brain CAN choose the thing its people asked for.
+   */
+  private static void addRequestedOptions(Village village, List<Candidate> affordable,
+      List<Candidate> reachableGoals, List<Candidate> offered, List<Candidate> goals) {
+    for (String subject : VillageRequests.pendingBySubject(village).keySet()) {
+      if (matchingCandidate(offered, subject) != null || matchingCandidate(goals, subject) != null) {
+        continue;
+      }
+      Candidate build = matchingCandidate(affordable, subject);
+      if (build != null) {
+        offered.add(build);
+        continue;
+      }
+      Candidate saveFor = matchingCandidate(reachableGoals, subject);
+      if (saveFor != null) {
+        goals.add(saveFor);
+      }
+    }
+  }
+
+  /** The first candidate whose building category names the subject, exact before loose. */
+  private static Candidate matchingCandidate(List<Candidate> pool, String subject) {
+    String want = VillageRequests.normalize(subject);
+    Candidate loose = null;
+    for (Candidate candidate : pool) {
+      String have = VillageRequests.normalize(categoryLabel(candidate.info()));
+      if (have.equals(want)) {
+        return candidate;
+      }
+      if (loose == null && (have.contains(want) || want.contains(have))) {
+        loose = candidate;
+      }
+    }
+    return loose;
+  }
+
+  /** Whether a request subject names this building, for settling the request. */
+  private static boolean matchesBuilding(String subject, BuildingInfo info) {
+    String want = VillageRequests.normalize(subject);
+    String have = VillageRequests.normalize(categoryLabel(info));
+    return have.equals(want) || have.contains(want) || want.contains(have);
+  }
+
+  /** The building's category as spoken, e.g. "guard post", falling back to its id. */
+  private static String categoryLabel(BuildingInfo info) {
+    return info.hasWellFormedId() ? info.getCategory().replace('_', ' ') : info.getName();
   }
 
   private static BuildingInfo pick(Village village, List<Candidate> offered, List<Candidate> goals,
@@ -263,8 +331,9 @@ public class UrbanPlanner {
     if (index > offered.size()) {
       int goalIndex = index - offered.size() - 1;
       if (goalIndex >= 0 && goalIndex < goals.size()) {
-        VillageGoal.set(village, goals.get(goalIndex).info().getName(),
-            chosen.reason(), village.getVillageTime());
+        BuildingInfo goalInfo = goals.get(goalIndex).info();
+        VillageGoal.set(village, goalInfo.getName(), chosen.reason(), village.getVillageTime());
+        VillageRequests.resolvePending(village, subject -> matchesBuilding(subject, goalInfo));
         return null;
       }
       return ruleChoice == null ? null : ruleChoice.info();
@@ -280,6 +349,7 @@ public class UrbanPlanner {
     Candidate candidate = offered.get(index);
     Villagelife.LOGGER.info("Village '{}' decided to build {}: {}",
         village.getName(), candidate.info().getName(), chosen.reason());
+    VillageRequests.resolvePending(village, subject -> matchesBuilding(subject, candidate.info()));
     return candidate.info();
   }
 
@@ -318,8 +388,32 @@ public class UrbanPlanner {
         situation.append("Some people have nowhere to sleep. ");
       }
     }
+    appendRequests(village, situation);
     situation.append("Choose what to build next.");
     return situation.toString();
+  }
+
+  /**
+   * The villagers' standing requests, folded into the brain's briefing as an
+   * argument, not an instruction: it weighs them and still decides. Many
+   * villagers asking the same thing collapse to one weighted line, so consensus
+   * reads as a stronger signal rather than as repetition.
+   */
+  private static void appendRequests(Village village, StringBuilder situation) {
+    Map<String, List<VillageRequests.Request>> asks = VillageRequests.pendingBySubject(village);
+    if (asks.isEmpty()) {
+      return;
+    }
+    List<String> lines = new ArrayList<>();
+    for (List<VillageRequests.Request> group : asks.values()) {
+      VillageRequests.Request first = group.get(0);
+      String reason = first.reason().isBlank() ? "" : " (" + first.reason() + ")";
+      lines.add(group.size() == 1
+          ? first.requesterName() + " asks for " + first.subject() + reason
+          : group.size() + " people ask for " + first.subject() + reason);
+    }
+    situation.append("Your people have asked: ").append(String.join("; ", lines))
+        .append(". Weigh them, but decide for the village. ");
   }
 
   /**
