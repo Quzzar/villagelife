@@ -25,15 +25,12 @@ public class VillagelifeConfig {
     public static int DaysInYear;
     public static boolean GenerateVillages;
     public static boolean LlmEnabled;
-    public static String LlmModel;
     public static int LlmMaxNewTokens;
     public static double LlmTemperature;
-    public static int LlmWorkerHeapMb;
     public static String LlmProviderName;
     public static String LlmApiKey;
     public static String LlmCloudModel;
     public static String LlmLocalModel;
-    public static String LlmLocalUrl;
     public static String PersonaJudgeProvider;
     public static String PersonaJudgeApiKey;
     public static String PersonaJudgeModel;
@@ -74,15 +71,12 @@ public class VillagelifeConfig {
         DaysInYear = COMMON.DaysInYear.get();
         GenerateVillages = COMMON.GenerateVillages.get();
         LlmEnabled = COMMON.LlmEnabled.get();
-        LlmModel = COMMON.LlmModel.get();
         LlmMaxNewTokens = COMMON.LlmMaxNewTokens.get();
         LlmTemperature = COMMON.LlmTemperature.get();
-        LlmWorkerHeapMb = COMMON.LlmWorkerHeapMb.get();
         LlmProviderName = COMMON.LlmProviderName.get();
         LlmApiKey = COMMON.LlmApiKey.get();
         LlmCloudModel = COMMON.LlmCloudModel.get();
         LlmLocalModel = COMMON.LlmLocalModel.get();
-        LlmLocalUrl = COMMON.LlmLocalUrl.get();
         PersonaJudgeProvider = COMMON.PersonaJudgeProvider.get();
         PersonaJudgeApiKey = COMMON.PersonaJudgeApiKey.get();
         PersonaJudgeModel = COMMON.PersonaJudgeModel.get();
@@ -133,11 +127,8 @@ public class VillagelifeConfig {
         public final ModConfigSpec.IntValue DaysInYear;
         public final ModConfigSpec.BooleanValue GenerateVillages;
         public final ModConfigSpec.BooleanValue LlmEnabled;
-        public final ModConfigSpec.ConfigValue<String> LlmModel;
-        public final ModConfigSpec.ConfigValue<String> LlmLocalUrl;
         public final ModConfigSpec.IntValue LlmMaxNewTokens;
         public final ModConfigSpec.DoubleValue LlmTemperature;
-        public final ModConfigSpec.IntValue LlmWorkerHeapMb;
         public final ModConfigSpec.ConfigValue<String> LlmProviderName;
         public final ModConfigSpec.ConfigValue<String> LlmApiKey;
         public final ModConfigSpec.ConfigValue<String> LlmCloudModel;
@@ -184,16 +175,13 @@ public class VillagelifeConfig {
 
             GenerateVillages = builder.comment("Generate villagelife villages during world generation, replacing vanilla villages. On (default): our living villages generate in the world in place of vanilla ones. Off: no villages generate in the world - you can still spawn one manually with /villagelife create-village. Only vanilla minecraft:village is affected; other mods' villages are untouched.").translation(Villagelife.MODID + ".config.GenerateVillages").define("Generate villages", true);
 
-            LlmEnabled = builder.comment("Enable the local LLM that helps villagers make decisions. The model (a few hundred MB) is downloaded from HuggingFace on first server start and cached in <game dir>/villagelife/models. Runs in its own small worker process, so no launcher setup is needed; budget roughly 1.5GB of RAM beyond the game's needs (on small hosted servers, pick the 0.5B model or disable this). Check /vlbrain status in-game.").translation(Villagelife.MODID + ".config.LlmEnabled").define("Enable villager LLM?", true);
-            LlmModel = builder.comment("Offline model for the jlama provider (any Jlama-compatible JQ4 HuggingFace id works). tjake/Llama-3.2-1B-Instruct-JQ4 is the default and the only actively tested model. Untested alternates some players use: tjake/granite-3.0-2b-instruct-JQ4 (~1.4GB) and tjake/gemma-2-2b-it-JQ4 (~1.6GB) — bigger and slower, not routinely verified. Downloaded on first server start.").translation(Villagelife.MODID + ".config.LlmModel").define("LLM model id", "tjake/Llama-3.2-1B-Instruct-JQ4");
+            LlmEnabled = builder.comment("Enable the LLM that lets villagers make decisions and hold conversations. The offline model (about 2 GB) downloads from HuggingFace on first server start and is cached in <game dir>/villagelife/models. Budget roughly 3 GB of RAM beyond the game's needs for the offline model, or point LLM provider at a cloud service for no local cost. Check /vlbrain status in-game.").translation(Villagelife.MODID + ".config.LlmEnabled").define("Enable villager LLM?", true);
             LlmMaxNewTokens = builder.comment("Maximum number of tokens the LLM may generate per decision.").translation(Villagelife.MODID + ".config.LlmMaxNewTokens").defineInRange("LLM max new tokens", 96, 16, 1024);
             LlmTemperature = builder.comment("LLM sampling temperature. 0.0 is deterministic (recommended for decisions); higher values are more random.").translation(Villagelife.MODID + ".config.LlmTemperature").defineInRange("LLM temperature", 0.0D, 0.0D, 2.0D);
-            LlmWorkerHeapMb = builder.comment("Max heap (MB) for the LLM worker process. The model weights live outside this heap, so the worker's total memory is roughly this value plus the model size. Lower it on memory-constrained hosts; big offline models (7B) need well above the default. Only used by the jlama provider.").translation(Villagelife.MODID + ".config.LlmWorkerHeapMb").defineInRange("LLM worker heap MB", 1024, 256, 16384);
-            LlmLocalUrl = builder.comment("Where the 'local' provider finds a runtime on this machine speaking the OpenAI protocol: llama.cpp's server, Ollama (http://localhost:11434), LM Studio, vLLM. Several times faster than the built-in offline model and will run anything in its own format. No API key needed.").translation(Villagelife.MODID + ".config.LlmLocalUrl").define("LLM local URL", "http://localhost:8080");
-            LlmProviderName = builder.comment("Which LLM answers for the villagers: 'jlama' runs the offline model above on this machine (default, no account needed); 'llamacpp' downloads llama.cpp and a model and runs them for you, which is several times faster than 'jlama' and needs nothing installed; 'local' talks to a runtime you are already running (see LLM local URL); 'claude', 'openai', or 'deepseek' use that cloud service with your API key. Changing this requires a game restart.").translation(Villagelife.MODID + ".config.LlmProvider").define("LLM provider", "jlama");
-            LlmApiKey = builder.comment("Your API key for the chosen cloud provider (unused by jlama). Paste it here in plain text and TREAT THIS FILE LIKE A PASSWORD: anyone with this file can spend your account's money.").translation(Villagelife.MODID + ".config.LlmApiKey").define("LLM API key", "");
-            LlmCloudModel = builder.comment("Model id for the cloud provider (unused by jlama and llamacpp, which use LLM local model). Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.LlmCloudModel").define("LLM cloud model", "");
-            LlmLocalModel = builder.comment("Which model the 'llamacpp' provider downloads and runs (unused by every other provider): 'llama-3b' (default) or 'gemma-2-2b'. Llama was chosen for how it holds a conversation - it was the clear best of the candidates at replying in character without looping the same line, which is what a player notices first. Gemma is a slightly smaller alternative that talks nearly as well. A one-time download of about 2 GB.").translation(Villagelife.MODID + ".config.LlmLocalModel").define("LLM local model", "llama-3b");
+            LlmProviderName = builder.comment("Which LLM answers for the villagers: 'llamacpp' (default) downloads llama.cpp and an offline model and runs them for you - no account, nothing to install; 'claude', 'openai', or 'deepseek' use that cloud service with your API key. Changing this requires a game restart.").translation(Villagelife.MODID + ".config.LlmProvider").define("LLM provider", "llamacpp");
+            LlmApiKey = builder.comment("Your API key for the chosen cloud provider (unused by llamacpp). Paste it here in plain text and TREAT THIS FILE LIKE A PASSWORD: anyone with this file can spend your account's money.").translation(Villagelife.MODID + ".config.LlmApiKey").define("LLM API key", "");
+            LlmCloudModel = builder.comment("Model id for the cloud provider (unused by llamacpp, which uses LLM local model). Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.LlmCloudModel").define("LLM cloud model", "");
+            LlmLocalModel = builder.comment("Which offline model the 'llamacpp' provider downloads and runs: 'llama-3b' (default, Llama-3.2-3B) or 'gemma-2-2b' (Gemma-2-2B). Llama was the clear best of the candidates at holding a conversation in character without looping the same line, which is what a player notices first. Gemma is a slightly smaller, slightly faster alternative that talks nearly as well. A one-time download of about 2 GB.").translation(Villagelife.MODID + ".config.LlmLocalModel").define("LLM local model", "llama-3b");
 
             PersonaJudgeProvider = builder.comment("Which cloud service scores persona quality in '/vldev persona audit' (developer benchmark only, never the live game): 'claude', 'openai', or 'deepseek'. A cloud judge is used because a small local model cannot reliably tell a well-paraphrased trait from a contradicted one. Leave the key blank to run the audit without scoring.").translation(Villagelife.MODID + ".config.PersonaJudgeProvider").define("Persona judge provider", "claude");
             PersonaJudgeApiKey = builder.comment("API key for the persona-judge provider (developer benchmark only). Separate from the villagers' 'LLM API key' so the game can run a local model while the judge calls the cloud. Blank disables scoring. TREAT THIS FILE LIKE A PASSWORD.").translation(Villagelife.MODID + ".config.PersonaJudgeApiKey").define("Persona judge API key", "");

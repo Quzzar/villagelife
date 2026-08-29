@@ -42,7 +42,7 @@ public final class PersonaCommands {
     private static int audit(CommandSourceStack source, int count) {
         if (!LlmService.get().isReady()) {
             source.sendFailure(Component.literal(
-                    "LLM worker is not ready (status: " + LlmService.get().getStatus() + "). Try /vlbrain load."));
+                    "The LLM is not ready (status: " + LlmService.get().getStatus() + "). Try /vlbrain load."));
             return 0;
         }
         source.sendSuccess(() -> Component.literal(

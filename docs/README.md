@@ -22,8 +22,8 @@ in it, and update it in the same change that moves what it describes.
 - [economy.md](economy.md): the market, emeralds, and trade. Why a market exists when chests
   are free, the bank that floors every price, and how items get valued for modpacks.
 - [llm-brain.md](llm-brain.md): the required LLM that picks among rule-generated
-  options for villagers, and the worker process that runs it with zero player setup.
-  Model benchmarks, failure semantics, and why Jlama must be shaded into one flat jar.
+  options for villagers, run offline via llama.cpp (or a cloud provider) with zero
+  player setup. The two offline models, the three cloud services, and failure semantics.
 - [village-tiers.md](village-tiers.md): the progression ladder (camp → hamlet → village
   → town → city) as datapack data. A tier is a read-out of population, never a gate:
   tier format, the 4-bed village center bootstrap, and why building is constrained by

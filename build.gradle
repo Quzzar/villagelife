@@ -107,9 +107,9 @@ neoForge {
 
         // applies to all the run configs above
         configureEach {
-            // NOTE: no Jlama JVM flags here on purpose. The LLM runs in a worker
-            // process that bakes its own flags in (see LlmWorkerLauncher), and dev
-            // runs should match what players get.
+            // NOTE: no special LLM JVM flags here on purpose. The offline model
+            // runs in a llama.cpp subprocess, not the game JVM, so the game needs
+            // nothing added; dev runs should match what players get.
 
             // Recommended logging data for a userdev environment
             // The markers can be added/remove as needed separated by commas.
@@ -145,65 +145,6 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 // "optional", meaning it will not be pulled by dependents of this mod.
 configurations {
     runtimeClasspath.extendsFrom localRuntime
-
-    // Jlama jars that must live in ONE module: jlama-core and jlama-native share
-    // the com.github.tjake.jlama.tensor.operations package, which is a split
-    // package under FML's module system — as two separate jars the native ops
-    // are unreachable and Jlama silently falls back to a code path that crashes
-    // on ARM. Merged into the mod jar for production and into a bundle jar for
-    // dev runs. osx-x86_64 stays excluded: both mac jars store their lib at the
-    // same resource path, and merging would keep an arbitrary one.
-    jlamaBundle {
-        transitive = false
-        canBeConsumed = false
-    }
-
-    // Libraries the LLM worker process needs but Minecraft already provides to
-    // the game JVM. They must NOT go through jarJar (FML would load them next
-    // to Minecraft's own copies); instead they ride along as plain files under
-    // META-INF/workerlibs/, invisible to FML, extracted only for the worker's
-    // classpath (see LlmWorkerLauncher).
-    workerOnlyLibs {
-        transitive = false
-        canBeConsumed = false
-    }
-}
-
-// Merges the Jlama jars into a single flat jar (see the jlamaBundle
-// configuration for why they cannot stay separate). META-INF/versions/21 is
-// flattened into the root — FML's jar handling does not surface multi-release
-// entries, and the Java 21 classes are the ones a 1.21.1 runtime needs. The
-// versions/21 tree is added before the jar root so its real implementations
-// win over the root's pre-Java-20 stubs (e.g. MemorySegmentSupport).
-def shadeJlama = { task ->
-    task.duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    configurations.jlamaBundle.each { jarFile ->
-        task.from(zipTree(jarFile)) {
-            include 'META-INF/versions/21/**'
-            includeEmptyDirs = false
-            eachFile { fcd -> fcd.path = fcd.path.replaceFirst('META-INF/versions/21/', '') }
-        }
-        task.from(zipTree(jarFile)) {
-            exclude 'META-INF/MANIFEST.MF', 'META-INF/INDEX.LIST', 'META-INF/versions/**',
-                    'META-INF/maven/**', 'module-info.class'
-        }
-    }
-}
-
-// Standalone merged jar for dev runs (the production mod jar gets the same
-// content shaded in directly).
-def jlamaBundleJar = tasks.register('jlamaBundleJar', Jar) {
-    archiveBaseName = 'jlama-bundle'
-    archiveVersion = jlama_version
-    destinationDirectory = layout.buildDirectory.dir('jlama')
-    shadeJlama(it)
-}
-
-tasks.named('jar', Jar) {
-    shadeJlama(it)
-    from(configurations.workerOnlyLibs) {
-        into 'META-INF/workerlibs'
-    }
 }
 
 dependencies {
@@ -229,64 +170,12 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 
-    // Jlama: pure-Java LLM inference engine used for villager decision-making.
-    // The game JVM NEVER runs Jlama — only the LLM worker child process does —
-    // so jlama-core is compile-only for the parent. At runtime the worker gets
-    // Jlama from the shaded mod jar (prod) / the jlamaBundle jar (dev).
-    compileOnly "com.github.tjake:jlama-core:${jlama_version}"
-
     // Curios API only, never the mod: villagers notice and use accessory slots
     // when a Curios-backed mod is installed, and behave normally when it is not
     // (see AccessoryCompat). localRuntime so dev runs can exercise the path
     // without publishing a dependency on it.
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
 
-    jlamaBundle "com.github.tjake:jlama-core:${jlama_version}"
-    jlamaBundle "com.github.tjake:jlama-native:${jlama_version}:linux-x86_64"
-    jlamaBundle "com.github.tjake:jlama-native:${jlama_version}:osx-aarch_64"
-    jlamaBundle "com.github.tjake:jlama-native:${jlama_version}:windows-x86_64"
-
-    // Dev-run supply line for the LLM worker child process. localRuntime lands
-    // on the dev JVM's java.class.path, which the worker inherits (see
-    // LlmWorkerLauncher). jlama-core here exists ONLY to pull its library
-    // transitives (Jackson, jinjava, guava, slf4j, ...) onto that path; the
-    // launcher puts the bundle jar FIRST on the child classpath so the plain
-    // jlama-core jar (no natives) never shadows the shaded one.
-    localRuntime "com.github.tjake:jlama-core:${jlama_version}"
-    localRuntime "org.slf4j:slf4j-simple:2.0.9"
-    localRuntime files(tasks.named('jlamaBundleJar'))
-
-    workerOnlyLibs "org.slf4j:slf4j-api:2.0.9"
-    workerOnlyLibs "org.slf4j:slf4j-simple:2.0.9"
-    workerOnlyLibs "com.google.guava:guava:32.1.2-jre"
-    workerOnlyLibs "com.google.guava:failureaccess:1.0.1"
-    workerOnlyLibs "org.apache.commons:commons-lang3:3.14.0"
-
-    // jarJar does not embed transitive dependencies, so Jlama's runtime deps are
-    // listed explicitly. Guava, slf4j-api, and commons-lang3 are omitted because
-    // Minecraft/NeoForge already provide them at runtime.
-    def jlamaRuntimeLibs = [
-            "com.fasterxml.jackson.core:jackson-databind:2.17.1",
-            "com.fasterxml.jackson.core:jackson-core:2.17.1",
-            "com.fasterxml.jackson.core:jackson-annotations:2.17.1",
-            "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.17.1",
-            "org.yaml:snakeyaml:2.2",
-            "org.jctools:jctools-core:4.0.1",
-            "com.hubspot.jinjava:jinjava:2.7.2",
-            "org.javassist:javassist:3.24.1-GA",
-            "com.google.re2j:re2j:1.2",
-            "commons-net:commons-net:3.9.0",
-            "com.googlecode.java-ipv6:java-ipv6:0.17",
-            "ch.obermuhlner:big-math:2.0.0",
-            "net.fellbaum:jemoji:1.4.1",
-            "net.jafama:jafama:2.3.2",
-    ]
-    jlamaRuntimeLibs.each { lib -> jarJar(lib) }
-
-    // The transitive deps also go on the dev-run classpath, pinned to the same
-    // versions that get embedded, so dev and the release jar resolve identically
-    // (jlama-core alone would pull an older Jackson transitively).
-    jlamaRuntimeLibs.each { lib -> additionalRuntimeClasspath(lib) }
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

@@ -22,14 +22,14 @@ import com.quzzar.villagelife.llm.LlmService;
  * The fast offline path: llama.cpp's server, fetched and run by the mod.
  *
  * Nobody installs anything. The binary is 11 to 18 MB, which is small beside the
- * weights the mod already downloads, and the server runs as a subprocess exactly
- * as the Jlama worker does — a process boundary rather than a JNI binding, so
- * there is no native library inside a modded classloader to go wrong.
+ * weights the mod already downloads, and the server runs as a subprocess: a
+ * process boundary rather than a JNI binding, so there is no native library
+ * inside a modded classloader to go wrong.
  *
- * Measured against the Java model it replaces, on the same machine and the same
- * quantisation: generation goes from 20 to 34 tokens a second on a model with
- * three times the parameters, and prefill from 115 to 700. The gap is mostly
- * that llama.cpp uses the GPU and Jlama cannot.
+ * Measured against the pure-Java model it replaced, on the same machine and the
+ * same quantisation: generation went from 20 to 34 tokens a second on a model
+ * with three times the parameters, and prefill from 115 to 700, mostly because
+ * llama.cpp uses the GPU and the in-JVM engine could not.
  *
  * Failure is never fatal. Any step that does not work leaves this provider
  * FAILED, and the game already treats an unready provider as a reason to defer:

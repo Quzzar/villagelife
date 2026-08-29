@@ -13,7 +13,6 @@ import com.google.gson.JsonParser;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.llm.provider.ClaudeProvider;
-import com.quzzar.villagelife.llm.provider.JlamaWorkerProvider;
 import com.quzzar.villagelife.llm.provider.LocalRuntimeProvider;
 import com.quzzar.villagelife.llm.provider.LlmProvider;
 import com.quzzar.villagelife.llm.provider.LlmProvider.CompletionRequest;
@@ -21,9 +20,8 @@ import com.quzzar.villagelife.llm.provider.OpenAiCompatibleProvider;
 
 /**
  * Villager LLM requests, served by a config-selected {@link LlmProvider}:
- * the offline Jlama worker (default), a faster local runtime speaking the
- * OpenAI protocol, or Claude / OpenAI / DeepSeek in the cloud. Callers never
- * learn which provider answered.
+ * the offline llama.cpp runtime (default), or Claude / OpenAI / DeepSeek in
+ * the cloud. Callers never learn which provider answered.
  *
  * Queue order is chat > decide > persona: chats and decides dispatch
  * immediately (both foreground), and personas wait until nothing foreground
@@ -151,20 +149,12 @@ public final class LlmService {
     if (cloud.isPresent()) {
       return cloud.get();
     }
-    return switch (name.toLowerCase(Locale.ROOT)) {
-      // Fetches llama.cpp and runs it itself: nothing to install, and several
-      // times faster than the in-process Java model.
-      case "llamacpp" -> new LocalRuntimeProvider();
-      // Someone else's already-running server on this machine.
-      case "local" -> new OpenAiCompatibleProvider(
-          OpenAiCompatibleProvider.local(VillagelifeConfig.LlmLocalUrl, VillagelifeConfig.LlmCloudModel),
-          () -> "", () -> VillagelifeConfig.LlmCloudModel);
-      case "jlama" -> new JlamaWorkerProvider();
-      default -> {
-        Villagelife.LOGGER.error("Unknown LLM provider '{}', using jlama", name);
-        yield new JlamaWorkerProvider();
-      }
-    };
+    if (!"llamacpp".equalsIgnoreCase(name)) {
+      Villagelife.LOGGER.error("Unknown LLM provider '{}', using llamacpp", name);
+    }
+    // The only offline provider: fetches llama.cpp and a model and runs them
+    // itself, nothing to install. Cloud (claude/openai/deepseek) returned above.
+    return new LocalRuntimeProvider();
   }
 
   /**

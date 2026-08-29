@@ -9,7 +9,7 @@ import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService;
 
 /**
- * Persona generation, consuming the LLM worker via
+ * Persona generation, consuming the LLM via
  * {@link LlmService#submitPersona}: persona requests queue behind any pending
  * decide() and run one at a time, so a spawn burst cannot stall village
  * decisions. Callers follow the generate-before-spawn lifecycle (persona map

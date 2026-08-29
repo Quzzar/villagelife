@@ -22,16 +22,16 @@ import net.neoforged.fml.loading.FMLPaths;
  * Provisions and launches llama.cpp's server, so the fast path needs nothing
  * installed by hand.
  *
- * This is the same bargain the mod already makes for models: Jlama downloads
- * hundreds of megabytes of weights on first run, and a llama.cpp build is 11 to
- * 18 MB beside them. Fetching it is cheaper than the model it will load, and
+ * Provisioned the same way as the model itself: the GGUF weights are a couple
+ * of gigabytes downloaded on first run, and a llama.cpp build is 11 to 18 MB
+ * beside them. Fetching it is cheaper than the model it will load, and
  * llama.cpp is MIT licensed, so shipping or fetching it is allowed.
  *
  * Deliberately a SUBPROCESS rather than a JNI binding. A binding would mean
  * native libraries for four platforms inside the mod jar, loaded through a
- * modded classloader — and build.gradle already carries a jlamaBundle task
- * flattening two jars because they share a split package. That is the failure
- * this avoids: a process boundary cannot have a classloader conflict.
+ * modded classloader, with all the split-package and multi-release-jar hazards
+ * that native inference-in-JVM runs into under FML. A process boundary cannot
+ * have a classloader conflict, so this avoids the whole class of them.
  */
 public final class LlamaServerLauncher {
 
