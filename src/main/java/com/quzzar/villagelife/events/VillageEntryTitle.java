@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.events;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +35,12 @@ public class VillageEntryTitle {
   /** How often, in ticks, a player's position is tested against village claims. */
   private static final int CHECK_INTERVAL = 20;
 
+  /**
+   * How far outside a village's claim the banner still fires, in blocks, so the
+   * place is announced a little before the player reaches its first building.
+   */
+  private static final int ENTRY_PADDING = 16;
+
   /** Title animation timing in ticks: fade in, hold, fade out. */
   private static final int FADE_IN = 10;
   private static final int STAY = 60;
@@ -57,7 +64,7 @@ public class VillageEntryTitle {
     String insideUuid = null;
     Village inside = null;
     for (Map.Entry<String, Village> entry : VillageManager.get(level).getVillages().entrySet()) {
-      if (entry.getValue().hasClaimed(player.blockPosition())) {
+      if (entry.getValue().hasClaimedWithin(player.blockPosition(), ENTRY_PADDING)) {
         insideUuid = entry.getKey();
         inside = entry.getValue();
         break;
@@ -81,8 +88,10 @@ public class VillageEntryTitle {
   private static void announce(ServerPlayer player, String villageName, int population) {
     player.connection.send(new ClientboundSetTitlesAnimationPacket(FADE_IN, STAY, FADE_OUT));
     player.connection.send(new ClientboundSetSubtitleTextPacket(
-        // en-dash (U+2013) separators flanking the count, a UI flourish.
-        Component.literal("– Population " + population + " –").withStyle(ChatFormatting.GRAY)));
+        // en-dash (U+2013) separators flanking the count; grouped with commas
+        // (forced US locale) so a four-figure village reads "1,000", not "1000".
+        Component.literal("– Population " + String.format(Locale.US, "%,d", population) + " –")
+            .withStyle(ChatFormatting.GRAY)));
     player.connection.send(new ClientboundSetTitleTextPacket(
         Component.literal(villageName).withStyle(ChatFormatting.WHITE)));
   }
