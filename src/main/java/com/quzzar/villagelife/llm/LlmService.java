@@ -226,7 +226,7 @@ public final class LlmService {
 
     List<String> optionsCopy = List.copyOf(options);
     return foregroundComplete(new CompletionRequest(DECIDE_SYSTEM, user.toString(), DECIDE_EXAMPLES,
-        VillagelifeConfig.LlmMaxNewTokens, VillagelifeConfig.LlmTemperature))
+        VillagelifeConfig.LlmDecisionMaxNewTokens, VillagelifeConfig.LlmDecisionTemperature))
         .thenApply(raw -> raw.flatMap(text -> parseDecision(text, optionsCopy)));
   }
 

@@ -15,6 +15,7 @@ import com.google.gson.JsonParser;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.chat.PersonChatContext.AssembledChat;
 import com.quzzar.villagelife.chat.PersonChatContext.Turn;
+import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.UndertakingData;
 import com.quzzar.villagelife.entities.UndertakingService;
@@ -43,10 +44,10 @@ import net.minecraft.world.entity.EquipmentSlot;
 public final class PersonChatDispatcher {
 
   private static final int MAX_HISTORY_TURNS = 6;
-  // Trimmed from 96 after live capture: 47 tokens took ~13s in-game on the 1B
-  // (server and worker share cores), so the cap bounds the worst-case wait.
-  private static final int MAX_NEW_TOKENS = 64;
-  private static final double CHAT_TEMPERATURE = 0.4D; // livelier than decide()'s 0.0; locked at the prototype
+  // Chat's token cap and base temperature are config-driven (the "LLM chat max
+  // new tokens" / "LLM chat temperature" keys). The retry temperature and both
+  // repetition penalties below stay fixed: they are anti-repeat mechanics for a
+  // small model, not tuning knobs a player is meant to turn.
 
   /**
    * How hard to push the model off words it has just used.
@@ -222,7 +223,7 @@ public final class PersonChatDispatcher {
     // depend on a model honouring a sampling parameter.
     String lastAnswer = history.isEmpty() ? null : history.get(history.size() - 1).villagerLine();
 
-    return ask(chat, CHAT_TEMPERATURE, CHAT_REPETITION_PENALTY)
+    return ask(chat, VillagelifeConfig.LlmChatTemperature, CHAT_REPETITION_PENALTY)
         .thenCompose(first -> {
           if (!echoesLastAnswer(first, lastAnswer)) {
             return CompletableFuture.completedFuture(first);
@@ -264,7 +265,7 @@ public final class PersonChatDispatcher {
   private static CompletableFuture<Optional<String>> ask(AssembledChat chat, double temperature,
       double penalty) {
     return LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(),
-        MAX_NEW_TOKENS, temperature, penalty);
+        VillagelifeConfig.LlmChatMaxNewTokens, temperature, penalty);
   }
 
   /**
