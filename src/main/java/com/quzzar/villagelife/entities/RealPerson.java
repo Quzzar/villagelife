@@ -489,9 +489,14 @@ public class RealPerson extends Person {
     // Restock torches for the miner to light the shaft as they dig. Physical:
     // taken from village stores, so the mine goes dark only when the village has
     // no torches to spare. MineStep places them from the pack a few blocks apart.
+    // Buckets ride along for the same reason: a miner who breaks into water or
+    // lava bails it out with one and keeps digging, so a flooded shaft reads as
+    // a village with no bucket to spare rather than a dead end.
     if (getOccupation() == Occupation.MINER) {
       ItemStack torches = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.TORCH, 16), depositToLoc);
       this.addItems(Arrays.asList(torches));
+      ItemStack buckets = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BUCKET, 3), depositToLoc);
+      this.addItems(Arrays.asList(buckets));
     }
 
     // Grab bonemeal
