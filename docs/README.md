@@ -24,6 +24,9 @@ in it, and update it in the same change that moves what it describes.
 - [llm-brain.md](llm-brain.md): the required LLM that picks among rule-generated
   options for villagers, run offline via llama.cpp (or a cloud provider) with zero
   player setup. The two offline models, the three cloud services, and failure semantics.
+- [villager-requests.md](villager-requests.md): how a villager petitions the brain to
+  build something, with a reason, and the brain still decides. The propose-not-dispose
+  invariant, the chat-tool-to-planner loop, consensus, and the feedback that closes it.
 - [village-tiers.md](village-tiers.md): the progression ladder (camp → hamlet → village
   → town → city) as datapack data. A tier is a read-out of population, never a gate:
   tier format, the 4-bed village center bootstrap, and why building is constrained by
