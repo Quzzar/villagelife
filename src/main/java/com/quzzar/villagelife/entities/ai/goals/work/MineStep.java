@@ -12,6 +12,7 @@ import com.quzzar.villagelife.village.buildings.Building;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -227,6 +228,29 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
+   * Scoops the water or lava at {@code facePos} into an empty bucket from the
+   * miner's pack and clears the block, so the shaft carries on rather than being
+   * abandoned. True when a bucket was on hand and the liquid was bailed; false
+   * when the pack held no empty bucket, leaving the block for the caller to treat
+   * as an obstacle (the sponge/log path below).
+   *
+   * <p>The filled bucket goes back into the pack, water or lava to match, and
+   * rides home to empty on deposit like any other carried item. One bucket clears
+   * one block, so a pocket that outlasts the miner's buckets falls back to logged.
+   */
+  private boolean bailLiquid(RealPerson person, BlockPos facePos) {
+    if (person.removeItem(Items.BUCKET, 1).getCount() < 1) {
+      return false;
+    }
+    boolean lava = this.block == Blocks.LAVA;
+    person.addItems(List.of(new ItemStack(lava ? Items.LAVA_BUCKET : Items.WATER_BUCKET)));
+    person.level().playSound((Player) null, facePos.getX(), facePos.getY(), facePos.getZ(),
+        lava ? SoundEvents.BUCKET_FILL_LAVA : SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+    person.level().setBlock(facePos, Blocks.AIR.defaultBlockState(), 2);
+    return true;
+  }
+
+  /**
    * Advances the cursor to the next block worth breaking. False when the miner
    * has hit something they cannot get through, which resets the shaft and is
    * written into their personal log - it surfaces in conversation ("the mine is
@@ -260,6 +284,14 @@ public final class MineStep implements BlockWorkStep {
       }
       facePos = face(mouth, rotation);
       this.block = person.level().getBlockState(facePos).getBlock();
+      // Bail water or lava into a bucket and dig on, rather than letting it abandon
+      // the shaft. The empty bucket fills to match (carried home, emptied on deposit),
+      // the block clears, and the cursor treats it as air so the loop scans onward.
+      // No bucket: it stays liquid and drops to the impassable path below (sponge for
+      // water). Source and flowing liquid are bailed alike, as the sponge path treats them.
+      if ((this.block == Blocks.WATER || this.block == Blocks.LAVA) && bailLiquid(person, facePos)) {
+        this.block = Blocks.AIR;
+      }
       // Never mine a light source, and never undermine a torch or lantern standing on
       // the block below -- the cursor steps down into its own supports as the shaft
       // deepens, so this is what keeps a dug shaft lit. Any emitter counts (soul,

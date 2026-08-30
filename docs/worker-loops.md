@@ -141,7 +141,10 @@ paths are the visible sign of a village that has caught up with its own plans.
 **Roaming by default, fixed where a job is simpler that way.** Per job, not global.
 
 The miner is neither: it sweeps a pattern outward and downward from its work station, digging a
-real shaft, treating lava and water and bedrock and wrong-tool as obstacles. **That pattern with
+real shaft, treating lava and water and bedrock and wrong-tool as obstacles. A miner carrying
+buckets bails the water or lava it breaks into and digs on (one bucket per block, restocked from
+village stores like its torches), so those two stop the shaft only when the village has no bucket
+to spare; bedrock and wrong-tool still stop it outright. **That pattern with
 deviation is probably what roaming really is** for most jobs, and the model has to be able to
 express it. Keep the excavation as it stands; a prospector that finds caves and follows ore veins
 is a better story and is deliberately left as fog.
