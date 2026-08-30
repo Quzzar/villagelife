@@ -385,6 +385,16 @@ public final class PersonChatContext {
     }
     system.append(". ").append(opinionLine(person, playerName, playerUUID)).append('\n');
 
+    // What the villager remembers of earlier days' talks with this player: a
+    // compact summary a new-day chat picks up from, in place of the full
+    // transcript (PersonChatDispatcher.consolidate). Empty until the first
+    // consolidation, or when the model produced none.
+    String pastTalks = person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerUUID);
+    if (!pastTalks.isBlank()) {
+      system.append("What you remember of earlier talks with ").append(playerName).append(": ")
+          .append(pastTalks).append('\n');
+    }
+
     // At most one structured tool is offered per turn: a small model reaches for
     // an always-present optional field on turns that do not warrant it (the
     // undertaking audit, #24). A village-direction the player is urging takes the

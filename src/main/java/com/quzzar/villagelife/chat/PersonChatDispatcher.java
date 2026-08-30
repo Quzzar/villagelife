@@ -422,6 +422,68 @@ public final class PersonChatDispatcher {
     return "request: " + subject;
   }
 
+  /** How the consolidation summary is generated: room for a few sentences, low heat. */
+  private static final int SUMMARY_MAX_TOKENS = 150;
+  private static final double SUMMARY_TEMPERATURE = 0.3D;
+
+  /**
+   * Fold a villager's prior conversation with a player into their per-player
+   * summary ({@link ChatSummaryData}) and clear the raw transcript, so a chat
+   * that opens on a new Minecraft day starts from a compact memory instead of a
+   * transcript that keeps growing, which a small model drowns in. Gated to the
+   * day boundary by {@code RealPerson.openChat}, its only caller.
+   *
+   * <p>The raw exchanges are cleared at once so the fresh session begins clean;
+   * the summary itself is generated in the background (persona priority, so it
+   * never delays chat or decisions) and stored when it returns. If the LLM is
+   * off or the call fails, the transcript is still reset and the villager simply
+   * keeps the summary it already had.
+   */
+  public static void consolidate(RealPerson person, UUID playerId, String playerName) {
+    MinecraftServer server = person.getServer();
+    if (server == null) {
+      return;
+    }
+    List<ChatHistoryData.Exchange> prior = person.getData(VillagelifeAttachments.CHAT_HISTORY.get()).with(playerId);
+    if (prior.isEmpty()) {
+      return;
+    }
+    String earlier = person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerId);
+
+    // Reset the transcript now; these lines are captured in the summary request below.
+    person.setData(VillagelifeAttachments.CHAT_HISTORY.get(),
+        person.getData(VillagelifeAttachments.CHAT_HISTORY.get()).clearedFor(playerId));
+
+    String system = "You are " + person.getFullName() + ". Summarize your conversation with " + playerName
+        + " in two or three sentences, in the first person, as a memory you will keep: what you talked about, "
+        + "anything you promised or they asked of you, and how you feel about them now. Write only the summary, "
+        + "with no preamble.";
+    StringBuilder user = new StringBuilder();
+    if (!earlier.isBlank()) {
+      user.append("What you remembered before this conversation: ").append(earlier).append("\n\n");
+    }
+    user.append("The conversation to summarize:\n");
+    for (ChatHistoryData.Exchange e : prior) {
+      if (!e.playerLine().isBlank()) {
+        user.append(playerName).append(": \"").append(e.playerLine()).append("\"\n");
+      }
+      user.append("You: \"").append(e.reply()).append("\"\n");
+    }
+
+    LlmService.get().submitPersona(system, user.toString(), SUMMARY_MAX_TOKENS, SUMMARY_TEMPERATURE)
+        .whenComplete((result, error) -> {
+          if (error != null || result == null || result.isEmpty()) {
+            return;
+          }
+          String summary = result.get().trim();
+          if (summary.isEmpty()) {
+            return;
+          }
+          server.execute(() -> person.setData(VillagelifeAttachments.CHAT_SUMMARY.get(),
+              person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).withSummary(playerId, summary)));
+        });
+  }
+
 
   /**
    * A parsed reply. {@code undertaking} carries the raw {@code "undertaking"}

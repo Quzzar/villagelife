@@ -28,6 +28,12 @@ public class VillagelifeAttachments {
                     .builder(() -> com.quzzar.villagelife.chat.ChatHistoryData.EMPTY)
                     .serialize(com.quzzar.villagelife.chat.ChatHistoryData.CODEC).build());
 
+    /** Per-player conversation memory: the summary a new-day chat picks up from. */
+    public static final Supplier<AttachmentType<com.quzzar.villagelife.chat.ChatSummaryData>> CHAT_SUMMARY = ATTACHMENT_TYPES
+            .register("chat_summary", () -> AttachmentType
+                    .builder(() -> com.quzzar.villagelife.chat.ChatSummaryData.EMPTY)
+                    .serialize(com.quzzar.villagelife.chat.ChatSummaryData.CODEC).build());
+
     /** The matters a villager is seeing through (docs/undertakings.md). */
     public static final Supplier<AttachmentType<UndertakingData>> UNDERTAKINGS = ATTACHMENT_TYPES.register(
             "undertakings",

@@ -745,10 +745,26 @@ public class RealPerson extends Person {
       detail = detail + " of " + getVillage().getName();
     }
     com.quzzar.villagelife.chat.PersonChatDispatcher.markOpen(this, player);
-    List<OpenPersonChatPacket.ExchangeLine> scrollback = getData(
-        VillagelifeAttachments.CHAT_HISTORY.get()).with(player.getUUID()).stream()
-        .map(e -> new OpenPersonChatPacket.ExchangeLine(e.playerLine(), e.reply()))
-        .toList();
+
+    // A conversation is a session bounded by the Minecraft day. Re-opening on the
+    // same day continues where it left off; a new day is a fresh conversation: the
+    // villager consolidates the prior session into a memory (see
+    // PersonChatDispatcher.consolidate) and the screen opens blank so they can
+    // greet anew, instead of resuming a long transcript a small model loses the
+    // thread of.
+    List<com.quzzar.villagelife.chat.ChatHistoryData.Exchange> priorExchanges = getData(
+        VillagelifeAttachments.CHAT_HISTORY.get()).with(player.getUUID());
+    long currentDay = level().getDayTime() / 24000L;
+    boolean freshSession = !priorExchanges.isEmpty()
+        && priorExchanges.get(priorExchanges.size() - 1).dayTime() / 24000L != currentDay;
+    if (freshSession) {
+      com.quzzar.villagelife.chat.PersonChatDispatcher.consolidate(this, player.getUUID(),
+          player.getGameProfile().getName());
+    }
+    List<OpenPersonChatPacket.ExchangeLine> scrollback = freshSession ? List.of()
+        : priorExchanges.stream()
+            .map(e -> new OpenPersonChatPacket.ExchangeLine(e.playerLine(), e.reply()))
+            .toList();
     // A merchant at a staffed market gets a Trade tab; everyone else is chat alone.
     boolean canTrade = getOccupation() == Occupation.MERCHANT && getVillage() != null
         && com.quzzar.villagelife.economy.Treasury.tradeBlocker(getVillage(),
@@ -772,7 +788,8 @@ public class RealPerson extends Person {
     PacketDistributor.sendToPlayer(player,
         new OpenPersonChatPacket(this.getId(), getFullName(), detail, canTrade, scrollback));
     if (scrollback.isEmpty()) {
-      // Nothing to show yet: the villager opens the conversation themselves.
+      // Blank screen (a first-ever chat, or a new day's fresh session): the
+      // villager opens the conversation themselves.
       com.quzzar.villagelife.chat.PersonChatDispatcher.greet(this, player);
     }
   }

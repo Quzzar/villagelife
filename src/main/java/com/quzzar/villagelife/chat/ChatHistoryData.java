@@ -79,4 +79,18 @@ public record ChatHistoryData(Map<UUID, List<Exchange>> byPlayer) {
         updated.forEach((id, exchanges) -> frozen.put(id, List.copyOf(exchanges)));
         return new ChatHistoryData(Map.copyOf(frozen));
     }
+
+    /**
+     * A copy with this player's raw exchanges dropped, used when a new-day chat
+     * consolidates the prior session into a summary (ChatSummaryData) and starts
+     * the transcript fresh. Other players' history is untouched.
+     */
+    public ChatHistoryData clearedFor(UUID playerId) {
+        if (!byPlayer.containsKey(playerId)) {
+            return this;
+        }
+        Map<UUID, List<Exchange>> updated = new HashMap<>(byPlayer);
+        updated.remove(playerId);
+        return new ChatHistoryData(Map.copyOf(updated));
+    }
 }
