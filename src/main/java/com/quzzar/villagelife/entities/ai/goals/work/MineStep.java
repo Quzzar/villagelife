@@ -193,6 +193,17 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
+   * A non-fluid light source, which the cursor never breaks. Lava emits light too but
+   * is a fluid, so it falls through to {@link #impassable} and stops the shaft as it
+   * always did; every torch and lantern (soul, redstone, wall) reads as light and is
+   * left alone.
+   */
+  private boolean isLight(Level level, BlockPos pos) {
+    net.minecraft.world.level.block.state.BlockState state = level.getBlockState(pos);
+    return state.getFluidState().isEmpty() && state.getLightEmission(level, pos) > 0;
+  }
+
+  /**
    * Every so many blocks, stand a torch in the space just opened so the shaft
    * does not go dark. Physical: the torch comes out of the miner's pack (kept
    * stocked from village stores when they turn in for the night), so an unlit
@@ -233,6 +244,7 @@ public final class MineStep implements BlockWorkStep {
       this.offset = new BlockPos(-(RADIUS + 1), -1, -(RADIUS - 1));
     }
     int steps = 0;
+    BlockPos facePos = null;
     do {
       if (++steps > MAX_CURSOR_STEPS) {
         resetShaft();
@@ -246,9 +258,15 @@ public final class MineStep implements BlockWorkStep {
         this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, this.inward - 1);
         this.inward++;
       }
-      this.block = person.level().getBlockState(face(mouth, rotation)).getBlock();
-    } while (this.block == Blocks.AIR || this.block == Blocks.TORCH
-        || this.block == Blocks.WALL_TORCH || this.block == Blocks.LANTERN);
+      facePos = face(mouth, rotation);
+      this.block = person.level().getBlockState(facePos).getBlock();
+      // Never mine a light source, and never undermine a torch or lantern standing on
+      // the block below -- the cursor steps down into its own supports as the shaft
+      // deepens, so this is what keeps a dug shaft lit. Any emitter counts (soul,
+      // redstone and wall torches, lanterns), not just a plain torch.
+    } while (this.block == Blocks.AIR
+        || isLight(person.level(), facePos)
+        || isLight(person.level(), facePos.above()));
 
     if (impassable(person)) {
       if (this.block == Blocks.WATER && person.removeItem(Items.SPONGE, 1).getCount() == 1) {
