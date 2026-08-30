@@ -79,12 +79,17 @@ public class LocationValidator {
         claimed++;
         continue;
       }
-      // Build on the ground, not at a guessed elevation. Sites used to be
-      // scored at the village centre's height plus a blind offset, which the
-      // levelling budget then rejected for being metres above or below the
-      // actual terrain: every candidate came back impossible.
+      // Build on the ground, not at a guessed elevation, and seat the floor ON it
+      // rather than a course above it. Use the same heightmap and offset founding
+      // does -- MOTION_BLOCKING_NO_LEAVES, one below its first-air position -- so a
+      // grown building reads the real ground under leaves and snow and its floor
+      // lands where paths and villagers meet it, not a block high (Aaron: "everything
+      // is one block too high", worst in snowy biomes where WORLD_SURFACE counted the
+      // snow layer). Sites used to be scored at the centre's height plus a blind
+      // offset, which the levelling budget rejected as metres off the terrain.
       BlockPos candidate = levelAccess.getLevel()
-          .getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, column);
+          .getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column)
+          .below();
       // The footprint extends from the origin, so a candidate whose far corner
       // sits on someone's roof is no better than one that starts there.
       if (village.hasClaimed(candidate.offset(bounds.maxX(), 0, bounds.maxZ()))
