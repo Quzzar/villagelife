@@ -55,15 +55,6 @@ public final class MineStep implements BlockWorkStep {
    */
   private static final int MAX_CURSOR_STEPS = 4096;
 
-  /**
-   * How many cobblestone floor blocks the miner will lay to bridge one cavern
-   * before giving the shaft up. A normal cave is floored and dug straight past; a
-   * cavern too large to floor on the miner's stock ends the shaft rather than
-   * swallowing all its cobblestone. Before this, opening into a cave read as air
-   * forever and the miner just stood down at the cavern mouth with no work.
-   */
-  private static final int BRIDGE_CAP = 48;
-
   /** Blocks broken between torches, so a deepening shaft does not go dark. */
   private static final int BLOCKS_PER_TORCH = 6;
 
@@ -88,7 +79,6 @@ public final class MineStep implements BlockWorkStep {
   private int lastProgress = -1;
   private int sinceTorch;
   private int bucketShownTicks;
-  private int bridged;
 
   @Override
   @Nullable
@@ -101,10 +91,15 @@ public final class MineStep implements BlockWorkStep {
       return null;
     }
     // Stand next to the face and work it, walking down into the shaft as it
-    // deepens. The face is still broken relative to the job location (see act),
-    // so if no footing near it can be found the miner falls back to the mouth
-    // and the shaft still advances: the descent never stalls the digging.
-    BlockPos stand = standToMine(person, face(mouth, rotation(person)));
+    // deepens. When no footing near the face can be found, the descent has opened
+    // onto a void, so lay a single foothold to carry the path on (bridgeFooting).
+    // Failing that, fall back to the mouth and the shaft still advances, so the
+    // descent never stalls the digging.
+    BlockPos face = face(mouth, rotation(person));
+    BlockPos stand = standToMine(person, face);
+    if (stand == null) {
+      stand = bridgeFooting(person, face);
+    }
     return stand != null ? stand : mouth;
   }
 
@@ -221,6 +216,44 @@ public final class MineStep implements BlockWorkStep {
     return level.getBlockState(pos).isAir()
         && level.getBlockState(pos.above()).isAir()
         && level.getBlockState(pos.below()).isFaceSturdy(level, pos.below(), Direction.UP);
+  }
+
+  /**
+   * Make a foothold to work {@code face} when {@link #standToMine} found none: the
+   * descent has opened onto a void, a cave undercutting the walkway. The nearest spot
+   * that is open with headroom but has nothing to stand on gets a SINGLE cobblestone
+   * under it, and the miner stands there. One block, only where a foot needs to go, so
+   * a cave is carried across a step at a time rather than flooded with a whole floor.
+   * Null when the miner has no cobblestone to spare or nothing around the face is
+   * floorable, which sends the caller back to the mouth as a missing foothold always
+   * did.
+   */
+  @Nullable
+  private BlockPos bridgeFooting(RealPerson person, BlockPos face) {
+    Level level = person.level();
+    BlockPos[] candidates = {
+        face.above(),
+        face.north(), face.south(), face.east(), face.west(),
+        face.above().north(), face.above().south(), face.above().east(), face.above().west(),
+    };
+    BlockPos best = null;
+    double bestDist = Double.MAX_VALUE;
+    for (BlockPos candidate : candidates) {
+      // A foothold but for its missing floor: open, headroom above, a void below.
+      boolean floorless = level.getBlockState(candidate).isAir()
+          && level.getBlockState(candidate.above()).isAir()
+          && !level.getBlockState(candidate.below())
+              .isFaceSturdy(level, candidate.below(), Direction.UP);
+      if (floorless && candidate.distSqr(person.blockPosition()) < bestDist) {
+        bestDist = candidate.distSqr(person.blockPosition());
+        best = candidate;
+      }
+    }
+    if (best == null || person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
+      return null;
+    }
+    level.setBlock(best.below(), Blocks.COBBLESTONE.defaultBlockState(), 3);
+    return best;
   }
 
   /**
@@ -450,25 +483,6 @@ public final class MineStep implements BlockWorkStep {
         waterproof(person, mouth, rotation, this.offset);
         this.block = person.level().getBlockState(facePos).getBlock();
       }
-      // Bridge a cave: when the descending shaft opens into open air with no floor
-      // under the walkway, lay a cobblestone floor and keep scanning on into the
-      // stone beyond, rather than reading air until MAX_CURSOR_STEPS and standing the
-      // miner down at the cavern mouth. Laying floor is progress, so it refreshes the
-      // step budget; a cavern past BRIDGE_CAP, or an empty cobble stock, lets the
-      // give-up fall through and ends the shaft.
-      // Only floor the WALKWAY, never the whole swept cross-section. Without this
-      // guard the bridge floored below EVERY air cell the cursor passed - the walls,
-      // the head-space, the cave's own volume - scattering cobblestone all through the
-      // shaft and walling the miner in. withinCorridor keeps it to the path it walks.
-      if (this.block == Blocks.AIR && this.bridged < BRIDGE_CAP && withinCorridor(this.offset)) {
-        BlockPos floor = facePos.below();
-        if (!person.level().getBlockState(floor).isFaceSturdy(person.level(), floor, Direction.UP)
-            && person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
-          person.level().setBlock(floor, Blocks.COBBLESTONE.defaultBlockState(), 3);
-          this.bridged++;
-          steps = 0;
-        }
-      }
       // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
       // the cursor leaves the shaft's own lighting alone. Torches now hang on the
       // walls (see maybeTorch), so the block BELOW a torch no longer needs
@@ -516,7 +530,6 @@ public final class MineStep implements BlockWorkStep {
     this.inward = 1;
     this.breakTime = 0;
     this.lastProgress = -1;
-    this.bridged = 0;
   }
 
 }
