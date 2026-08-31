@@ -17,7 +17,6 @@ import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
-import com.quzzar.villagelife.village.VillageRequests;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
@@ -330,14 +329,6 @@ public final class PersonChatContext {
           system.append('\n');
         }
       }
-      // How the brain answered a request this villager put to it, told once so the
-      // loop the player opened in chat visibly closes. takeUnheard marks it heard,
-      // so it colours the next reply and is not raised again.
-      VillageRequests.takeUnheard(village, person.getUUID()).ifPresent(request ->
-          system.append(request.status() == VillageRequests.Status.ACCEPTED
-              ? "The village took up your idea to build " + request.subject() + ". "
-              : "The village weighed your idea to build " + request.subject()
-                  + " but chose otherwise for now. ").append('\n'));
     }
 
     // Everything on their person is ALWAYS stated, even when empty: an omitted

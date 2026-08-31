@@ -147,13 +147,6 @@ public class UrbanPlanner {
     List<Candidate> goals = new ArrayList<>(
         reachableGoals.subList(0, Math.min(GOALS_OFFERED, reachableGoals.size())));
 
-    // Put what the people asked for on the menu, even when the planner would not
-    // have ranked it, so the brain can actually act on a villager request. A
-    // request only widens the options and argues its case in the situation
-    // (situationOf); the model still chooses, so the villager proposes and the
-    // brain disposes - a villager is never the brain.
-    addRequestedOptions(village, affordable, reachableGoals, offered, goals);
-
     if (offered.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
@@ -218,8 +211,7 @@ public class UrbanPlanner {
    * The buildings the village wants but cannot pay for, ranked best first: by
    * whether it can actually work toward them, then by the same need scoring, so
    * what it saves for is something it both lacks and can reach. The caller takes
-   * the top {@link #GOALS_OFFERED}; the whole list is returned so a villager
-   * request can still find its match below the cut.
+   * the top {@link #GOALS_OFFERED}.
    */
   private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
     Needs needs = Needs.of(village);
@@ -262,60 +254,6 @@ public class UrbanPlanner {
     return unaffordable;
   }
 
-  /**
-   * Adds any building a villager asked for that the ranking left off the menu:
-   * an affordable match joins the build options, an out-of-reach match joins the
-   * save-for goals. A request already represented is left alone, and one that
-   * names nothing in the catalogue (walls are a separate system) simply argues
-   * its case in the situation without a build option. This never chooses - it
-   * only ensures the brain CAN choose the thing its people asked for.
-   */
-  private static void addRequestedOptions(Village village, List<Candidate> affordable,
-      List<Candidate> reachableGoals, List<Candidate> offered, List<Candidate> goals) {
-    for (String subject : VillageRequests.pendingBySubject(village).keySet()) {
-      if (matchingCandidate(offered, subject) != null || matchingCandidate(goals, subject) != null) {
-        continue;
-      }
-      Candidate build = matchingCandidate(affordable, subject);
-      if (build != null) {
-        offered.add(build);
-        continue;
-      }
-      Candidate saveFor = matchingCandidate(reachableGoals, subject);
-      if (saveFor != null) {
-        goals.add(saveFor);
-      }
-    }
-  }
-
-  /** The first candidate whose building category names the subject, exact before loose. */
-  private static Candidate matchingCandidate(List<Candidate> pool, String subject) {
-    String want = VillageRequests.normalize(subject);
-    Candidate loose = null;
-    for (Candidate candidate : pool) {
-      String have = VillageRequests.normalize(categoryLabel(candidate.info()));
-      if (have.equals(want)) {
-        return candidate;
-      }
-      if (loose == null && (have.contains(want) || want.contains(have))) {
-        loose = candidate;
-      }
-    }
-    return loose;
-  }
-
-  /** Whether a request subject names this building, for settling the request. */
-  private static boolean matchesBuilding(String subject, BuildingInfo info) {
-    String want = VillageRequests.normalize(subject);
-    String have = VillageRequests.normalize(categoryLabel(info));
-    return have.equals(want) || have.contains(want) || want.contains(have);
-  }
-
-  /** The building's category as spoken, e.g. "guard post", falling back to its id. */
-  private static String categoryLabel(BuildingInfo info) {
-    return info.hasWellFormedId() ? info.getCategory().replace('_', ' ') : info.getName();
-  }
-
   private static BuildingInfo pick(Village village, List<Candidate> offered, List<Candidate> goals,
       Candidate ruleChoice, Optional<LlmDecision> decision) {
     if (decision.isEmpty()) {
@@ -333,7 +271,6 @@ public class UrbanPlanner {
       if (goalIndex >= 0 && goalIndex < goals.size()) {
         BuildingInfo goalInfo = goals.get(goalIndex).info();
         VillageGoal.set(village, goalInfo.getName(), chosen.reason(), village.getVillageTime());
-        VillageRequests.resolvePending(village, subject -> matchesBuilding(subject, goalInfo));
         return null;
       }
       return ruleChoice == null ? null : ruleChoice.info();
@@ -349,7 +286,6 @@ public class UrbanPlanner {
     Candidate candidate = offered.get(index);
     Villagelife.LOGGER.info("Village '{}' decided to build {}: {}",
         village.getName(), candidate.info().getName(), chosen.reason());
-    VillageRequests.resolvePending(village, subject -> matchesBuilding(subject, candidate.info()));
     return candidate.info();
   }
 
@@ -395,22 +331,19 @@ public class UrbanPlanner {
 
   /**
    * The villagers' standing requests, folded into the brain's briefing as an
-   * argument, not an instruction: it weighs them and still decides. Many
-   * villagers asking the same thing collapse to one weighted line, so consensus
-   * reads as a stronger signal rather than as repetition.
+   * argument, not an instruction: it weighs them and still decides. Each request
+   * is listed raw, exactly as its villager put it - many people asking the same
+   * thing simply reads as many lines, so the volume itself is the emphasis.
    */
   private static void appendRequests(Village village, StringBuilder situation) {
-    Map<String, List<VillageRequests.Request>> asks = VillageRequests.pendingBySubject(village);
+    List<VillageRequests.Request> asks = VillageRequests.current(village);
     if (asks.isEmpty()) {
       return;
     }
     List<String> lines = new ArrayList<>();
-    for (List<VillageRequests.Request> group : asks.values()) {
-      VillageRequests.Request first = group.get(0);
-      String reason = first.reason().isBlank() ? "" : " (" + first.reason() + ")";
-      lines.add(group.size() == 1
-          ? first.requesterName() + " asks for " + first.subject() + reason
-          : group.size() + " people ask for " + first.subject() + reason);
+    for (VillageRequests.Request request : asks) {
+      String reason = request.reason().isBlank() ? "" : " (" + request.reason() + ")";
+      lines.add(request.requesterName() + " asks for " + request.subject() + reason);
     }
     situation.append("Your people have asked: ").append(String.join("; ", lines))
         .append(". Weigh them, but decide for the village. ");

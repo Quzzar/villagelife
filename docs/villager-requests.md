@@ -6,25 +6,38 @@ decides. This is how one villager's local knowledge, a raid on the road or a
 hungry winter, reaches the collective judgement that chooses what the village
 builds next.
 
-> **Status (2026-08-29): code complete, not yet verified in live play.** All
-> four pieces compile and are wired end to end, but the loop has not been watched
-> run in-world, which needs a dev-server restart. Treat the behaviour below as
-> intended, not confirmed. One known rough edge is noted under "The loop".
+> **Status (2026-08-30): simplified to pure context, not yet verified in live
+> play.** The system was cut down to "a request is raw context the brain reads"
+> (see below), compiles, and is wired end to end, but the loop has not been
+> watched run in-world, which needs a dev-server restart. Treat the behaviour
+> below as intended, not confirmed.
 
 ## The invariant: propose, do not dispose
 
-A villager is never the brain. A request does exactly two things to the brain's
-existing decision, and nothing more:
+A villager is never the brain. A request does exactly one thing: it argues its
+case, in the villager's own words, in the **situation** text the brain reads.
+The same `LlmService.decide(situation, options)` call then makes the pick from
+the menu the planner always offers, exactly as it does with no request present.
+A villager literally cannot choose. It states a reason the brain may weigh, and
+nothing more. This is enforced structurally, not by prompt wording, which keeps
+"the villager is not the brain" true even when the model misbehaves.
 
-1. It puts its subject on the **options** the brain is offered, even when the
-   ranking would have left it off.
-2. It argues its case in the **situation** text the brain reads.
+A request is plain free text. It need not name a building at all: the brain
+reads it and maps it to its own options itself, so there is no code that parses
+a subject, matches it to a building, or ranks it. Many villagers asking for one
+thing simply reads as many lines in the situation, and that volume is the
+emphasis.
 
-The same `LlmService.decide(situation, options)` call then makes the pick, just
-as it does without any request. So a villager literally cannot choose: it can
-only widen the menu and state a reason. This is enforced structurally, not by
-prompt wording, which is what keeps "the villager is not the brain" true even
-when the model misbehaves.
+### Consequence: a request is context, not an extra option
+
+Because a request no longer adds anything to the menu, the brain can act on one
+only when the building it names is already among the options it is offered. For
+things the village can afford now that menu is usually the full affordable set,
+so those requests land. For longer-term goals the menu is a short "save up for"
+list, so a request for something outside it is heard but not yet actionable.
+Widening the menu, so the brain is shown the full annotated set of what it could
+build or save toward rather than a capped shortlist, is the next planned change;
+it is what makes any heard request reliably actionable.
 
 ## The loop
 
@@ -39,36 +52,30 @@ when the model misbehaves.
    open it.
 2. **Queue.** `PersonChatDispatcher.applyRequest` records it through
    `VillageRequests.add`, a persisted queue living in the brain `strategy` tag
-   beside the goal (`VillageGoal`).
-3. **Weigh.** At the brain's next decision, `UrbanPlanner` folds the pending
-   requests in: `addRequestedOptions` puts each asked-for building on the menu
-   (an affordable match joins the build options, an out-of-reach one joins the
-   save-for goals), and `appendRequests` argues them in the situation. Many
-   villagers asking for one thing collapse to a single weighted line, so
-   consensus reads as a stronger signal rather than as repetition. A request
-   that names nothing buildable (walls are a separate system, see
-   [walls.md](walls.md)) still argues its case but adds no option.
-4. **Settle.** On a genuine build or save-for choice, `pick` marks the matching
-   requests accepted and the rest rejected. They stay in the queue, unseen, so
-   the requester can be told later. A plain wait leaves them pending to be
-   raised again, until they age out (`REQUEST_LIFETIME_SECONDS`).
-5. **Hear back.** The requester's next chat briefing tells them once whether the
-   village took the idea up (`VillageRequests.takeUnheard`), closing the loop the
-   player opened. **Known edge:** the outcome is consumed while the briefing is
-   built, so if that turn falls back to a canned line instead of a model reply,
-   the villager will not actually voice it. Acceptable for now; revisit if it
-   reads as dropped feedback.
+   beside the goal (`VillageGoal`). The same villager cannot stack the same
+   subject twice; different villagers asking the same thing are all kept, because
+   that repetition is the signal.
+3. **Weigh.** At the brain's next decision, `UrbanPlanner.appendRequests` lists
+   every standing request raw in the situation text, exactly as its villager put
+   it, and the brain weighs them against the options it is already offered.
+   Nothing is grouped, matched, or added to the menu.
+4. **Hear back, implicitly.** There is no accept/reject bookkeeping. A request
+   simply stands until it ages out (`REQUEST_LIFETIME_SECONDS`) or the queue
+   fills. The loop the player opened still closes on its own: the villager's chat
+   briefing already states what the village is building or saving toward, so if
+   the brain acted on the idea, the requester naturally sees it and can speak to
+   it.
 
 ## Guardrails
 
 - One structured tool per turn (above), so the request field is never dangled on
   a turn that does not warrant it.
-- An illegal or unaffordable building can be requested but never chosen: it only
-  reaches the options through `addRequestedOptions`, which draws exactly from the
-  affordable and reachable pools the planner already vets. This mirrors the
-  brain never being shown an unaffordable building ([llm-brain.md](llm-brain.md)).
-- The queue is capped and pruned, and a villager cannot stack the same pending
-  ask twice.
+- An illegal or unaffordable building can be requested but never chosen: the
+  brain only ever picks from the affordable and reachable pools the planner
+  already vets, and a request cannot add to them. This mirrors the brain never
+  being shown an unaffordable building ([llm-brain.md](llm-brain.md)).
+- The queue is capped (`MAX_REQUESTS`) and pruned by age, and a villager cannot
+  stack the same pending ask twice.
 
 ## Scope
 
@@ -80,11 +87,11 @@ a decision it records rather than the deterministic wall/gate system it is today
 
 ## Code map
 
-- `village/VillageRequests.java`: the record, the persisted queue, consensus
-  grouping, resolution, and the once-only feedback read.
-- `village/buildings/UrbanPlanner.java`: `addRequestedOptions` (menu),
-  `appendRequests` (situation), and the `resolvePending` calls in `pick`.
-- `chat/PersonChatContext.java`: `RULES_REQUEST` and its few-shots, the
-  `proposesVillageChange` gate, and the feedback line in the village briefing.
+- `village/VillageRequests.java`: the free-text `Request` record, the persisted
+  queue, age-based pruning, and the per-requester duplicate guard.
+- `village/buildings/UrbanPlanner.java`: `appendRequests`, which lists the
+  standing requests raw in the situation the brain reads.
+- `chat/PersonChatContext.java`: `RULES_REQUEST` and its few-shots, and the
+  `proposesVillageChange` gate that offers the request tool.
 - `chat/PersonChatDispatcher.java`: the `request` field on `Reply` and the
   `applyRequest` write path.
