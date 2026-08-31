@@ -306,6 +306,7 @@ public final class MineStep implements BlockWorkStep {
       }
       if (withinCorridor(local)) {
         level.setBlock(world, Blocks.AIR.defaultBlockState(), 2);
+        sealShell(person, mouth, rotation, local);
         showBucket(person);
       } else if (person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
         level.setBlock(world, Blocks.COBBLESTONE.defaultBlockState(), 3);
@@ -318,13 +319,36 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * The miner counts as carrying a bucket when one is in the pack OR out on show
-   * in the off hand: {@link #showBucket} moves the real bucket into the hand for a
-   * beat while clearing, and the seal must not switch itself off during those ticks
-   * just because the pack is momentarily one bucket lighter.
+   * Seal the wall of an interior cell just cleared to air, so lava or water cannot
+   * flow back into the walkway and re-strand the miner: only the shell (cells the
+   * shaft does not dig) is cobbled, the walkable interior stays air. Cobblestone
+   * comes from the miner's own mined stock; the bucket is a tool, never spent.
+   */
+  private void sealShell(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos interior) {
+    Level level = person.level();
+    for (Direction d : Direction.values()) {
+      BlockPos neighbor = interior.relative(d);
+      if (withinCorridor(neighbor)) {
+        continue; // walkway -> stays air, never walled off
+      }
+      BlockPos world = mouth.offset(neighbor.rotate(rotation));
+      Block found = level.getBlockState(world).getBlock();
+      if ((found == Blocks.WATER || found == Blocks.LAVA)
+          && person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
+        level.setBlock(world, Blocks.COBBLESTONE.defaultBlockState(), 3);
+      }
+    }
+  }
+
+  /**
+   * The miner counts as carrying a bucket when one is in the pack, the main hand, or
+   * the off hand -- the bucket is a persistent TOOL that enables clearing, so it
+   * counts wherever it sits (restocked into the pack, handed over directly, or out on
+   * show while sealing). It is never filled or consumed.
    */
   private boolean carriesBucket(RealPerson person) {
     return person.hasItem(Items.BUCKET)
+        || person.getMainHandItem().is(Items.BUCKET)
         || person.getItemBySlot(EquipmentSlot.OFFHAND).is(Items.BUCKET);
   }
 
@@ -449,9 +473,9 @@ public final class MineStep implements BlockWorkStep {
 
   private void logObstacle(RealPerson person) {
     if (this.block == Blocks.LAVA) {
-      person.logIssue("lava is blocking my mine and I cannot dig past it", Optional.empty());
+      person.logIssue("lava is blocking my mine - I could seal it off if I had a bucket", Optional.empty());
     } else if (this.block == Blocks.WATER) {
-      person.logIssue("water keeps flooding my mine", Optional.empty());
+      person.logIssue("water keeps flooding my mine - a bucket would let me seal it", Optional.empty());
     } else if (this.block != Blocks.BEDROCK) {
       person.logIssue("the stone in my mine is too hard for my tool", Optional.empty());
     }
