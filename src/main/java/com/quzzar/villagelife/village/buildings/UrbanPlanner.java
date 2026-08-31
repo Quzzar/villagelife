@@ -156,9 +156,10 @@ public class UrbanPlanner {
     // What the brain was actually asked. Without it a village that never saves
     // for anything is indistinguishable from one that was never offered the
     // chance, and the same ambiguity hid a broken site search for a day.
-    Villagelife.LOGGER.debug("Village '{}' is choosing among {} affordable, {} to save for, plus waiting",
-        village.getName(), offered.size(), goals.size());
-    return LlmService.get().decide(situationOf(village), options)
+    String situation = situationOf(village);
+    Villagelife.LOGGER.debug("Village '{}' is choosing among {} affordable, {} to save for, plus waiting. Situation: {}",
+        village.getName(), offered.size(), goals.size(), situation);
+    return LlmService.get().decide(situation, options)
         .thenApply(decision -> pick(village, offered, goals, ruleChoice, decision));
   }
 
@@ -260,6 +261,8 @@ public class UrbanPlanner {
       int goalIndex = index - offered.size() - 1;
       if (goalIndex >= 0 && goalIndex < goals.size()) {
         BuildingInfo goalInfo = goals.get(goalIndex).info();
+        Villagelife.LOGGER.info("Village '{}' decided to save up for {}: {}",
+            village.getName(), goalInfo.getName(), chosen.reason());
         VillageGoal.set(village, goalInfo.getName(), chosen.reason(), village.getVillageTime());
         return null;
       }
