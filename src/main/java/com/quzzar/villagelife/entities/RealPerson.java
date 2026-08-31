@@ -132,7 +132,22 @@ public class RealPerson extends Person {
   private static final EntityDataAccessor<String> TITLE = SynchedEntityData.defineId(RealPerson.class,
       EntityDataSerializers.STRING);
 
+  /** Torches the miner's bedtime restock tops the pack up to; MineStep spends them lighting the shaft. */
+  private static final int TORCH_PACK_TARGET = 16;
+
+  /**
+   * Torches one lump of coal or charcoal presses into at bedtime. Sticks are
+   * deliberately not asked for: shaft lighting should not wait on the forest.
+   */
+  private static final int TORCHES_PER_COAL = 4;
+
   public int callToBedCoolDown = 0;
+
+  // Game day of the last bedtime torch-craft offer. goToBed refires every 100
+  // ticks until sleep takes, so without this one night would put the same
+  // question to the brain over and over. Not persisted: a reload mid-night at
+  // worst asks once more.
+  private transient long torchOfferDay = -1;
 
   // Village-directed walk target (arriving at the campfire / leaving the
   // village); driven by Village.tickTravelers, executed by VillageTravelGoal.
@@ -493,10 +508,12 @@ public class RealPerson extends Person {
     // shaft reads as a village with no bucket to spare rather than a dead end.
     // One is all it needs - the bucket is a tool it never fills or spends.
     if (getOccupation() == Occupation.MINER) {
-      ItemStack torches = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.TORCH, 16), depositToLoc);
+      ItemStack torches = this.getVillage()
+          .gatherItemStackFromVillage(new ItemStack(Items.TORCH, TORCH_PACK_TARGET), depositToLoc);
       this.addItems(Arrays.asList(torches));
       ItemStack buckets = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BUCKET, 1), depositToLoc);
       this.addItems(Arrays.asList(buckets));
+      maybeCraftTorchesFromCoal(depositToLoc);
     }
 
     // Grab bonemeal
@@ -520,6 +537,42 @@ public class RealPerson extends Person {
 
     }
 
+  }
+
+  /**
+   * Offers the miner's brain a bedtime torch craft when the restock above left
+   * the pack short and the stores hold coal or charcoal. The rules decide the
+   * legal move and its size (a pack top-up, nothing more); CraftOffer carries
+   * the ask, and the model only takes it or leaves it, in character
+   * (docs/llm-brain.md). Once per night: goToBed refires until sleep takes.
+   */
+  private void maybeCraftTorchesFromCoal(BlockPos depositToLoc) {
+    long day = this.level().getDayTime() / 24000L;
+    if (this.torchOfferDay == day) {
+      return;
+    }
+    int torchesHeld = this.personMainInv.countItem(Items.TORCH);
+    int torchesWanted = TORCH_PACK_TARGET - torchesHeld;
+    if (torchesWanted <= 0) {
+      return;
+    }
+    int coalHeld = com.quzzar.villagelife.economy.VillagePricing.countHeld(this.getVillage(), Items.COAL)
+        + com.quzzar.villagelife.economy.VillagePricing.countHeld(this.getVillage(), Items.CHARCOAL);
+    if (coalHeld <= 0) {
+      return;
+    }
+    this.torchOfferDay = day;
+
+    int coalToSpend = Math.min(coalHeld, Math.ceilDiv(torchesWanted, TORCHES_PER_COAL));
+    CraftOffer.Press press = new CraftOffer.Press(List.of(Items.COAL, Items.CHARCOAL), Items.TORCH,
+        TORCHES_PER_COAL);
+    String situation = CraftOffer.identityLead(this)
+        + "You are turning in for the night carrying " + torchesHeld + " of the " + TORCH_PACK_TARGET
+        + " torches you like to take down the shaft. The village stores hold " + coalHeld
+        + " coal, and a lump presses into " + TORCHES_PER_COAL
+        + " torches. Decide whether to spend " + coalToSpend
+        + " coal on light for tomorrow's dig, and give your reason in a few words.";
+    CraftOffer.offer(this, depositToLoc, press, coalToSpend, situation);
   }
 
   public void equipBestPossibleGear(Class mainHand, Class offHand, boolean includeArmor, BlockPos preferNearestToLoc) {

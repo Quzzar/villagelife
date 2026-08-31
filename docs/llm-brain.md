@@ -29,6 +29,20 @@ character. See
 [population-and-labor.md](population-and-labor.md). The swap pass that reorganizes existing
 workers stays purely rule-based.
 
+Further consumers follow the same shape. `VillageTrading.consider` proposes every legal,
+beneficial bank trade plus an explicit "trade nothing", and the best deal stands in for a
+silent model. And the miner's bedtime torch press is the first *personal* decision: the
+nightly restock (`RealPerson.goToBed`) tops a miner's pack up to sixteen torches from village
+stores, and when the stores are out of torches but hold coal or charcoal, the rules size a
+top-up (one lump makes four torches; sticks are deliberately waived so shaft lighting never
+waits on the forest) and offer the miner, in their own persona, the press or leaving the coal.
+An explicit refusal is honored and logged with its reason; silence crafts anyway, so the
+shaft never goes dark over a mute model. The ask itself lives in the shared `CraftOffer`
+helper (`entities/`): a job's trigger sizes a `Press` (spend items, product, yield per unit)
+and writes the situation prose over `CraftOffer.identityLead`, and the helper carries the
+options, the answer, and the hands, so any occupation can put its own press to its own brain
+the same way.
+
 That makes the LLM **strongly wanted, not structurally required**: when it is absent,
 slow, or gives an unusable answer, the rules' own top-scoring option stands in and the
 village keeps building. What is lost is the character of the choice, not the ability to
