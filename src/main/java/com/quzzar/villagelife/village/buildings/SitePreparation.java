@@ -156,15 +156,23 @@ public final class SitePreparation {
           return PrepWork.impossible();
         }
 
-        int delta = surface - (plane - 1);
+        // The foundation course (structure y=0) is placed AT the plane and either
+        // replaces the surface block or rests on it, so ground level at the plane
+        // is free -- not one below. Seating floors on the ground (56affc1) made the
+        // old "surface one under the plane" assumption read every flat column as a
+        // 1-block cut, so prep dug the whole footprint out and never filled. Cut
+        // only what stands above the plane; fill only up to the block beneath the
+        // foundation (plane - 1).
+        int delta = surface - plane;
         if (Math.abs(delta) > MAX_COLUMN_DELTA) {
           return PrepWork.impossible();
         }
-        // Cut everything standing above the build plane, fill everything below it.
-        for (int cut = 0; cut < delta; cut++) {
-          toBreak.add(new BlockPos(worldX, plane - 1 + delta - cut, worldZ).asLong());
+        int cutCount = Math.max(0, surface - plane);
+        int fillCount = Math.max(0, (plane - 1) - surface);
+        for (int cut = 0; cut < cutCount; cut++) {
+          toBreak.add(new BlockPos(worldX, plane + 1 + cut, worldZ).asLong());
         }
-        for (int fill = 0; fill < -delta; fill++) {
+        for (int fill = 0; fill < fillCount; fill++) {
           toFill.add(new BlockPos(worldX, plane - 1 - fill, worldZ).asLong());
         }
       }
@@ -174,8 +182,9 @@ public final class SitePreparation {
 
   /**
    * Scores the footprint of {@code bounds} placed with its origin at
-   * {@code origin}. The build plane is the origin's Y: the structure floor
-   * sits there, on ground whose top block is one below it.
+   * {@code origin}. The build plane is the origin's Y: the foundation course
+   * sits there, replacing the surface block or resting on the ground one below,
+   * so a column whose surface is at the plane (or one under it) needs no work.
    */
   public static SiteCost score(ServerLevelAccessor level, Village village, BlockPos origin, BoundingBox bounds) {
     return score(level, village, origin, bounds, null);
@@ -248,16 +257,15 @@ public final class SitePreparation {
           return SiteCost.impossible("no ground under " + worldX + "," + worldZ);
         }
 
-        int delta = surface - (plane - 1);
+        int delta = surface - plane;
         if (Math.abs(delta) > MAX_COLUMN_DELTA) {
           return SiteCost.impossible("ground at " + worldX + "," + worldZ + " is " + delta
               + " off the build plane, past the levelling budget");
         }
-        if (delta > 0) {
-          cut += delta;
-        } else {
-          fill += -delta;
-        }
+        // Match planWork: cut what stands above the plane, fill up to plane-1. A
+        // column whose surface is at the plane (or one below) is free.
+        cut += Math.max(0, surface - plane);
+        fill += Math.max(0, (plane - 1) - surface);
         deltaSum += Math.abs(delta);
         columns++;
       }
