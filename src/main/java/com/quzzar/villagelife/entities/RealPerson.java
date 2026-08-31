@@ -53,6 +53,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.HarvestStep;
 import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
+import com.quzzar.villagelife.entities.ai.goals.work.BlacksmithStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WallStep;
@@ -1049,6 +1050,10 @@ public class RealPerson extends Person {
           new ItemStack(Items.IRON_INGOT, 1),
           8,
           SoundEvents.FURNACE_FIRE_CRACKLE)));
+      // The forge's CRAFTING half: turn those ingots into the gear the village
+      // lacks - buckets first (the miner cannot make its own), then basic iron
+      // tools. Priority 7, so needed gear takes the forge before more raw smelting.
+      this.goalSelector.addGoal(7, new WorkLoopGoal<>(this, new BlacksmithStep()));
     }
     if (getOccupation() == Occupation.TANNER) {
       // Hides off the hunter and the pasture become worked leather -- the armoury
