@@ -490,12 +490,13 @@ public class RealPerson extends Person {
     // taken from village stores, so the mine goes dark only when the village has
     // no torches to spare. MineStep places them from the pack a few blocks apart.
     // Buckets ride along for the same reason: a miner who breaks into water or
-    // lava bails it out with one and keeps digging, so a flooded shaft reads as
-    // a village with no bucket to spare rather than a dead end.
+    // lava seals the leak with one and keeps digging (MineStep), so a flooded
+    // shaft reads as a village with no bucket to spare rather than a dead end.
+    // One is all it needs - the bucket is a tool it never fills or spends.
     if (getOccupation() == Occupation.MINER) {
       ItemStack torches = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.TORCH, 16), depositToLoc);
       this.addItems(Arrays.asList(torches));
-      ItemStack buckets = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BUCKET, 3), depositToLoc);
+      ItemStack buckets = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BUCKET, 1), depositToLoc);
       this.addItems(Arrays.asList(buckets));
     }
 
