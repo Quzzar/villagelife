@@ -748,18 +748,18 @@ public class RealPerson extends Person {
 
     // A conversation is a session bounded by the Minecraft day. Re-opening on the
     // same day continues where it left off; a new day is a fresh conversation: the
-    // villager consolidates the prior session into a memory (see
-    // PersonChatDispatcher.consolidate) and the screen opens blank so they can
-    // greet anew, instead of resuming a long transcript a small model loses the
-    // thread of.
+    // prior session was already summarized into a memory when it last closed
+    // (PersonChatDispatcher.summarizeSession), so the transcript is cleared here and
+    // the screen opens blank for the villager to greet anew from that ready memory,
+    // with no wait on a summary and no long transcript to lose the thread of.
     List<com.quzzar.villagelife.chat.ChatHistoryData.Exchange> priorExchanges = getData(
         VillagelifeAttachments.CHAT_HISTORY.get()).with(player.getUUID());
     long currentDay = level().getDayTime() / 24000L;
     boolean freshSession = !priorExchanges.isEmpty()
         && priorExchanges.get(priorExchanges.size() - 1).dayTime() / 24000L != currentDay;
     if (freshSession) {
-      com.quzzar.villagelife.chat.PersonChatDispatcher.consolidate(this, player.getUUID(),
-          player.getGameProfile().getName());
+      setData(VillagelifeAttachments.CHAT_HISTORY.get(),
+          getData(VillagelifeAttachments.CHAT_HISTORY.get()).clearedFor(player.getUUID()));
     }
     List<OpenPersonChatPacket.ExchangeLine> scrollback = freshSession ? List.of()
         : priorExchanges.stream()

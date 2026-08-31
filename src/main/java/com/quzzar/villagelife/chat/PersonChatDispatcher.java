@@ -427,32 +427,29 @@ public final class PersonChatDispatcher {
   private static final double SUMMARY_TEMPERATURE = 0.3D;
 
   /**
-   * Fold a villager's prior conversation with a player into their per-player
-   * summary ({@link ChatSummaryData}) and clear the raw transcript, so a chat
-   * that opens on a new Minecraft day starts from a compact memory instead of a
-   * transcript that keeps growing, which a small model drowns in. Gated to the
-   * day boundary by {@code RealPerson.openChat}, its only caller.
+   * Fold a villager's conversation with a player into their per-player summary
+   * ({@link ChatSummaryData}), run in the background when the chat CLOSES so the
+   * memory is ready before the next conversation opens. {@code RealPerson.openChat}
+   * then greets from it on a new Minecraft day with no wait, rather than
+   * summarizing on demand and stalling the open on a model generation.
    *
-   * <p>The raw exchanges are cleared at once so the fresh session begins clean;
-   * the summary itself is generated in the background (persona priority, so it
-   * never delays chat or decisions) and stored when it returns. If the LLM is
-   * off or the call fails, the transcript is still reset and the villager simply
-   * keeps the summary it already had.
+   * <p>The transcript is kept, not cleared: re-opening the same day continues it,
+   * and the new day's open is what clears it. Persona priority, so it never delays
+   * chat or decisions. Skipped when the player has not actually spoken this
+   * session (a greeting alone is not worth a summary), and a no-op if the LLM is
+   * off or the call fails, in which case the villager keeps the summary it had.
    */
-  public static void consolidate(RealPerson person, UUID playerId, String playerName) {
+  public static void summarizeSession(RealPerson person, UUID playerId, String playerName) {
     MinecraftServer server = person.getServer();
     if (server == null) {
       return;
     }
-    List<ChatHistoryData.Exchange> prior = person.getData(VillagelifeAttachments.CHAT_HISTORY.get()).with(playerId);
-    if (prior.isEmpty()) {
+    List<ChatHistoryData.Exchange> session = person.getData(VillagelifeAttachments.CHAT_HISTORY.get()).with(playerId);
+    boolean playerSpoke = session.stream().anyMatch(e -> !e.playerLine().isBlank());
+    if (!playerSpoke) {
       return;
     }
     String earlier = person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerId);
-
-    // Reset the transcript now; these lines are captured in the summary request below.
-    person.setData(VillagelifeAttachments.CHAT_HISTORY.get(),
-        person.getData(VillagelifeAttachments.CHAT_HISTORY.get()).clearedFor(playerId));
 
     String system = "You are " + person.getFullName() + ". Summarize your conversation with " + playerName
         + " in two or three sentences, in the first person, as a memory you will keep: what you talked about, "
@@ -463,7 +460,7 @@ public final class PersonChatDispatcher {
       user.append("What you remembered before this conversation: ").append(earlier).append("\n\n");
     }
     user.append("The conversation to summarize:\n");
-    for (ChatHistoryData.Exchange e : prior) {
+    for (ChatHistoryData.Exchange e : session) {
       if (!e.playerLine().isBlank()) {
         user.append(playerName).append(": \"").append(e.playerLine()).append("\"\n");
       }

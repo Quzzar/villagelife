@@ -29,8 +29,12 @@ public record PersonChatClosePacket(int entityId) implements CustomPacketPayload
   public static void handle(PersonChatClosePacket msg, IPayloadContext context) {
     context.enqueueWork(() -> {
       Entity entity = context.player().level().getEntity(msg.entityId());
-      if (entity instanceof RealPerson) {
+      if (entity instanceof RealPerson person) {
         PersonChatDispatcher.markClosed(msg.entityId(), context.player().getUUID());
+        // Summarize the session now it has ended, so the memory is ready before
+        // the next conversation opens rather than being generated on demand.
+        PersonChatDispatcher.summarizeSession(person, context.player().getUUID(),
+            context.player().getGameProfile().getName());
       }
     });
   }
