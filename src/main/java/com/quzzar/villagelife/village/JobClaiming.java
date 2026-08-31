@@ -35,6 +35,14 @@ import net.minecraft.server.level.ServerLevel;
  * post, or an absent or slow brain, falls straight to the aptitude best. One
  * decision is in flight per village, mirroring the project planner. The swap
  * pass stays purely rule-based. Runs from {@link Village#update}.
+ *
+ * <p>Employment requires housing (Aaron, 2026-08-31): a post can only be held
+ * by someone with a bed. Claiming and the swap pass skip the bedless (unless a
+ * free bed exists to house them, which reconciliation does within the second),
+ * and {@link #releaseUnhousedWorkers} stands down a worker whose bed is gone
+ * for good. Workstations that carry live-in beds (the lumberjack hut, the
+ * watchtower) satisfy this through the ordinary pool: their beds register like
+ * any other, and {@code Village.assignJob} moves the worker in on arrival.
  */
 public final class JobClaiming {
 
@@ -64,6 +72,7 @@ public final class JobClaiming {
       registerMissingBeds(village);
     }
     releaseOrphanedWorkers(village, level);
+    releaseUnhousedWorkers(village, level);
     claimOpenJobs(village, level);
     maybeRunSwapPass(village, level);
   }
@@ -213,6 +222,46 @@ public final class JobClaiming {
   }
 
   /**
+   * A worker with no bed and no prospect of one stands down: their post
+   * reopens for someone housed, and they return to the campfire pool. Runs
+   * after {@code reconcileBeds} in the same village tick, so anyone still
+   * bedless here genuinely cannot be housed; a single free bed anywhere means
+   * reconciliation will house whoever lacks one, and nobody is released.
+   *
+   * <p>Unlike {@link #releaseInvalidAssignments}, the released post is
+   * re-queued: the station is fine, the worker just cannot keep it. An
+   * unloaded worker is released all the same; the orphan pass sets them idle
+   * when they next load.
+   */
+  private static void releaseUnhousedWorkers(Village village, ServerLevel level) {
+    if (!village.getUnassignedBeds().isEmpty()) {
+      return;
+    }
+    Map<UUID, BedAssignment> beds = village.getBedAssignmentsView();
+    for (Map.Entry<UUID, JobAssignment> entry : village.getJobAssignmentsView().entrySet()) {
+      UUID workerId = entry.getKey();
+      if (beds.containsKey(workerId)) {
+        continue;
+      }
+      JobAssignment released = village.releaseJob(workerId);
+      if (released == null) {
+        continue;
+      }
+      village.getUnassignedJobs().add(released);
+      RealPerson person = village.getPerson(level, workerId);
+      if (person != null) {
+        person.setOccupation(Occupation.IDLE);
+        person.setTravelTarget(null);
+        person.reloadState();
+        person.logIssue("I gave up the " + released.getOccupation().name().toLowerCase(Locale.ROOT)
+            + " work; there is no bed for me in this village.", Optional.empty());
+      }
+      Villagelife.LOGGER.info("{} stood down from the {} job in '{}': no bed for them",
+          person != null ? person.getFullName() : workerId, released.getOccupation(), village.getName());
+    }
+  }
+
+  /**
    * Oldest open job first. The single best-suited idle person takes an
    * uncontested post on the spot (FIFO breaks ties); a post two or more people
    * are near-equally suited to is offered to the brain, which picks among them
@@ -252,8 +301,13 @@ public final class JobClaiming {
    * near-tie yields the handful the brain then chooses among.
    */
   private static List<Applicant> shortlistFor(Village village, ServerLevel level, JobAssignment job) {
+    boolean anyFreeBed = !village.getUnassignedBeds().isEmpty();
+    Map<UUID, BedAssignment> beds = village.getBedAssignmentsView();
     List<Applicant> applicants = new ArrayList<>();
     for (UUID idleId : village.idlePeople()) {
+      if (!anyFreeBed && !beds.containsKey(idleId)) {
+        continue; // employment requires housing, and there is none for them
+      }
       RealPerson person = village.getPerson(level, idleId);
       if (person == null) {
         continue; // not loaded right now; the next pass will see them
@@ -355,6 +409,9 @@ public final class JobClaiming {
     if (person == null || village.getJobAssignment(id) != null || !person.getOccupation().isIdle()) {
       return null;
     }
+    if (village.getUnassignedBeds().isEmpty() && !village.getBedAssignmentsView().containsKey(id)) {
+      return null; // their bed went away while the brain deliberated; not seatable now
+    }
     return person;
   }
 
@@ -418,6 +475,11 @@ public final class JobClaiming {
     long now = level.getGameTime();
 
     Map<UUID, JobAssignment> assignments = village.getJobAssignmentsView();
+    // The housing gate, same as claiming: a bedless challenger cannot take
+    // over a post (the displaced worker keeps their own bed, so the takeover
+    // would seat an unhoused worker).
+    boolean anyFreeBed = !village.getUnassignedBeds().isEmpty();
+    Map<UUID, BedAssignment> beds = village.getBedAssignmentsView();
 
     // A) A markedly better-suited idle person takes over a worker's job.
     for (Map.Entry<UUID, JobAssignment> entry : assignments.entrySet()) {
@@ -436,6 +498,9 @@ public final class JobClaiming {
       double challengerScore = workerScore;
       for (UUID idleId : village.idlePeople()) {
         if (isOnCooldown(village, idleId, now)) {
+          continue;
+        }
+        if (!anyFreeBed && !beds.containsKey(idleId)) {
           continue;
         }
         RealPerson candidate = village.getPerson(level, idleId);

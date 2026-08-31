@@ -6,11 +6,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.llm.LlmDecision;
 import com.quzzar.villagelife.llm.LlmService;
+import com.quzzar.villagelife.village.BedAssignment;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
@@ -58,16 +60,53 @@ public class UrbanPlanner {
     static Needs of(Village village) {
       int population = village.getPopulation().size();
       int beds = village.getTotalBeds();
-      int idle = village.idlePeople().size();
+      // Employment requires housing (JobClaiming), so only the housed idle can
+      // actually take a job: the bedless create no demand for workplaces. They
+      // are exactly the population-over-beds overhang, so they push the housing
+      // need instead, and a village with campers but no spare beds builds homes
+      // before it builds another workshop nobody may staff.
+      Map<UUID, BedAssignment> bedded = village.getBedAssignmentsView();
+      int housedIdle = 0;
+      for (UUID idleId : village.idlePeople()) {
+        if (bedded.containsKey(idleId)) {
+          housedIdle++;
+        }
+      }
       int openJobs = village.getUnassignedJobs().size();
       VillageAttractiveness report = village.getAttractiveness();
       return new Needs(
           Math.max(0, population + 2 - beds),
-          Math.max(0, idle - openJobs),
-          report != null && report.foodPerCapita() < 8.0 ? 8.0 - report.foodPerCapita() : 0.0,
+          Math.max(0, housedIdle - openJobs),
+          report != null && report.foodPerCapita() < 8.0 && foodProductionShortfall(village) > 0
+              ? 8.0 - report.foodPerCapita() : 0.0,
           report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0,
           village.isStorageStrained() ? 3.0 : 0.0);
     }
+  }
+
+  /**
+   * People one food-producing building (a farm, hunting lodge, fishery, butchery) can
+   * keep fed. A balance lever: it decides when a village already has enough food
+   * production and should stop raising more, instead of chasing a stock number that
+   * lags the harvest.
+   */
+  private static final int PEOPLE_FED_PER_FOOD_BUILDING = 6;
+
+  /**
+   * How far the village's food PRODUCTION falls short of its population, in people not
+   * yet covered by a food-producing building. Zero once its farms and lodges cover
+   * everyone, so a stock dip while a fresh harvest is still coming in stops reading as a
+   * reason to raise ANOTHER farm (the food-decision loop live-testing hit: a village
+   * with two farms and full larders still "deciding to build a farm, food is short").
+   * Stock scarcity still shows through the attractiveness food score; this only answers
+   * "do we need to BUILD more food", not "are we low on food this minute".
+   */
+  private static int foodProductionShortfall(Village village) {
+    long foodBuildings = village.getBuildings().stream()
+        .filter(b -> b.getInfo() != null
+            && (b.getInfo().getGrants().contains("GRAIN") || b.getInfo().getGrants().contains("MEAT")))
+        .count();
+    return Math.max(0, village.getPopulation().size() - (int) foodBuildings * PEOPLE_FED_PER_FOOD_BUILDING);
   }
 
   /** How badly this village wants this building, given what it lacks. */
@@ -307,7 +346,7 @@ public class UrbanPlanner {
         case HOLDING -> "The population is steady. ";
         case DECLINING -> "People are talking of leaving. ";
       });
-      if (report.foodPerCapita() < 4.0) {
+      if (report.foodPerCapita() < 4.0 && foodProductionShortfall(village) > 0) {
         situation.append("Food is short. ");
       }
       if (report.deathImpact() > 0.5F) {
