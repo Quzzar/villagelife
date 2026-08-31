@@ -605,7 +605,7 @@ public class PersonChatScreen
       }
       net.minecraft.network.chat.MutableComponent full = Component.empty()
           .append(Component.literal(line.speaker() + ": ").withStyle(ChatFormatting.BOLD))
-          .append(Component.literal(shown));
+          .append(com.quzzar.villagelife.chat.ChatMarkdown.render(shown));
       // A cursor blinking at the end while the words are still arriving, so a
       // mid-reveal pause reads as 'still speaking' rather than as a short reply
       // that has finished. Underscore is the game's own text-cursor glyph and
