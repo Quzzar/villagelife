@@ -253,6 +253,8 @@ public final class MineStep implements BlockWorkStep {
       return null;
     }
     level.setBlock(best.below(), Blocks.COBBLESTONE.defaultBlockState(), 3);
+    Villagelife.LOGGER.info("[mine] {} laid a foothold at {} to carry the shaft across a void",
+        person.getName().getString(), best.toShortString());
     return best;
   }
 
