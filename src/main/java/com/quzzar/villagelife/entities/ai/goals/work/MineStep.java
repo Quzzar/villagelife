@@ -1,5 +1,7 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +25,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.WallTorchBlock;
+
+import net.neoforged.neoforge.common.Tags;
 
 /**
  * Driving the shaft: a BREAK step with the only genuinely algorithmic selector
@@ -72,6 +76,20 @@ public final class MineStep implements BlockWorkStep {
    */
   private static final int BUCKET_SHOWN_TICKS = 40;
 
+  /**
+   * How many ore blocks the miner pulls from one wall vein before it stops
+   * following and seals the vein back up. Bounds a single detour, so a rich seam
+   * cannot turn the miner into a tunnel-boring machine.
+   */
+  private static final int VEIN_CAP = 8;
+
+  /**
+   * How far off its own position the miner reaches for vein ore. It steps into the
+   * cells it opens, so the frontier stays close; this only keeps it from lunging at
+   * ore across a gap it has no footing to reach.
+   */
+  private static final int VEIN_REACH = 2;
+
   private BlockPos offset;
   private Block block;
   private int inward = 1;
@@ -80,12 +98,27 @@ public final class MineStep implements BlockWorkStep {
   private int sinceTorch;
   private int bucketShownTicks;
 
+  // A wall vein under extraction: ore already pulled and awaiting its cobblestone
+  // plug (sealed deepest-first, so the miner backs out toward the shaft as it
+  // seals), plus the ore being broken and the cell being sealed this cycle. All
+  // empty or null while the miner is simply driving the shaft.
+  private final Deque<BlockPos> veinToSeal = new ArrayDeque<>();
+  private BlockPos oreTarget;
+  private BlockPos sealTarget;
+  private int veinTaken;
+
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
     BlockPos mouth = LocationManager.getJobLocation(person);
     if (mouth == BlockPos.ZERO) {
       return null;
+    }
+    // A wall vein takes priority over driving the shaft on: pull the exposed ore,
+    // then plug the holes with cobblestone, before the descent picks back up.
+    BlockPos veinStand = selectVein(person);
+    if (veinStand != null) {
+      return veinStand;
     }
     if (!locateNext(person, mouth, rotation(person))) {
       return null;
@@ -107,16 +140,35 @@ public final class MineStep implements BlockWorkStep {
   public boolean act(RealPerson person, BlockPos standTarget) {
     tickBucket(person);
     BlockPos mouth = LocationManager.getJobLocation(person);
-    if (mouth == BlockPos.ZERO || this.block == null || this.offset == null) {
+    if (mouth == BlockPos.ZERO) {
       return false;
     }
-    BlockPos face = face(mouth, rotation(person));
-    person.getLookControl().setLookAt(face.getX(), face.getY(), face.getZ(), 30.0F, 30.0F);
+    if (this.sealTarget != null) {
+      return sealAct(person);
+    }
+    if (this.oreTarget != null) {
+      return breakAct(person, mouth, this.oreTarget, true);
+    }
+    if (this.block == null || this.offset == null) {
+      return false;
+    }
+    return breakAct(person, mouth, face(mouth, rotation(person)), false);
+  }
+
+  /**
+   * Break {@code pos} over {@link #breakTicks} ticks, then take its drops and clear
+   * the crack overlay. A shaft face ({@code vein} false) lights the descent behind
+   * it; a wall ore instead joins {@link #veinToSeal}, to be plugged with
+   * cobblestone once the vein is worked out. True while still breaking, false when
+   * the block comes down and the next select should choose again.
+   */
+  private boolean breakAct(RealPerson person, BlockPos mouth, BlockPos pos, boolean vein) {
+    person.getLookControl().setLookAt(pos.getX(), pos.getY(), pos.getZ(), 30.0F, 30.0F);
 
     this.breakTime++;
     int progress = (int) ((float) this.breakTime / breakTicks() * 10.0F);
     if (progress != this.lastProgress) {
-      person.level().destroyBlockProgress(person.getId(), face, progress);
+      person.level().destroyBlockProgress(person.getId(), pos, progress);
       this.lastProgress = progress;
     }
     if (this.breakTime < breakTicks()) {
@@ -125,16 +177,23 @@ public final class MineStep implements BlockWorkStep {
 
     if (!person.level().isClientSide) {
       List<ItemStack> drops = Block.getDrops(this.block.defaultBlockState(),
-          (ServerLevel) person.level(), face, person.level().getBlockEntity(face), person,
+          (ServerLevel) person.level(), pos, person.level().getBlockEntity(pos), person,
           person.getMainHandItem());
-      person.level().removeBlock(face, false);
+      person.level().removeBlock(pos, false);
       person.addItems(drops);
-      person.level().playSound((Player) null, face.getX(), face.getY(), face.getZ(),
+      person.level().playSound((Player) null, pos.getX(), pos.getY(), pos.getZ(),
           this.block.defaultBlockState().getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
           person.getRandom().nextFloat() * 0.4F + 0.8F);
-      maybeTorch(person, mouth, rotation(person), face);
+      if (vein) {
+        this.veinToSeal.push(pos);
+        this.veinTaken++;
+        Villagelife.LOGGER.info("[mine] {} pulled {} from the wall at {}",
+            person.getName().getString(), this.block.getName().getString(), pos.toShortString());
+      } else {
+        maybeTorch(person, mouth, rotation(person), pos);
+      }
     }
-    person.level().destroyBlockProgress(person.getId(), face, -1);
+    person.level().destroyBlockProgress(person.getId(), pos, -1);
     this.breakTime = 0;
     this.lastProgress = -1;
     return false; // next block is chosen by the next select
@@ -143,8 +202,10 @@ public final class MineStep implements BlockWorkStep {
   @Override
   public void released(RealPerson person, BlockPos standTarget) {
     BlockPos mouth = LocationManager.getJobLocation(person);
-    if (mouth != BlockPos.ZERO && this.offset != null) {
-      person.level().destroyBlockProgress(person.getId(), face(mouth, rotation(person)), -1);
+    BlockPos breaking = this.oreTarget != null ? this.oreTarget
+        : (mouth != BlockPos.ZERO && this.offset != null ? face(mouth, rotation(person)) : null);
+    if (breaking != null) {
+      person.level().destroyBlockProgress(person.getId(), breaking, -1);
     }
     this.breakTime = 0;
     this.lastProgress = -1;
@@ -256,6 +317,124 @@ public final class MineStep implements BlockWorkStep {
     Villagelife.LOGGER.info("[mine] {} laid a foothold at {} to carry the shaft across a void",
         person.getName().getString(), best.toShortString());
     return best;
+  }
+
+  /**
+   * The vein detour: pull the ore a shaft or cave wall has exposed, then seal the
+   * holes back up. Returns a foothold to work from while there is vein to mine or to
+   * seal, or null when there is none and the shaft should drive on. It only ever
+   * starts a vein it can seal - with no cobblestone to spare it leaves the ore in the
+   * wall (the "always seal" rule), and it grinds cobble out of stone constantly, so
+   * that rarely bites.
+   */
+  @Nullable
+  private BlockPos selectVein(RealPerson person) {
+    this.oreTarget = null;
+    this.sealTarget = null;
+
+    // Still pulling ore: the nearest exposed vein block we have both footing to
+    // reach and cobblestone to seal, until the cap. Each pull opens the next, so the
+    // vein follows itself without a flood fill.
+    if (this.veinTaken < VEIN_CAP && person.hasItem(Items.COBBLESTONE)) {
+      BlockPos ore = nearestReachableOre(person);
+      if (ore != null) {
+        BlockPos stand = standToMine(person, ore);
+        if (stand != null) {
+          this.oreTarget = ore;
+          this.block = person.level().getBlockState(ore).getBlock();
+          return stand;
+        }
+      }
+    }
+
+    // Ore worked out: plug the cells back up, deepest first, so the miner seals the
+    // vein as it backs out toward the shaft. A cell it cannot reach to seal from an
+    // adjacent foothold is dropped rather than deadlocking the loop.
+    while (!this.veinToSeal.isEmpty()) {
+      BlockPos cell = this.veinToSeal.peek();
+      BlockPos stand = standToMine(person, cell);
+      if (stand != null) {
+        this.sealTarget = cell;
+        return stand;
+      }
+      this.veinToSeal.pop();
+    }
+
+    this.veinTaken = 0;
+    return null;
+  }
+
+  /**
+   * The nearest ore a wall has exposed that the miner can actually work: within
+   * {@link #VEIN_REACH} of where it stands, showing at least one open face (so it is
+   * a wall the shaft has reached, not ore still buried in solid rock), and mineable
+   * with the tool in hand (an iron vein under a stone pick is left, not wasted).
+   * Null when no reachable ore is on show.
+   */
+  @Nullable
+  private BlockPos nearestReachableOre(RealPerson person) {
+    Level level = person.level();
+    BlockPos at = person.blockPosition();
+    BlockPos best = null;
+    double bestDist = Double.MAX_VALUE;
+    for (int dx = -VEIN_REACH; dx <= VEIN_REACH; dx++) {
+      for (int dy = -VEIN_REACH; dy <= VEIN_REACH; dy++) {
+        for (int dz = -VEIN_REACH; dz <= VEIN_REACH; dz++) {
+          BlockPos pos = at.offset(dx, dy, dz);
+          if (!isOre(level, pos) || !exposedToAir(level, pos) || !canHarvest(person, pos)) {
+            continue;
+          }
+          double dist = pos.distSqr(at);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = pos;
+          }
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Any ore, vanilla or modded: the common {@code c:ores} tag every ore block carries. */
+  private boolean isOre(Level level, BlockPos pos) {
+    return level.getBlockState(pos).is(Tags.Blocks.ORES);
+  }
+
+  /** True when a face of {@code pos} is open, so the miner can see the ore and get at it. */
+  private boolean exposedToAir(Level level, BlockPos pos) {
+    for (Direction d : Direction.values()) {
+      if (level.getBlockState(pos.relative(d)).isAir()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Whether the miner's held tool would actually drop {@code pos}, not shatter it for nothing. */
+  private boolean canHarvest(RealPerson person, BlockPos pos) {
+    net.minecraft.world.level.block.state.BlockState state = person.level().getBlockState(pos);
+    return !state.requiresCorrectToolForDrops()
+        || person.getMainHandItem().isCorrectToolForDrops(state);
+  }
+
+  /**
+   * Plug one mined-out vein cell with cobblestone from the miner's stock and drop it
+   * from the seal list. One cell per visit, so the miner walks the vein back out
+   * sealing as it goes; if the cobble is somehow gone it leaves the cell open rather
+   * than stalling the loop.
+   */
+  private boolean sealAct(RealPerson person) {
+    BlockPos cell = this.sealTarget;
+    this.sealTarget = null;
+    this.veinToSeal.remove(cell);
+    if (person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
+      Level level = person.level();
+      level.setBlock(cell, Blocks.COBBLESTONE.defaultBlockState(), 3);
+      level.playSound((Player) null, cell.getX(), cell.getY(), cell.getZ(),
+          Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(),
+          SoundSource.BLOCKS, 1.0F, 0.8F);
+    }
+    return false; // one cell per cycle; the next select picks the next
   }
 
   /**

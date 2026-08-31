@@ -145,13 +145,14 @@ real shaft, treating lava and water and bedrock and wrong-tool as obstacles. A m
 bucket keeps the shaft dry instead of abandoning it at a leak: liquid on the shaft walls is sealed
 with cobblestone (from its own mined stock) and liquid inside the corridor is cleared, so water and
 lava stop the shaft only when the miner has no bucket. The bucket is a tool, never filled or
-consumed; bedrock and wrong-tool still stop it outright. When the shaft opens into a cave the miner
-does not stand down at the mouth: it lays a cobblestone floor across the gap and drives the shaft on
-into the stone beyond, capped so a cavern too large to floor ends the shaft rather than eating all
-its cobble. **That pattern with deviation is probably what roaming really is** for most jobs, and
-the model has to be able to express it. Keep the excavation as it stands; the miner bridges a cave
-rather than exploring it, and a prospector that follows ore veins is a better story still
-deliberately left as fog.
+consumed; bedrock and wrong-tool still stop it outright. When the shaft opens onto a void the miner
+does not stand down at the mouth: it lays a single cobblestone foothold where its next step needs
+one, carrying the descent across a block at a time. And ore that a shaft or cave wall exposes is not
+left in the rock: the miner pulls the vein, capped so a rich seam is a detour and not a second
+career, and plugs the holes back up with cobblestone so the wall ends solid. **That pattern with
+deviation is probably what roaming really is** for most jobs, and the model has to be able to express
+it. Keep the excavation as it stands; the miner works the veins its own shaft exposes, while a
+prospector that roams to find caves and hunt veins is a better story still deliberately left as fog.
 
 **The hunter is bounded roaming, not a chase.** It works a hunting ground rather than pursuing
 animals wherever they wander. Pure roaming would walk a hunter arbitrarily far into danger, and
@@ -338,7 +339,9 @@ structures ([structure-sourcing.md](structure-sourcing.md)) and checking content
   chests or one pool. Note the research found a third answer neither option covered: MineColonies
   uses a **priority ladder** where the worker's own building resolves above the warehouse, and the
   player is last.
-- **The prospector**: a miner that finds caves and follows veins rather than sweeping a pattern.
+- **The prospector**: a miner that roams to find caves and hunt veins rather than sweeping a pattern.
+  The bounded half is built: the miner pulls the veins its own shaft and cave walls expose, capped and
+  backfilled. Free-roaming prospection, going out of its way to find ore, is what stays fog.
 
 ## Depletion, range, and what the land looks like afterwards
 
