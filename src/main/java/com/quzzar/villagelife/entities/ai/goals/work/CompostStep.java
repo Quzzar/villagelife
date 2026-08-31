@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -28,11 +29,23 @@ import net.minecraft.world.level.block.state.BlockState;
  * The one liberty is at the end - vanilla tosses the bone meal on the ground,
  * and this hands it straight into the pack so the loop cannot lose its own
  * produce to whatever wanders past.
+ *
+ * It eats two things: the brush the clearing step gathered, and surplus sowing
+ * seeds. The seed half replaced an abstract seeds-to-bone-meal CraftStep that
+ * converted village stores at the workstation; the farmer has a real composter
+ * at the station, so it uses that instead.
  */
 public final class CompostStep implements BlockWorkStep {
 
   /** The composter sits inside the farm, so the station scan stays tight. */
   private static final int STATION_RADIUS = 8;
+
+  /**
+   * Seeds kept back for sowing, per type; only what the pack holds past this is
+   * surplus the composter may eat. Matches the helping the bedtime restock
+   * takes (RealPerson.goToBed), so a night's restock is never composted whole.
+   */
+  private static final int SEEDS_KEPT_FOR_SOWING = 8;
 
   @Override
   @Nullable
@@ -49,7 +62,7 @@ public final class CompostStep implements BlockWorkStep {
     if (fill >= ComposterBlock.MAX_LEVEL) {
       return composter; // a batch is curing or done; worth the walk either way
     }
-    return ClearBrushStep.carryingBrush(person) ? composter : null;
+    return findFeedItem(person) == null ? null : composter;
   }
 
   @Override
@@ -65,15 +78,19 @@ public final class CompostStep implements BlockWorkStep {
       person.level().playSound((Player) null, target, SoundEvents.COMPOSTER_EMPTY,
           SoundSource.BLOCKS, 1.0F, 1.0F);
       person.addItems(Arrays.asList(new ItemStack(Items.BONE_MEAL)));
-      return ClearBrushStep.carryingBrush(person); // done, unless there is more to feed
+      return findFeedItem(person) != null; // done, unless there is more to feed
     }
     if (fill == ComposterBlock.MAX_LEVEL) {
       return true; // full and curing; the block's own tick rings it READY shortly
     }
 
-    ItemStack next = nextBrush(person);
+    Item feed = findFeedItem(person);
+    if (feed == null) {
+      return false; // fed everything spare; back to select
+    }
+    ItemStack next = person.removeItem(feed, 1);
     if (next.isEmpty()) {
-      return false; // fed everything carried; back to select
+      return false;
     }
     BlockState after = ComposterBlock.insertItem(person, state, (ServerLevel) person.level(), next, target);
     // 1500 is the composter fill event: the right sound and rot particles on
@@ -93,15 +110,25 @@ public final class CompostStep implements BlockWorkStep {
     return 30;
   }
 
-  /** One plant out of the pack, ready for the composter's roll. */
-  private ItemStack nextBrush(RealPerson person) {
+  /**
+   * What to spend next: cleared brush first, then any sowing seed the pack
+   * holds past its keep. The keep is what makes the seed half safe - the
+   * farmer never composts what they still need to plant.
+   */
+  @Nullable
+  private Item findFeedItem(RealPerson person) {
     for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
       ItemStack stack = person.personMainInv.getItem(slot);
       if (ClearBrushStep.brushItem(stack)) {
-        return person.removeItem(stack.getItem(), 1);
+        return stack.getItem();
       }
     }
-    return ItemStack.EMPTY;
+    for (Item seed : TillStep.PLANTABLES.keySet()) {
+      if (person.personMainInv.countItem(seed) > SEEDS_KEPT_FOR_SOWING) {
+        return seed;
+      }
+    }
+    return null;
   }
 
   /** The farm's own composter, wherever the structure put it. */

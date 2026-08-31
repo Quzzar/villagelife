@@ -1201,17 +1201,12 @@ public class RealPerson extends Person {
           4,
           SoundEvents.PUMPKIN_CARVE)));
 
-      for (Item seed : TillStep.PLANTABLES.keySet()) {
-        this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
-            new ItemStack(seed, 64),
-            new ItemStack(Items.BONE_MEAL, 3), // ~2.74
-            4,
-            SoundEvents.COMPOSTER_FILL_SUCCESS)));
-      }
-
       // The idle chain, in working order: finish converting what is carried,
       // shelve what nothing wants, and only then pull more brush. Together they
-      // are the farmer's answer to a field that is all still growing.
+      // are the farmer's answer to a field that is all still growing. The
+      // composter also eats surplus sowing seeds (CompostStep), which is what
+      // replaced the abstract seeds-to-bone-meal craft that used to sit here:
+      // the farmer has a real composter at the station, so it uses that.
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CompostStep()));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new StashBonemealStep()));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new ClearBrushStep()));

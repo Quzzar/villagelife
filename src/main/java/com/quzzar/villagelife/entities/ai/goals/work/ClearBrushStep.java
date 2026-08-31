@@ -102,16 +102,6 @@ public final class ClearBrushStep implements BlockWorkStep {
     return compostable(new ItemStack(block.asItem()));
   }
 
-  /** Whether the pack is carrying anything this chain treats as brush. */
-  static boolean carryingBrush(RealPerson person) {
-    for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
-      if (brushItem(person.personMainInv.getItem(slot))) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   /**
    * A pack item this chain treats as brush: a plant {@link #brush} would have
    * pulled. Deliberately NOT any-compostable - the farmer's wheat and seeds

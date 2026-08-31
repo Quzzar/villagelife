@@ -150,7 +150,10 @@ also stands alone (`entities/ai/goals/work/`):
 - **Compost** (`CompostStep`): carried brush is fed to the composter every farm structure
   ships, one plant per fill at the block's own compost chance, vanilla's 7-to-8 cure and
   all. The one liberty is at the end: the bone meal goes straight into the pack rather than
-  being tossed on the ground for anything passing to steal.
+  being tossed on the ground for anything passing to steal. The composter also eats surplus
+  sowing seeds, anything past the eight per type kept for planting, which replaced the
+  abstract seeds-to-bone-meal craft the farmer used to run: one composting system, on the
+  real block.
 - **Shelve and fetch** (`StashBonemealStep`, `FetchBonemealStep`): bone meal nothing in the
   field currently wants goes into the farm's own barrel; when something is growing again and
   the pack is empty, it comes back out. The barrel is the farm's fertiliser shelf, the same
