@@ -22,6 +22,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.WallTorchBlock;
 
 /**
  * Driving the shaft: a BREAK step with the only genuinely algorithmic selector
@@ -56,6 +57,13 @@ public final class MineStep implements BlockWorkStep {
 
   /** Blocks broken between torches, so a deepening shaft does not go dark. */
   private static final int BLOCKS_PER_TORCH = 6;
+
+  /**
+   * Torches only start once the shaft has dropped this far below its mouth: the
+   * entrance and the first steps down catch daylight, so torching there just
+   * litters a lit approach. Below it the shaft is dark and actually wants light.
+   */
+  private static final int TORCH_MIN_DEPTH = 10;
 
   /**
    * Ticks to keep the bucket out in the off hand after a seal or a clear, so the
@@ -119,7 +127,7 @@ public final class MineStep implements BlockWorkStep {
       person.level().playSound((Player) null, face.getX(), face.getY(), face.getZ(),
           this.block.defaultBlockState().getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
           person.getRandom().nextFloat() * 0.4F + 0.8F);
-      maybeTorch(person, face);
+      maybeTorch(person, mouth, rotation(person), face);
     }
     person.level().destroyBlockProgress(person.getId(), face, -1);
     this.breakTime = 0;
@@ -217,26 +225,49 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * Every so many blocks, stand a torch in the space just opened so the shaft
-   * does not go dark. Physical: the torch comes out of the miner's pack (kept
-   * stocked from village stores when they turn in for the night), so an unlit
-   * mine reads as a village with no torches to spare rather than a bug. The
-   * cursor skips torches, so one placed here is never mistaken for stone later.
+   * Every so many blocks, hang a torch on a shaft wall so the descent does not go
+   * dark. Physical: the torch comes out of the miner's pack (kept stocked from
+   * village stores when they turn in for the night), so an unlit mine reads as a
+   * village with no torches to spare rather than a bug. The cursor skips torches,
+   * so one placed here is never mistaken for stone later.
+   *
+   * A WALL torch, not a floor one: a torch standing on the floor sits in the dig
+   * path, and the block under it then has to be left unbroken to avoid knocking it
+   * out -- which is what riddled the shaft with holes. And only once the shaft has
+   * dropped {@link #TORCH_MIN_DEPTH} below its lit mouth, and only where it is dark.
    */
-  private void maybeTorch(RealPerson person, BlockPos face) {
+  private void maybeTorch(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos face) {
     if (++this.sinceTorch < BLOCKS_PER_TORCH) {
       return;
     }
-    this.sinceTorch = 0; // one attempt per interval, whatever its outcome
     Level level = person.level();
-    if (level.getMaxLocalRawBrightness(face) >= 8
-        || !level.getBlockState(face.below()).isFaceSturdy(level, face.below(), Direction.UP)) {
+    // Already lit, or still in the daylit approach near the mouth -> no torch wanted
+    // here; reset and wait out another full interval before trying again.
+    if (level.getMaxLocalRawBrightness(face) >= 8 || mouth.getY() - face.getY() < TORCH_MIN_DEPTH) {
+      this.sinceTorch = 0;
       return;
     }
-    if (person.removeItem(Items.TORCH, 1).getCount() < 1) {
-      return; // out of torches; the shaft stays dark until the miner restocks
+    // Hang it on a wall that STAYS put -- a solid cell just outside the dig corridor,
+    // so the cursor never comes back and digs the torch's own support out. Work in the
+    // mine's local frame to tell corridor (will be dug) from wall, then rotate to the
+    // world for the block ops. A centre cell has no such wall: leave the counter hot
+    // and try again next block rather than skipping a whole interval into the dark.
+    for (Direction local : Direction.Plane.HORIZONTAL) {
+      if (withinCorridor(this.offset.relative(local))) {
+        continue;
+      }
+      Direction worldDir = rotation.rotate(local);
+      BlockPos wall = face.relative(worldDir);
+      if (!level.getBlockState(wall).isFaceSturdy(level, wall, worldDir.getOpposite())) {
+        continue;
+      }
+      if (person.removeItem(Items.TORCH, 1).getCount() >= 1) {
+        level.setBlock(face, Blocks.WALL_TORCH.defaultBlockState()
+            .setValue(WallTorchBlock.FACING, worldDir.getOpposite()), 3);
+      }
+      this.sinceTorch = 0; // placed, or out of torches -> reset either way
+      return;
     }
-    level.setBlock(face, Blocks.TORCH.defaultBlockState(), 3);
   }
 
   /**
@@ -385,13 +416,13 @@ public final class MineStep implements BlockWorkStep {
         waterproof(person, mouth, rotation, this.offset);
         this.block = person.level().getBlockState(facePos).getBlock();
       }
-      // Never mine a light source, and never undermine a torch or lantern standing on
-      // the block below -- the cursor steps down into its own supports as the shaft
-      // deepens, so this is what keeps a dug shaft lit. Any emitter counts (soul,
-      // redstone and wall torches, lanterns), not just a plain torch.
+      // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
+      // the cursor leaves the shaft's own lighting alone. Torches now hang on the
+      // walls (see maybeTorch), so the block BELOW a torch no longer needs
+      // protecting: digging it cannot knock a wall torch out, and skipping it was
+      // exactly what left a hole under every torch.
     } while (this.block == Blocks.AIR
-        || isLight(person.level(), facePos)
-        || isLight(person.level(), facePos.above()));
+        || isLight(person.level(), facePos));
 
     // Seal any liquid on the walls around the solid block about to be dug, so a
     // pocket beside the frontier is cobbled off before it can flood the shaft.
