@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.buildings.Building;
@@ -301,7 +302,8 @@ public final class MineStep implements BlockWorkStep {
    * beat, so a seal or a clear reads as bailing with a bucket rather than magic.
    * Moved from the pack, never copied: hand drop chance is 100% (see Person), so a
    * display copy would drop a second bucket on death. The main hand keeps its
-   * pickaxe; the beat refreshes on every reseal.
+   * pickaxe; the beat refreshes on every reseal. Logs the moment the bucket comes
+   * to hand, so a seal is greppable in the server log ([mine]).
    */
   private void showBucket(RealPerson person) {
     this.bucketShownTicks = BUCKET_SHOWN_TICKS;
@@ -311,6 +313,8 @@ public final class MineStep implements BlockWorkStep {
     ItemStack pulled = person.removeItem(Items.BUCKET, 1);
     if (pulled.getCount() == 1) {
       person.setItemSlot(EquipmentSlot.OFFHAND, pulled);
+      Villagelife.LOGGER.info("[mine] {} brought its bucket to its off hand to seal a leak at {}",
+          person.getName().getString(), person.blockPosition().toShortString());
     }
   }
 
