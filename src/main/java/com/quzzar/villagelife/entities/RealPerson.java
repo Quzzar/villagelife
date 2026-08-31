@@ -738,7 +738,11 @@ public class RealPerson extends Person {
         this.setItemSlot(EquipmentSlot.MAINHAND, regenPotion);
         break;
       case FARMER:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_HOE));
+        // A basic hoe, like the lumberjack's stone axe and miner's stone
+        // pickaxe: kept basic until the village can make better. An iron hoe is
+        // the blacksmith's to forge later (BlacksmithStep), not a starting tool
+        // that fakes iron the village has not yet mined.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_HOE));
         break;
       case LEADER:
         this.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
