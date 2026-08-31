@@ -11,6 +11,7 @@ import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.Building;
+import com.quzzar.villagelife.village.buildings.BuildingInfo;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -31,11 +32,15 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
  * already reads every container at once; it makes the stores findable, and it
  * surfaces when they overflow.
  *
- * Two chests are never swept. The storehouse's own containers are the
- * destination, not a source, and the market's chests hold the treasury and the
- * merchant's goods - a quartermaster shelving those would move the village's
- * money into a barrel and fight the merchant, who is trying to clear the same
- * till the other way.
+ * Three kinds of chest are never swept. The storehouse's own containers are the
+ * destination, not a source; the market's chests hold the treasury and the
+ * merchant's goods (a quartermaster shelving those would move the village's money
+ * into a barrel and fight the merchant); and HOMES hold villagers' private
+ * belongings, so their chests are left alone.
+ *
+ * When the shelves fall quiet the quartermaster tidies the storehouse, ordering
+ * like goods together and compacting partial stacks, so a full sweep leaves one
+ * organised store rather than a heap.
  *
  * A full storehouse is not an error. Whatever will not fit stays in the pack and
  * the strain flag goes up, which the planner reads as a reason to want a bigger
@@ -55,6 +60,8 @@ public final class ConsolidateStep implements BlockWorkStep {
   /** Set in select, read in act: which phase this target belongs to. */
   private boolean delivering;
   private int mindingTicks;
+  /** Raised by a delivery, cleared by the next idle tidy: the shelves changed. */
+  private boolean needsTidy;
 
   @Override
   @Nullable
@@ -91,7 +98,12 @@ public final class ConsolidateStep implements BlockWorkStep {
 
     if (!(person.level().getBlockEntity(target) instanceof Container source)) {
       // The chest went, or this is the storehouse station and there is simply
-      // nothing to move. Standing is bounded so the legs come free again.
+      // nothing to move. One organise pass when the shelves first fall quiet
+      // after a delivery, then standing is bounded so the legs come free again.
+      if (this.mindingTicks == 0 && this.needsTidy) {
+        tidyStorehouse(person);
+        this.needsTidy = false;
+      }
       return ++this.mindingTicks < MIND_TICKS;
     }
     ItemStack taken = takeOneStack(person, source);
@@ -139,11 +151,66 @@ public final class ConsolidateStep implements BlockWorkStep {
       }
     }
     if (moved > 0) {
+      this.needsTidy = true;
       Villagelife.LOGGER.debug("[resource-flow] {} (QUARTERMASTER) consolidated {} item(s) into the storehouse at {}",
           person.getName().getString(), moved, target.toShortString());
     }
     if (village != null) {
       village.setStorageStrained(!packIsEmpty(pack));
+    }
+  }
+
+  /**
+   * Tidy the storehouse when it is quiet: lift every stack out, order them by
+   * item so like goods sit together, and lay them back in.
+   * {@link HopperBlockEntity#addItem} merges compatible stacks as it refills -
+   * compacting partial stacks and freeing slots - and respects item components,
+   * so enchanted or named items are never wrongly merged. Count-preserving:
+   * exactly what came out goes back into the same shelves, and merging only ever
+   * frees room, so it always fits.
+   */
+  private void tidyStorehouse(RealPerson person) {
+    List<Container> stores = new ArrayList<>();
+    for (BlockPos pos : storehouseChests(person)) {
+      if (person.level().getBlockEntity(pos) instanceof Container store) {
+        stores.add(store);
+      }
+    }
+    if (stores.isEmpty()) {
+      return;
+    }
+    List<ItemStack> goods = new ArrayList<>();
+    for (Container store : stores) {
+      for (int slot = 0; slot < store.getContainerSize(); slot++) {
+        ItemStack stack = store.getItem(slot);
+        if (!stack.isEmpty()) {
+          goods.add(stack.copy());
+          store.setItem(slot, ItemStack.EMPTY);
+        }
+      }
+    }
+    goods.sort(java.util.Comparator.comparing((ItemStack stack) -> stack.getItem().toString()));
+    for (ItemStack stack : goods) {
+      putBack(stores, stack);
+    }
+    if (goods.size() > 1) {
+      Villagelife.LOGGER.debug("[resource-flow] {} (QUARTERMASTER) tidied the storehouse ({} stacks)",
+          person.getName().getString(), goods.size());
+    }
+  }
+
+  /** Refill a stack across the storehouse containers, merging compatible stacks. */
+  private void putBack(List<Container> stores, ItemStack stack) {
+    ItemStack remaining = stack;
+    for (Container store : stores) {
+      remaining = HopperBlockEntity.addItem(null, store, remaining, null);
+      if (remaining.isEmpty()) {
+        return;
+      }
+    }
+    if (!remaining.isEmpty()) {
+      Villagelife.LOGGER.warn("[resource-flow] storehouse tidy could not reseat {} x{}",
+          remaining.getItem(), remaining.getCount());
     }
   }
 
@@ -165,9 +232,9 @@ public final class ConsolidateStep implements BlockWorkStep {
   }
 
   /**
-   * The nearest village container that is neither the storehouse nor the market,
-   * and actually holds something. Stale positions - a chest broken or built over
-   * - are skipped rather than walked to.
+   * The nearest village container that is neither the storehouse, the market, nor
+   * a home, and actually holds something. Stale positions - a chest broken or
+   * built over - are skipped rather than walked to.
    */
   @Nullable
   private BlockPos sourceChest(RealPerson person, Village village) {
@@ -176,6 +243,9 @@ public final class ConsolidateStep implements BlockWorkStep {
     }
     List<BlockPos> skip = new ArrayList<>(storehouseChests(person));
     skip.addAll(Treasury.chestPositions(village, level));
+    // Homes hold villagers' private belongings; never sweep them into the shared
+    // storehouse (a home is a residence - a building with beds).
+    skip.addAll(homeChests(village));
     for (int attempt = 0; attempt < MAX_STALE_CHESTS; attempt++) {
       BlockPos found = village.getNearestContainer(person.blockPosition(), skip);
       if (found.equals(BlockPos.ZERO)) {
@@ -187,6 +257,31 @@ public final class ConsolidateStep implements BlockWorkStep {
       skip.add(found); // empty or gone: never a source
     }
     return null;
+  }
+
+  /**
+   * Container positions inside HOMES, which the quartermaster leaves alone. A home
+   * is a residence - a building with beds, where a villager lives - so its chest
+   * is personal, not part of the shared stores.
+   */
+  private List<BlockPos> homeChests(Village village) {
+    List<BlockPos> out = new ArrayList<>();
+    for (Building building : village.getBuildings()) {
+      if (building == null || !isHome(building)) {
+        continue;
+      }
+      BlockPos origin = BlockPos.of(building.getOriginLocation());
+      for (Long local : building.getInfo().getContainerLocations()) {
+        out.add(origin.offset(BlockPos.of(local).rotate(building.getRotation())));
+      }
+    }
+    return out;
+  }
+
+  /** A home is a residence: a building with beds. */
+  private boolean isHome(Building building) {
+    BuildingInfo info = building.getInfo();
+    return info != null && !info.getBedLocations().isEmpty();
   }
 
   /** The storehouse's own containers: the quartermaster's workplace, in world space. */
