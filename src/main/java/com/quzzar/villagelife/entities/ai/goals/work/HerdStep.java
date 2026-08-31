@@ -3,6 +3,7 @@ package com.quzzar.villagelife.entities.ai.goals.work;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.village.FarmedStock;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.Village;
 
@@ -67,6 +68,10 @@ public final class HerdStep implements WorkStep<Animal> {
     if (!needsTending(person, target)) {
       return false;
     }
+    // Tending is adoption: whatever the herder works on is the village's herd.
+    // Back-fills pens that predate the farmed mark, and claims wild arrivals
+    // the herder takes in -- either way the hunter stops seeing it as game.
+    FarmedStock.mark(target);
     person.getLookControl().setLookAt(target, 30.0F, 30.0F);
     person.swing(person.getUsedItemHand());
     if (target instanceof Sheep sheep && sheep.readyForShearing()) {

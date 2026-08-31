@@ -9,6 +9,7 @@ import java.util.UUID;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.village.FarmedStock;
 import com.quzzar.villagelife.village.VillageManager;
 import com.quzzar.villagelife.village.VillageGeneration;
 import com.quzzar.villagelife.village.bookkeeping.DeathBookkeepingEvent;
@@ -39,6 +40,7 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
@@ -56,6 +58,21 @@ public class CoreEvents {
         && !(event.getEntity() instanceof Creeper)) {
       Mob mob = (Mob) event.getEntity();
       mob.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(mob, Person.class, false));
+    }
+  }
+
+  /**
+   * Farmed is hereditary: the pen's calves are the pen's. Either parent
+   * carrying the mark is enough, so a wild partner does not launder the
+   * newborn back into game for the hunter (FarmedStock).
+   */
+  @SubscribeEvent
+  public static void onBabyBorn(BabyEntitySpawnEvent event) {
+    if (event.getChild() == null) {
+      return;
+    }
+    if (FarmedStock.isFarmed(event.getParentA()) || FarmedStock.isFarmed(event.getParentB())) {
+      FarmedStock.mark(event.getChild());
     }
   }
 

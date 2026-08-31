@@ -539,6 +539,10 @@ public class StructureInProgress {
 
         if (!settings.isIgnoreEntities()) {
             template.addEntitiesToWorld(levelAccess, BlockPos.of(location1), settings);
+            // Stock a building ships with belongs to the village from its first breath:
+            // marked before the hunter's next scan can read the pen as game.
+            com.quzzar.villagelife.village.FarmedStock.markAnimalsWithin(levelAccess,
+                    template.getBoundingBox(settings, BlockPos.of(location1)));
         }
 
     }
