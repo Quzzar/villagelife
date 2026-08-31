@@ -456,7 +456,11 @@ public final class MineStep implements BlockWorkStep {
       // miner down at the cavern mouth. Laying floor is progress, so it refreshes the
       // step budget; a cavern past BRIDGE_CAP, or an empty cobble stock, lets the
       // give-up fall through and ends the shaft.
-      if (this.block == Blocks.AIR && this.bridged < BRIDGE_CAP) {
+      // Only floor the WALKWAY, never the whole swept cross-section. Without this
+      // guard the bridge floored below EVERY air cell the cursor passed - the walls,
+      // the head-space, the cave's own volume - scattering cobblestone all through the
+      // shaft and walling the miner in. withinCorridor keeps it to the path it walks.
+      if (this.block == Blocks.AIR && this.bridged < BRIDGE_CAP && withinCorridor(this.offset)) {
         BlockPos floor = facePos.below();
         if (!person.level().getBlockState(floor).isFaceSturdy(person.level(), floor, Direction.UP)
             && person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
