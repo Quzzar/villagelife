@@ -74,6 +74,17 @@ public class CoreEvents {
           && attacker != person) {
         person.logIssue("I was attacked by " + attacker.getName().getString(),
             java.util.Optional.of(attacker.getUUID()));
+
+        // Pain needs no interpretation (docs/relationships.md): a blow from a
+        // player moves the victim's own opinion of them at once, scaled by how
+        // hard it landed. Witnesses still reach their judgements through
+        // reflection; this is only what the victim feels in their own skin.
+        if (attacker instanceof Player player) {
+          com.quzzar.villagelife.relationships.OpinionService.apply(person, player.getUUID(),
+              -(com.quzzar.villagelife.configuration.VillagelifeConfig.AssaultOpinionHit
+                  + Math.round(event.getNewDamage())),
+              "struck me");
+        }
       }
 
       if (event.getSource().is(DamageTypes.CRAMMING)
@@ -104,28 +115,26 @@ public class CoreEvents {
 
     if (event.getEntity() instanceof RealPerson person) {
 
-      if (event.getSource().getEntity() instanceof Player && person.getVillage() != null) {
+      if (event.getSource().getEntity() instanceof Player && person.getVillage() != null
+          && person.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
         UUID damagerUUID = ((Player) event.getSource().getEntity()).getUUID();
         // Blame needs a witness (#64), and the victim is not one: what the
         // books record is what the SETTLEMENT knows. A villager set upon alone
-        // in a wood leaves the village none the wiser about who did it.
-        if (!(person.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)
-            || com.quzzar.villagelife.wrongdoing.Witnesses
-                .around(serverLevel, person.position(), person).isEmpty()) {
-          return;
-        }
-        com.quzzar.villagelife.wrongdoing.Wrongdoing.report(serverLevel, person.getVillage(),
+        // in a wood leaves the village none the wiser about who did it, so an
+        // unseen report gates both the mood entry and the witnesses' memories.
+        if (com.quzzar.villagelife.wrongdoing.Wrongdoing.report(serverLevel, person.getVillage(),
             damagerUUID, com.quzzar.villagelife.wrongdoing.Wrongdoing.Offence.ASSAULT,
             person.position(),
-            "I saw " + person.getFullName() + " attacked");
-        person.getVillage().logEvent(
-            new HurtByPlayerBookkeepingEvent(
-                person.getUUID(),
-                BlockPos.containing(person.getEyePosition()).asLong(),
-                person.getOccupation(),
-                person.getMarriageStatus(),
-                event.getSource().getMsgId(),
-                damagerUUID));
+            "I saw " + person.getFullName() + " attacked", person)) {
+          person.getVillage().logEvent(
+              new HurtByPlayerBookkeepingEvent(
+                  person.getUUID(),
+                  BlockPos.containing(person.getEyePosition()).asLong(),
+                  person.getOccupation(),
+                  person.getMarriageStatus(),
+                  event.getSource().getMsgId(),
+                  damagerUUID));
+        }
       }
 
     }
@@ -168,6 +177,18 @@ public class CoreEvents {
                 event.getSource().getMsgId(),
                 killerUUID));
 
+      }
+
+      // A death dealt directly by a player is a murder, the worst offence a
+      // village knows (#64). The victim is no witness to it; whoever else saw
+      // it writes it down with the killer's name attached, and the village's
+      // mood already grieves through the death entry above.
+      if (event.getSource().getEntity() instanceof Player killer
+          && person.level() instanceof ServerLevel murderScene) {
+        com.quzzar.villagelife.wrongdoing.Wrongdoing.report(murderScene, person.getVillage(),
+            killer.getUUID(), com.quzzar.villagelife.wrongdoing.Wrongdoing.Offence.MURDER,
+            person.position(),
+            "I saw " + person.getFullName() + " murdered", person);
       }
 
       // A villager's neighbours remember seeing them die, so they can speak of

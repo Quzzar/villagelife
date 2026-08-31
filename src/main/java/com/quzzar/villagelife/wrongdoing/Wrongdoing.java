@@ -56,10 +56,14 @@ public final class Wrongdoing {
    * Reports an offence that may or may not have been seen. Returns false when
    * nobody saw it, in which case nothing at all happens — no mood, no memory,
    * no grudge. An empty village is a place where anything can be done.
+   *
+   * The victim, when the offence has one, is passed so they are not counted
+   * among their own witnesses: what they suffered is theirs to feel directly,
+   * not to testify about. Offences against no one (theft) pass null.
    */
   public static boolean report(ServerLevel level, Village village, UUID culprit, Offence offence,
-      Vec3 where, String fact) {
-    List<RealPerson> witnesses = Witnesses.around(level, where);
+      Vec3 where, String fact, RealPerson victim) {
+    List<RealPerson> witnesses = Witnesses.around(level, where, victim);
     if (witnesses.isEmpty()) {
       Villagelife.LOGGER.debug("An offence at {} went unseen, so it never happened",
           String.format("%.0f,%.0f,%.0f", where.x, where.y, where.z));

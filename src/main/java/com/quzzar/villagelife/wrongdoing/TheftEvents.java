@@ -77,7 +77,7 @@ public final class TheftEvents {
       Wrongdoing.report(level, village, player.getUUID(), Wrongdoing.Offence.THEFT,
           player.position(),
           player.getName().getString() + " took " + taken + " "
-              + entry.getKey().getDescription().getString().toLowerCase() + " from our stores");
+              + entry.getKey().getDescription().getString().toLowerCase() + " from our stores", null);
       return; // one report per visit: a thief is a thief, not a thief per item
     }
   }
@@ -97,7 +97,7 @@ public final class TheftEvents {
     }
     Wrongdoing.report(level, village, player.getUUID(), Wrongdoing.Offence.THEFT,
         net.minecraft.world.phys.Vec3.atCenterOf(pos),
-        player.getName().getString() + " broke into our stores");
+        player.getName().getString() + " broke into our stores", null);
   }
 
   /**

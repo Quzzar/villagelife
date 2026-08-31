@@ -126,6 +126,14 @@ does not speak for everybody.
 | shunned | will not talk to you — villagers turn away when you try | -50 |
 | hostile | sets its fighters on you | -70 |
 
+At hostile the enforcement is bodily, not just commercial: villagers who will fight treat
+you as they treat a zombie and attack on sight, and villagers who will not fight keep their
+distance the way they avoid one. Beside the village ladder runs a **personal grudge line**
+(`GrudgeAttackBelow`): strike one villager often enough and that villager turns on you
+alone, long before the village average moves; the mechanics are on
+[relationships.md](relationships.md). Assault and murder reach standing the slower way,
+through whoever witnessed them and what reflection makes of it.
+
 Each rung keeps the ones above it, and **every rung is escapable**: what a villager feels
 about an outsider fades toward indifference on its own, so staying away and behaving is a
 way back. A grudge that cannot be worked off is a permanent tax rather than a punishment.

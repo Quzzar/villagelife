@@ -64,7 +64,6 @@ import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
-import com.quzzar.villagelife.entities.ai.goals.DefendOthersFromPlayerGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunAwayGoal;
 import com.quzzar.villagelife.entities.ai.goals.PersonEatFoodGoal;
@@ -77,6 +76,7 @@ import com.quzzar.villagelife.entities.ai.goals.RaiseShieldGoal;
 import com.quzzar.villagelife.entities.ai.goals.RangedBowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.RangedCrossbowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
+import com.quzzar.villagelife.entities.ai.goals.SlowToAngerGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
 import com.quzzar.villagelife.other.EquipmentUpgrade;
@@ -86,7 +86,6 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.ResetUniversalAngerTargetGoal;
 import net.minecraft.world.entity.monster.Creeper;
@@ -878,6 +877,44 @@ public class RealPerson extends Person {
     return willDefendItself() && (i > 0.5);
   }
 
+  /**
+   * Whether this villager personally counts the player an enemy: their own
+   * opinion of them, not the village's, at or below the configured grudge
+   * line (docs/relationships.md). Struck often enough, a villager crosses it;
+   * fighters answer it by attacking, everyone else by keeping their distance.
+   */
+  public boolean holdsGrudgeAgainst(Player player) {
+    return com.quzzar.villagelife.relationships.OpinionService.opinionOf(this, player.getUUID())
+        <= com.quzzar.villagelife.configuration.VillagelifeConfig.GrudgeAttackBelow;
+  }
+
+  /** Standing verdicts are memoized briefly: goal predicates poll every few ticks. */
+  private UUID threatVerdictPlayer;
+  private long threatVerdictExpires;
+  private boolean threatVerdict;
+
+  /**
+   * Whether this villager's village counts the player an outright threat, the
+   * HOSTILE rung of standing (docs/economy.md). Answering means averaging the
+   * whole roster, so the verdict is cached for a few seconds per player.
+   */
+  public boolean villageConsidersThreat(Player player) {
+    if (getVillage() == null
+        || !(level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+      return false;
+    }
+    long now = level().getGameTime();
+    if (player.getUUID().equals(threatVerdictPlayer) && now < threatVerdictExpires) {
+      return threatVerdict;
+    }
+    threatVerdictPlayer = player.getUUID();
+    threatVerdictExpires = now + 100L;
+    threatVerdict = com.quzzar.villagelife.wrongdoing.Standing
+        .tierOf(getVillage(), serverLevel, player.getUUID())
+        == com.quzzar.villagelife.wrongdoing.Standing.Tier.HOSTILE;
+    return threatVerdict;
+  }
+
   @Override
   protected void registerGoals() {
 
@@ -897,8 +934,12 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(2, new RangedBowAttackPassiveGoal<>(this, 0.5D, 20, 15.0F));
       this.goalSelector.addGoal(2, new PersonMeleeGoal(this, 0.8D, true));
 
+      // A personal grudge is answered personally: a player who struck this
+      // villager past the grudge line is THIS villager's enemy on sight,
+      // whatever the rest of the village thinks of them.
       this.targetSelector.addGoal(3,
-          new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false, this::isAngryAt));
+          new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
+              (target) -> target instanceof Player player && holdsGrudgeAgainst(player)));
 
       this.goalSelector.addGoal(1, new RaiseShieldGoal(this));
 
@@ -909,6 +950,13 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(5, new AvoidEntityGoal<>(this, Mob.class, 12.0F, 0.5D, 0.5D, (mob) -> {
         return mob instanceof Enemy;
       }));
+
+      // The unarmed answer to a grudge or a village threat is distance: the
+      // same shape as avoiding monsters, because that is what a player who
+      // beats villagers has made of themselves here.
+      this.goalSelector.addGoal(5, new AvoidEntityGoal<>(this, Player.class, 12.0F, 0.5D, 0.5D,
+          (target) -> target instanceof Player player
+              && (holdsGrudgeAgainst(player) || villageConsidersThreat(player))));
 
     }
 
@@ -922,12 +970,7 @@ public class RealPerson extends Person {
       // fighters on you (#64). Nothing about this is permanent — opinions of
       // outsiders fade — so it is a state you can leave by leaving.
       this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
-          (target) -> getVillage() != null
-              && level() instanceof net.minecraft.server.level.ServerLevel serverLevel
-              && com.quzzar.villagelife.wrongdoing.Standing
-                  .tierOf(getVillage(), serverLevel, target.getUUID()) == com.quzzar.villagelife.wrongdoing.Standing.Tier.HOSTILE));
-
-      this.targetSelector.addGoal(5, new DefendOthersFromPlayerGoal(this));
+          (target) -> target instanceof Player player && villageConsidersThreat(player)));
 
       // Only run away to eat, if you'll join the fight again.
       // Else they enter the state of run eat, hide, run eat
@@ -1151,7 +1194,7 @@ public class RealPerson extends Person {
     this.goalSelector.addGoal(8, new SearchForItemsGoal(this));
 
     this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));
-    this.targetSelector.addGoal(3, (new HurtByTargetGoal(this)).setAlertOthers());
+    this.targetSelector.addGoal(3, new SlowToAngerGoal(this));
     this.goalSelector.addGoal(8, new UnstuckPersonGoal(this));
     this.targetSelector.addGoal(4, new ResetUniversalAngerTargetGoal<>(this, false));
 

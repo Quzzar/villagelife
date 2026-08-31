@@ -83,14 +83,26 @@ It runs on the village tick, so it only advances while the village is actually s
 | Idling at the same campfire with no work | +1 |
 
 **One-sided change** moves only that person's lean, because only they experienced it. The
-other may not know it happened at all. Game code never sets these numbers. It records what
-happened and stops:
+other may not know it happened at all. Game code never sets these numbers, with one
+exception below. It records what happened and stops:
 
 | Game code records | The villager decides |
 | --- | --- |
 | "Narius killed the skeleton that was coming for me." | whether that earns gratitude, and how much |
 | "I lost the miner job to Isolde; the village said she was better suited." | whether that is resentment or fair enough |
 | "Quzzar threw me 3 diamonds." | whether that was a gift, a bribe, or litter |
+
+**The one mechanical exception is being struck by a player.** Pain needs no
+interpretation, so the blow itself moves the victim's own opinion the moment it lands: a
+configurable base (`AssaultOpinionHit`) plus the damage dealt, applied through the same
+clamped `OpinionService` call, every strike counting. One punch is a small grievance that
+fades; a beating carries the victim past the grudge line (`GrudgeAttackBelow`), and from
+there that villager treats the player as an enemy on sight. Fighters attack, and
+retaliation alerts the neighbours; everyone else keeps their distance. Witnesses to the
+assault still go through reflection like anything else, and the victim's own log entry
+("I was attacked by ...") still gets reflected on too: the mechanical part is only what
+they feel in their skin before they have had time to think. The village-scale consequences
+(standing, and its hostile rung) are on [economy.md](economy.md).
 
 **The clamp on a judgement is load-bearing, not decoration.** On its first live outing the
 model was asked for a number between -15 and 15 and answered 100. `OpinionService` caps a

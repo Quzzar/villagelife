@@ -273,6 +273,8 @@ public class VillagelifeConfig {
             StandingDislikedBelow = builder.comment("Standing at or below which the village charges you over the odds, rising the further you fall.").translation(Villagelife.MODID + ".config.StandingDislikedBelow").defineInRange("Standing disliked below", -10, -100, 100);
             StandingTrustedAbove = builder.comment("Standing at or above which a village counts you a friend. Nothing hangs on it yet.").translation(Villagelife.MODID + ".config.StandingTrustedAbove").defineInRange("Standing trusted above", 40, -100, 100);
             StandingWorstMarkup = builder.comment("What the village charges at its most grudging, as a multiple of the ordinary price, reached at the bottom of the disliked band.").translation(Villagelife.MODID + ".config.StandingWorstMarkup").defineInRange("Standing worst markup", 2.0D, 1.0D, 10.0D);
+            AssaultOpinionHit = builder.comment("How much being struck by a player lowers the victim's own opinion of them, before the blow's damage is added on top. Every strike counts, so one punch is a small grievance and a beating crosses the grudge line.").translation(Villagelife.MODID + ".config.AssaultOpinionHit").defineInRange("Assault opinion hit", 5, 0, 15);
+            GrudgeAttackBelow = builder.comment("Opinion of a player at or below which a villager treats them as an enemy: fighters attack on sight, everyone else keeps their distance. Personal, unlike the standing tiers above, which average the whole village.").translation(Villagelife.MODID + ".config.GrudgeAttackBelow").defineInRange("Grudge attack below", -30, -100, 0);
 
             builder.pop();
 
