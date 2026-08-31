@@ -264,10 +264,12 @@ public class Village {
     // MOTION_BLOCKING_NO_LEAVES gives the top block that stops movement but ISN'T a leaf,
     // i.e. the real ground UNDER a tree canopy -- WORLD_SURFACE counts leaves/branches as
     // surface, so founding under a tree seated the whole camp at canopy height and then
-    // dirt-filled a pillar down to the ground (Aaron's "sky village"). The heightmap points
-    // one above that block, and the camp seats a block lower still (Aaron: "the whole
-    // village is one block too high"), so floors land ON the ground, not hovering over it.
-    int planeY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, centerLoc).getY() - 1;
+    // dirt-filled a pillar down to the ground (Aaron's "sky village"). Seat the camp AT the
+    // heightmap -- the first course above the top ground block -- so the whole camp is raised
+    // one block: the founder, who runs create-village standing on the ground, lands at their
+    // own level instead of a block into it. Seating a course lower dropped them a block on
+    // create-village; raising the entire camp one block is what Aaron asked for.
+    int planeY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, centerLoc).getY();
     BlockPos platCenter = new BlockPos(centerLoc.getX(), planeY, centerLoc.getZ());
 
     // Anchor the whole camp on the CAMPFIRE, not the centre building's midpoint, so a
@@ -513,22 +515,19 @@ public class Village {
           surface++;
         }
         int top = Math.max(clearTo, surface);
-        // Keep the plane course itself -- it is the buildings' floor level and the
-        // camp's walking surface. Clearing it (and filling only from plane-1 down)
-        // dropped the gathering point and every gap between buildings a block below
-        // the land, so founding on the spot you stand on made you fall a block
-        // (Aaron: "the whole village spawns a block lower... I fall a block").
-        for (int y = planeY + 1; y < top; y++) {
+        // Cut everything above the plane down to it, clearing the footprint to a
+        // single course before the buildings drop on. (Raising the whole camp a
+        // block is done by planeY above, not by leaving this course uncleared.)
+        for (int y = planeY; y < top; y++) {
           pos.set(x, y, z);
           if (!level.getBlockState(pos).isAir() && level.getBlockEntity(pos) == null) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
           }
         }
-        // Fill the plane course and below it down to solid, so the low side of a
-        // slope does not leave a building floating over a gap AND the camp surface
-        // sits AT the plane -- flush with the land and the buildings' floors, not a
-        // block under it. Bounded so a void does not fill forever.
-        for (int y = planeY; y >= planeY - FOUNDING_MAX_FILL; y--) {
+        // Fill everything below the plane down to solid, following the surface
+        // DOWN, so the low side of a slope does not leave a building floating over
+        // a gap. Bounded so a void does not fill forever.
+        for (int y = planeY - 1; y >= planeY - FOUNDING_MAX_FILL; y--) {
           pos.set(x, y, z);
           var state = level.getBlockState(pos);
           if (state.isAir() || !state.getFluidState().isEmpty()) {
