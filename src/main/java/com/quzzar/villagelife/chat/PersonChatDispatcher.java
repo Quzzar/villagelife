@@ -668,12 +668,14 @@ public final class PersonChatDispatcher {
       }
     }
 
-    // Drop what was taken on the ground and toss it toward the player, so a gift
-    // lands in front of them to pick up rather than teleporting into inventory.
+    // Land the gift AT the player's feet so they actually receive it. Spawning it on
+    // the villager and nudging it over at 0.3 left it dropping under her when the
+    // player stood even a step back (Aaron: "I'm not seeing the apple... she's dropping
+    // it underneath her"). Spawn on the player with no pickup delay -- a hand-off in
+    // all but animation.
     ItemStack handed = new ItemStack(item, collected);
-    ItemEntity drop = new ItemEntity(person.level(), person.getX(), person.getEyeY() - 0.3, person.getZ(), handed);
-    Vec3 toward = player.position().add(0, 0.5, 0).subtract(drop.position()).normalize().scale(0.3);
-    drop.setDeltaMovement(toward);
+    ItemEntity drop = new ItemEntity(person.level(), player.getX(), player.getY() + 0.2, player.getZ(), handed);
+    drop.setDeltaMovement(Vec3.ZERO);
     drop.setNoPickUpDelay();
     boolean spawned = person.level().addFreshEntity(drop);
 

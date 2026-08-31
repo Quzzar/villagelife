@@ -476,6 +476,35 @@ public class UrbanPlanner {
   }
 
   /**
+   * A one-line catalogue of the building types a village can raise and what each
+   * brings, so a chat villager can speak to a build a player proposes -- "build a
+   * lumberjack" -- with the real thing (fells logs) instead of inventing one or
+   * mistaking the building for a spare worker. General, not per-village: the menu of
+   * what exists, one entry per category.
+   */
+  public static String buildableCatalogue() {
+    java.util.LinkedHashMap<String, String> byCategory = new java.util.LinkedHashMap<>();
+    for (BuildingInfo info : Buildings.allBuildings().values()) {
+      String category = info.getCategory();
+      if (category == null || category.equals("village_center") || category.equals("house")
+          || byCategory.containsKey(category)) {
+        continue;
+      }
+      List<String> effects = new ArrayList<>();
+      for (String grant : info.getGrants()) {
+        String effect = GRANT_EFFECT.get(grant);
+        if (effect != null) {
+          effects.add(effect);
+        }
+      }
+      String name = category.replace('_', ' ');
+      byCategory.put(category, effects.isEmpty() ? "a " + name
+          : "a " + name + " (" + String.join(", ", effects) + ")");
+    }
+    return String.join(", ", byCategory.values());
+  }
+
+  /**
    * What a save-for goal still lacks against current stock, as ", still needs 40
    * cobblestone", or empty when nothing is short. Gives the brain the cost side
    * of a long-term goal so it can weigh how far off it is.

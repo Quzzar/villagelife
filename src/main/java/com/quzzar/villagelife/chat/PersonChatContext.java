@@ -424,6 +424,12 @@ public final class PersonChatContext {
         : opensACommitment(playerLine) ? UndertakingMode.NEW_MATTER
         : UndertakingMode.NONE;
     if (proposesChange) {
+      // Ground a build the player is urging: hand the villager the menu of what the
+      // village can actually raise and what each brings, so "build a lumberjack" has a
+      // real building to speak to (it fells logs) rather than being taken for a spare
+      // worker (a live-chat finding).
+      system.append("Buildings the village could raise, and what each brings: ")
+          .append(com.quzzar.villagelife.village.buildings.UrbanPlanner.buildableCatalogue()).append('\n');
       system.append(RULES_REQUEST);
     } else {
       if (mode == UndertakingMode.OPEN_MATTER) {
