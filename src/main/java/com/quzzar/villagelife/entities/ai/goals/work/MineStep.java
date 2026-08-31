@@ -55,6 +55,15 @@ public final class MineStep implements BlockWorkStep {
    */
   private static final int MAX_CURSOR_STEPS = 4096;
 
+  /**
+   * How many cobblestone floor blocks the miner will lay to bridge one cavern
+   * before giving the shaft up. A normal cave is floored and dug straight past; a
+   * cavern too large to floor on the miner's stock ends the shaft rather than
+   * swallowing all its cobblestone. Before this, opening into a cave read as air
+   * forever and the miner just stood down at the cavern mouth with no work.
+   */
+  private static final int BRIDGE_CAP = 48;
+
   /** Blocks broken between torches, so a deepening shaft does not go dark. */
   private static final int BLOCKS_PER_TORCH = 6;
 
@@ -79,6 +88,7 @@ public final class MineStep implements BlockWorkStep {
   private int lastProgress = -1;
   private int sinceTorch;
   private int bucketShownTicks;
+  private int bridged;
 
   @Override
   @Nullable
@@ -440,6 +450,21 @@ public final class MineStep implements BlockWorkStep {
         waterproof(person, mouth, rotation, this.offset);
         this.block = person.level().getBlockState(facePos).getBlock();
       }
+      // Bridge a cave: when the descending shaft opens into open air with no floor
+      // under the walkway, lay a cobblestone floor and keep scanning on into the
+      // stone beyond, rather than reading air until MAX_CURSOR_STEPS and standing the
+      // miner down at the cavern mouth. Laying floor is progress, so it refreshes the
+      // step budget; a cavern past BRIDGE_CAP, or an empty cobble stock, lets the
+      // give-up fall through and ends the shaft.
+      if (this.block == Blocks.AIR && this.bridged < BRIDGE_CAP) {
+        BlockPos floor = facePos.below();
+        if (!person.level().getBlockState(floor).isFaceSturdy(person.level(), floor, Direction.UP)
+            && person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
+          person.level().setBlock(floor, Blocks.COBBLESTONE.defaultBlockState(), 3);
+          this.bridged++;
+          steps = 0;
+        }
+      }
       // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
       // the cursor leaves the shaft's own lighting alone. Torches now hang on the
       // walls (see maybeTorch), so the block BELOW a torch no longer needs
@@ -487,6 +512,7 @@ public final class MineStep implements BlockWorkStep {
     this.inward = 1;
     this.breakTime = 0;
     this.lastProgress = -1;
+    this.bridged = 0;
   }
 
 }
