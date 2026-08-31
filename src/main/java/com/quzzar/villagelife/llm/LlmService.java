@@ -23,9 +23,10 @@ import com.quzzar.villagelife.llm.provider.OpenAiCompatibleProvider;
  * the offline llama.cpp runtime (default), or Claude / OpenAI / DeepSeek in
  * the cloud. Callers never learn which provider answered.
  *
- * Queue order is chat > decide > persona: chats and decides dispatch
- * immediately (both foreground), and personas wait until nothing foreground
- * is in flight. Callers get futures that complete with
+ * Queue order is chat > decide > background: chats and decides dispatch
+ * immediately (both foreground), and the background queue (personas,
+ * relationship flavor, villager-to-villager chatter) waits until nothing
+ * foreground is in flight. Callers get futures that complete with
  * {@link Optional#empty()} whenever the provider is unavailable, times out,
  * or produces an unusable answer — game logic defers and retries next cycle,
  * per the LLM-required design.
@@ -92,9 +93,10 @@ public final class LlmService {
     return activeChat.get() > 0 || System.currentTimeMillis() < chatWindowUntilMs;
   }
 
-  /** Persona/flavor requests wait here so foreground work always jumps the line. */
+  /** Background requests wait here so foreground work always jumps the line. */
   private record QueuedPersona(String system, String user, List<FewShotExample> examples,
-      int maxNewTokens, double temperature, CompletableFuture<Optional<String>> future) {
+      int maxNewTokens, double temperature, double frequencyPenalty,
+      CompletableFuture<Optional<String>> future) {
   }
 
   private static final int PERSONA_QUEUE_LIMIT = 64;
@@ -287,16 +289,33 @@ public final class LlmService {
    */
   public CompletableFuture<Optional<String>> submitPersona(String system, String user,
       List<FewShotExample> examples, int maxNewTokens, double temperature) {
+    return submitBackground(system, user, examples, maxNewTokens, temperature, 0.0D);
+  }
+
+  /**
+   * A conversation line between two VILLAGERS. Same prompt contract as
+   * {@link #submitChat}, but on the background queue: nobody is standing at a
+   * screen waiting for it, so it must never delay a player's reply or a
+   * village decision, and it holds no priority window of its own.
+   */
+  public CompletableFuture<Optional<String>> submitBackgroundChat(String system, String user,
+      List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
+    return submitBackground(system, user, examples, maxNewTokens, temperature, frequencyPenalty);
+  }
+
+  private CompletableFuture<Optional<String>> submitBackground(String system, String user,
+      List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
     if (!VillagelifeConfig.LlmEnabled) {
       return CompletableFuture.completedFuture(Optional.empty());
     }
     CompletableFuture<Optional<String>> future = new CompletableFuture<>();
     synchronized (personaQueue) {
       if (personaQueue.size() >= PERSONA_QUEUE_LIMIT) {
-        Villagelife.LOGGER.warn("Persona queue full ({}), rejecting request", PERSONA_QUEUE_LIMIT);
+        Villagelife.LOGGER.warn("Background LLM queue full ({}), rejecting request", PERSONA_QUEUE_LIMIT);
         return CompletableFuture.completedFuture(Optional.empty());
       }
-      personaQueue.add(new QueuedPersona(system, user, List.copyOf(examples), maxNewTokens, temperature, future));
+      personaQueue.add(new QueuedPersona(system, user, List.copyOf(examples), maxNewTokens, temperature,
+          frequencyPenalty, future));
     }
     tryDispatchPersona();
     return future;
@@ -313,13 +332,13 @@ public final class LlmService {
       personaInFlight = true;
     }
     // NOTE: this re-wraps the request rather than carrying one through, so any
-    // field added to CompletionRequest has to be added HERE too or it silently
-    // reverts to its default on the persona path only. Nothing fails loudly:
-    // the knob works in chat, does nothing in personas, and looks like a model
-    // problem. Chat reaches the provider via foregroundComplete and is not
-    // affected.
+    // field added to CompletionRequest has to be added HERE too (and to
+    // QueuedPersona) or it silently reverts to its default on the background
+    // path only. Nothing fails loudly: the knob works in chat, does nothing
+    // here, and looks like a model problem. Chat reaches the provider via
+    // foregroundComplete and is not affected.
     provider.complete(new CompletionRequest(next.system(), next.user(), next.examples(),
-        next.maxNewTokens(), next.temperature()))
+        next.maxNewTokens(), next.temperature(), next.frequencyPenalty()))
         .whenComplete((result, error) -> {
           synchronized (personaQueue) {
             personaInFlight = false;

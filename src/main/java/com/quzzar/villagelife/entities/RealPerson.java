@@ -755,9 +755,8 @@ public class RealPerson extends Person {
     // with no wait on a summary and no long transcript to lose the thread of.
     List<com.quzzar.villagelife.chat.ChatHistoryData.Exchange> priorExchanges = getData(
         VillagelifeAttachments.CHAT_HISTORY.get()).with(player.getUUID());
-    long currentDay = level().getDayTime() / 24000L;
-    boolean freshSession = !priorExchanges.isEmpty()
-        && priorExchanges.get(priorExchanges.size() - 1).dayTime() / 24000L != currentDay;
+    boolean freshSession = getData(VillagelifeAttachments.CHAT_HISTORY.get())
+        .staleFor(player.getUUID(), level().getDayTime());
     if (freshSession) {
       setData(VillagelifeAttachments.CHAT_HISTORY.get(),
           getData(VillagelifeAttachments.CHAT_HISTORY.get()).clearedFor(player.getUUID()));
@@ -1139,6 +1138,11 @@ public class RealPerson extends Person {
     // one with a strictly higher priority number, so at equal priority a
     // villager who happened to start strolling could not be pulled back to
     // work until the stroll ran itself out.
+    //
+    // Seeking a chat is registered before strolling at the same priority, so
+    // when both fire on the same idle moment the villager goes visiting; a
+    // stroll already underway finishes first, which is fine pacing.
+    this.goalSelector.addGoal(5, new com.quzzar.villagelife.entities.ai.goals.SeekConversationGoal(this, 0.5D));
     this.goalSelector.addGoal(5, new StrollAroundVillage(this, 0.5D));
     // this.goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.5D));
     // Don't need it seems

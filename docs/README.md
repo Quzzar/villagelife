@@ -27,6 +27,10 @@ in it, and update it in the same change that moves what it describes.
 - [villager-requests.md](villager-requests.md): how a villager petitions the brain to
   build something, with a reason, and the brain still decides. The propose-not-dispose
   invariant, the chat-tool-to-planner loop, and requests as raw context the brain weighs.
+- [villager-conversations.md](villager-conversations.md): villagers talking to each
+  other through the same pipeline a player uses. The seek-and-pause loop, the
+  background LLM lane, what passes between them (items, opinions, undertakings,
+  requests), and the pacing budget that keeps gossip cheap.
 - [village-tiers.md](village-tiers.md): the progression ladder (camp → hamlet → village
   → town → city) as datapack data. A tier is a read-out of population, never a gate:
   tier format, the 4-bed village center bootstrap, and why building is constrained by

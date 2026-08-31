@@ -24,6 +24,7 @@ import com.quzzar.villagelife.village.VillageRequests;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.networking.PersonChatReplyPacket;
+import com.quzzar.villagelife.relationships.OpinionService;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -42,6 +43,12 @@ import net.minecraft.world.entity.EquipmentSlot;
  * give, records any undertaking against the villager (the write path the
  * briefing's read side depends on), and answers the player. Every failure path
  * ends in one in-fiction fallback line, so the player can simply say it again.
+ *
+ * <p>The same {@link #converse} core also serves talk between two villagers
+ * ({@link VillagerConversation}): the speaker is a name and a UUID either way,
+ * so history, summaries, undertakings, and requests all work per-interlocutor
+ * unchanged. What differs is the LLM lane (villager turns ride the background
+ * queue so a player's reply is never delayed) and who executes a give.
  */
 public final class PersonChatDispatcher {
 
@@ -84,29 +91,46 @@ public final class PersonChatDispatcher {
 
   // ---- Conversation lifecycle (consumed by entity goals, e.g. pause+face) ----
 
-  /** A screen the player has open on this villager; refreshed by messages. */
-  private record ChatSession(UUID player, long lastActivityMs) {
+  /**
+   * Someone this villager is in conversation with: a player with the chat
+   * screen open, or a fellow villager mid-exchange. Refreshed by messages.
+   */
+  private record ChatSession(UUID partner, long lastActivityMs) {
   }
 
   private static final Map<Integer, ChatSession> SESSIONS = new ConcurrentHashMap<>();
 
-  /** Backstop for lost close packets (disconnects, crashes). */
-  private static final long SESSION_TIMEOUT_MS = 30_000;
+  /**
+   * Backstop for lost close packets (disconnects, crashes), and the per-turn
+   * budget of a villager-to-villager exchange: a turn the background LLM lane
+   * cannot serve inside this window lets the pair drift back to their lives
+   * instead of standing frozen.
+   */
+  static final long SESSION_TIMEOUT_MS = 30_000;
 
   /** Called when the chat screen opens (right-click path). */
   public static void markOpen(RealPerson person, ServerPlayer player) {
-    SESSIONS.put(person.getId(), new ChatSession(player.getUUID(), System.currentTimeMillis()));
-  }
-
-  /** Called when the client closes the chat screen. */
-  public static void markClosed(int entityId, UUID player) {
-    SESSIONS.computeIfPresent(entityId, (id, session) -> session.player().equals(player) ? null : session);
+    markTalking(person, player.getUUID());
   }
 
   /**
-   * True while a player has the chat screen open on this villager (activity
-   * within the timeout). The authoritative "in conversation" signal: goals
-   * gate on this rather than inventing their own notion.
+   * Marks (or refreshes) this villager as in conversation with the given
+   * partner, player or villager alike. The villager-to-villager driver calls
+   * this for both ends of an exchange.
+   */
+  public static void markTalking(RealPerson person, UUID partner) {
+    SESSIONS.put(person.getId(), new ChatSession(partner, System.currentTimeMillis()));
+  }
+
+  /** Called when the conversation ends (screen closed, or the exchange ran out). */
+  public static void markClosed(int entityId, UUID partner) {
+    SESSIONS.computeIfPresent(entityId, (id, session) -> session.partner().equals(partner) ? null : session);
+  }
+
+  /**
+   * True while someone is in conversation with this villager (activity within
+   * the timeout). The authoritative "in conversation" signal: goals gate on
+   * this rather than inventing their own notion.
    */
   public static boolean isConversing(RealPerson person) {
     ChatSession session = SESSIONS.get(person.getId());
@@ -120,9 +144,9 @@ public final class PersonChatDispatcher {
     return true;
   }
 
-  /** The player currently conversing with this villager, if any. */
+  /** Whoever is currently conversing with this villager (player or villager UUID), if anyone. */
   public static Optional<UUID> conversingWith(RealPerson person) {
-    return isConversing(person) ? Optional.of(SESSIONS.get(person.getId()).player()) : Optional.empty();
+    return isConversing(person) ? Optional.of(SESSIONS.get(person.getId()).partner()) : Optional.empty();
   }
 
   private PersonChatDispatcher() {
@@ -195,16 +219,27 @@ public final class PersonChatDispatcher {
   }
 
   /**
-   * As above, but {@code historyLine} is what gets recorded as the player's
+   * As above, but {@code historyLine} is what gets recorded as the speaker's
    * side of the exchange: the greeting path passes an empty string, since the
-   * player has not said anything yet.
+   * speaker has not said anything yet.
    */
   public static CompletableFuture<Reply> converse(RealPerson person, String speakerName, UUID speakerUUID,
       String message, String historyLine) {
+    return converse(person, speakerName, speakerUUID, message, historyLine, false);
+  }
+
+  /**
+   * As above, with the LLM lane made explicit: {@code background} turns ride
+   * the low-priority queue (villager-to-villager talk, where nobody is at a
+   * screen waiting), foreground turns take the chat-priority slot that holds
+   * village work off while a player is mid-conversation.
+   */
+  public static CompletableFuture<Reply> converse(RealPerson person, String speakerName, UUID speakerUUID,
+      String message, String historyLine, boolean background) {
     long askedAtMs = System.currentTimeMillis();
     // Refresh the open session (never create one: console/RCON chats via
     // /vlbrain chat should not make the villager stand at attention).
-    SESSIONS.computeIfPresent(person.getId(), (id, session) -> session.player().equals(speakerUUID)
+    SESSIONS.computeIfPresent(person.getId(), (id, session) -> session.partner().equals(speakerUUID)
         ? new ChatSession(speakerUUID, System.currentTimeMillis())
         : session);
 
@@ -225,14 +260,14 @@ public final class PersonChatDispatcher {
     // depend on a model honouring a sampling parameter.
     String lastAnswer = history.isEmpty() ? null : history.get(history.size() - 1).villagerLine();
 
-    return ask(chat, VillagelifeConfig.LlmChatTemperature, CHAT_REPETITION_PENALTY)
+    return ask(chat, VillagelifeConfig.LlmChatTemperature, CHAT_REPETITION_PENALTY, background)
         .thenCompose(first -> {
           if (!echoesLastAnswer(first, lastAnswer)) {
             return CompletableFuture.completedFuture(first);
           }
           Villagelife.LOGGER.debug("{} opened exactly as they did last time; sampling once more",
               person.getFullName());
-          return ask(chat, RETRY_TEMPERATURE, RETRY_REPETITION_PENALTY)
+          return ask(chat, RETRY_TEMPERATURE, RETRY_REPETITION_PENALTY, background)
               .thenApply(second -> echoesLastAnswer(second, lastAnswer) ? first : second);
         })
         .thenApply(result -> {
@@ -268,9 +303,12 @@ public final class PersonChatDispatcher {
   }
 
   private static CompletableFuture<Optional<String>> ask(AssembledChat chat, double temperature,
-      double penalty) {
-    return LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(),
-        VillagelifeConfig.LlmChatMaxNewTokens, temperature, penalty);
+      double penalty, boolean background) {
+    return background
+        ? LlmService.get().submitBackgroundChat(chat.system(), chat.user(), chat.examples(),
+            VillagelifeConfig.LlmChatMaxNewTokens, temperature, penalty)
+        : LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(),
+            VillagelifeConfig.LlmChatMaxNewTokens, temperature, penalty);
   }
 
   /**
@@ -427,11 +465,13 @@ public final class PersonChatDispatcher {
   private static final double SUMMARY_TEMPERATURE = 0.3D;
 
   /**
-   * Fold a villager's conversation with a player into their per-player summary
-   * ({@link ChatSummaryData}), run in the background when the chat CLOSES so the
-   * memory is ready before the next conversation opens. {@code RealPerson.openChat}
-   * then greets from it on a new Minecraft day with no wait, rather than
-   * summarizing on demand and stalling the open on a model generation.
+   * Fold a villager's conversation with someone (a player, or a fellow
+   * villager) into their per-counterpart summary ({@link ChatSummaryData}),
+   * run in the background when the chat CLOSES so the memory is ready before
+   * the next conversation opens. {@code RealPerson.openChat} then greets from
+   * it on a new Minecraft day with no wait, rather than summarizing on demand
+   * and stalling the open on a model generation. A villager conversation
+   * closes through the same path (VillagerConversation), one summary each.
    *
    * <p>The transcript is kept, not cleared: re-opening the same day continues it,
    * and the new day's open is what clears it. Persona priority, so it never delays
@@ -577,9 +617,12 @@ public final class PersonChatDispatcher {
   }
 
   /**
-   * Applies the model's opinion adjustment to the villager→player opinion
-   * store, spending from a bounded per-conversation budget so one chat cannot
-   * swing a relationship end to end. Returns the delta actually applied.
+   * Applies the model's opinion adjustment, spending from a bounded
+   * per-conversation budget so one chat cannot swing a relationship end to
+   * end. Storage is {@link OpinionService}'s call, the one tool for "how I
+   * feel about someone" (docs/relationships.md): a fellow resident's judgement
+   * lands on the relationship pair's lean, a player's on the villager's own
+   * social attachment. Returns the delta actually applied.
    */
   private static int applyOpinion(RealPerson person, UUID speakerUUID, int requestedDelta) {
     if (requestedDelta == 0) {
@@ -592,18 +635,15 @@ public final class PersonChatDispatcher {
             ? new OpinionBudget(now, 0)
             : existing);
     int remaining = OPINION_CONVERSATION_CAP - Math.abs(budget.spent());
-    int applied = Math.max(-remaining, Math.min(remaining, requestedDelta));
+    int clamped = Math.max(-remaining, Math.min(remaining, requestedDelta));
+    if (clamped == 0) {
+      return 0;
+    }
+    int applied = OpinionService.apply(person, speakerUUID, clamped, "moved in conversation");
     if (applied == 0) {
       return 0;
     }
     OPINION_BUDGETS.put(pairKey, new OpinionBudget(budget.windowStartMs(), budget.spent() + applied));
-
-    var social = person.getData(com.quzzar.villagelife.entities.VillagelifeAttachments.SOCIAL.get());
-    Map<UUID, Integer> relationships = new java.util.HashMap<>(social.relationships());
-    int updated = Math.max(-100, Math.min(100, relationships.getOrDefault(speakerUUID, 0) + applied));
-    relationships.put(speakerUUID, updated);
-    person.setData(com.quzzar.villagelife.entities.VillagelifeAttachments.SOCIAL.get(),
-        social.withRelationships(relationships));
     return applied;
   }
 
@@ -644,8 +684,76 @@ public final class PersonChatDispatcher {
       return;
     }
 
-    // Take up to `want` from the villager's slots. Equipment first (hand,
-    // off-hand, armour), then carry-inventory, across as many stacks as it takes.
+    int collected = takeFromSlots(person, item, want);
+
+    // Land the gift AT the player's feet so they actually receive it. Spawning it on
+    // the villager and nudging it over at 0.3 left it dropping under her when the
+    // player stood even a step back (Aaron: "I'm not seeing the apple... she's dropping
+    // it underneath her"). Spawn on the player with no pickup delay -- a hand-off in
+    // all but animation.
+    ItemStack handed = new ItemStack(item, collected);
+    ItemEntity drop = new ItemEntity(person.level(), player.getX(), player.getY() + 0.2, player.getZ(), handed);
+    drop.setDeltaMovement(Vec3.ZERO);
+    drop.setNoPickUpDelay();
+    boolean spawned = person.level().addFreshEntity(drop);
+
+    Villagelife.LOGGER.info(
+        "[chat give] {} handed {}x {} to {} (asked {}); villager now holds {}; drop #{} spawned={} at {}",
+        person.getFullName(), collected, itemId, player.getGameProfile().getName(), want,
+        countHeld(person, item), drop.getId(), spawned, drop.blockPosition().toShortString());
+  }
+
+  /**
+   * A give from one VILLAGER to another: the same validation and slot-taking
+   * as the player path, but the gift lands straight in the listener's pockets
+   * (with any overflow dropped at their feet) rather than being tossed for a
+   * player to pick up. The move is a move, never a copy: what enters the
+   * receiver is exactly what {@link #takeFromSlots} removed from the giver.
+   * The receiver also logs the gift as a pickup from the giver, so their next
+   * reflection can decide what the gesture meant to them.
+   */
+  static void executeGive(RealPerson from, RealPerson to, String itemId, int requestedCount) {
+    ResourceLocation id = ResourceLocation.tryParse(itemId.contains(":") ? itemId : "minecraft:" + itemId);
+    if (id == null || !BuiltInRegistries.ITEM.containsKey(id)) {
+      Villagelife.LOGGER.info("[chat give] REJECTED '{}': not a valid item id", itemId);
+      return;
+    }
+    var item = BuiltInRegistries.ITEM.get(id);
+    int want = Math.max(1, requestedCount);
+    int before = countHeld(from, item);
+    Villagelife.LOGGER.info("[chat give] {} wants to give {}x '{}' to {} | holds {} of it | all slots: {}",
+        from.getFullName(), want, itemId, to.getFullName(), before, slotSnapshot(from));
+    if (before == 0) {
+      Villagelife.LOGGER.info("[chat give] REJECTED '{}': {} has none in any slot "
+          + "(hand, off-hand, armour, or carry-inventory)", itemId, from.getFullName());
+      return;
+    }
+
+    int collected = takeFromSlots(from, item, want);
+    ItemStack leftover = to.personMainInv.addItem(new ItemStack(item, collected));
+    if (!leftover.isEmpty()) {
+      // Full pockets: what did not fit lands at the receiver's feet.
+      ItemEntity drop = new ItemEntity(to.level(), to.getX(), to.getY() + 0.2, to.getZ(), leftover);
+      drop.setDeltaMovement(Vec3.ZERO);
+      to.level().addFreshEntity(drop);
+    }
+
+    to.setData(VillagelifeAttachments.PERSONAL_LOG.get(),
+        to.getData(VillagelifeAttachments.PERSONAL_LOG.get())
+            .withEntry(com.quzzar.villagelife.entities.PersonalLogData.pickup(
+                BuiltInRegistries.ITEM.getKey(item).toString(), collected,
+                to.level().getDayTime(), Optional.of(from.getUUID()))));
+
+    Villagelife.LOGGER.info("[chat give] {} handed {}x {} to {} (asked {}); giver now holds {}",
+        from.getFullName(), collected, itemId, to.getFullName(), want, countHeld(from, item));
+  }
+
+  /**
+   * Takes up to {@code want} of the item from the villager's slots and returns
+   * how many actually came out. Equipment first (hand, off-hand, armour), then
+   * carry-inventory, across as many stacks as it takes.
+   */
+  private static int takeFromSlots(RealPerson person, net.minecraft.world.item.Item item, int want) {
     int collected = 0;
     for (EquipmentSlot eq : EquipmentSlot.values()) {
       if (collected >= want) {
@@ -667,22 +775,7 @@ public final class PersonChatDispatcher {
         collected += take;
       }
     }
-
-    // Land the gift AT the player's feet so they actually receive it. Spawning it on
-    // the villager and nudging it over at 0.3 left it dropping under her when the
-    // player stood even a step back (Aaron: "I'm not seeing the apple... she's dropping
-    // it underneath her"). Spawn on the player with no pickup delay -- a hand-off in
-    // all but animation.
-    ItemStack handed = new ItemStack(item, collected);
-    ItemEntity drop = new ItemEntity(person.level(), player.getX(), player.getY() + 0.2, player.getZ(), handed);
-    drop.setDeltaMovement(Vec3.ZERO);
-    drop.setNoPickUpDelay();
-    boolean spawned = person.level().addFreshEntity(drop);
-
-    Villagelife.LOGGER.info(
-        "[chat give] {} handed {}x {} to {} (asked {}); villager now holds {}; drop #{} spawned={} at {}",
-        person.getFullName(), collected, itemId, player.getGameProfile().getName(), want,
-        countHeld(person, item), drop.getId(), spawned, drop.blockPosition().toShortString());
+    return collected;
   }
 
   /** How many of {@code item} the villager holds across every slot. */
@@ -725,6 +818,15 @@ public final class PersonChatDispatcher {
 
   private static String fallbackLine(RealPerson person) {
     return person.getFullName() + " looks at you for a long moment, then goes back to their thoughts.";
+  }
+
+  /**
+   * Whether a reply is this villager's in-fiction "the model had nothing"
+   * line. A player just says it again; the villager-to-villager driver ends
+   * the conversation instead, rather than have two villagers trade silences.
+   */
+  static boolean isFallback(RealPerson person, String say) {
+    return fallbackLine(person).equals(say);
   }
 
 }

@@ -36,6 +36,7 @@ public class VillagelifeConfig {
     public static double LlmChatTemperature;
     public static int LlmDecisionMaxNewTokens;
     public static double LlmDecisionTemperature;
+    public static boolean LlmVillagerConversations;
 
     // --- attractiveness ---
     public static double AttractivenessBase;
@@ -58,6 +59,8 @@ public class VillagelifeConfig {
     public static int StandingDislikedBelow;
     public static int StandingTrustedAbove;
     public static double StandingWorstMarkup;
+    public static int AssaultOpinionHit;
+    public static int GrudgeAttackBelow;
 
     // --- population ---
     public static int PopulationCheckIntervalSeconds;
@@ -97,6 +100,7 @@ public class VillagelifeConfig {
         LlmChatTemperature = COMMON.LlmChatTemperature.get();
         LlmDecisionMaxNewTokens = COMMON.LlmDecisionMaxNewTokens.get();
         LlmDecisionTemperature = COMMON.LlmDecisionTemperature.get();
+        LlmVillagerConversations = COMMON.LlmVillagerConversations.get();
 
         // attractiveness
         AttractivenessBase = COMMON.AttractivenessBase.get();
@@ -119,6 +123,8 @@ public class VillagelifeConfig {
         StandingDislikedBelow = COMMON.StandingDislikedBelow.get();
         StandingTrustedAbove = COMMON.StandingTrustedAbove.get();
         StandingWorstMarkup = COMMON.StandingWorstMarkup.get();
+        AssaultOpinionHit = COMMON.AssaultOpinionHit.get();
+        GrudgeAttackBelow = COMMON.GrudgeAttackBelow.get();
 
         // population
         PopulationCheckIntervalSeconds = COMMON.PopulationCheckIntervalSeconds.get();
@@ -169,6 +175,7 @@ public class VillagelifeConfig {
         public final ModConfigSpec.DoubleValue LlmChatTemperature;
         public final ModConfigSpec.IntValue LlmDecisionMaxNewTokens;
         public final ModConfigSpec.DoubleValue LlmDecisionTemperature;
+        public final ModConfigSpec.BooleanValue LlmVillagerConversations;
 
         // attractiveness
         public final ModConfigSpec.DoubleValue AttractivenessBase;
@@ -191,6 +198,8 @@ public class VillagelifeConfig {
         public final ModConfigSpec.IntValue StandingDislikedBelow;
         public final ModConfigSpec.IntValue StandingTrustedAbove;
         public final ModConfigSpec.DoubleValue StandingWorstMarkup;
+        public final ModConfigSpec.IntValue AssaultOpinionHit;
+        public final ModConfigSpec.IntValue GrudgeAttackBelow;
 
         // population
         public final ModConfigSpec.IntValue PopulationCheckIntervalSeconds;
@@ -235,6 +244,7 @@ public class VillagelifeConfig {
             LlmChatTemperature = builder.comment("Sampling temperature for conversation. Higher is livelier and more varied; too high on a small model makes it ramble or break the JSON its reply is wrapped in. 0.4 is the tuned default.").translation(Villagelife.MODID + ".config.LlmChatTemperature").defineInRange("LLM chat temperature", 0.4D, 0.0D, 2.0D);
             LlmDecisionMaxNewTokens = builder.comment("Maximum tokens the LLM may generate per village decision (which building to start, which idle camper to hire). A decision is a short JSON answer, so this stays small.").translation(Villagelife.MODID + ".config.LlmDecisionMaxNewTokens").defineInRange("LLM decision max new tokens", 128, 16, 1024);
             LlmDecisionTemperature = builder.comment("Sampling temperature for village decisions. Low keeps them focused; the rules already narrow every choice to legal options, so a little variety here just adds character. 0.0 is fully deterministic.").translation(Villagelife.MODID + ".config.LlmDecisionTemperature").defineInRange("LLM decision temperature", 0.1D, 0.0D, 2.0D);
+            LlmVillagerConversations = builder.comment("Whether villagers strike up conversations with each other (overheard as gray chat lines when you are close by). They talk, trade items, and file village requests among themselves on the LLM's spare time - it never delays a player's own conversation. Turn off to save LLM calls, which on a cloud provider are billed.").translation(Villagelife.MODID + ".config.LlmVillagerConversations").define("Villagers talk to each other", true);
 
             builder.pop();
 

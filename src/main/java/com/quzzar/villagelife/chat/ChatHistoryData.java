@@ -13,12 +13,13 @@ import net.minecraft.core.UUIDUtil;
 
 /**
  * Persistent conversation history, stored as the {@code villagelife:chat_history}
- * attachment on a person: the last exchanges per player, surviving screen
- * closes and server restarts (conversation map #45). Bounded on both axes so
- * NBT stays small: at most {@link #MAX_PLAYERS} players tracked (least
- * recently talked-to evicted) and {@link #MAX_EXCHANGES} exchanges per player
- * (oldest pruned). The chat briefing feeds from this, so villagers remember
- * what was said, not just what happened.
+ * attachment on a person: the last exchanges per counterpart (a player or a
+ * fellow villager), surviving screen closes and server restarts (conversation
+ * map #45). Bounded on both axes so NBT stays small: at most
+ * {@link #MAX_PLAYERS} counterparts tracked (least recently talked-to evicted)
+ * and {@link #MAX_EXCHANGES} exchanges per counterpart (oldest pruned). The
+ * chat briefing feeds from this, so villagers remember what was said, not just
+ * what happened.
  */
 public record ChatHistoryData(Map<UUID, List<Exchange>> byPlayer) {
 
@@ -42,6 +43,20 @@ public record ChatHistoryData(Map<UUID, List<Exchange>> byPlayer) {
 
     public List<Exchange> with(UUID playerId) {
         return byPlayer.getOrDefault(playerId, List.of());
+    }
+
+    /**
+     * Whether the kept transcript with this counterpart belongs to an earlier
+     * Minecraft day. A conversation is a session bounded by the day: a stale
+     * transcript was already summarized when its session closed, so the next
+     * conversation clears it ({@link #clearedFor}) and starts fresh from the
+     * summary. Shared by the player screen-open path and the
+     * villager-to-villager path so the two never drift on what "fresh" means.
+     */
+    public boolean staleFor(UUID counterpart, long dayTime) {
+        List<Exchange> exchanges = with(counterpart);
+        return !exchanges.isEmpty()
+                && exchanges.get(exchanges.size() - 1).dayTime() / 24000L != dayTime / 24000L;
     }
 
     /** Returns a copy with the exchange appended and both bounds enforced. */

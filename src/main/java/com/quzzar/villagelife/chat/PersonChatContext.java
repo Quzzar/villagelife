@@ -32,19 +32,24 @@ import net.minecraft.world.item.ItemStack;
  * speaker and what they have thrown, recent pickups, pockets, and this
  * session's history — plus the few-shot example turns that the prototype
  * (#27) showed carry the format at small model sizes.
+ *
+ * <p>The speaker is whoever is talking to this villager: a player at the chat
+ * screen, or a fellow villager (VillagerConversation). The briefing is the
+ * same either way; only where the standing feeling is read from differs
+ * (OpinionService routes residents to the relationship pair).
  */
 public final class PersonChatContext {
 
   public record AssembledChat(String system, String user, List<FewShotExample> examples) {
   }
 
-  /** One player↔villager exchange, for the session-scoped history. */
+  /** One exchange (the speaker's line and this villager's reply), for the session history. */
   public record Turn(String playerLine, String villagerLine) {
   }
 
   private static final String RULES_BODY = "Rules: Answer in one or two short sentences, always in character. "
       + "Never invent events, people, places, or items that are not in your briefing above. "
-      + "You may hand an item from your pockets to the player with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
+      + "You may hand an item from your pockets to the person you are talking to with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
       + "When this moment genuinely changes how you feel about them, add \"opinion\": a whole number "
       + "from -10 to 10; omit it when your feeling is unchanged. ";
 
@@ -504,11 +509,13 @@ public final class PersonChatContext {
 
   /**
    * The villager's standing feeling about the speaker — always stated so the
-   * opinion tool compounds across conversations (#44).
+   * opinion tool compounds across conversations (#44). Read through
+   * {@link com.quzzar.villagelife.relationships.OpinionService}, which knows
+   * where a feeling lives: the relationship pair for a fellow resident, the
+   * villager's own social attachment for a player or stranger.
    */
   private static String opinionLine(RealPerson person, String playerName, java.util.UUID playerUUID) {
-    int opinion = person.getData(VillagelifeAttachments.SOCIAL.get()).relationships()
-        .getOrDefault(playerUUID, 0);
+    int opinion = com.quzzar.villagelife.relationships.OpinionService.opinionOf(person, playerUUID);
     String feeling;
     if (opinion >= 60) {
       feeling = "You consider " + playerName + " a dear friend";
@@ -634,7 +641,12 @@ public final class PersonChatContext {
     return String.join("; ", parts);
   }
 
+  /** A name for a UUID: a loaded villager's full name, a player's profile name, or "someone". */
   private static String resolveName(RealPerson person, java.util.UUID uuid) {
+    if (person.level() instanceof net.minecraft.server.level.ServerLevel serverLevel
+        && serverLevel.getEntity(uuid) instanceof RealPerson other) {
+      return other.getFullName();
+    }
     return person.getServer() != null
         ? person.getServer().getProfileCache().get(uuid).map(GameProfile::getName).orElse("someone")
         : "someone";

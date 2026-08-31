@@ -76,7 +76,38 @@ public class LlmEvents {
                       .getEntity(context, "target");
                   String message = StringArgumentType.getString(context, "message");
                   return chat(context.getSource(), target, message);
-                }))));
+                }))))
+        .then(Commands.literal("talk")
+            .then(Commands.argument("first", net.minecraft.commands.arguments.EntityArgument.entity())
+                .then(Commands.argument("second", net.minecraft.commands.arguments.EntityArgument.entity())
+                    .executes(context -> talk(context.getSource(),
+                        net.minecraft.commands.arguments.EntityArgument.getEntity(context, "first"),
+                        net.minecraft.commands.arguments.EntityArgument.getEntity(context, "second"))))));
+  }
+
+  /**
+   * Forces a conversation between two villagers: the same driver
+   * SeekConversationGoal hands off to, minus the walk and the cooldown. The
+   * pair must already stand within talking range (a few blocks), because the
+   * driver ends any conversation whose parties are apart. Progress is read
+   * from the [villager chat] and [chat] log lines, headless-style.
+   */
+  private static int talk(CommandSourceStack source, net.minecraft.world.entity.Entity first,
+      net.minecraft.world.entity.Entity second) {
+    if (!(first instanceof com.quzzar.villagelife.entities.RealPerson a)
+        || !(second instanceof com.quzzar.villagelife.entities.RealPerson b)) {
+      source.sendFailure(Component.literal("Both targets must be villagers."));
+      return 0;
+    }
+    if (com.quzzar.villagelife.chat.VillagerConversation.tryStart(a, b, true)) {
+      source.sendSuccess(() -> Component.literal(a.getFullName() + " strikes up a conversation with "
+          + b.getFullName() + "; follow the [villager chat] log lines."), false);
+      return 1;
+    }
+    source.sendFailure(Component.literal("Could not start: LLM not ready or villager conversations "
+        + "disabled, one of them is already mid-conversation, another conversation holds the slot, "
+        + "or they stand too far apart (talking range is a few blocks)."));
+    return 0;
   }
 
   /**
