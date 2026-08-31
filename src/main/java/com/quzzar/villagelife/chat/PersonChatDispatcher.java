@@ -476,8 +476,15 @@ public final class PersonChatDispatcher {
           if (summary.isEmpty()) {
             return;
           }
-          server.execute(() -> person.setData(VillagelifeAttachments.CHAT_SUMMARY.get(),
-              person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).withSummary(playerId, summary)));
+          server.execute(() -> {
+            person.setData(VillagelifeAttachments.CHAT_SUMMARY.get(),
+                person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).withSummary(playerId, summary));
+            // The one INFO the summary path emits: the write is otherwise silent,
+            // so headless verification and "why didn't they remember me" debugging
+            // both read this line, as the rest of the chat pipeline is read.
+            Villagelife.LOGGER.info("[chat summary] {} now remembers {}: \"{}\"",
+                person.getFullName(), playerName, summary);
+          });
         });
   }
 
