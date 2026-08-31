@@ -54,6 +54,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BlacksmithStep;
+import com.quzzar.villagelife.entities.ai.goals.work.GearUpStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WallStep;
@@ -1135,6 +1136,10 @@ public class RealPerson extends Person {
     this.goalSelector.addGoal(6, new SleepAtNightGoal(this));
     // this.goalSelector.addGoal(6, new RunToClericGoal(this)); Don't need it seems
     this.goalSelector.addGoal(6, new ArmorerRepairPersonArmorGoal(this));
+    // The distribution half of the equipment economy: any villager fetches the
+    // better tool its trade wants from the stores and puts it on (GearUpStep),
+    // paired with the blacksmith that forges those tools into the stores.
+    this.goalSelector.addGoal(6, new WorkLoopGoal<>(this, new GearUpStep()));
 
     // Below the work goals, which sit at 4: a goal can only take movement from
     // one with a strictly higher priority number, so at equal priority a
