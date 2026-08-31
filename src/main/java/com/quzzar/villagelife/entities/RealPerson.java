@@ -746,6 +746,14 @@ public class RealPerson extends Person {
       case LIBRARIAN:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
         break;
+      case HUNTER:
+        // A plain bow, like the guard's stone sword: enough to work with until
+        // the bedtime gear pass finds better. No arrows come with it - the
+        // plain fallback is conjured per shot (Person.getProjectile), and only
+        // special arrows someone hands them are real. HuntStep re-grants this
+        // if the bow ever wears out mid-career.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        break;
       case MINER:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
@@ -917,6 +925,11 @@ public class RealPerson extends Person {
         case GUARD:
           i += 0.9;
           break;
+        case HUNTER:
+          // The village's own archer does not run from a zombie: all but the
+          // meekest hunters stand and shoot (docs/worker-loops.md).
+          i += 0.9;
+          break;
         case MINER:
           i += 0.4;
           break;
@@ -945,6 +958,11 @@ public class RealPerson extends Person {
     switch (getOccupation()) {
       case GUARD:
         i += 0.8;
+        break;
+      case HUNTER:
+        // Below the guard, above everyone else: killing is the trade, so most
+        // hunters take on nearby monsters, but they are not the watch.
+        i += 0.6;
         break;
       case MINER:
         i += 0.15;
@@ -1263,8 +1281,9 @@ public class RealPerson extends Person {
           6, SoundEvents.FURNACE_FIRE_CRACKLE)));
     }
     if (getOccupation() == Occupation.HUNTER) {
-      // Fells game on the ground around the lodge; the kill's meat and leather fall
-      // for pickup, and a full pack goes home ahead of the next quarry.
+      // Shoots game on the ground around the lodge (HuntStep: bow work, special
+      // arrows loosed first); the kill's meat and leather fall for pickup, and a
+      // full pack goes home ahead of the next quarry.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HuntStep()));
     }
