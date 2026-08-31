@@ -28,16 +28,16 @@ a subject, matches it to a building, or ranks it. Many villagers asking for one
 thing simply reads as many lines in the situation, and that volume is the
 emphasis.
 
-### Consequence: a request is context, not an extra option
+### Consequence: a request is context, and the menu is the whole field
 
 Because a request no longer adds anything to the menu, the brain can act on one
-only when the building it names is already among the options it is offered. For
-things the village can afford now that menu is usually the full affordable set,
-so those requests land. For longer-term goals the menu is a short "save up for"
-list, so a request for something outside it is heard but not yet actionable.
-Widening the menu, so the brain is shown the full annotated set of what it could
-build or save toward rather than a capped shortlist, is the next planned change;
-it is what makes any heard request reliably actionable.
+only when the building it names is among the options it is offered. As of the
+menu change on 2026-08-30 that is the WHOLE vetted field: every legal, affordable
+build and every reachable save-for goal, each labelled with what it would give
+(see [llm-brain.md](llm-brain.md)). So any request that names something the
+village could actually build or work toward is on the table for the brain to
+weigh. Only things that are illegal, unaffordable for good, or have nowhere to go
+are absent, and those could not be acted on anyway.
 
 ## The loop
 

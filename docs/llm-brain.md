@@ -6,20 +6,26 @@ decides *what the options are*, and the model only picks among them and supplies
 in-character reason. It runs offline through llama.cpp (default) or against a cloud service.
 
 **The rules decide what is legal; the model decides which** (revised 2026-08-26 after an
-audit found the decision call had no production caller). The first real consumer is the
-urban planner: `UrbanPlanner.rankCandidates` filters the whole catalogue down to buildings
-this village can legally and affordably start and scores them against what it actually
-lacks, then `decide()` offers the top few to the model, which picks one and says why. The
-model never sees an illegal option, so it cannot invent an unaffordable or nonsensical
-project.
+audit found the decision call had no production caller; revised 2026-08-30 to drop the
+options cap). The first real consumer is the urban planner: `UrbanPlanner.rankCandidates`
+filters the whole catalogue down to buildings this village can legally and affordably start,
+and `outOfReach` to those it could save toward, each ranked by what the village actually
+lacks. `decide()` then offers the model the WHOLE vetted field rather than a trimmed
+shortlist, every option labelled with what it would give (beds, jobs, stores, and effects
+like "defends the village" or "cuts stone"). The model picks one and says why; it never sees
+an illegal, unaffordable, or unreachable option, so it cannot invent a nonsensical project,
+but within that field the choice is entirely its own. The cap that once trimmed the list was
+a crutch for a weak model; richer per-option context serves a small model better than a
+short list did.
 
 A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
 and when two or more idle people are near-equally suited by aptitude (within a small
 `PICK_DELTA`) it offers those near-equals to `decide()` to choose among on character, each
-described by name and persona blurb. The shape is identical to the planner's: the rules
-build a competent shortlist, the model picks within it and gives its reason, and the
-aptitude best stands in whenever the model is absent, slow, or unusable, so a contested
-post is the only thing ever handed over and competence is never traded for character. See
+described by name and persona blurb. The principle is the planner's: the rules decide who is
+eligible (here, only the near-equally suited), the model picks among them and gives its
+reason, and the aptitude best stands in whenever the model is absent, slow, or unusable, so a
+contested post is the only thing ever handed over and competence is never traded for
+character. See
 [population-and-labor.md](population-and-labor.md). The swap pass that reorganizes existing
 workers stays purely rule-based.
 

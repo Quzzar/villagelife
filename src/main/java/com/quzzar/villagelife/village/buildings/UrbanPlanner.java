@@ -35,21 +35,8 @@ import net.minecraft.world.item.Items;
  */
 public class UrbanPlanner {
 
-  /**
-   * How many options the model is asked to choose between. Aaron chose breadth
-   * over a short list, so the village feels less railroaded; small local models
-   * choose worse from a long list than a large one does, which is why it is a
-   * config key rather than a constant.
-   */
-  private static int optionsOffered() {
-    return com.quzzar.villagelife.configuration.VillagelifeConfig.BuildOptionsOffered;
-  }
-
   /** Chosen when the village would rather wait than spend what it has. */
   private static final String WAIT_OPTION = "nothing yet: keep what we have and wait";
-
-  /** How many out-of-reach buildings are offered as things to save toward. */
-  private static final int GOALS_OFFERED = 2;
 
   /**
    * A village center is placed once, at founding, and never chosen again. The
@@ -106,9 +93,9 @@ public class UrbanPlanner {
   }
 
   /**
-   * Chooses the next project asynchronously: affordable candidates are ranked
-   * by need, then offered to the model. Completes with null when the village
-   * can build nothing right now.
+   * Chooses the next project asynchronously: every affordable build and every
+   * reachable save-for goal, ranked by need, is offered to the model, which
+   * decides. Completes with null when the village can build nothing right now.
    */
   public static CompletableFuture<BuildingInfo> chooseNextProject(Village village) {
     // A village that is saving does not deliberate: it spends on the thing it
@@ -135,17 +122,19 @@ public class UrbanPlanner {
       }
     }
 
-    List<Candidate> affordable = rankCandidates(village, stock);
-    List<Candidate> offered = new ArrayList<>(
-        affordable.subList(0, Math.min(optionsOffered(), affordable.size())));
+    // Every legal, affordable build, ranked by need but NOT capped: the brain is
+    // shown the whole field and decides for itself, rather than picking from a
+    // shortlist the rules pre-trimmed. Each option carries what it would give the
+    // village (see describe), so the model can weigh a building against what the
+    // village lacks. The cap was a crutch for a weak model, not a design choice.
+    List<Candidate> offered = rankCandidates(village, stock);
 
     // Things worth wanting but out of reach today, offered as goals rather
-    // than as builds. A village with nothing affordable is exactly the village
-    // that most needs to name something and save for it, so these are gathered
-    // even when there is nothing to build.
-    List<Candidate> reachableGoals = outOfReach(village, stock);
-    List<Candidate> goals = new ArrayList<>(
-        reachableGoals.subList(0, Math.min(GOALS_OFFERED, reachableGoals.size())));
+    // than as builds, and likewise the whole reachable set. A village with
+    // nothing affordable is exactly the village that most needs to name
+    // something and save for it, so these are gathered even when there is
+    // nothing to build.
+    List<Candidate> goals = outOfReach(village, stock);
 
     if (offered.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
@@ -161,7 +150,8 @@ public class UrbanPlanner {
     List<String> options = new ArrayList<>(offered.stream().map(Candidate::description).toList());
     options.add(WAIT_OPTION);
     for (Candidate goalCandidate : goals) {
-      options.add("save up for " + goalCandidate.description());
+      options.add("save up for " + goalCandidate.description()
+          + shortfall(village, goalCandidate.info(), stock));
     }
     // What the brain was actually asked. Without it a village that never saves
     // for anything is indistinguishable from one that was never offered the
@@ -210,8 +200,8 @@ public class UrbanPlanner {
   /**
    * The buildings the village wants but cannot pay for, ranked best first: by
    * whether it can actually work toward them, then by the same need scoring, so
-   * what it saves for is something it both lacks and can reach. The caller takes
-   * the top {@link #GOALS_OFFERED}.
+   * what it saves for is something it both lacks and can reach. The whole ranked
+   * list is returned; the caller offers all of it and lets the brain choose.
    */
   private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
     Needs needs = Needs.of(village);
@@ -433,6 +423,31 @@ public class UrbanPlanner {
     return count;
   }
 
+  /**
+   * The datapack effects a building grants, in plain words: what it lets the
+   * village do or make, beyond the beds, jobs, and stores describe already reads
+   * off its structure. STORAGE is left out, as the container count already says it.
+   */
+  private static final Map<String, String> GRANT_EFFECT = Map.ofEntries(
+      Map.entry("WATER", "fresh water"),
+      Map.entry("ORES", "digs ore"),
+      Map.entry("FUEL", "makes fuel"),
+      Map.entry("PROTECTION", "defends the village"),
+      Map.entry("GRAIN", "grows grain"),
+      Map.entry("TRADE", "a place to trade"),
+      Map.entry("TRADE_INITIATIVE", "drums up trade"),
+      Map.entry("REPAIR", "mends gear"),
+      Map.entry("SMELTING", "smelts metal"),
+      Map.entry("CUT_STONE", "cuts stone"),
+      Map.entry("LOGS", "fells logs"),
+      Map.entry("PLANKS", "makes planks"),
+      Map.entry("MEAT", "provides meat"),
+      Map.entry("BREAD", "bakes bread"),
+      Map.entry("LEATHER", "tans leather"),
+      Map.entry("WOOL", "gives wool"),
+      Map.entry("HEALING", "heals the sick"),
+      Map.entry("WANDERERS", "draws newcomers"));
+
   /** A plain-language option line: what it is, and what it would give the village. */
   private static String describe(BuildingInfo info) {
     String name = info.hasWellFormedId() ? info.getCategory().replace('_', ' ') : info.getName();
@@ -447,7 +462,30 @@ public class UrbanPlanner {
     if (containers > 0) {
       gives.add(containers == 1 ? "a store" : containers + " stores");
     }
+    // What it lets the village do or make, on top of its beds/jobs/stores.
+    for (String grant : info.getGrants()) {
+      String effect = GRANT_EFFECT.get(grant);
+      if (effect != null) {
+        gives.add(effect);
+      }
+    }
     return gives.isEmpty() ? "a " + name : "a " + name + " (" + String.join(", ", gives) + ")";
+  }
+
+  /**
+   * What a save-for goal still lacks against current stock, as ", still needs 40
+   * cobblestone", or empty when nothing is short. Gives the brain the cost side
+   * of a long-term goal so it can weigh how far off it is.
+   */
+  private static String shortfall(Village village, BuildingInfo info, Map<Item, Integer> stock) {
+    List<String> parts = new ArrayList<>();
+    for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
+      int missing = cost.getCount() - stock.getOrDefault(cost.getItem(), 0);
+      if (missing > 0) {
+        parts.add(missing + " " + cost.getItem().toString().replace("minecraft:", "").replace('_', ' '));
+      }
+    }
+    return parts.isEmpty() ? "" : ", still needs " + String.join(", ", parts);
   }
 
 

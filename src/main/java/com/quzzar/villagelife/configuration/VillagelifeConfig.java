@@ -69,7 +69,6 @@ public class VillagelifeConfig {
     public static int WandererCap;
 
     // --- labor ---
-    public static int BuildOptionsOffered;
     public static double JobSwapThreshold;
     public static int JobSwapIntervalSeconds;
     public static double JobSwapCooldownDays;
@@ -131,7 +130,6 @@ public class VillagelifeConfig {
         WandererCap = COMMON.WandererCap.get();
 
         // labor
-        BuildOptionsOffered = COMMON.BuildOptionsOffered.get();
         JobSwapThreshold = COMMON.JobSwapThreshold.get();
         JobSwapIntervalSeconds = COMMON.JobSwapIntervalSeconds.get();
         JobSwapCooldownDays = COMMON.JobSwapCooldownDays.get();
@@ -204,7 +202,6 @@ public class VillagelifeConfig {
         public final ModConfigSpec.IntValue WandererCap;
 
         // labor
-        public final ModConfigSpec.IntValue BuildOptionsOffered;
         public final ModConfigSpec.DoubleValue JobSwapThreshold;
         public final ModConfigSpec.IntValue JobSwapIntervalSeconds;
         public final ModConfigSpec.DoubleValue JobSwapCooldownDays;
@@ -281,9 +278,8 @@ public class VillagelifeConfig {
 
             builder.pop();
 
-            builder.comment("Labor: how jobs are filled from the idle pool and reshuffled, and how many building options the brain weighs.").push("labor");
+            builder.comment("Labor: how jobs are filled from the idle pool and reshuffled.").push("labor");
 
-            BuildOptionsOffered = builder.comment("How many building options the village brain is offered before it chooses. More options means a less railroaded village and worse choices from a small offline model; fewer means the reverse. Waiting is always offered in addition to these.").translation(Villagelife.MODID + ".config.BuildOptionsOffered").defineInRange("Build options offered", 8, 2, 16);
             JobSwapThreshold = builder.comment("Minimum aptitude improvement (on the 3-18 stat scale) before the village reassigns a job to someone better suited. Higher = less churn.").translation(Villagelife.MODID + ".config.JobSwapThreshold").defineInRange("Job swap threshold", 3.0, 0.5, 15.0);
             JobSwapIntervalSeconds = builder.comment("Seconds between job-swap evaluation passes (phase-staggered per village).").translation(Villagelife.MODID + ".config.JobSwapIntervalSeconds").defineInRange("Job swap interval seconds", 60, 10, 3600);
             JobSwapCooldownDays = builder.comment("Game days a person is protected from further job swaps after being placed, swapped, or displaced.").translation(Villagelife.MODID + ".config.JobSwapCooldownDays").defineInRange("Job swap cooldown days", 2.0, 0.0, 30.0);
