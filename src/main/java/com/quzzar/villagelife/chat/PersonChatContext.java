@@ -15,10 +15,12 @@ import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService.FewShotExample;
 import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
+import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
+import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
 import net.minecraft.world.item.Item;
@@ -327,6 +329,22 @@ public final class PersonChatContext {
               ? "Everything needed is gathered; building can begin soon."
               : "Still short " + remaining + ".");
           system.append('\n');
+        }
+      }
+      // What the village is actively building right now, distinct from the goal
+      // it saves toward above. A villager (the builder especially) was told its
+      // job and the village's goal but never the work in hand, so it could not
+      // say what it was doing (a live-test finding).
+      StructureInProgress project = village.getCurrentProject();
+      if (project != null) {
+        BuildingInfo built = project.getBuilding().getInfo();
+        String label = built.hasWellFormedId() ? built.getCategory().replace('_', ' ') : built.getName();
+        if (project.isGathering()) {
+          system.append("Your village is gathering materials to build a ").append(label).append(".\n");
+        } else {
+          system.append(person.getOccupation() == Occupation.BUILDER
+              ? "Right now you are building a " + label + " for the village."
+              : "Your village is now building a " + label + ".").append('\n');
         }
       }
     }
