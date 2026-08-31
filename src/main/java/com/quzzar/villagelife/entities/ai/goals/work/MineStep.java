@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -55,12 +56,20 @@ public final class MineStep implements BlockWorkStep {
   /** Blocks broken between torches, so a deepening shaft does not go dark. */
   private static final int BLOCKS_PER_TORCH = 6;
 
+  /**
+   * Ticks to keep the bucket out in the off hand after a seal or a clear, so the
+   * waterproofing is a beat you can watch rather than an instant. About two
+   * seconds; a wider leak reseals cell by cell and holds it out longer on its own.
+   */
+  private static final int BUCKET_SHOWN_TICKS = 40;
+
   private BlockPos offset;
   private Block block;
   private int inward = 1;
   private int breakTime;
   private int lastProgress = -1;
   private int sinceTorch;
+  private int bucketShownTicks;
 
   @Override
   @Nullable
@@ -82,6 +91,7 @@ public final class MineStep implements BlockWorkStep {
 
   @Override
   public boolean act(RealPerson person, BlockPos standTarget) {
+    tickBucket(person);
     BlockPos mouth = LocationManager.getJobLocation(person);
     if (mouth == BlockPos.ZERO || this.block == null || this.offset == null) {
       return false;
@@ -124,6 +134,8 @@ public final class MineStep implements BlockWorkStep {
     }
     this.breakTime = 0;
     this.lastProgress = -1;
+    stowBucket(person);
+    this.bucketShownTicks = 0;
   }
 
   @Override
@@ -243,8 +255,10 @@ public final class MineStep implements BlockWorkStep {
    * frame, so it stays orientation-correct once rotated): water or lava on the
    * corridor walls is sealed with cobblestone from the miner's own mined stock, and
    * liquid inside the corridor is cleared to air. The bucket that gates this stays a
-   * tool, never filled or consumed. A wall with no cobblestone to spare is left as
-   * it is, so the leak surfaces on the impassable path rather than being opened up.
+   * tool, never filled or consumed; each seal brings it out into the miner's off hand
+   * for a beat ({@link #showBucket}), so the clearing is something you can watch. A
+   * wall with no cobblestone to spare is left as it is, so the leak surfaces on the
+   * impassable path rather than being opened up.
    */
   private void waterproof(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos centre) {
     Level level = person.level();
@@ -260,12 +274,67 @@ public final class MineStep implements BlockWorkStep {
       }
       if (withinCorridor(local)) {
         level.setBlock(world, Blocks.AIR.defaultBlockState(), 2);
+        showBucket(person);
       } else if (person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
         level.setBlock(world, Blocks.COBBLESTONE.defaultBlockState(), 3);
         level.playSound((Player) null, world.getX(), world.getY(), world.getZ(),
             Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(),
             SoundSource.BLOCKS, 1.0F, 0.8F);
+        showBucket(person);
       }
+    }
+  }
+
+  /**
+   * The miner counts as carrying a bucket when one is in the pack OR out on show
+   * in the off hand: {@link #showBucket} moves the real bucket into the hand for a
+   * beat while clearing, and the seal must not switch itself off during those ticks
+   * just because the pack is momentarily one bucket lighter.
+   */
+  private boolean carriesBucket(RealPerson person) {
+    return person.hasItem(Items.BUCKET)
+        || person.getItemBySlot(EquipmentSlot.OFFHAND).is(Items.BUCKET);
+  }
+
+  /**
+   * Bring the miner's own bucket out into the off hand and keep it there for a
+   * beat, so a seal or a clear reads as bailing with a bucket rather than magic.
+   * Moved from the pack, never copied: hand drop chance is 100% (see Person), so a
+   * display copy would drop a second bucket on death. The main hand keeps its
+   * pickaxe; the beat refreshes on every reseal.
+   */
+  private void showBucket(RealPerson person) {
+    this.bucketShownTicks = BUCKET_SHOWN_TICKS;
+    if (!person.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
+      return; // already on show, or the hand is busy - never stack a second
+    }
+    ItemStack pulled = person.removeItem(Items.BUCKET, 1);
+    if (pulled.getCount() == 1) {
+      person.setItemSlot(EquipmentSlot.OFFHAND, pulled);
+    }
+  }
+
+  /**
+   * Put the shown bucket back in the pack once the beat is over, on release, or on
+   * the first tick after a save caught it mid-show. Kept in hand rather than
+   * dropped when the pack has no room, so a full pack never litters the shaft with
+   * buckets. Only ever touches a bucket, so a future off-hand tool would be safe.
+   */
+  private void stowBucket(RealPerson person) {
+    ItemStack offhand = person.getItemBySlot(EquipmentSlot.OFFHAND);
+    if (!offhand.is(Items.BUCKET) || person.isInventoryFull()) {
+      return;
+    }
+    person.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+    person.addItems(List.of(offhand));
+  }
+
+  /** Run down the show timer each tick and stow the bucket when it lapses. */
+  private void tickBucket(RealPerson person) {
+    if (this.bucketShownTicks > 0) {
+      this.bucketShownTicks--;
+    } else {
+      stowBucket(person);
     }
   }
 
@@ -308,7 +377,7 @@ public final class MineStep implements BlockWorkStep {
       // corridor to air (see waterproof). The bucket is only a tool, never filled or
       // consumed. Clearing the face to air lets the loop scan on; with no bucket the
       // liquid stays and drops to the sponge/impassable path below.
-      if ((this.block == Blocks.WATER || this.block == Blocks.LAVA) && person.hasItem(Items.BUCKET)) {
+      if ((this.block == Blocks.WATER || this.block == Blocks.LAVA) && carriesBucket(person)) {
         waterproof(person, mouth, rotation, this.offset);
         this.block = person.level().getBlockState(facePos).getBlock();
       }
@@ -322,7 +391,7 @@ public final class MineStep implements BlockWorkStep {
 
     // Seal any liquid on the walls around the solid block about to be dug, so a
     // pocket beside the frontier is cobbled off before it can flood the shaft.
-    if (person.hasItem(Items.BUCKET)) {
+    if (carriesBucket(person)) {
       waterproof(person, mouth, rotation, this.offset);
     }
 
