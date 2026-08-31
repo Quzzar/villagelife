@@ -29,7 +29,8 @@ import net.minecraft.world.item.Items;
  * <p>Raw iron is smelted to ingots elsewhere in the blacksmith's loop (a plain
  * CraftStep); this step turns those ingots into tools and buckets. Producing gear
  * is only half the equipment economy - villagers grabbing their role's gear from
- * the stores is the other half, still to come - but the bucket alone closes a real
+ * the stores is the other half, done at bedtime (goToBed / equipBestPossibleGear) -
+ * but the bucket alone closes a real
  * gap: the miner needs one to clear water and lava and cannot make it, so without
  * a blacksmith it never gets one. Buckets come first here for exactly that reason.
  */
@@ -43,8 +44,8 @@ public final class BlacksmithStep implements BlockWorkStep {
    * What the forge makes, in priority order. Buckets first (the miner's unmet
    * need), then the basic iron tools. Each is made only while the village holds
    * fewer than {@code keep}, so the forge tops up a small working stock rather
-   * than pouring all the iron into one thing. Armour waits for the distribution
-   * half, which will forge it for a guard that actually needs it.
+   * than pouring all the iron into one thing. Armour comes last, so a village low
+   * on iron still gets its tools before a spare breastplate.
    */
   private static final List<Gear> GEAR = List.of(
       new Gear(new ItemStack(Items.IRON_INGOT, 3), new ItemStack(Items.BUCKET), 2),
@@ -52,7 +53,11 @@ public final class BlacksmithStep implements BlockWorkStep {
       new Gear(new ItemStack(Items.IRON_INGOT, 3), new ItemStack(Items.IRON_AXE), 1),
       new Gear(new ItemStack(Items.IRON_INGOT, 1), new ItemStack(Items.IRON_SHOVEL), 1),
       new Gear(new ItemStack(Items.IRON_INGOT, 2), new ItemStack(Items.IRON_HOE), 1),
-      new Gear(new ItemStack(Items.IRON_INGOT, 2), new ItemStack(Items.IRON_SWORD), 1));
+      new Gear(new ItemStack(Items.IRON_INGOT, 2), new ItemStack(Items.IRON_SWORD), 1),
+      new Gear(new ItemStack(Items.IRON_INGOT, 5), new ItemStack(Items.IRON_HELMET), 1),
+      new Gear(new ItemStack(Items.IRON_INGOT, 8), new ItemStack(Items.IRON_CHESTPLATE), 1),
+      new Gear(new ItemStack(Items.IRON_INGOT, 7), new ItemStack(Items.IRON_LEGGINGS), 1),
+      new Gear(new ItemStack(Items.IRON_INGOT, 4), new ItemStack(Items.IRON_BOOTS), 1));
 
   /** Seconds at the forge per item, matching the smelting cadence in the loop. */
   private static final int FORGE_SECONDS = 8;

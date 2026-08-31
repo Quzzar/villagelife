@@ -54,7 +54,6 @@ import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BlacksmithStep;
-import com.quzzar.villagelife.entities.ai.goals.work.GearUpStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WallStep;
@@ -453,10 +452,9 @@ public class RealPerson extends Person {
     // Grab replacement gear if not holding any
     if (getOccupation() == Occupation.GUARD) {
 
-      // includeArmor is false on purpose: a guard upgrades its sword from village
-      // stock but takes no armor for now. Armor waits on the leather chain (see the
-      // GUARD case in populateDefaultEquipmentSlots); re-enable this when it lands.
-      equipBestPossibleGear(SwordItem.class, null, false, depositToLoc);
+      // The blacksmith now forges iron armour into the stores (BlacksmithStep), so a
+      // guard takes the best armour and sword the village can spare at bedtime.
+      equipBestPossibleGear(SwordItem.class, null, true, depositToLoc);
 
       // Restock rations: apples for now, until a farm lets the village bake bread.
       if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
@@ -1136,10 +1134,6 @@ public class RealPerson extends Person {
     this.goalSelector.addGoal(6, new SleepAtNightGoal(this));
     // this.goalSelector.addGoal(6, new RunToClericGoal(this)); Don't need it seems
     this.goalSelector.addGoal(6, new ArmorerRepairPersonArmorGoal(this));
-    // The distribution half of the equipment economy: any villager fetches the
-    // better tool its trade wants from the stores and puts it on (GearUpStep),
-    // paired with the blacksmith that forges those tools into the stores.
-    this.goalSelector.addGoal(6, new WorkLoopGoal<>(this, new GearUpStep()));
 
     // Below the work goals, which sit at 4: a goal can only take movement from
     // one with a strictly higher priority number, so at equal priority a
