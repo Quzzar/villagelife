@@ -513,16 +513,22 @@ public class Village {
           surface++;
         }
         int top = Math.max(clearTo, surface);
-        for (int y = planeY; y < top; y++) {
+        // Keep the plane course itself -- it is the buildings' floor level and the
+        // camp's walking surface. Clearing it (and filling only from plane-1 down)
+        // dropped the gathering point and every gap between buildings a block below
+        // the land, so founding on the spot you stand on made you fall a block
+        // (Aaron: "the whole village spawns a block lower... I fall a block").
+        for (int y = planeY + 1; y < top; y++) {
           pos.set(x, y, z);
           if (!level.getBlockState(pos).isAir() && level.getBlockEntity(pos) == null) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
           }
         }
-        // Fill everything below the plane down to solid, following the surface
-        // DOWN the same way, so the low side of a slope does not leave a
-        // building floating over a gap. Bounded so a void does not fill forever.
-        for (int y = planeY - 1; y >= planeY - FOUNDING_MAX_FILL; y--) {
+        // Fill the plane course and below it down to solid, so the low side of a
+        // slope does not leave a building floating over a gap AND the camp surface
+        // sits AT the plane -- flush with the land and the buildings' floors, not a
+        // block under it. Bounded so a void does not fill forever.
+        for (int y = planeY; y >= planeY - FOUNDING_MAX_FILL; y--) {
           pos.set(x, y, z);
           var state = level.getBlockState(pos);
           if (state.isAir() || !state.getFluidState().isEmpty()) {
