@@ -136,6 +136,35 @@ This is deliberately the low-priority half of the job: a village with something 
 always building it, and a village with nothing to build is tidying itself. It also means
 paths are the visible sign of a village that has caught up with its own plans.
 
+## The farmer's idle hands feed the composter
+
+The farmer gets the same treatment: a field that is all still growing used to mean pure
+wandering, and now the wait is a production chain, run as four separate steps so any link
+also stands alone (`entities/ai/goals/work/`):
+
+- **Clear brush** (`ClearBrushStep`): wild grass, ferns and flowers within twelve blocks of
+  the station come out of the ground and into the pack. The worker pockets the plant itself,
+  as shears would take it, because grass's own loot table mostly drops nothing and would
+  starve the rest of the chain. Only compostable kinds are pulled, read from the compost
+  data map so modded plants join in for free; crops, saplings and dead bushes are left alone.
+- **Compost** (`CompostStep`): carried brush is fed to the composter every farm structure
+  ships, one plant per fill at the block's own compost chance, vanilla's 7-to-8 cure and
+  all. The one liberty is at the end: the bone meal goes straight into the pack rather than
+  being tossed on the ground for anything passing to steal.
+- **Shelve and fetch** (`StashBonemealStep`, `FetchBonemealStep`): bone meal nothing in the
+  field currently wants goes into the farm's own barrel; when something is growing again and
+  the pack is empty, it comes back out. The barrel is the farm's fertiliser shelf, the same
+  one the bedtime restock draws on, which is what makes the chain legible from outside and
+  lets each half work alone with whatever else stocks that shelf.
+- **Feeding itself** stays the existing `BonemealStep`.
+
+The chain sits deliberately below every real farm task: harvest, till and the crafts all
+outrank it, and within the chain conversion outranks gathering, so a farmer finishes what
+they carry before pulling more. A fourth source feeds the same shelf at night: when the
+bedtime restock leaves the pack short and the village stores hold bones, the farmer's own
+brain is offered a grind through the shared `CraftOffer` press
+([llm-brain.md](llm-brain.md)), so skeleton drops end up as crops too.
+
 ## Roaming, fixed, and the shape in between
 
 **Roaming by default, fixed where a job is simpler that way.** Per job, not global.
@@ -158,6 +187,19 @@ animals wherever they wander. Pure roaming would walk a hunter arbitrarily far i
 passive mobs barely respawn, so it would strip its region permanently. A hunting ground that runs
 dry is the correct pressure: the village's answer is a pasture, which breeds and is genuinely
 renewable.
+
+**Built, 2026-08-31: the hunter shoots, and the pen is not game.** Hunting is done with a bow
+at range, walking closer only when something blocks the shot. The baseline bow arrives with the
+job, like the guard's stone sword, and plain arrows are never counted: that is the second place
+the mod invents matter, bounded the same way the structure-block exception is. Special arrows
+stay physical and finite: tipped or spectral arrows in the hunter's hands or pack are loosed
+first and genuinely consumed, and a better bow in the stores is picked up by the ordinary
+bedtime gear pass. Village stock is marked farmed (`FarmedStock`) and a hunter does not see it
+as game: the tag is set on the animals a structure spawns with, inherited at birth when either
+parent carries it, and applied by the herder to whatever it tends, so a butchery pen standing
+inside a hunting ground is safe, and a wild cow the herder adopts stops being quarry. Hunters
+also fight now: the occupation weighs into both combat checks, so they defend themselves and
+take on nearby monsters with the same bow, where before a hunter fled like a baker.
 
 ## When there is nothing to work on
 

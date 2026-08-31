@@ -5,7 +5,6 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
-import com.quzzar.villagelife.village.buildings.Building;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
@@ -95,14 +94,9 @@ public final class HaulStep implements BlockWorkStep {
    */
   @Nullable
   private BlockPos workplaceContainer(RealPerson person) {
-    Building building = LocationManager.getJobBuilding(person);
-    if (building != null && building.getInfo() != null) {
-      BlockPos origin = BlockPos.of(building.getOriginLocation());
-      for (Long local : building.getInfo().getContainerLocations()) {
-        BlockPos pos = origin.offset(BlockPos.of(local).rotate(building.getRotation()));
-        if (person.level().getBlockEntity(pos) instanceof Container) {
-          return pos;
-        }
+    for (BlockPos pos : LocationManager.getJobContainerPositions(person)) {
+      if (person.level().getBlockEntity(pos) instanceof Container) {
+        return pos;
       }
     }
     // Already null rather than ZERO when there is nothing: the loop reads null

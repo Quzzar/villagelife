@@ -63,6 +63,10 @@ import com.quzzar.villagelife.entities.ai.goals.work.HuntStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
+import com.quzzar.villagelife.entities.ai.goals.work.ClearBrushStep;
+import com.quzzar.villagelife.entities.ai.goals.work.CompostStep;
+import com.quzzar.villagelife.entities.ai.goals.work.FetchBonemealStep;
+import com.quzzar.villagelife.entities.ai.goals.work.StashBonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunAwayGoal;
@@ -141,6 +145,15 @@ public class RealPerson extends Person {
    */
   private static final int TORCHES_PER_COAL = 4;
 
+  /**
+   * Bone meal the farmer's bedtime restock tops the pack up to; BonemealStep
+   * spends it on whatever is still growing.
+   */
+  private static final int BONEMEAL_PACK_TARGET = 16;
+
+  /** Bone meal one bone grinds into, as the vanilla recipe has it. */
+  private static final int MEAL_PER_BONE = 3;
+
   public int callToBedCoolDown = 0;
 
   // Game day of the last bedtime torch-craft offer. goToBed refires every 100
@@ -148,6 +161,9 @@ public class RealPerson extends Person {
   // question to the brain over and over. Not persisted: a reload mid-night at
   // worst asks once more.
   private transient long torchOfferDay = -1;
+
+  // Same guard for the farmer's bedtime bone-grind offer.
+  private transient long bonemealOfferDay = -1;
 
   // Village-directed walk target (arriving at the campfire / leaving the
   // village); driven by Village.tickTravelers, executed by VillageTravelGoal.
@@ -519,7 +535,8 @@ public class RealPerson extends Person {
     // Grab bonemeal
     if (getOccupation() == Occupation.LUMBERJACK || getOccupation() == Occupation.FARMER) {
 
-      ItemStack item = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BONE_MEAL, 16), depositToLoc);
+      ItemStack item = this.getVillage()
+          .gatherItemStackFromVillage(new ItemStack(Items.BONE_MEAL, BONEMEAL_PACK_TARGET), depositToLoc);
       this.addItems(Arrays.asList(item));
 
     }
@@ -534,6 +551,8 @@ public class RealPerson extends Person {
       }
 
       this.addItems(gatheredSeeds);
+
+      maybeCraftBonemealFromBones(depositToLoc);
 
     }
 
@@ -573,6 +592,41 @@ public class RealPerson extends Person {
         + " torches. Decide whether to spend " + coalToSpend
         + " coal on light for tomorrow's dig, and give your reason in a few words.";
     CraftOffer.offer(this, depositToLoc, press, coalToSpend, situation);
+  }
+
+  /**
+   * Offers the farmer's brain a bedtime bone grind when the restock above left
+   * the pack short and the stores hold bones - the same press as the miner's
+   * torch craft, through the same {@link CraftOffer} (silence crafts, only an
+   * explicit "leave it" keeps the stores; docs/llm-brain.md). The meal lands in
+   * the pack for tomorrow's crops, and the shelf steps move any surplus into
+   * the farm's barrel once the field stops asking for it.
+   */
+  private void maybeCraftBonemealFromBones(BlockPos depositToLoc) {
+    long day = this.level().getDayTime() / 24000L;
+    if (this.bonemealOfferDay == day) {
+      return;
+    }
+    int mealHeld = this.personMainInv.countItem(Items.BONE_MEAL);
+    int mealWanted = BONEMEAL_PACK_TARGET - mealHeld;
+    if (mealWanted <= 0) {
+      return;
+    }
+    int bonesHeld = com.quzzar.villagelife.economy.VillagePricing.countHeld(this.getVillage(), Items.BONE);
+    if (bonesHeld <= 0) {
+      return;
+    }
+    this.bonemealOfferDay = day;
+
+    int bonesToSpend = Math.min(bonesHeld, Math.ceilDiv(mealWanted, MEAL_PER_BONE));
+    CraftOffer.Press press = new CraftOffer.Press(List.of(Items.BONE), Items.BONE_MEAL, MEAL_PER_BONE);
+    String situation = CraftOffer.identityLead(this)
+        + "You are turning in for the night carrying " + mealHeld + " of the " + BONEMEAL_PACK_TARGET
+        + " bone meal you like to keep for the crops. The village stores hold " + bonesHeld
+        + " bones, and one presses into " + MEAL_PER_BONE
+        + " bone meal. Decide whether to press " + bonesToSpend
+        + " bones for tomorrow's fields, and give your reason in a few words.";
+    CraftOffer.offer(this, depositToLoc, press, bonesToSpend, situation);
   }
 
   public void equipBestPossibleGear(Class mainHand, Class offHand, boolean includeArmor, BlockPos preferNearestToLoc) {
@@ -1110,6 +1164,9 @@ public class RealPerson extends Person {
       // a trip to a chest before harvesting more, or the crops overflow the pack
       // and drop on the ground. The farmer was the only gatherer missing this.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      // Before the feeder: a farmer with an empty pack but a stocked barrel
+      // walks over and refills rather than watching the crops sulk.
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FetchBonemealStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HarvestStep(true)));
@@ -1133,6 +1190,13 @@ public class RealPerson extends Person {
             4,
             SoundEvents.COMPOSTER_FILL_SUCCESS)));
       }
+
+      // The idle chain, in working order: finish converting what is carried,
+      // shelve what nothing wants, and only then pull more brush. Together they
+      // are the farmer's answer to a field that is all still growing.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CompostStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new StashBonemealStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new ClearBrushStep()));
     }
     if (getOccupation() == Occupation.BLACKSMITH) {
       // The forge's SMELTING half: raw iron the mine brings up becomes ingots, the stock

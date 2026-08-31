@@ -41,7 +41,10 @@ shaft never goes dark over a mute model. The ask itself lives in the shared `Cra
 helper (`entities/`): a job's trigger sizes a `Press` (spend items, product, yield per unit)
 and writes the situation prose over `CraftOffer.identityLead`, and the helper carries the
 options, the answer, and the hands, so any occupation can put its own press to its own brain
-the same way.
+the same way. The farmer's bedtime bone grind is the second personal press: when the restock
+leaves the pack short of its sixteen bone meal and the stores hold bones, the same helper asks
+whether to grind them (one bone makes three), with the same semantics, and the meal joins the
+farm's fertiliser shelf described in [worker-loops.md](worker-loops.md).
 
 That makes the LLM **strongly wanted, not structurally required**: when it is absent,
 slow, or gives an unusable answer, the rules' own top-scoring option stands in and the
