@@ -23,6 +23,12 @@ public class UnstuckPersonGoal extends Goal {
         // by reconcileBeds without a following reloadState keeps a stale ZERO
         // forever, so the daysSinceSleep recovery never fires for them. Same trap
         // SleepAtNightGoal hit (1d4523f).
+        // A sleeping villager is deliberately immobile (Person.isImmobile), so its
+        // idle navigation reads as "stuck". Never treat a sleeper as stuck, or the
+        // teleport-home fires against a villager that is only resting.
+        if (person.isSleeping()) {
+            return false;
+        }
         boolean hasBed = !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
         return (hasBed && this.person.getDaysSinceSleep() > MAX_DAYS) || person.getNavigation().isStuck();
     }

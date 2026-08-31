@@ -94,6 +94,11 @@ public class SleepAtNightGoal extends Goal {
       BlockPos sleepAt = hasBed ? target : person.blockPosition();
 
       if (target.distSqr(person.blockPosition()) <= rangeSqr) {
+        // Stop navigating before lying down: a sleeping villager is immobile
+        // (Person.isImmobile), so a leftover path to the fire never makes progress
+        // and reads as "stuck", which had UnstuckPersonGoal teleporting the sleeper
+        // home and straight back in a loop - the bedless-at-campfire sleep glitch.
+        person.getNavigation().stop();
         person.setDaysSinceSleep(0);
         person.startSleeping(sleepAt);
       } else if (!person.getNavigation().isInProgress()) {
