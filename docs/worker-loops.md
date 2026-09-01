@@ -229,10 +229,13 @@ bucket keeps the shaft dry instead of abandoning it at a leak: liquid on the sha
 with cobblestone (from its own mined stock) and liquid inside the corridor is cleared, so water and
 lava stop the shaft only when the miner has no bucket. The bucket is a tool, never filled or
 consumed; bedrock and wrong-tool still stop it outright. When the shaft opens into a cave the miner
-does not stand down at the mouth: it lays a cobblestone floor across the gap and drives the shaft on
-into the stone beyond, capped so a cavern too large to floor ends the shaft rather than eating all
-its cobble. **That pattern with deviation is probably what roaming really is** for most jobs, and
-the model has to be able to express it. Keep the excavation as it stands; the miner bridges a cave
+does not stand down at the mouth: it completes the shaft's missing floor, one cobblestone (from its
+own mined stock) under each ramp cell that opens into void, laid standing on the floor already
+there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget: a miner
+out of cobblestone logs it and waits at the mouth until restocked, so a cavern too large to floor
+ends the shaft. Torches follow the same shape, one wall torch per descent layer where it is deep and
+dark. **That pattern with deviation is probably what roaming really is** for most jobs, and
+the model has to be able to express it. Keep the excavation as it stands; the miner floors a cave
 rather than exploring it, and a prospector that follows ore veins is a better story still
 deliberately left as fog.
 

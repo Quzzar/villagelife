@@ -41,16 +41,16 @@ import net.minecraft.world.level.block.WallTorchBlock;
  * beside the face ({@link #standToMine}). The shaft therefore advances the same
  * way it always did, and the descent is layered on top.
  *
- * <p>When no footing near the face can be found, the descent has broken into a
- * cave: an open void sits between the miner and the face. Rather than target a
- * spot across a gap the navigator can never path to - the bug behind every
- * "the miner is stuck at a cave" report - the step switches to
- * {@link #bridgeAcross bridging}: it walks the miner TOWARD the face and lays a
- * cobblestone plank ahead of its own feet a block at a time (the path-layer
- * pattern of {@link PathStep}, but over air instead of on the ground), until
- * footing at the face returns and digging resumes. With no cobblestone to
- * spare it falls back to the mouth, so the shaft still advances, exactly as a
- * missing foothold always did.
+ * <p>When the shaft breaks into a cave, the rule is the one a player follows:
+ * complete the missing floor. A column of the ramp whose bottom opens into void
+ * gets one cobblestone laid under it - PLACE work selected by the same cursor
+ * that selects BREAK work, done standing on the floor already there (the ramp
+ * behind, or the cell floored a moment ago), never by walking out over the gap.
+ * The cave is crossed edge by edge as the sweep advances, darkness gets a torch
+ * like anywhere else, and a miner out of cobblestone logs it and stands down at
+ * the mouth until restocked. Nothing here reasons about the void itself: no
+ * bridging mode, no walking-and-planking - both were tried, and both ended with
+ * cobble littered far outside the mine.
  */
 public final class MineStep implements BlockWorkStep {
 
@@ -64,8 +64,6 @@ public final class MineStep implements BlockWorkStep {
    */
   private static final int MAX_CURSOR_STEPS = 4096;
 
-  /** Blocks broken between torches, so a deepening shaft does not go dark. */
-  private static final int BLOCKS_PER_TORCH = 6;
 
   /**
    * Torches only start once the shaft has dropped this far below its mouth: the
@@ -86,15 +84,23 @@ public final class MineStep implements BlockWorkStep {
   private int inward = 1;
   private int breakTime;
   private int lastProgress = -1;
-  private int sinceTorch;
   private int bucketShownTicks;
 
+  /** The descent layer (inward) that last got a torch, so a layer is lit once. */
+  private int torchedLayer;
+
   /**
-   * True while the miner is carrying the walkway across a cave: the descent has
-   * opened onto a void, so the step lays a plank ahead of its feet as it walks
-   * rather than digging. Cleared the moment footing at the face returns.
+   * True when the cursor cell's column has no floor under it: the act lays one
+   * cobblestone at face-below instead of digging the face.
    */
-  private boolean bridging;
+  private boolean placeFloor;
+
+  /**
+   * True right after a floor is laid, so the next scan re-evaluates the SAME
+   * cursor cell (now floored, it may still need digging) instead of advancing
+   * past it.
+   */
+  private boolean holdCursor;
 
   @Override
   @Nullable
@@ -107,25 +113,11 @@ public final class MineStep implements BlockWorkStep {
       return null;
     }
     // Stand next to the face and work it, walking down into the shaft as it
-    // deepens.
+    // deepens. No footing reachable - a hole in the ramp behind, say - falls
+    // back to the mouth, and the shaft waits.
     BlockPos face = face(mouth, rotation(person));
     BlockPos stand = standToMine(person, face);
-    if (stand != null) {
-      this.bridging = false;
-      return stand;
-    }
-    // No footing at the face: the descent has broken into a cave, an open void
-    // between the miner and the face. With cobblestone to spare, carry the
-    // walkway across it - walk toward the face and lay a plank ahead a block at a
-    // time (bridgeAcross), which the navigator can then step onto. With none,
-    // fall back to the mouth so the shaft still advances, as a missing foothold
-    // always did.
-    if (person.hasItem(Items.COBBLESTONE)) {
-      this.bridging = true;
-      return face;
-    }
-    this.bridging = false;
-    return mouth;
+    return stand != null ? stand : mouth;
   }
 
   @Override
@@ -136,8 +128,9 @@ public final class MineStep implements BlockWorkStep {
       return false;
     }
     BlockPos face = face(mouth, rotation(person));
-    if (this.bridging) {
-      return bridgeAcross(person, face);
+    if (this.placeFloor) {
+      layFloor(person, face);
+      return false; // floored (or out of cobble); the next select re-scans
     }
     person.getLookControl().setLookAt(face.getX(), face.getY(), face.getZ(), 30.0F, 30.0F);
 
@@ -176,7 +169,6 @@ public final class MineStep implements BlockWorkStep {
     }
     this.breakTime = 0;
     this.lastProgress = -1;
-    this.bridging = false;
     stowBucket(person);
     this.bucketShownTicks = 0;
   }
@@ -192,21 +184,10 @@ public final class MineStep implements BlockWorkStep {
     return 1;
   }
 
-  /**
-   * Close, so the miner stands at the face they are working, deep in the shaft.
-   * While bridging, arm's length instead: the miner must keep walking the plank
-   * the whole way across the cave rather than "arriving" from the near lip and
-   * trying to dig the far wall across the gap.
-   */
+  /** Close, so the miner stands at the face they are working, deep in the shaft. */
   @Override
   public double reachSqr(RealPerson person) {
-    return this.bridging ? 1.5D : 6.0D;
-  }
-
-  /** Laying the plank is the journey; digging waits for arrival at the face. */
-  @Override
-  public boolean actWhileTravelling() {
-    return this.bridging;
+    return 6.0D;
   }
 
   private int breakTicks() {
@@ -259,74 +240,33 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * Carry the walkway one step across a cave, laid AHEAD of the miner's own feet
-   * rather than beside the far face: the descent has broken into a void, and the
-   * miner stands on the near side of it. Every prior version reasoned about the
-   * frontier and laid cobble THERE - across a gap the navigator could never path
-   * to - which is why the miner kept getting stuck at caves. The plank has to
-   * grow from where the miner is.
-   *
-   * <p>Called each tick while {@link #bridging} and {@link #actWhileTravelling}
-   * has the goal walking toward the face. It drops a single cobblestone in the
-   * cell just ahead, at foot level, whenever that cell is open air - so a floor
-   * appears for the next step and the miner treads across a block at a time.
-   * Placement paces itself with the walk: once a plank is down the cell is no
-   * longer air, so nothing more is laid there until the miner has moved on.
-   *
-   * <p>Returns true to keep bridging. Returns false - handing control back to
-   * digging - the moment footing at the face returns, and also if the
-   * cobblestone runs out mid-cave, which is logged and resets the shaft rather
-   * than leaving the miner treading air.
+   * Lay the one cobblestone the cursor cell's column is missing under it. The
+   * miner is already standing on real footing (select found it before act ran),
+   * so this is placing a block at arm's length, exactly as digging is breaking
+   * one - never a walk out over the void. Out of cobblestone is logged and
+   * resets the shaft; the sweep finds the same hole again once restocked.
    */
-  private boolean bridgeAcross(RealPerson person, BlockPos face) {
-    // Footing at the face at last: the plank has reached the far side. Stop
-    // bridging so the next select stands the miner down to dig as usual.
-    if (standToMine(person, face) != null) {
-      this.bridging = false;
-      return false;
-    }
+  private void layFloor(RealPerson person, BlockPos face) {
+    this.placeFloor = false;
+    BlockPos floor = face.below();
     Level level = person.level();
-    BlockPos foot = person.getOnPos(); // the block the miner is standing on
-    BlockPos ahead = foot.relative(towardFace(foot, face));
-    person.getLookControl().setLookAt(ahead.getX(), ahead.getY(), ahead.getZ(), 30.0F, 30.0F);
-
-    // Already floored - existing ground, or a plank laid a step ago: nothing to
-    // add here, the walk carries the miner onward.
-    if (!level.getBlockState(ahead).isAir()) {
-      return true;
-    }
-    // Open air but no room to stand: a low pocket, not a walkable gap. Give up
-    // this shaft rather than plank a crawlspace the miner cannot use.
-    boolean headroom = level.getBlockState(ahead.above()).isAir()
-        && level.getBlockState(ahead.above(2)).isAir();
-    if (!headroom) {
-      this.bridging = false;
-      resetShaft();
-      return false;
+    person.getLookControl().setLookAt(floor.getX(), floor.getY(), floor.getZ(), 30.0F, 30.0F);
+    if (!level.getBlockState(floor).isAir()) {
+      this.holdCursor = true;
+      return; // floored in the meantime (water sealed it, another pass laid it)
     }
     if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
-      person.logIssue("I ran out of cobblestone to bridge a cave in my mine", Optional.empty());
-      this.bridging = false;
+      person.logIssue("I ran out of cobblestone to floor the cave in my mine", Optional.empty());
       resetShaft();
-      return false;
+      return;
     }
-    level.setBlock(ahead, Blocks.COBBLESTONE.defaultBlockState(), 3);
-    level.playSound((Player) null, ahead.getX(), ahead.getY(), ahead.getZ(),
+    level.setBlock(floor, Blocks.COBBLESTONE.defaultBlockState(), 3);
+    level.playSound((Player) null, floor.getX(), floor.getY(), floor.getZ(),
         Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(), SoundSource.BLOCKS,
         1.0F, person.getRandom().nextFloat() * 0.4F + 0.8F);
-    Villagelife.LOGGER.info("[mine] {} planked across a cave at {}",
-        person.getName().getString(), ahead.toShortString());
-    return true;
-  }
-
-  /** The dominant horizontal step from {@code from} toward {@code face}. */
-  private Direction towardFace(BlockPos from, BlockPos face) {
-    int dx = face.getX() - from.getX();
-    int dz = face.getZ() - from.getZ();
-    if (Math.abs(dx) >= Math.abs(dz)) {
-      return dx >= 0 ? Direction.EAST : Direction.WEST;
-    }
-    return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
+    Villagelife.LOGGER.info("[mine] {} floored the shaft at {}",
+        person.getName().getString(), floor.toShortString());
+    this.holdCursor = true; // the cell above may still want digging
   }
 
   /**
@@ -341,11 +281,17 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * Every so many blocks, hang a torch on a shaft wall so the descent does not go
-   * dark. Physical: the torch comes out of the miner's pack (kept stocked from
-   * village stores when they turn in for the night), so an unlit mine reads as a
-   * village with no torches to spare rather than a bug. The cursor skips torches,
-   * so one placed here is never mistaken for stone later.
+   * At most one wall torch per descent LAYER, so lighting follows the shaft down
+   * as a line rather than sprinkling the walls. Counting blocks broken - the old
+   * rule - fell apart the moment the sweep gnawed at a cave: every sixth solid
+   * cell got a torch, scattered wherever in the cavern the cursor happened to be,
+   * which is exactly the "torches everywhere" mess Aaron watched. The layer gate
+   * bounds torches by depth, and the brightness check below spaces even those out.
+   *
+   * Physical: the torch comes out of the miner's pack (kept stocked from village
+   * stores when they turn in for the night), so an unlit mine reads as a village
+   * with no torches to spare rather than a bug. The cursor skips torches, so one
+   * placed here is never mistaken for stone later.
    *
    * A WALL torch, not a floor one: a torch standing on the floor sits in the dig
    * path, and the block under it then has to be left unbroken to avoid knocking it
@@ -353,21 +299,21 @@ public final class MineStep implements BlockWorkStep {
    * dropped {@link #TORCH_MIN_DEPTH} below its lit mouth, and only where it is dark.
    */
   private void maybeTorch(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos face) {
-    if (++this.sinceTorch < BLOCKS_PER_TORCH) {
-      return;
+    int layer = -this.offset.getY();
+    if (layer == this.torchedLayer) {
+      return; // this layer of the descent is already lit
     }
     Level level = person.level();
-    // Already lit, or still in the daylit approach near the mouth -> no torch wanted
-    // here; reset and wait out another full interval before trying again.
+    // Already lit (the last torch still reaches here), or still in the daylit
+    // approach near the mouth: no torch wanted at this cell.
     if (level.getMaxLocalRawBrightness(face) >= 8 || mouth.getY() - face.getY() < TORCH_MIN_DEPTH) {
-      this.sinceTorch = 0;
       return;
     }
     // Hang it on a wall that STAYS put -- a solid cell just outside the dig corridor,
     // so the cursor never comes back and digs the torch's own support out. Work in the
     // mine's local frame to tell corridor (will be dug) from wall, then rotate to the
-    // world for the block ops. A centre cell has no such wall: leave the counter hot
-    // and try again next block rather than skipping a whole interval into the dark.
+    // world for the block ops. A centre cell has no such wall: try again at the next
+    // broken block of this layer rather than leaving the layer dark.
     for (Direction local : Direction.Plane.HORIZONTAL) {
       if (withinCorridor(this.offset.relative(local))) {
         continue;
@@ -380,9 +326,9 @@ public final class MineStep implements BlockWorkStep {
       if (person.removeItem(Items.TORCH, 1).getCount() >= 1) {
         level.setBlock(face, Blocks.WALL_TORCH.defaultBlockState()
             .setValue(WallTorchBlock.FACING, worldDir.getOpposite()), 3);
+        this.torchedLayer = layer;
       }
-      this.sinceTorch = 0; // placed, or out of torches -> reset either way
-      return;
+      return; // out of torches: leave the layer unlit until the pack is restocked
     }
   }
 
@@ -396,6 +342,19 @@ public final class MineStep implements BlockWorkStep {
     return Math.abs(local.getX()) <= RADIUS
         && local.getY() <= -1
         && local.getZ() >= -(RADIUS - 1);
+  }
+
+  /**
+   * Whether this cursor cell is the BOTTOM of its column's dug span - the cell
+   * whose underside is the ramp's floor. A layer at depth m sweeps the five rows
+   * z in [m-2, m+2], so a column at local z is dug down to y = -(z + 2), and
+   * only cells on that diagonal ever need a floor laid beneath them. (First
+   * shipped as -(z + 1), one above the true bottom: the "floor" landed in a cell
+   * the next layer's own sweep dug back out, live-caught as the same cell being
+   * floored twice.)
+   */
+  private boolean columnBottom(BlockPos local) {
+    return local.getY() == -(local.getZ() + 2);
   }
 
   /**
@@ -530,6 +489,7 @@ public final class MineStep implements BlockWorkStep {
     if (this.offset == null) {
       this.offset = new BlockPos(-(RADIUS + 1), -1, -(RADIUS - 1));
     }
+    this.placeFloor = false;
     int steps = 0;
     BlockPos facePos = null;
     do {
@@ -537,13 +497,19 @@ public final class MineStep implements BlockWorkStep {
         resetShaft();
         return false; // nothing solid within reach of the pattern; try again later
       }
-      this.offset = this.offset.offset(1, 0, 0);
-      if (this.offset.getX() >= RADIUS + 1) {
-        this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() + 1);
-      }
-      if (this.offset.getZ() >= RADIUS + 1 + this.inward) {
-        this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, this.inward - 1);
-        this.inward++;
+      if (this.holdCursor) {
+        // A floor was just laid under the current cell: re-evaluate it in place
+        // (it may still want digging) rather than sweeping past it.
+        this.holdCursor = false;
+      } else {
+        this.offset = this.offset.offset(1, 0, 0);
+        if (this.offset.getX() >= RADIUS + 1) {
+          this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() + 1);
+        }
+        if (this.offset.getZ() >= RADIUS + 1 + this.inward) {
+          this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, this.inward - 1);
+          this.inward++;
+        }
       }
       facePos = face(mouth, rotation);
       this.block = person.level().getBlockState(facePos).getBlock();
@@ -555,6 +521,17 @@ public final class MineStep implements BlockWorkStep {
       if ((this.block == Blocks.WATER || this.block == Blocks.LAVA) && carriesBucket(person)) {
         waterproof(person, mouth, rotation, this.offset);
         this.block = person.level().getBlockState(facePos).getBlock();
+      }
+      // The shaft has broken into a cave here: this cell is the bottom of its
+      // column's dug span and there is nothing under it to walk on. Completing
+      // the floor IS the work at this cell - one cobblestone along the cave's
+      // edge, before the sweep goes anywhere else. Without cobblestone the hole
+      // is left, and the ramp's own footing rules decide what stays reachable.
+      if (columnBottom(this.offset)
+          && person.level().getBlockState(facePos.below()).isAir()
+          && person.hasItem(Items.COBBLESTONE)) {
+        this.placeFloor = true;
+        return true;
       }
       // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
       // the cursor leaves the shaft's own lighting alone. Torches now hang on the
@@ -603,7 +580,8 @@ public final class MineStep implements BlockWorkStep {
     this.inward = 1;
     this.breakTime = 0;
     this.lastProgress = -1;
-    this.bridging = false;
+    this.placeFloor = false;
+    this.holdCursor = false;
   }
 
 }
