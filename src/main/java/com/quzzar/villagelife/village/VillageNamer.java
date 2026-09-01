@@ -2,6 +2,7 @@ package com.quzzar.villagelife.village;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.llm.LlmService;
@@ -11,11 +12,12 @@ import net.minecraft.server.level.ServerLevel;
 
 /**
  * Names a village at founding (campfire map #60, decided by Aaron: LLM-named
- * only, no rename mechanism). The request rides the low-priority persona
- * queue so founding never blocks: the village starts under a deterministic
- * word-list name and the generated name lands moments later, before anyone
- * has usually arrived. One retry on unparseable output, then the word-list
- * name simply stands.
+ * only, no rename mechanism). The name is requested BEFORE the camp is placed
+ * and the founding waits the moment it takes to land, so a village only ever
+ * has one name: no provisional name in logs, on residents, or anywhere else.
+ * One retry on unparseable output, then a word-list name stands. The LLM
+ * service always completes its future (empty on unavailability, error, or
+ * timeout), so the founding can never hang on this request.
  */
 public final class VillageNamer {
 
@@ -30,14 +32,12 @@ public final class VillageNamer {
   private VillageNamer() {
   }
 
-  /** A deterministic word-list name from the village id; never fails. */
-  public static String fallbackName(String villageId) {
-    int hash = villageId.hashCode();
-    return FIRST[Math.floorMod(hash, FIRST.length)] + SECOND[Math.floorMod(hash / 31, SECOND.length)];
-  }
-
-  /** Requests the founding name async; applies it (with a resident sweep) when it lands. */
-  public static void nameNewVillage(ServerLevel level, Village village, BlockPos center) {
+  /**
+   * Requests the founding name and hands the final choice to {@code onName} on
+   * the server thread: the LLM name when generation succeeds, a word-list name
+   * when it fails twice. Exactly one name is ever delivered.
+   */
+  public static void requestFoundingName(ServerLevel level, BlockPos center, Consumer<String> onName) {
     String biome = level.getBiome(center).unwrapKey()
         .map(key -> key.location().getPath().replace('_', ' '))
         .orElse("plains");
@@ -46,21 +46,24 @@ public final class VillageNamer {
         + " no quotes and no explanation.";
     String user = "A handful of settlers have raised a campfire and founded a tiny new camp in a "
         + biome + " landscape. Name the settlement.";
-    request(level, village, system, user, true);
+    request(level, system, user, true, onName);
   }
 
-  private static void request(ServerLevel level, Village village, String system, String user, boolean mayRetry) {
+  private static void request(ServerLevel level, String system, String user, boolean mayRetry,
+      Consumer<String> onName) {
     LlmService.get().submitPersona(system, user, 16, 0.7)
         .thenAccept(reply -> level.getServer().execute(() -> {
           Optional<String> name = reply.flatMap(VillageNamer::parse);
           if (name.isPresent()) {
-            village.applyName(name.get());
-            Villagelife.LOGGER.info("The new village is named '{}'", name.get());
+            onName.accept(name.get());
           } else if (mayRetry) {
             Villagelife.LOGGER.debug("Village name generation produced unusable output; retrying once");
-            request(level, village, system, user, false);
+            request(level, system, user, false, onName);
           } else {
-            Villagelife.LOGGER.info("Village name generation failed twice; '{}' stands", village.getName());
+            String fallback = FIRST[level.getRandom().nextInt(FIRST.length)]
+                + SECOND[level.getRandom().nextInt(SECOND.length)];
+            Villagelife.LOGGER.info("Village name generation failed twice; the word-list name '{}' stands", fallback);
+            onName.accept(fallback);
           }
         }));
   }

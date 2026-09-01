@@ -1,7 +1,9 @@
 package com.quzzar.villagelife.savedata;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.mojang.serialization.Codec;
 import com.quzzar.villagelife.Villagelife;
@@ -35,6 +37,11 @@ public class VillageManagerSaveData extends SavedData {
 
     // Runtime-only: the level this registry belongs to, re-attached on access.
     private ServerLevel level;
+
+    // Runtime-only: sites whose founding name is still being generated, so the
+    // generation tick cannot found the same site twice while the name is in
+    // flight. Touched on the server thread only.
+    private final Set<Long> pendingFoundings = new HashSet<>();
 
     public VillageManagerSaveData() {
     }
@@ -82,16 +89,25 @@ public class VillageManagerSaveData extends SavedData {
     }
 
     public void registerVillage(ServerLevelAccessor levelAccess, BlockPos location) {
-        // Founded under a deterministic word-list name; the LLM-generated name
-        // lands async moments later and stands permanently (#60).
-        Village village = new Village("New Camp");
-        village.applyName(com.quzzar.villagelife.village.VillageNamer.fallbackName(village.getID()));
+        // One name for life (#60): the LLM name is requested BEFORE the camp is
+        // placed, and founding runs when it lands moments later, so the village
+        // never carries a provisional name. The wait opens a short window in
+        // which VillageGeneration re-offers the same site every tick (the map
+        // holds no village there yet), so in-flight sites are remembered and
+        // skipped.
+        long site = location.asLong();
+        if (!pendingFoundings.add(site)) {
+            return;
+        }
         ServerLevel serverLevel = level != null ? level : levelAccess.getLevel();
-        village.attach(serverLevel);
-        villages.put(village.getID(), village);
-        village.initNew(location);
-        com.quzzar.villagelife.village.VillageNamer.nameNewVillage(serverLevel, village, location);
-        setDirty();
+        com.quzzar.villagelife.village.VillageNamer.requestFoundingName(serverLevel, location, name -> {
+            pendingFoundings.remove(site);
+            Village village = new Village(name);
+            village.attach(serverLevel);
+            villages.put(village.getID(), village);
+            village.initNew(location);
+            setDirty();
+        });
     }
 
     /** Runs every second, driven by the overworld tick handler. */
