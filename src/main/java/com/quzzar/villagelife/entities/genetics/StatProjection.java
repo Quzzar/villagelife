@@ -68,11 +68,14 @@ public final class StatProjection {
       new Contribution(Attributes.FOLLOW_RANGE, Stat.WISDOM, Operation.ADD_MULTIPLIED_BASE, MINOR));
 
   private static final List<ConditionEffect> CONDITION_EFFECTS = List.of(
-      new ConditionEffect(GeneticCondition.GIGANTISM, Attributes.SCALE, Operation.ADD_MULTIPLIED_BASE, 0.45D),
+      // Scale swings kept modest so a giant or dwarf still reads as an adult person,
+      // not a cartoon: a dwarf lands near four-fifths height, a giant near six-fifths,
+      // rather than child- and ogre-sized. The other condition effects are unchanged.
+      new ConditionEffect(GeneticCondition.GIGANTISM, Attributes.SCALE, Operation.ADD_MULTIPLIED_BASE, 0.20D),
       new ConditionEffect(GeneticCondition.GIGANTISM, Attributes.MAX_HEALTH, Operation.ADD_MULTIPLIED_BASE, 0.20D),
       new ConditionEffect(GeneticCondition.GIGANTISM, Attributes.KNOCKBACK_RESISTANCE, Operation.ADD_VALUE, 0.20D),
       new ConditionEffect(GeneticCondition.GIGANTISM, Attributes.MOVEMENT_SPEED, Operation.ADD_MULTIPLIED_BASE, -0.08D),
-      new ConditionEffect(GeneticCondition.DWARFISM, Attributes.SCALE, Operation.ADD_MULTIPLIED_BASE, -0.35D),
+      new ConditionEffect(GeneticCondition.DWARFISM, Attributes.SCALE, Operation.ADD_MULTIPLIED_BASE, -0.15D),
       new ConditionEffect(GeneticCondition.DWARFISM, Attributes.MAX_HEALTH, Operation.ADD_MULTIPLIED_BASE, -0.10D),
       new ConditionEffect(GeneticCondition.DWARFISM, Attributes.ATTACK_DAMAGE, Operation.ADD_MULTIPLIED_BASE, -0.10D),
       new ConditionEffect(GeneticCondition.DWARFISM, Attributes.MOVEMENT_SPEED, Operation.ADD_MULTIPLIED_BASE, 0.05D));

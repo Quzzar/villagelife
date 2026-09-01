@@ -134,8 +134,12 @@ the tallest thing in the village.
 
 | Condition | Chance | Effects |
 | --- | --- | --- |
-| Gigantism | 0.5% | Scale +45%, max health +20%, knockback resistance +0.2, speed -8% |
-| Dwarfism | 0.5% | Scale -35%, max health -10%, attack damage -10%, speed +5% |
+| Gigantism | 0.5% | Scale +20%, max health +20%, knockback resistance +0.2, speed -8% |
+| Dwarfism | 0.5% | Scale -15%, max health -10%, attack damage -10%, speed +5% |
+
+The scale swings are deliberately modest: a giant reads as a tall adult (about six-fifths
+height) and a dwarf as a short one (about four-fifths), not an ogre or a child. The other
+effects carry the drama.
 
 The enum is the extension point: future conditions (visual ones like albinism or
 heterochromia, temperament ones) are new entries plus their effect rows, nothing more.
