@@ -2,10 +2,10 @@ package com.quzzar.villagelife.entities.ai.goals.work;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.FarmedStock;
 import com.quzzar.villagelife.village.LocationManager;
-import com.quzzar.villagelife.village.Village;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
@@ -14,7 +14,6 @@ import net.minecraft.world.entity.animal.Chicken;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 
@@ -30,6 +29,11 @@ import net.minecraft.world.phys.AABB;
  * a breeding partner of its own kind on the ground: a lone animal, an odd one
  * out, or a stray wolf is left alone rather than fed wheat it can do nothing
  * with.
+ *
+ * <b>The wheat rides in the herder's pack</b>, carried out from a chest by the
+ * {@link FetchStep} ahead of this loop (docs/worker-loops.md, "Nothing
+ * teleports"): an empty pocket on the pasture means a walk back for more, not
+ * grain conjured across the village.
  */
 public final class HerdStep implements WorkStep<Animal> {
 
@@ -79,9 +83,9 @@ public final class HerdStep implements WorkStep<Animal> {
       return false;
     }
     // Otherwise a grown animal with a partner worth breeding: spend a little grain
-    // to set it courting, and vanilla pairs two that are in love near each other.
-    Village village = person.getVillage();
-    if (village != null && spendGrain(village)) {
+    // from the pack to set it courting, and vanilla pairs two that are in love
+    // near each other.
+    if (spendGrain(person)) {
       target.setInLove(null);
     }
     return false;
@@ -112,7 +116,7 @@ public final class HerdStep implements WorkStep<Animal> {
     // A grown animal is worth walking to only when there is grain to spend AND a
     // partner of its own kind to spend it on -- otherwise the wheat is wasted on
     // an animal that cannot breed.
-    return animal.canFallInLove() && hasGrain(person.getVillage())
+    return animal.canFallInLove() && hasGrain(person)
         && hasBreedingPartner(person, animal);
   }
 
@@ -138,15 +142,12 @@ public final class HerdStep implements WorkStep<Animal> {
         || animal instanceof Sheep || animal instanceof Chicken;
   }
 
-  private boolean hasGrain(@Nullable Village village) {
-    return village != null && village.hasItemStackInVillage(new ItemStack(Items.WHEAT, 1));
+  /** Wheat in the herder's own pack; the fetch trip keeps it stocked. */
+  private boolean hasGrain(RealPerson person) {
+    return PackLogistics.carried(person, Items.WHEAT) > 0;
   }
 
-  private boolean spendGrain(Village village) {
-    if (!village.hasItemStackInVillage(new ItemStack(Items.WHEAT, 1))) {
-      return false;
-    }
-    village.gatherItemStackFromVillage(new ItemStack(Items.WHEAT, 1));
-    return true;
+  private boolean spendGrain(RealPerson person) {
+    return Utils.removeItem(person.personMainInv, Items.WHEAT, 1).getCount() == 1;
   }
 }

@@ -23,6 +23,39 @@ center's bell is not in its recipe but exists in the built result. That is the o
 invents matter, and it exists so nobody has to author a recipe listing all 400 blocks of a town
 hall.
 
+### Nothing teleports
+
+**An item moves between a chest and a worker only in that worker's own hands** (decided
+2026-09-01). For a long time this held only for the honest few - the builder gathering a
+recipe (`GatherStep`), the gatherers hauling their take home (`HaulStep`), the quartermaster
+shelving (`ConsolidateStep`) - while every consuming loop pulled its materials out of village
+storage from wherever its worker stood: the mason's cobblestone, the cook's raw meat, the
+herder's wheat, the wall-builder's timber all crossed the village instantly. The economy was
+honest (items existed, were debited once, and conserved), but the fetch trip was theater the
+simulation skipped.
+
+Now every consuming loop walks the same walk the builder always did, on one shared set of
+mechanics (`PackLogistics`): find the nearest chest holding what the pack still lacks, carry
+it in the pack, do the work, and carry the product back to a chest with room. A chest visit
+serves both directions at once - finished goods are set down first, which is what frees the
+space the next load comes out of. Loops that spend supplies away from any chest (the herder's
+breeding wheat) run a `FetchStep` ahead of the work: a provisioning trip that fills the pack
+to a working level so one walk covers many spends.
+
+What this buys is the same thing every other physical rule buys: the walk is visible, the
+worker can be met on the road, killed and robbed on it (materials in a pack are dropped on
+death, exactly like the builder's recipe window), and a distant chest is genuinely worth less
+than a near one, which makes storage placement matter. What it costs is pathing: a fetch trip
+can fail the way any walk can, and a loop that cannot reach a chest waits rather than
+conjuring - which reads, correctly, as a village whose storage is badly placed.
+
+Two knowing remainders, kept deliberately for now: **bedtime provisioning** (workers pulling
+their role's gear, torches, and seeds at the end of the day, plus the silent bedtime crafts)
+still draws from stores at a distance, pending a design for a morning provisioning round that
+does not send villagers walking in the dark; and **village-scale acts** (site-preparation
+fill, market trades) are the village acting as an institution rather than any one worker, and
+carry no fetch trip to skip.
+
 ## Three verbs
 
 A job is an **ordered array** of three verbs, any length, any order.

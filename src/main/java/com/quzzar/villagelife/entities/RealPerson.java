@@ -62,6 +62,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.WallStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MarketStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HuntStep;
+import com.quzzar.villagelife.entities.ai.goals.work.FetchStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
@@ -1343,7 +1344,10 @@ public class RealPerson extends Person {
       // Shears wool and breeds the herd rather than culling it -- the pasture's
       // renewable half, distinct from the hunter's. Haul carries the sheared wool
       // home; without it the CLOTH output strands in the herder's own pack.
+      // Fetch carries the breeding wheat OUT: an empty pocket refills from a
+      // chest before the round, so no grain is conjured across the village.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FetchStep(Items.WHEAT, 8)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HerdStep()));
     }
     if (getOccupation().isIdle()) {

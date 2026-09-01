@@ -1,15 +1,18 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -35,14 +38,16 @@ import net.minecraft.world.level.block.state.BlockState;
  * butchery its BUTCHER out-produces the fireside, and this quietly matters less
  * without any explicit hand-off - the butcher simply drains the stores first.
  *
- * Physical where it can be: the target is the town's real lit campfire and the
- * raw item genuinely roasts on it via {@link CampfireBlockEntity#placeFood}. The
- * transform itself is read from the vanilla campfire recipe set, so any
- * campfire-cookable item counts, modded ones for free, rather than being
- * hand-listed like the butcher's six meats. This step owns the timing and lifts
- * the cooked food straight into village stores, so the fire's own cook tick
- * never finishes first and drops it on the ground (the liberty CompostStep also
- * takes with its bone meal).
+ * <b>Physical all the way through.</b> The raw food is fetched from a real
+ * chest into the cook's pack, genuinely roasts on the town's lit campfire via
+ * {@link CampfireBlockEntity#placeFood}, and the cooked food is carried back to
+ * a chest by hand (docs/worker-loops.md, "Nothing teleports"). The transform
+ * itself is read from the vanilla campfire recipe set, so any campfire-cookable
+ * item counts, modded ones for free, rather than being hand-listed like the
+ * butcher's six meats. This step owns the timing and lifts the cooked food
+ * straight into the cook's pack, so the fire's own cook tick never finishes
+ * first and drops it on the ground (the liberty CompostStep also takes with its
+ * bone meal).
  */
 public final class CookStep implements BlockWorkStep {
 
@@ -56,9 +61,16 @@ public final class CookStep implements BlockWorkStep {
    */
   private static final int FIRE_COOK_TICKS = 20 * 60;
 
+  /** Raw items carried per fetch trip: a campfire's four slots' worth. */
+  private static final int RAWS_PER_TRIP = 4;
+
   /** The raw items any campfire recipe accepts, resolved once from the recipe set. */
   @Nullable
   private Set<Item> cookableRaws;
+
+  /** What those recipes produce, so the cook knows their own output to shelve. */
+  @Nullable
+  private Set<Item> cookedResults;
 
   /** The raw item currently roasting on the fire, or null when tending nothing. */
   @Nullable
@@ -80,48 +92,82 @@ public final class CookStep implements BlockWorkStep {
     if (this.roasting != null) {
       return fire;
     }
-    return findCookableRaw(person, village) == null ? null : fire;
+    // Raw in the pack: to the fire.
+    if (rawInPack(person) != null) {
+      return fire;
+    }
+    // Otherwise a chest: one holding raw food, or failing that, one with room
+    // for the cooked food still in the pack.
+    BlockPos source = chestWithRaw(person, village);
+    if (source != null) {
+      return source;
+    }
+    Item cooked = cookedInPack(person);
+    if (cooked != null) {
+      return PackLogistics.chestWithRoomFor(person, village, new ItemStack(cooked));
+    }
+    return null;
   }
 
   @Override
-  public boolean act(RealPerson person, BlockPos fire) {
+  public boolean act(RealPerson person, BlockPos target) {
     Village village = person.getVillage();
     if (village == null) {
       return false;
     }
+    Container chest = PackLogistics.containerAt(person, target);
+    if (chest != null) {
+      return visitChest(person, chest);
+    }
     Level level = person.level();
-    BlockState state = level.getBlockState(fire);
+    BlockState state = level.getBlockState(target);
     if (!state.is(Blocks.CAMPFIRE) || !state.getValue(CampfireBlock.LIT)
-        || !(level.getBlockEntity(fire) instanceof CampfireBlockEntity campfire)) {
-      // The fire went out or was taken. Hand back anything taken but not yet
-      // cooked so the stores stay balanced, then go and select afresh.
+        || !(level.getBlockEntity(target) instanceof CampfireBlockEntity campfire)) {
+      // The fire went out or was taken. The raw mid-roast goes back into the
+      // pack so nothing is lost, then go and select afresh.
       abandonRoast(person, null, null, null, null);
       return false;
     }
 
     if (this.roasting == null) {
-      return startRoast(person, village, campfire, fire);
+      return startRoast(person, campfire, target);
     }
-    return finishRoast(person, village, campfire, fire, state, level);
+    return finishRoast(person, campfire, target, state, level);
   }
 
-  /** Take one raw item from stores and set it roasting on the fire. */
-  private boolean startRoast(RealPerson person, Village village, CampfireBlockEntity campfire,
-      BlockPos fire) {
+  /** Shelve the cooked food carried, then load up raw food, in one visit. */
+  private boolean visitChest(RealPerson person, Container chest) {
+    Item cooked = cookedInPack(person);
+    if (cooked != null) {
+      PackLogistics.depositCarried(person, chest, cooked, "COOK");
+    }
+    int carriedRaw = countRawInPack(person);
+    for (Item raw : cookableRaws(person.level())) {
+      if (carriedRaw >= RAWS_PER_TRIP) {
+        break;
+      }
+      carriedRaw += PackLogistics.pullWanted(person, chest,
+          List.of(new ItemStack(raw, RAWS_PER_TRIP - carriedRaw)), "COOK");
+    }
+    return false; // re-select: the fire if loaded, another chest if not
+  }
+
+  /** Take one raw item from the pack and set it roasting on the fire. */
+  private boolean startRoast(RealPerson person, CampfireBlockEntity campfire, BlockPos fire) {
     if (!hasFreeSlot(campfire)) {
       return true; // fire is full of other cooks; wait rather than pull food out
     }
-    Item raw = findCookableRaw(person, village);
+    Item raw = rawInPack(person);
     if (raw == null) {
-      return false; // stores hold nothing the fire can cook; back to select
+      return false; // pack is empty of raw food; back to select
     }
-    ItemStack taken = village.gatherItemStackFromVillage(new ItemStack(raw, 1));
+    ItemStack taken = Utils.removeItem(person.personMainInv, raw, 1);
     if (taken.isEmpty()) {
-      return false; // it was there a scan ago and is not now; give up this pass
+      return false;
     }
     if (!campfire.placeFood(person, new ItemStack(raw, 1), FIRE_COOK_TICKS)) {
-      // Lost the slot to a race after the free-slot check: hand the raw back.
-      village.placeItemStackIntoVillage(taken, person, fire);
+      // Lost the slot to a race after the free-slot check: back into the pack.
+      Utils.insertItems(person.personMainInv, List.of(taken), person);
       return true;
     }
     person.setPose(Pose.CROUCHING);
@@ -130,8 +176,8 @@ public final class CookStep implements BlockWorkStep {
     return true;
   }
 
-  /** Once the timer is up, lift the cooked food into stores and clear the fire. */
-  private boolean finishRoast(RealPerson person, Village village, CampfireBlockEntity campfire,
+  /** Once the timer is up, lift the cooked food into the pack and clear the fire. */
+  private boolean finishRoast(RealPerson person, CampfireBlockEntity campfire,
       BlockPos fire, BlockState state, Level level) {
     if (person.tickCount < this.collectAtTick) {
       return true; // still roasting
@@ -143,10 +189,11 @@ public final class CookStep implements BlockWorkStep {
     this.roasting = null;
     clearFromFire(campfire, fire, state, level, raw);
     person.setPose(Pose.STANDING);
-    // Deposit the cooked food, or hand the raw straight back if its recipe
-    // vanished on a datapack reload, so the stores lose the item either way.
+    // Into the pack, or the raw straight back if its recipe vanished on a
+    // datapack reload; the carry home happens on the next select either way.
     ItemStack out = cooked.isEmpty() ? new ItemStack(raw) : cooked;
-    return village.placeItemStackIntoVillage(out, person, fire);
+    Utils.insertItems(person.personMainInv, List.of(out), person);
+    return true;
   }
 
   @Override
@@ -159,8 +206,8 @@ public final class CookStep implements BlockWorkStep {
   }
 
   /**
-   * Give up an in-progress roast cleanly: the raw was already taken from stores,
-   * so return it, and wipe the cosmetic item off the fire when it is still there.
+   * Give up an in-progress roast cleanly: the raw came out of the pack, so it
+   * goes back in, and the cosmetic item is wiped off the fire when still there.
    */
   private void abandonRoast(RealPerson person, @Nullable CampfireBlockEntity campfire,
       @Nullable BlockPos fire, @Nullable BlockState state, @Nullable Level level) {
@@ -168,11 +215,8 @@ public final class CookStep implements BlockWorkStep {
     if (this.roasting == null) {
       return;
     }
-    Village village = person.getVillage();
     Item raw = this.roasting.getItem();
-    if (village != null) {
-      village.placeItemStackIntoVillage(new ItemStack(raw), person, fire);
-    }
+    Utils.insertItems(person.personMainInv, List.of(new ItemStack(raw)), person);
     this.roasting = null;
     if (campfire != null && fire != null && state != null && level != null) {
       clearFromFire(campfire, fire, state, level, raw);
@@ -196,26 +240,57 @@ public final class CookStep implements BlockWorkStep {
     return true;
   }
 
-  /** The first raw item in the campfire recipe set the village actually holds. */
+  /** The first campfire-cookable raw item in the cook's own pack, or null. */
   @Nullable
-  private Item findCookableRaw(RealPerson person, Village village) {
+  private Item rawInPack(RealPerson person) {
     for (Item raw : cookableRaws(person.level())) {
-      if (village.hasItemStackInVillage(new ItemStack(raw))) {
+      if (PackLogistics.carried(person, raw) > 0) {
         return raw;
       }
     }
     return null;
   }
 
+  private int countRawInPack(RealPerson person) {
+    int count = 0;
+    for (Item raw : cookableRaws(person.level())) {
+      count += PackLogistics.carried(person, raw);
+    }
+    return count;
+  }
+
+  /** The first cooked result in the pack still owed to a chest, or null. */
+  @Nullable
+  private Item cookedInPack(RealPerson person) {
+    cookableRaws(person.level()); // resolves cookedResults alongside
+    for (Item cooked : this.cookedResults) {
+      if (PackLogistics.carried(person, cooked) > 0) {
+        return cooked;
+      }
+    }
+    return null;
+  }
+
+  /** The nearest chest holding any raw the fire can cook, or null. */
+  @Nullable
+  private BlockPos chestWithRaw(RealPerson person, Village village) {
+    List<ItemStack> wanted = cookableRaws(person.level()).stream()
+        .map(raw -> new ItemStack(raw, RAWS_PER_TRIP))
+        .toList();
+    return wanted.isEmpty() ? null : PackLogistics.chestHolding(person, village, wanted);
+  }
+
   /**
-   * Every item a campfire recipe accepts as input, resolved once and kept. A
-   * datapack reload is the only thing that changes the set, and the butcher's
-   * own recipes are hard-listed anyway, so a cache that outlives a reload is a
-   * fair trade for not walking the recipe set on every scan.
+   * Every item a campfire recipe accepts as input, resolved once and kept,
+   * with the matching results alongside. A datapack reload is the only thing
+   * that changes the set, and the butcher's own recipes are hard-listed anyway,
+   * so a cache that outlives a reload is a fair trade for not walking the
+   * recipe set on every scan.
    */
   private Set<Item> cookableRaws(Level level) {
     if (this.cookableRaws == null) {
       Set<Item> raws = new HashSet<>();
+      Set<Item> results = new HashSet<>();
       for (RecipeHolder<CampfireCookingRecipe> holder
           : level.getRecipeManager().getAllRecipesFor(RecipeType.CAMPFIRE_COOKING)) {
         NonNullList<Ingredient> inputs = holder.value().getIngredients();
@@ -225,8 +300,10 @@ public final class CookStep implements BlockWorkStep {
         for (ItemStack in : inputs.get(0).getItems()) {
           raws.add(in.getItem());
         }
+        results.add(holder.value().getResultItem(level.registryAccess()).getItem());
       }
       this.cookableRaws = raws;
+      this.cookedResults = results;
     }
     return this.cookableRaws;
   }

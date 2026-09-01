@@ -5,6 +5,7 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
@@ -13,6 +14,7 @@ import com.quzzar.villagelife.village.Village;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -27,12 +29,14 @@ import net.minecraft.world.item.Items;
  * for, and stops once it holds enough of each.
  *
  * <p>Raw iron is smelted to ingots elsewhere in the blacksmith's loop (a plain
- * CraftStep); this step turns those ingots into tools and buckets. Producing gear
- * is only half the equipment economy - villagers grabbing their role's gear from
- * the stores is the other half, done at bedtime (goToBed / equipBestPossibleGear) -
- * but the bucket alone closes a real
- * gap: the miner needs one to clear water and lava and cannot make it, so without
- * a blacksmith it never gets one. Buckets come first here for exactly that reason.
+ * CraftStep); this step turns those ingots into tools and buckets. The iron is
+ * fetched from a real chest into the smith's pack, forged at the anvil, and the
+ * finished piece walked back to a chest (docs/worker-loops.md, "Nothing
+ * teleports"). Producing gear is only half the equipment economy - villagers
+ * grabbing their role's gear from the stores is the other half, done at bedtime
+ * (goToBed / equipBestPossibleGear) - but the bucket alone closes a real gap:
+ * the miner needs one to clear water and lava and cannot make it, so without a
+ * blacksmith it never gets one. Buckets come first here for exactly that reason.
  */
 public final class BlacksmithStep implements BlockWorkStep {
 
@@ -72,35 +76,54 @@ public final class BlacksmithStep implements BlockWorkStep {
     if (village == null) {
       return null;
     }
-    Gear need = nextNeed(village);
+    // Finished gear on the back goes to a chest before anything else: the
+    // bedtime restock reads chests, not the smith's pack.
+    Item forged = forgedInPack(person);
+    if (forged != null) {
+      return PackLogistics.chestWithRoomFor(person, village, new ItemStack(forged));
+    }
+    Gear need = nextNeed(person, village);
     if (need == null) {
       return null;
     }
     this.making = need;
-    BlockPos station = LocationManager.getJobLocation(person);
-    return station == BlockPos.ZERO ? null : station;
+    // Iron in hand: to the anvil. Short: to a chest that holds the rest.
+    if (!PackLogistics.packShort(person, List.of(need.cost()))) {
+      BlockPos station = LocationManager.getJobLocation(person);
+      return station == BlockPos.ZERO ? null : station;
+    }
+    return PackLogistics.chestHolding(person, village, List.of(need.cost()));
   }
 
   @Override
   public boolean act(RealPerson person, BlockPos target) {
     Village village = person.getVillage();
-    if (village == null || this.making == null
-        || !village.hasItemStackInVillage(this.making.cost())) {
+    if (village == null || this.making == null) {
       return false;
+    }
+    Container chest = PackLogistics.containerAt(person, target);
+    if (chest != null) {
+      Item forged = forgedInPack(person);
+      if (forged != null) {
+        PackLogistics.depositCarried(person, chest, forged, "BLACKSMITH");
+      }
+      PackLogistics.pullWanted(person, chest, List.of(this.making.cost()), "BLACKSMITH");
+      return false; // re-select: the anvil if paid up, another chest if not
+    }
+    if (PackLogistics.packShort(person, List.of(this.making.cost()))) {
+      return false; // robbed or wrong anvil; back to select
     }
     person.setPose(Pose.CROUCHING);
     person.level().playSound((Player) null, target.getX(), target.getY(), target.getZ(),
         SoundEvents.ANVIL_USE, SoundSource.PLAYERS, 0.4F, person.getRandom().nextFloat() * 0.4F + 0.6F);
-    village.gatherItemStackFromVillage(this.making.cost());
-    // Copy the template output - the gear list is shared, so the inserted stack
+    Utils.removeItem(person.personMainInv, this.making.cost().getItem(), this.making.cost().getCount());
+    // Copy the template output - the gear list is shared, so the forged stack
     // must not be the one the recipe is defined with.
-    boolean placed = village.placeItemStackIntoVillage(this.making.output().copy(), person, target);
-    if (placed) {
-      Villagelife.LOGGER.debug("[resource-flow] {} (BLACKSMITH) forged a {}",
-          person.getName().getString(), this.making.output().getItem());
-    }
-    // Keep working while there is room for it and something still worth making.
-    return placed && nextNeed(village) != null;
+    Utils.insertItems(person.personMainInv, List.of(this.making.output().copy()), person);
+    Villagelife.LOGGER.debug("[resource-flow] {} (BLACKSMITH) forged a {}",
+        person.getName().getString(), this.making.output().getItem());
+    // Re-select walks the piece to a chest; the next need is chosen after.
+    return false;
   }
 
   @Override
@@ -118,15 +141,31 @@ public final class BlacksmithStep implements BlockWorkStep {
     return 20 * FORGE_SECONDS;
   }
 
-  /** The first gear the village is short of and can pay the iron for; null if none. */
+  /** A finished piece still in the pack, owed to a chest, or null. */
   @Nullable
-  private Gear nextNeed(Village village) {
+  private Item forgedInPack(RealPerson person) {
+    for (Gear gear : GEAR) {
+      if (PackLogistics.carried(person, gear.output().getItem()) > 0) {
+        return gear.output().getItem();
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The first gear the village is short of and can pay the iron for - counting
+   * the smith's own pack, so a fetched load still counts while it is carried.
+   */
+  @Nullable
+  private Gear nextNeed(RealPerson person, Village village) {
     Map<Item, Integer> stock = village.stockTally();
     for (Gear gear : GEAR) {
       if (stock.getOrDefault(gear.output().getItem(), 0) >= gear.keep()) {
         continue;
       }
-      if (!village.hasItemStackInVillage(gear.cost())) {
+      int onHand = stock.getOrDefault(gear.cost().getItem(), 0)
+          + PackLogistics.carried(person, gear.cost().getItem());
+      if (onHand < gear.cost().getCount()) {
         continue;
       }
       return gear;

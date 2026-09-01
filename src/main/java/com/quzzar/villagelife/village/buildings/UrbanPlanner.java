@@ -12,7 +12,6 @@ import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageRequests;
-import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -528,21 +527,6 @@ public class UrbanPlanner {
       }
     }
     return true;
-  }
-
-  public static boolean payForBuilding(Village village, BuildingInfo build){
-    boolean paidFullCost = true;
-    for(ItemStack itemCost : build.getMaterialCost()){
-
-      ItemStack gatheredStack = village.gatherItemStackFromVillage(itemCost);
-      if(gatheredStack.getCount() < itemCost.getCount()){
-        paidFullCost = false;
-        village.logEvent(new NoResourceBookkeepingEvent(itemCost.getItem(),
-            itemCost.getCount() - gatheredStack.getCount()));
-      }
-
-    }
-    return paidFullCost;
   }
 
   /**
