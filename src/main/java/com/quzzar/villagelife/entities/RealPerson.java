@@ -115,7 +115,6 @@ import net.minecraft.util.RandomSource;
 public class RealPerson extends Person {
 
   // Constants
-  private static final double UNISEX_NAME_CHANCE = 0.1;
   private static final int MIN_FAV_ITEMS = 3, MAX_FAV_ITEMS = 7;
 
   // Variables
@@ -228,10 +227,12 @@ public class RealPerson extends Person {
 
     // Parse JSON array from lang file, get random first/last name, set it to entity
     // name
-    boolean isUnisexName = (rand.nextDouble() < UNISEX_NAME_CHANCE);
+    // Draw the given name from the villager's OWN gender so it matches their
+    // gendered skin: a bearded man never lands a woman's name. Nonbinary
+    // villagers draw from the nonbinary list, which is the androgynous pool.
     JsonArray firstNameArray = JsonParser
         .parseString(Component.translatable(personality.name().toLowerCase() + "."
-            + ((isUnisexName) ? "nonbinary" : getGender().name().toLowerCase()) + ".first_names").getString())
+            + getGender().name().toLowerCase() + ".first_names").getString())
         .getAsJsonArray();
     setFirstName(firstNameArray.get(rand.nextInt(firstNameArray.size())).getAsString());
 
