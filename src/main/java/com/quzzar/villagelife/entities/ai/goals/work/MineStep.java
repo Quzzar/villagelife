@@ -487,8 +487,15 @@ public final class MineStep implements BlockWorkStep {
     }
     Level level = person.level();
     // Already lit (the last torch still reaches here), or still in the daylit
-    // approach near the mouth: no torch wanted at this cell.
-    if (level.getMaxLocalRawBrightness(face) >= 8 || mouth.getY() - face.getY() < TORCH_MIN_DEPTH) {
+    // approach near the mouth: no torch wanted at this cell. The light is read
+    // at the miner's feet, not at the cell just dug: a changed block's light is
+    // recomputed on the light engine's own thread (ThreadedLevelLightEngine
+    // queues checkBlock), so the freshly opened cell still reads the zero of
+    // the stone it was, every layer looked dark, and a torch went on every
+    // step down. The miner stands a block or two from the face on ground that
+    // has been open for a while, so its light is settled.
+    if (level.getMaxLocalRawBrightness(person.blockPosition()) >= 8
+        || mouth.getY() - face.getY() < TORCH_MIN_DEPTH) {
       return;
     }
     // Hang it on a wall that STAYS put -- a solid cell just outside the dig corridor,
