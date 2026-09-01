@@ -259,8 +259,21 @@ public class UrbanPlanner {
       if (report.deathImpact() > 0.5F) {
         situation.append("There have been deaths recently. ");
       }
-      if (population > beds) {
-        situation.append("Some people have nowhere to sleep. ");
+      // Free beds are a resource in their own right. Employment requires housing,
+      // so a village at zero free beds can neither take in a newcomer nor house
+      // anyone for an open post: an unstaffed workshop stays unstaffed until a bed
+      // frees up or a home is built. Stated as a fact so the model can see that
+      // building housing is what breaks that logjam, and choose it or not.
+      if (report.homelessCount() > 0) {
+        situation.append(report.homelessCount())
+            .append(report.homelessCount() == 1 ? " person has" : " people have")
+            .append(" nowhere to sleep. ");
+      } else if (report.freeBeds() == 0) {
+        situation.append("Every bed is taken, so no one new can move in and no empty post can be "
+            + "staffed until more beds are built. ");
+      } else {
+        situation.append(report.freeBeds())
+            .append(report.freeBeds() == 1 ? " bed stands free. " : " beds stand free. ");
       }
     }
     if (!producesFood(village)) {
