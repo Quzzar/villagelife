@@ -47,6 +47,20 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
     }
 
     /**
+     * A villager's name tag normally shows only when the player looks straight at
+     * them, and the speech bubble rides on the name tag. Force it on whenever a
+     * bubble is live, so overheard conversation is visible without aiming at the
+     * speaker; the rest of the time it defers to the usual look-at behaviour.
+     */
+    @Override
+    protected boolean shouldShowName(Person entity) {
+        if (VillagerSpeechBubbles.visibleText(entity.getId()) != null) {
+            return true;
+        }
+        return super.shouldShowName(entity);
+    }
+
+    /**
      * Renders the name, then the person's role as a smaller gray second line
      * beneath it: their title if they have one, otherwise their occupation.
      * Only RealPersons carry a role, so plain Persons show the name alone.
@@ -57,15 +71,7 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
         super.renderNameTag(entity, displayName, poseStack, bufferSource, packedLight, partialTick);
         String speech = VillagerSpeechBubbles.visibleText(entity.getId());
         if (speech != null) {
-            java.util.List<String> lines = wrapSpeech(speech);
-            for (int lineIndex = 0; lineIndex < Math.min(lines.size(), 3); lineIndex++) {
-                poseStack.pushPose();
-                poseStack.translate(0.0D, 0.55D + (lines.size() - lineIndex - 1) * 0.25D, 0.0D);
-                super.renderNameTag(entity,
-                        net.minecraft.network.chat.Component.literal(lines.get(lineIndex)),
-                        poseStack, bufferSource, packedLight, partialTick);
-                poseStack.popPose();
-            }
+            renderSpeechBubble(entity, speech, poseStack, bufferSource, packedLight);
         }
         if (entity instanceof com.quzzar.villagelife.entities.RealPerson person
                 && !person.getRoleLabel().isBlank()) {
@@ -77,6 +83,134 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
                     poseStack, bufferSource, packedLight, partialTick);
             poseStack.popPose();
         }
+    }
+
+    /** World units per bubble text pixel: a touch smaller than the name tag's 0.025. */
+    private static final float BUBBLE_SCALE = 0.021F;
+
+    /** Bubble body: warm near-white, so speech reads inverted from the dark name tag. */
+    private static final int BUBBLE_BODY_R = 252, BUBBLE_BODY_G = 250, BUBBLE_BODY_B = 244, BUBBLE_BODY_A = 244;
+
+    /** One-pixel outline in the text's dark slate, so the bubble pops off the sky. */
+    private static final int BUBBLE_BORDER_R = 47, BUBBLE_BORDER_G = 47, BUBBLE_BORDER_B = 56, BUBBLE_BORDER_A = 255;
+
+    /** Bubble text: dark slate on the light body. */
+    private static final int BUBBLE_TEXT = 0xFF2F2F38;
+
+    /** Faint pass drawn through walls, matching how name tags stay legible. */
+    private static final int BUBBLE_TEXT_SEE_THROUGH = 0x502F2F38;
+
+    /** The through-wall ghost of the body, kept faint so it reads as a hint. */
+    private static final int BUBBLE_BODY_SEE_THROUGH_A = 70;
+
+    private static final int BUBBLE_PAD_X = 4;
+    private static final int BUBBLE_PAD_Y = 3;
+    private static final int BUBBLE_TAIL_HEIGHT = 4;
+
+    /** World-space gap between the name tag and the tail tip. */
+    private static final float BUBBLE_CLEARANCE = 0.10F;
+
+    /**
+     * A comic-style speech bubble above the name tag: a light rounded body, dark
+     * text, and a small tail pointing at the speaker. Drawn as our own billboard
+     * rather than stacked name tags, so the shape actually reads as a bubble.
+     */
+    private void renderSpeechBubble(Person entity, String speech, PoseStack poseStack,
+            MultiBufferSource bufferSource, int packedLight) {
+        java.util.List<String> lines = wrapSpeech(speech);
+        if (lines.isEmpty()) {
+            return;
+        }
+        net.minecraft.client.gui.Font font = this.getFont();
+        int lineHeight = font.lineHeight + 1;
+        int textWidth = 0;
+        for (String line : lines) {
+            textWidth = Math.max(textWidth, font.width(line));
+        }
+        int halfWidth = textWidth / 2 + BUBBLE_PAD_X;
+        int bodyHeight = lines.size() * lineHeight + BUBBLE_PAD_Y * 2 - 1;
+
+        poseStack.pushPose();
+        // Anchor the bubble's top so its tail ends just above the floating name.
+        float clearance = BUBBLE_CLEARANCE + (bodyHeight + BUBBLE_TAIL_HEIGHT + 2) * BUBBLE_SCALE;
+        poseStack.translate(0.0D, entity.getBbHeight() + 0.5D + clearance, 0.0D);
+        poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
+        poseStack.scale(BUBBLE_SCALE, -BUBBLE_SCALE, BUBBLE_SCALE);
+        org.joml.Matrix4f matrix = poseStack.last().pose();
+
+        // The solid pass writes depth, so later translucents (clouds, rain) cannot
+        // paint over the bubble; the see-through pass keeps a faint ghost visible
+        // through walls, like a name tag. The buffer source is immediate-mode:
+        // requesting a second render type ENDS the previous builder, so each
+        // buffer must be fully written before the next is fetched (fetching both
+        // up front crashed the render thread with "Not building!").
+        //
+        // The solid text-background shader multiplies by the world lightmap
+        // (the see-through one does not); a bubble is UI, not a lit surface,
+        // so its geometry passes fullbright.
+        //
+        // Depth in this billboard space: LARGER z is CLOSER to the camera
+        // (verified live: border at the larger z occluded the whole body and
+        // the bubble read gray-and-black). Border is the deepest layer, the
+        // body sits proud of it, and the text gets its own closer plane.
+        int fullBright = net.minecraft.client.renderer.LightTexture.FULL_BRIGHT;
+        com.mojang.blaze3d.vertex.VertexConsumer solid = bufferSource
+                .getBuffer(net.minecraft.client.renderer.RenderType.textBackground());
+        // Border: the body's outline, one pixel proud on every side, then the
+        // body over it, then the tail pair.
+        bubbleBody(solid, matrix, halfWidth + 1, -1, bodyHeight + 1, 0.0F,
+                BUBBLE_BORDER_R, BUBBLE_BORDER_G, BUBBLE_BORDER_B, BUBBLE_BORDER_A, fullBright);
+        bubbleTail(solid, matrix, 4.0F, bodyHeight, BUBBLE_TAIL_HEIGHT + 2, 0.0F,
+                BUBBLE_BORDER_R, BUBBLE_BORDER_G, BUBBLE_BORDER_B, BUBBLE_BORDER_A, fullBright);
+        bubbleBody(solid, matrix, halfWidth, 0, bodyHeight, 0.015F,
+                BUBBLE_BODY_R, BUBBLE_BODY_G, BUBBLE_BODY_B, BUBBLE_BODY_A, fullBright);
+        bubbleTail(solid, matrix, 3.0F, bodyHeight, BUBBLE_TAIL_HEIGHT, 0.015F,
+                BUBBLE_BODY_R, BUBBLE_BODY_G, BUBBLE_BODY_B, BUBBLE_BODY_A, fullBright);
+        // Solid writes done; now the faint through-wall ghost of the body alone.
+        com.mojang.blaze3d.vertex.VertexConsumer ghost = bufferSource
+                .getBuffer(net.minecraft.client.renderer.RenderType.textBackgroundSeeThrough());
+        bubbleBody(ghost, matrix, halfWidth, 0, bodyHeight, 0.015F,
+                BUBBLE_BODY_R, BUBBLE_BODY_G, BUBBLE_BODY_B, BUBBLE_BODY_SEE_THROUGH_A, fullBright);
+        // Text plane, nudged toward the camera so it sits on the body.
+        poseStack.translate(0.0D, 0.0D, 0.03D);
+        org.joml.Matrix4f textMatrix = poseStack.last().pose();
+
+        float textY = BUBBLE_PAD_Y;
+        for (String line : lines) {
+            float textX = -font.width(line) / 2.0F;
+            font.drawInBatch(line, textX, textY, BUBBLE_TEXT_SEE_THROUGH, false, textMatrix, bufferSource,
+                    net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH, 0, packedLight);
+            font.drawInBatch(line, textX, textY, BUBBLE_TEXT, false, textMatrix, bufferSource,
+                    net.minecraft.client.gui.Font.DisplayMode.NORMAL, 0, packedLight);
+            textY += lineHeight;
+        }
+        poseStack.popPose();
+    }
+
+    /** The rounded rectangle: a wide middle quad plus inset side strips for cut corners. */
+    private void bubbleBody(com.mojang.blaze3d.vertex.VertexConsumer buffer, org.joml.Matrix4f matrix,
+            float halfWidth, float top, float bottom, float z, int r, int g, int b, int a, int packedLight) {
+        bubbleQuad(buffer, matrix, -halfWidth + 1, top, halfWidth - 1, bottom, z, r, g, b, a, packedLight);
+        bubbleQuad(buffer, matrix, -halfWidth, top + 1, -halfWidth + 1, bottom - 1, z, r, g, b, a, packedLight);
+        bubbleQuad(buffer, matrix, halfWidth - 1, top + 1, halfWidth, bottom - 1, z, r, g, b, a, packedLight);
+    }
+
+    private void bubbleQuad(com.mojang.blaze3d.vertex.VertexConsumer buffer, org.joml.Matrix4f matrix,
+            float x0, float y0, float x1, float y1, float z, int r, int g, int b, int a, int packedLight) {
+        buffer.addVertex(matrix, x0, y0, z).setColor(r, g, b, a).setLight(packedLight);
+        buffer.addVertex(matrix, x0, y1, z).setColor(r, g, b, a).setLight(packedLight);
+        buffer.addVertex(matrix, x1, y1, z).setColor(r, g, b, a).setLight(packedLight);
+        buffer.addVertex(matrix, x1, y0, z).setColor(r, g, b, a).setLight(packedLight);
+    }
+
+    /** The pointer under the body's centre: a quad collapsed into a triangle. */
+    private void bubbleTail(com.mojang.blaze3d.vertex.VertexConsumer buffer, org.joml.Matrix4f matrix,
+            float halfWidth, float from, float length, float z, int r, int g, int b, int a, int packedLight) {
+        float tip = from + length;
+        buffer.addVertex(matrix, -halfWidth, from, z).setColor(r, g, b, a).setLight(packedLight);
+        buffer.addVertex(matrix, 0.0F, tip, z).setColor(r, g, b, a).setLight(packedLight);
+        buffer.addVertex(matrix, 0.0F, tip, z).setColor(r, g, b, a).setLight(packedLight);
+        buffer.addVertex(matrix, halfWidth, from, z).setColor(r, g, b, a).setLight(packedLight);
     }
 
     /** Wraps bubble copy without depending on formatted-text internals. */

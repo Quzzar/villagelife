@@ -274,4 +274,14 @@ public final class VillagerConversation {
     }
   }
 
+  /**
+   * Dev-only: makes a villager speak a raw line right now, cleaned exactly as a
+   * generated line would be ({@link VillagerText#clean}). Lets the speech-bubble
+   * render and the em-dash strip be verified in any world without standing up a
+   * live LLM conversation.
+   */
+  public static void speakTest(RealPerson speaker, String raw) {
+    speak(speaker, VillagerText.clean(raw));
+  }
+
 }

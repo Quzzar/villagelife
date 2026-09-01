@@ -82,7 +82,110 @@ public class LlmEvents {
                 .then(Commands.argument("second", net.minecraft.commands.arguments.EntityArgument.entity())
                     .executes(context -> talk(context.getSource(),
                         net.minecraft.commands.arguments.EntityArgument.getEntity(context, "first"),
-                        net.minecraft.commands.arguments.EntityArgument.getEntity(context, "second"))))));
+                        net.minecraft.commands.arguments.EntityArgument.getEntity(context, "second"))))))
+        .then(Commands.literal("say")
+            .then(Commands.argument("target", net.minecraft.commands.arguments.EntityArgument.entity())
+                .then(Commands.argument("message", StringArgumentType.greedyString()).executes(context -> {
+                  net.minecraft.world.entity.Entity target = net.minecraft.commands.arguments.EntityArgument
+                      .getEntity(context, "target");
+                  String message = StringArgumentType.getString(context, "message");
+                  return say(context.getSource(), target, message);
+                }))))
+        .then(Commands.literal("plan")
+            .then(Commands.argument("target", net.minecraft.commands.arguments.EntityArgument.entity())
+                .executes(context -> plan(context.getSource(),
+                    net.minecraft.commands.arguments.EntityArgument.getEntity(context, "target")))));
+  }
+
+  /**
+   * Prototype: has a quartermaster plan their storehouse aloud through the
+   * two-turn dialogue, saves the plan, tidies once so the shelving is visible
+   * immediately, and prints the result. The automatic triggers come later.
+   */
+  private static int plan(CommandSourceStack source, net.minecraft.world.entity.Entity target) {
+    if (!(target instanceof com.quzzar.villagelife.entities.RealPerson person)) {
+      source.sendFailure(Component.literal("Target is not a villager."));
+      return 0;
+    }
+    com.quzzar.villagelife.village.Village village = person.getVillage();
+    if (village == null) {
+      source.sendFailure(Component.literal("That villager belongs to no village."));
+      return 0;
+    }
+    if (com.quzzar.villagelife.village.Storehouse.chests(person).isEmpty()) {
+      source.sendFailure(Component.literal(
+          "No storehouse to organise: aim this at a quartermaster who has a storehouse workplace."));
+      return 0;
+    }
+    LlmService llm = LlmService.get();
+    if (!llm.isReady()) {
+      source.sendFailure(Component.literal(
+          "LLM is not ready (status: " + llm.getStatus() + "). Try /vldev llm load."));
+      return 0;
+    }
+    source.sendSuccess(() -> Component.literal("Consulting " + person.getFullName()
+        + " about the storehouse; follow the [quartermaster] log lines."), false);
+    com.quzzar.villagelife.village.QuartermasterPlanner.plan(person).thenAccept(outcome -> {
+      net.minecraft.server.MinecraftServer server = person.getServer();
+      if (server == null) {
+        return;
+      }
+      server.execute(() -> {
+        if (outcome.isEmpty()) {
+          source.sendFailure(Component.literal(
+              "No usable plan came back; the storehouse keeps its current order."));
+          return;
+        }
+        com.quzzar.villagelife.village.QuartermasterPlanner.Outcome result = outcome.get();
+        com.quzzar.villagelife.village.ShelvingPlan.store(village, result.plan());
+        com.quzzar.villagelife.entities.ai.goals.work.ConsolidateStep.tidyStorehouse(person);
+        reportPlan(source, person, result);
+      });
+    });
+    return 1;
+  }
+
+  private static void reportPlan(CommandSourceStack source,
+      com.quzzar.villagelife.entities.RealPerson person,
+      com.quzzar.villagelife.village.QuartermasterPlanner.Outcome result) {
+    source.sendSuccess(() -> Component.literal(
+        person.getFullName() + ": “" + result.note() + "”"), false);
+    for (com.quzzar.villagelife.village.ShelvingPlan.Category category : result.plan().categories()) {
+      java.util.List<String> names = new java.util.ArrayList<>();
+      for (String id : category.itemIds()) {
+        names.add(displayName(id));
+      }
+      int first = category.firstSlot() + 1;
+      int last = category.firstSlot() + category.slotCount();
+      String span = first == last ? "slot " + first : "slots " + first + " to " + last;
+      String contents = names.isEmpty() ? "(no items)" : String.join(", ", names);
+      String line = category.name() + " (" + span + "): " + contents;
+      source.sendSuccess(() -> Component.literal(line), false);
+    }
+  }
+
+  private static String displayName(String itemId) {
+    net.minecraft.resources.ResourceLocation location =
+        net.minecraft.resources.ResourceLocation.tryParse(itemId);
+    if (location != null && net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(location)) {
+      return net.minecraft.core.registries.BuiltInRegistries.ITEM.get(location).getDescription().getString();
+    }
+    return itemId;
+  }
+
+  /**
+   * Forces one speech bubble above a villager, with no LLM involved. The line
+   * is cleaned exactly as a generated one would be, so typing an em dash shows
+   * the strip (it lands as a semicolon). For eyeballing the bubble render.
+   */
+  private static int say(CommandSourceStack source, net.minecraft.world.entity.Entity target, String message) {
+    if (!(target instanceof com.quzzar.villagelife.entities.RealPerson person)) {
+      source.sendFailure(Component.literal("Target is not a villager."));
+      return 0;
+    }
+    com.quzzar.villagelife.chat.VillagerConversation.speakTest(person, message);
+    source.sendSuccess(() -> Component.literal(person.getFullName() + " speaks a bubble."), false);
+    return 1;
   }
 
   /**
