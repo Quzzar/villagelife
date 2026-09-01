@@ -296,6 +296,7 @@ public final class PersonChatDispatcher {
             undertaking = null; // a fallback line committed to nothing; record nothing
             request = null;
           }
+          say = VillagerText.clean(say);
           finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, giveCount, opinion, undertaking,
               request, System.currentTimeMillis() - askedAtMs);
           return new Reply(say, give, giveCount, opinion, undertaking, request);
@@ -512,7 +513,7 @@ public final class PersonChatDispatcher {
           if (error != null || result == null || result.isEmpty()) {
             return;
           }
-          String summary = result.get().trim();
+          String summary = VillagerText.clean(result.get().trim());
           if (summary.isEmpty()) {
             return;
           }

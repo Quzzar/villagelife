@@ -154,6 +154,12 @@ public class InstantBuildStructure {
                         }
 
                         if (levelAccess.setBlock(blockpos, blockstate, magicInt)) {
+                            // The stamped block is the village's; record it so a
+                            // building's timber never reads as a fellable tree.
+                            if (!blockstate.isAir()) {
+                                com.quzzar.villagelife.savedata.PlacedBlockStore
+                                        .get(levelAccess.getLevel()).markVillagePlaced(blockpos);
+                            }
                             i = Math.min(i, blockpos.getX());
                             j = Math.min(j, blockpos.getY());
                             k = Math.min(k, blockpos.getZ());
@@ -262,6 +268,10 @@ public class InstantBuildStructure {
 
                 if (!settings.isIgnoreEntities()) {
                     template.addEntitiesToWorld(levelAccess, location1, settings);
+                    // Stock a building ships with belongs to the village from its first breath:
+                    // marked before the hunter's next scan can read the pen as game.
+                    com.quzzar.villagelife.village.FarmedStock.markAnimalsWithin(levelAccess,
+                            template.getBoundingBox(settings, location1));
                 }
 
                 return true;

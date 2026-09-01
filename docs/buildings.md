@@ -195,7 +195,7 @@ is the whole biome story.
 | Category | Worker | Output | Wants | Levels | Phase |
 | --- | --- | --- | --- | --- | --- |
 | `farm` | FARMER | `GRAIN`, vegetables | tillable land, water | 3 | 1 |
-| `pasture` | HERDER | `MEAT`, `LEATHER`, `CLOTH` (wool) | open grass | 3 | 2 |
+| `butchery` pen | HERDER | `CLOTH` (wool), herd breeding | its own fenced stock | with `butchery` | 2 |
 | `hunting_lodge` | HUNTER | `MEAT`, `LEATHER` | trees, wildlife | 2 | 1 |
 | `fishery` | FISHER | `MEAT` (fish) | adjacent water | 2 | 1 |
 | `mushroom_cellar` | FARMER | `FOOD` (low yield) | darkness, any biome | 2 | 2 |

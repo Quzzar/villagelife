@@ -7,16 +7,21 @@ in-character reason. It runs offline through llama.cpp (default) or against a cl
 
 **The rules decide what is legal; the model decides which** (revised 2026-08-26 after an
 audit found the decision call had no production caller; revised 2026-08-30 to drop the
-options cap). The first real consumer is the urban planner: `UrbanPlanner.rankCandidates`
+options cap). The first real consumer is the urban planner: `UrbanPlanner.affordableBuilds`
 filters the whole catalogue down to buildings this village can legally and affordably start,
-and `outOfReach` to those it could save toward, each ranked by what the village actually
-lacks. `decide()` then offers the model the WHOLE vetted field rather than a trimmed
-shortlist, every option labelled with what it would give (beds, jobs, stores, and effects
-like "defends the village" or "cuts stone"). The model picks one and says why; it never sees
-an illegal, unaffordable, or unreachable option, so it cannot invent a nonsensical project,
-but within that field the choice is entirely its own. The cap that once trimmed the list was
-a crutch for a weak model; richer per-option context serves a small model better than a
-short list did.
+and `outOfReach` to those it could save toward. Neither is ranked: the rules do not score one
+need above another, because that judgement is the model's. `decide()` offers the model the
+WHOLE vetted field, every option labelled with what it would give (beds, jobs, stores, and
+effects like "defends the village" or "cuts stone") and, crucially, the dependency facts that
+let the model reason a step ahead: a producer's line notes it makes a material other buildings
+need ("provides the oak log that other buildings are built from"), and a save-for goal names
+what it is short of and which building would make it ("still needs 2 oak log (a lumberjack
+would make oak log)"). So the model can see the chain for itself, that a farm needs oak logs
+and oak logs need a lumberjack, and choose the lumberjack. The model picks one and says why; it
+never sees an illegal, unaffordable, or unreachable option, so it cannot invent a nonsensical
+project, but within that field the choice is entirely its own. The cap that once trimmed the
+list was a crutch for a weak model; richer per-option context, including the dependency chain,
+serves a small model better than a short list did.
 
 A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
 and when two or more idle people are near-equally suited by aptitude (within a small
@@ -41,7 +46,10 @@ shaft never goes dark over a mute model. The ask itself lives in the shared `Cra
 helper (`entities/`): a job's trigger sizes a `Press` (spend items, product, yield per unit)
 and writes the situation prose over `CraftOffer.identityLead`, and the helper carries the
 options, the answer, and the hands, so any occupation can put its own press to its own brain
-the same way.
+the same way. The farmer's bedtime bone grind is the second personal press: when the restock
+leaves the pack short of its sixteen bone meal and the stores hold bones, the same helper asks
+whether to grind them (one bone makes three), with the same semantics, and the meal joins the
+farm's fertiliser shelf described in [worker-loops.md](worker-loops.md).
 
 That makes the LLM **strongly wanted, not structurally required**: when it is absent,
 slow, or gives an unusable answer, the rules' own top-scoring option stands in and the

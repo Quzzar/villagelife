@@ -86,9 +86,13 @@ public final class BonemealStep implements BlockWorkStep {
     return station == BlockPos.ZERO ? BlockPos.containing(person.getEyePosition()) : station;
   }
 
-  /** Reservoir-samples one growable block, so a worker does not always pick the same corner. */
+  /**
+   * Reservoir-samples one growable block, so a worker does not always pick the
+   * same corner. Package-shared: the farmer's shelf steps ask the same question
+   * ("does anything here still want feeding?") to decide fetch versus stash.
+   */
   @Nullable
-  private BlockPos findGrowable(RealPerson person, BlockPos around) {
+  static BlockPos findGrowable(RealPerson person, BlockPos around) {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     BlockPos found = null;
     int seen = 0;
@@ -108,7 +112,7 @@ public final class BonemealStep implements BlockWorkStep {
     return found;
   }
 
-  private boolean growable(RealPerson person, BlockPos pos) {
+  private static boolean growable(RealPerson person, BlockPos pos) {
     BlockState state = person.level().getBlockState(pos);
     Block block = state.getBlock();
     if (block instanceof CropBlock crop) {

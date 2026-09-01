@@ -23,6 +23,39 @@ center's bell is not in its recipe but exists in the built result. That is the o
 invents matter, and it exists so nobody has to author a recipe listing all 400 blocks of a town
 hall.
 
+### Nothing teleports
+
+**An item moves between a chest and a worker only in that worker's own hands** (decided
+2026-09-01). For a long time this held only for the honest few - the builder gathering a
+recipe (`GatherStep`), the gatherers hauling their take home (`HaulStep`), the quartermaster
+shelving (`ConsolidateStep`) - while every consuming loop pulled its materials out of village
+storage from wherever its worker stood: the mason's cobblestone, the cook's raw meat, the
+herder's wheat, the wall-builder's timber all crossed the village instantly. The economy was
+honest (items existed, were debited once, and conserved), but the fetch trip was theater the
+simulation skipped.
+
+Now every consuming loop walks the same walk the builder always did, on one shared set of
+mechanics (`PackLogistics`): find the nearest chest holding what the pack still lacks, carry
+it in the pack, do the work, and carry the product back to a chest with room. A chest visit
+serves both directions at once - finished goods are set down first, which is what frees the
+space the next load comes out of. Loops that spend supplies away from any chest (the herder's
+breeding wheat) run a `FetchStep` ahead of the work: a provisioning trip that fills the pack
+to a working level so one walk covers many spends.
+
+What this buys is the same thing every other physical rule buys: the walk is visible, the
+worker can be met on the road, killed and robbed on it (materials in a pack are dropped on
+death, exactly like the builder's recipe window), and a distant chest is genuinely worth less
+than a near one, which makes storage placement matter. What it costs is pathing: a fetch trip
+can fail the way any walk can, and a loop that cannot reach a chest waits rather than
+conjuring - which reads, correctly, as a village whose storage is badly placed.
+
+Two knowing remainders, kept deliberately for now: **bedtime provisioning** (workers pulling
+their role's gear, torches, and seeds at the end of the day, plus the silent bedtime crafts)
+still draws from stores at a distance, pending a design for a morning provisioning round that
+does not send villagers walking in the dark; and **village-scale acts** (site-preparation
+fill, market trades) are the village acting as an institution rather than any one worker, and
+carry no fetch trip to skip.
+
 ## Three verbs
 
 A job is an **ordered array** of three verbs, any length, any order.
@@ -136,6 +169,56 @@ This is deliberately the low-priority half of the job: a village with something 
 always building it, and a village with nothing to build is tidying itself. It also means
 paths are the visible sign of a village that has caught up with its own plans.
 
+## The farmer's idle hands feed the composter
+
+The farmer gets the same treatment: a field that is all still growing used to mean pure
+wandering, and now the wait is a production chain, run as four separate steps so any link
+also stands alone (`entities/ai/goals/work/`):
+
+- **Clear brush** (`ClearBrushStep`): wild grass, ferns and flowers within twelve blocks of
+  the station come out of the ground and into the pack. The worker pockets the plant itself,
+  as shears would take it, because grass's own loot table mostly drops nothing and would
+  starve the rest of the chain. Only compostable kinds are pulled, read from the compost
+  data map so modded plants join in for free; crops, saplings and dead bushes are left alone.
+- **Compost** (`CompostStep`): carried brush is fed to the composter every farm structure
+  ships, one plant per fill at the block's own compost chance, vanilla's 7-to-8 cure and
+  all. The one liberty is at the end: the bone meal goes straight into the pack rather than
+  being tossed on the ground for anything passing to steal. The composter also eats surplus
+  sowing seeds, anything past the eight per type kept for planting, which replaced the
+  abstract seeds-to-bone-meal craft the farmer used to run: one composting system, on the
+  real block.
+- **Shelve and fetch** (`StashBonemealStep`, `FetchBonemealStep`): bone meal nothing in the
+  field currently wants goes into the farm's own barrel; when something is growing again and
+  the pack is empty, it comes back out. The barrel is the farm's fertiliser shelf, the same
+  one the bedtime restock draws on, which is what makes the chain legible from outside and
+  lets each half work alone with whatever else stocks that shelf.
+- **Feeding itself** stays the existing `BonemealStep`.
+
+The chain sits deliberately below every real farm task: harvest, till and the crafts all
+outrank it, and within the chain conversion outranks gathering, so a farmer finishes what
+they carry before pulling more. A fourth source feeds the same shelf at night: when the
+bedtime restock leaves the pack short and the village stores hold bones, the farmer's own
+brain is offered a grind through the shared `CraftOffer` press
+([llm-brain.md](llm-brain.md)), so skeleton drops end up as crops too.
+
+## The idle camper tends the fire
+
+Idle residents get the same treatment as the farmer's idle hands, on the campfire model rather
+than a workplace. An idle person who finds raw food in the village stores cooks it at the town's
+own gathering-point campfire and returns it (`CookStep`, a `BlockWorkStep`): the raw item really
+roasts on the fire via `CampfireBlockEntity.placeFood`, and the step owns the timing so the
+cooked food is lifted straight into storage rather than dropped on the ground when the block's
+own cook tick would finish it. What counts as cookable is read from the vanilla
+`CampfireCookingRecipe` set, so it is broader than the butcher's six hand-listed meats and
+modded food comes along for free.
+
+This is deliberately scoped to idle campers as an early-camp bridge. A young camp has no
+butchery, so raw meat a hunter brings home would sit uncooked; once a butchery exists its
+`BUTCHER` cooks the same meats at its station and simply drains the shared stores first, so the
+fireside quietly matters less with no explicit hand-off. It sits at the bottom of the idle
+priority order, below defence, eating and sleep, and its `select` returns nothing when the
+stores hold no raw food, so an idle camper with nothing to cook just wanders as before.
+
 ## Roaming, fixed, and the shape in between
 
 **Roaming by default, fixed where a job is simpler that way.** Per job, not global.
@@ -145,13 +228,17 @@ real shaft, treating lava and water and bedrock and wrong-tool as obstacles. A m
 bucket keeps the shaft dry instead of abandoning it at a leak: liquid on the shaft walls is sealed
 with cobblestone (from its own mined stock) and liquid inside the corridor is cleared, so water and
 lava stop the shaft only when the miner has no bucket. The bucket is a tool, never filled or
-consumed; bedrock and wrong-tool still stop it outright. When the shaft opens onto a void the miner
-does not stand down at the mouth: it lays a single cobblestone foothold where its next step needs
-one, carrying the descent across a block at a time. And ore that a shaft or cave wall exposes is not
-left in the rock: the miner pulls the vein, capped so a rich seam is a detour and not a second
-career, and plugs the holes back up with cobblestone so the wall ends solid. **That pattern with
-deviation is probably what roaming really is** for most jobs, and the model has to be able to express
-it. Keep the excavation as it stands; the miner works the veins its own shaft exposes, while a
+consumed; bedrock and wrong-tool still stop it outright. When the shaft opens into a cave the miner
+does not stand down at the mouth: it completes the shaft's missing floor, one cobblestone (from its
+own mined stock) under each ramp cell that opens into void, laid standing on the floor already
+there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget: a miner
+out of cobblestone logs it and waits at the mouth until restocked, so a cavern too large to floor
+ends the shaft. Torches follow the same shape, one wall torch per descent layer where it is deep and
+dark. And ore that a shaft or cave wall exposes is not left in the rock: the miner pulls the vein,
+capped so a rich seam is a detour and not a second career, and plugs the holes back up with
+cobblestone so the wall ends solid. **That pattern with deviation is probably what roaming really
+is** for most jobs, and the model has to be able to express it. Keep the excavation as it stands;
+the miner floors a cave rather than exploring it and works the veins its own shaft exposes, while a
 prospector that roams to find caves and hunt veins is a better story still deliberately left as fog.
 
 **The hunter is bounded roaming, not a chase.** It works a hunting ground rather than pursuing
@@ -159,6 +246,40 @@ animals wherever they wander. Pure roaming would walk a hunter arbitrarily far i
 passive mobs barely respawn, so it would strip its region permanently. A hunting ground that runs
 dry is the correct pressure: the village's answer is a pasture, which breeds and is genuinely
 renewable.
+
+**Built, 2026-08-31: the hunter shoots, and the pen is not game.** Hunting is done with a bow
+at range, walking closer only when something blocks the shot. The baseline bow arrives with the
+job, like the guard's stone sword, and plain arrows are never counted: that is the second place
+the mod invents matter, bounded the same way the structure-block exception is. Special arrows
+stay physical and finite: tipped or spectral arrows in the hunter's hands or pack are loosed
+first and genuinely consumed, and a better bow in the stores is picked up by the ordinary
+bedtime gear pass. Village stock is marked farmed (`FarmedStock`) and a hunter does not see it
+as game: the tag is set on the animals a structure spawns with, inherited at birth when either
+parent carries it, and applied by the herder to whatever it tends, so a butchery pen standing
+inside a hunting ground is safe, and a wild cow the herder adopts stops being quarry. Hunters
+also fight now: the occupation weighs into both combat checks, so they defend themselves and
+take on nearby monsters with the same bow, where before a hunter fled like a baker.
+
+**Built, 2026-08-31: lumberjacks and guards clear nearby woodland; whole trees, and never the
+village's own.** The lumberjack's planted stand remains its reliable, renewable source of work,
+but an idle lumberjack also ranges out to fell natural trees, and a quiet guard does the same
+only rarely and closer in. The scan follows the worker: it sweeps a radius around wherever they
+currently stand, not a fixed post, so as a guard patrols or a lumberjack roams they clear the
+trees ringing the village rather than only those at one spot. The lumberjack scans a wider
+radius, more often, and accepts the work more readily; combat goals outrank the guard's chopping.
+
+Both roles run the same `ChopStep`. A worker strikes one log for a chop's worth of ticks, and
+when it gives the whole connected tree comes down at once: a bounded flood fill over its logs,
+all of it into the pack, with the leaves left to decay on their own. Two guards keep the axe off
+anything but a wild tree. A candidate must have a natural canopy nearby, leaves whose
+`persistent` flag is false, which a building's timber and a player's placed leaves never carry.
+And every log is checked against [block-ownership.md](block-ownership.md), which vetoes anything
+a player placed. The village's own claim deliberately does not protect trees: a village founded
+in a forest starts with claimed ground full of them, and the canopy test is what tells a tree
+from a building. So a wild tree overhanging a roof drops its own wood and spares the building's.
+
+The guard carries a stone axe rather than a stone sword, keeping the apple ration in the other
+hand, and upgrades through the village's axe supply at bedtime.
 
 ## When there is nothing to work on
 

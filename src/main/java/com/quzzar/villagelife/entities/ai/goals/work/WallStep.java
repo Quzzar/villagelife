@@ -1,9 +1,11 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
+import java.util.List;
 import java.util.Optional;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
@@ -13,6 +15,7 @@ import com.quzzar.villagelife.village.buildings.WallTier;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -30,11 +33,23 @@ import net.minecraft.world.level.Level;
  * {@link com.quzzar.villagelife.village.buildings.WallRaiser}, shared with the
  * dev command that rings a village at once.
  *
- * Materials are pulled from village stores one column at a time, the way ground
- * fill is, so a wall that outruns the village's timber simply waits at the course
- * it reached until more is cut, and never leaves a half-height gap.
+ * <b>Materials ride on the builder's back.</b> A load is fetched from a real
+ * chest into the pack, and the ring is walked with it, column by column, until
+ * the pack runs dry and the next load is fetched (docs/worker-loops.md,
+ * "Nothing teleports"). A wall that outruns the village's timber simply waits
+ * at the course it reached until more is cut, and never leaves a half-height
+ * gap.
  */
 public final class WallStep implements BlockWorkStep {
+
+  /** Material carried per fetch trip: a stack, several columns' worth. */
+  private static final int LOAD_PER_TRIP = 64;
+
+  /**
+   * Below this many carried, top up before walking the ring: no single column
+   * needs more, so a pack above the line never stalls mid-column.
+   */
+  private static final int LOW_WATER = 8;
 
   @Override
   @Nullable
@@ -47,7 +62,18 @@ public final class WallStep implements BlockWorkStep {
     if (wall == null || wall.isComplete()) {
       return null;
     }
-    return standFor(person, village, wall.nextColumn());
+    // Top up below the low-water line so no column stalls mid-height, then walk
+    // the ring with what is carried. A part-load with nothing left in the
+    // chests is still walked out: it may finish a short column.
+    int carried = PackLogistics.carried(person, wall.getTier().material());
+    if (carried < LOW_WATER) {
+      BlockPos source = PackLogistics.chestHolding(person, village,
+          List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)));
+      if (source != null) {
+        return source;
+      }
+    }
+    return carried > 0 ? standFor(person, village, wall.nextColumn()) : null;
   }
 
   @Override
@@ -60,8 +86,14 @@ public final class WallStep implements BlockWorkStep {
     if (wall == null || wall.isComplete()) {
       return false;
     }
+    Container chest = PackLogistics.containerAt(person, target);
+    if (chest != null) {
+      PackLogistics.pullWanted(person, chest,
+          List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)), "BUILDER");
+      return false; // re-select: the ring if loaded, another chest if not
+    }
     if (!raiseColumn(person, village, wall)) {
-      return true; // short of material: stay on this column and try again
+      return false; // short of material: re-select fetches or waits
     }
     wall.advance();
     return false; // on to the next column
@@ -106,7 +138,7 @@ public final class WallStep implements BlockWorkStep {
     return new BlockPos(sx, WallRaiser.surfaceY(level, sx, sz), sz);
   }
 
-  /** Raises one column's segment, or reports it could not, for want of material. */
+  /** Raises one column's segment from the pack, or reports it could not. */
   private boolean raiseColumn(RealPerson person, Village village, WallProject wall) {
     Level level = person.level();
     long column = wall.nextColumn();
@@ -130,15 +162,16 @@ public final class WallStep implements BlockWorkStep {
     }
     int count = range[1] - range[0] + 1;
 
-    ItemStack pulled = village.gatherItemStackFromVillage(new ItemStack(tier.material(), count));
-    if (pulled.getCount() < count) {
-      if (!pulled.isEmpty()) {
-        village.placeItemStackIntoVillage(pulled, person); // put back what we cannot use yet
+    if (PackLogistics.carried(person, tier.material()) < count) {
+      // What is carried stays carried for the next column; the shortage is only
+      // real when the village's chests have none left to fetch either.
+      if (!village.hasItemStackInVillage(new ItemStack(tier.material(), 1))) {
+        village.logEvent(new NoResourceBookkeepingEvent(tier.material(), count));
+        person.logIssue("we are short of materials to raise the village wall", Optional.empty());
       }
-      village.logEvent(new NoResourceBookkeepingEvent(tier.material(), count - pulled.getCount()));
-      person.logIssue("we are short of materials to raise the village wall", Optional.empty());
       return false;
     }
+    Utils.removeItem(person.personMainInv, tier.material(), count);
 
     WallRaiser.place(level, x, z, range, tier);
     if (gate) {

@@ -19,8 +19,9 @@ public enum Occupation {
     HUNTER,
     FISHER,
     // New-category occupations (bakery, butchery, brewery, pasture, inn). Present so their
-    // building defs load through forEnum; their work loops are still to come (#47). Until
-    // those land they behave like the other loop-less jobs: assigned, but producing nothing.
+    // building defs load through forEnum. BAKER, BUTCHER, and HERDER have work loops in
+    // RealPerson.registerGoals; BREWER and INNKEEPER still lack theirs (#47) and behave
+    // like the other loop-less jobs: assigned, but producing nothing.
     BAKER,
     BUTCHER,
     BREWER,

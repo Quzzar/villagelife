@@ -53,6 +53,10 @@ in it, and update it in the same change that moves what it describes.
   not a footprint), how its ring is derived from `claimGrid` and built by a terrain-following
   builder step, the two tiers (wood palisade upgrading in place to stone brick), and the
   safety-need trigger. The site-selection pass the parked `wall`/`gatehouse` spec was waiting on.
+- [block-ownership.md](block-ownership.md): who owns the block at a position, village, player,
+  or nobody. Two compact per-level sets recorded at placement and pruned on break, why planted
+  saplings are deliberately nobody's, the `mayFell` verdict tree-clearing uses, and the known
+  over-protecting imprecisions.
 - [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
   from. License survey of vanilla, CTOV, Towns and Towers, YUNG's, and community schematic
   sites, each read from its own LICENSE file, plus the realistic paths forward.

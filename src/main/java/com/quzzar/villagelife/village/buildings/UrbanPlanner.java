@@ -1,12 +1,9 @@
 package com.quzzar.villagelife.village.buildings;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.llm.LlmDecision;
@@ -15,7 +12,8 @@ import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageRequests;
-import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
+
+import java.util.concurrent.CompletableFuture;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -24,14 +22,18 @@ import net.minecraft.world.item.Items;
 /**
  * Decides what a village builds next.
  *
- * Two stages, in the order the design calls for (docs/village-tiers.md): the
- * rules filter, then the model chooses. Scoring here answers "what does this
- * village lack" from real state — beds against population, work stations
- * against idle people, storage and food, safety after deaths — and only
- * buildings the village can actually afford and legally build survive. The
- * LLM then picks among those legal options and never sees an illegal one, so
- * a failed, slow, or absent model costs nothing but the flavour of the choice:
- * the rules' own top pick stands in.
+ * The rules establish facts, the model decides. Nothing here scores a building
+ * or ranks one need above another: that judgement is the model's. What the rules
+ * do is answer the factual questions a decision needs, and only those. Which
+ * buildings are legal and affordable right now. Which are worth working toward
+ * because there is a real path to them. And, for anything the village cannot yet
+ * afford, what it is short of and which building would produce it, so the model
+ * can see the chain for itself: a farm needs oak logs, oak logs come from a
+ * lumberjack, so the lumberjack is the way to the farm. All of that is data,
+ * derived from each building's cost and grants. The model is handed the whole
+ * field of legal options with those facts attached and chooses among them; a
+ * failed, slow, or absent model costs nothing but the flavour of the choice, and
+ * the first thing the village could build stands in.
  */
 public class UrbanPlanner {
 
@@ -50,52 +52,14 @@ public class UrbanPlanner {
         : info.getName().equals(Buildings.VILLAGE_CENTER_NAME);
   }
 
-  /** A candidate building, with why the village might want it. */
-  public record Candidate(BuildingInfo info, double score, String description) {}
-
-  /** What a village is short of, sampled once and applied to every candidate. */
-  private record Needs(double housing, double work, double food, double safety, double storage) {
-    static Needs of(Village village) {
-      int population = village.getPopulation().size();
-      int beds = village.getTotalBeds();
-      int idle = village.idlePeople().size();
-      int openJobs = village.getUnassignedJobs().size();
-      VillageAttractiveness report = village.getAttractiveness();
-      return new Needs(
-          Math.max(0, population + 2 - beds),
-          Math.max(0, idle - openJobs),
-          report != null && report.foodPerCapita() < 8.0 ? 8.0 - report.foodPerCapita() : 0.0,
-          report != null ? Math.min(3.0, report.deathImpact() * 2.0) : 0.0,
-          village.isStorageStrained() ? 3.0 : 0.0);
-    }
-  }
-
-  /** How badly this village wants this building, given what it lacks. */
-  private static double scoreOf(Village village, BuildingInfo info, Needs needs) {
-    double score = 0.0;
-    score += info.getBedLocations().size() * (1.0 + needs.housing());
-    score += info.getWorkLocations().size() * (1.0 + needs.work());
-    score += info.getContainerLocations().size() * 0.25;
-    for (Occupation occupation : info.getWorkLocations().values()) {
-      if (occupation == Occupation.GUARD) {
-        score += needs.safety();
-      }
-      if (occupation == Occupation.FARMER || occupation == Occupation.LUMBERJACK) {
-        score += needs.food() * 0.5;
-      }
-    }
-    // A full storehouse is a real pull toward more storage: the quartermaster
-    // has raised the strain flag and cannot shelve what the village holds.
-    if (info.getGrants().contains("STORAGE")) {
-      score += needs.storage();
-    }
-    return score;
-  }
+  /** A candidate building and the plain-language facts that describe it. */
+  public record Candidate(BuildingInfo info, String description) {}
 
   /**
    * Chooses the next project asynchronously: every affordable build and every
-   * reachable save-for goal, ranked by need, is offered to the model, which
-   * decides. Completes with null when the village can build nothing right now.
+   * reachable save-for goal, each with its facts attached, is offered to the
+   * model, which decides. Completes with null when the village can build nothing
+   * right now, or when the model chooses to wait or to save for a goal.
    */
   public static CompletableFuture<BuildingInfo> chooseNextProject(Village village) {
     // A village that is saving does not deliberate: it spends on the thing it
@@ -122,32 +86,28 @@ public class UrbanPlanner {
       }
     }
 
-    // Every legal, affordable build, ranked by need but NOT capped: the brain is
-    // shown the whole field and decides for itself, rather than picking from a
-    // shortlist the rules pre-trimmed. Each option carries what it would give the
-    // village (see describe), so the model can weigh a building against what the
-    // village lacks. The cap was a crutch for a weak model, not a design choice.
-    List<Candidate> offered = rankCandidates(village, stock);
-
-    // Things worth wanting but out of reach today, offered as goals rather
-    // than as builds, and likewise the whole reachable set. A village with
-    // nothing affordable is exactly the village that most needs to name
-    // something and save for it, so these are gathered even when there is
-    // nothing to build.
+    // Everything the village could start this minute, and everything it could
+    // work toward. Neither list is ranked: the model is shown the whole field
+    // and decides for itself. Each option carries what it would give the village
+    // (see describe), and a goal carries what it still needs and what would
+    // produce it (see shortfall), so the model can weigh the chain.
+    List<Candidate> buildable = affordableBuilds(village, stock);
     List<Candidate> goals = outOfReach(village, stock);
 
-    if (offered.isEmpty() && goals.isEmpty()) {
+    if (buildable.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
     }
 
-    Candidate ruleChoice = offered.isEmpty() ? null : offered.get(0);
+    // The rules' only stand-in for the model: the first thing the village could
+    // build. Used when there is no brain to ask, never to overrule one.
+    Candidate fallback = buildable.isEmpty() ? null : buildable.get(0);
     if (!LlmService.get().isReady()) {
-      return CompletableFuture.completedFuture(ruleChoice == null ? null : ruleChoice.info());
+      return CompletableFuture.completedFuture(fallback == null ? null : fallback.info());
     }
 
     // Waiting is a real move: a brain that can only build will build until it
     // physically cannot, and a village that is saving up should be able to say so.
-    List<String> options = new ArrayList<>(offered.stream().map(Candidate::description).toList());
+    List<String> options = new ArrayList<>(buildable.stream().map(Candidate::description).toList());
     options.add(WAIT_OPTION);
     for (Candidate goalCandidate : goals) {
       options.add("save up for " + goalCandidate.description()
@@ -157,16 +117,18 @@ public class UrbanPlanner {
     // for anything is indistinguishable from one that was never offered the
     // chance, and the same ambiguity hid a broken site search for a day.
     String situation = situationOf(village);
-    Villagelife.LOGGER.debug("Village '{}' is choosing among {} affordable, {} to save for, plus waiting. Situation: {}",
-        village.getName(), offered.size(), goals.size(), situation);
+    Villagelife.LOGGER.debug("Village '{}' is choosing among {} it can build now, {} to work toward, plus waiting. Situation: {}",
+        village.getName(), buildable.size(), goals.size(), situation);
     return LlmService.get().decide(situation, options)
-        .thenApply(decision -> pick(village, offered, goals, ruleChoice, decision));
+        .thenApply(decision -> pick(village, buildable, goals, fallback, decision));
   }
 
   /**
    * Materials a village cannot simply dig up: each needs some building standing
    * before any of it exists. Anything absent from this map comes straight out of
-   * the ground, and a village that has founded can always get it.
+   * the ground, and a village that has founded can always get it. This is also
+   * the source of the dependency chain the model is shown: an item's capability
+   * names the building that produces it (see producerFor).
    */
   private static final Map<Item, String> MATERIAL_SOURCE = Map.of(
       Items.OAK_LOG, "LOGS",
@@ -199,66 +161,51 @@ public class UrbanPlanner {
   }
 
   /**
-   * The buildings the village wants but cannot pay for, ranked best first: by
-   * whether it can actually work toward them, then by the same need scoring, so
-   * what it saves for is something it both lacks and can reach. The whole ranked
-   * list is returned; the caller offers all of it and lets the brain choose.
+   * The buildings the village wants but cannot pay for yet, and could genuinely
+   * work toward. No ranking: the whole reachable set is returned in catalogue
+   * order and the model chooses. A building with no path to its materials is left
+   * out entirely, because a goal you can never reach is not a goal.
    */
   private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
-    Needs needs = Needs.of(village);
     List<Candidate> unaffordable = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
       if (isFoundingOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
         continue;
       }
-      // A goal the village has nowhere to put is not a goal, it is a wait until
-      // the timeout - the same reason withinReach exists below.
-      if (hasNoRoomFor(village, info)) {
+      // A goal the village has nowhere to put, or no path to pay for, is not a
+      // goal, it is a wait until the timeout.
+      if (hasNoRoomFor(village, info) || !withinReach(village, stock, info)) {
         continue;
       }
       // An upgrade it cannot pay for yet is exactly the kind of thing worth
       // saving toward, so it belongs here on the same terms as a new building.
       Building standing = BuildingUpgrade.standingSource(village, info);
       if (standing != null) {
-        unaffordable.add(new Candidate(info, upgradeScore(village, info, standing, needs),
-            BuildingUpgrade.describe(standing, info)));
+        unaffordable.add(new Candidate(info, BuildingUpgrade.describe(standing, info)));
         continue;
       }
       if (info.getUpgradesFrom() != null || (info.hasWellFormedId() && info.getLevel() > 1)) {
         continue;
       }
-      unaffordable.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
+      unaffordable.add(new Candidate(info, describe(info)));
     }
-    // Reach first, then need. Ranking by need alone had plains villages saving
-    // for desert and snowy farms, whose sandstone and stone brick they had no
-    // mason to make, cycling through unreachable goals a timeout at a time.
-    // Decided once per candidate rather than inside the comparator: a sort
-    // calls its key function O(n log n) times, and this one used to read the
-    // whole of village storage on every call (#65).
-    Map<BuildingInfo, Boolean> reachable = new HashMap<>();
-    for (Candidate c : unaffordable) {
-      reachable.computeIfAbsent(c.info(), info -> withinReach(village, stock, info));
-    }
-    Comparator<Candidate> byReach = Comparator.comparing((Candidate c) -> reachable.get(c.info()));
-    unaffordable.sort(byReach.reversed()
-        .thenComparing(Comparator.comparingDouble(Candidate::score).reversed()));
     return unaffordable;
   }
 
-  private static BuildingInfo pick(Village village, List<Candidate> offered, List<Candidate> goals,
-      Candidate ruleChoice, Optional<LlmDecision> decision) {
+  private static BuildingInfo pick(Village village, List<Candidate> buildable, List<Candidate> goals,
+      Candidate fallback, Optional<LlmDecision> decision) {
     if (decision.isEmpty()) {
-      if (ruleChoice == null) {
+      if (fallback == null) {
         return null;
       }
       Villagelife.LOGGER.debug("Village '{}' had no answer from the brain; building {} on the rules' advice",
-          village.getName(), ruleChoice.info().getName());
-      return ruleChoice.info();
+          village.getName(), fallback.info().getName());
+      return fallback.info();
     }
     LlmDecision chosen = decision.get();
     int index = chosen.choiceIndex();
-    if (index > offered.size()) {
-      int goalIndex = index - offered.size() - 1;
+    if (index > buildable.size()) {
+      int goalIndex = index - buildable.size() - 1;
       if (goalIndex >= 0 && goalIndex < goals.size()) {
         BuildingInfo goalInfo = goals.get(goalIndex).info();
         Villagelife.LOGGER.info("Village '{}' decided to save up for {}: {}",
@@ -266,23 +213,23 @@ public class UrbanPlanner {
         VillageGoal.set(village, goalInfo.getName(), chosen.reason(), village.getVillageTime());
         return null;
       }
-      return ruleChoice == null ? null : ruleChoice.info();
+      return fallback == null ? null : fallback.info();
     }
-    if (index == offered.size()) {
+    if (index == buildable.size()) {
       Villagelife.LOGGER.info("Village '{}' decided to build nothing for now: {}",
           village.getName(), chosen.reason());
       return null;
     }
-    if (index < 0 || index >= offered.size()) {
-      return ruleChoice == null ? null : ruleChoice.info();
+    if (index < 0 || index >= buildable.size()) {
+      return fallback == null ? null : fallback.info();
     }
-    Candidate candidate = offered.get(index);
+    Candidate candidate = buildable.get(index);
     Villagelife.LOGGER.info("Village '{}' decided to build {}: {}",
         village.getName(), candidate.info().getName(), chosen.reason());
     return candidate.info();
   }
 
-  /** What the village is short of right now, in the model's own terms. */
+  /** What the village is short of right now, in the model's own terms, as facts. */
   private static String situationOf(Village village) {
     int population = village.getPopulation().size();
     int beds = village.getTotalBeds();
@@ -307,19 +254,40 @@ public class UrbanPlanner {
         case HOLDING -> "The population is steady. ";
         case DECLINING -> "People are talking of leaving. ";
       });
-      if (report.foodPerCapita() < 4.0) {
-        situation.append("Food is short. ");
-      }
+      situation.append(String.format("Food stores stand at %.1f items per person. ", report.foodPerCapita()));
       if (report.deathImpact() > 0.5F) {
         situation.append("There have been deaths recently. ");
       }
-      if (population > beds) {
-        situation.append("Some people have nowhere to sleep. ");
+      // Free beds are a resource in their own right. Employment requires housing,
+      // so a village at zero free beds can neither take in a newcomer nor house
+      // anyone for an open post: an unstaffed workshop stays unstaffed until a bed
+      // frees up or a home is built. Stated as a fact so the model can see that
+      // building housing is what breaks that logjam, and choose it or not.
+      if (report.homelessCount() > 0) {
+        situation.append(report.homelessCount())
+            .append(report.homelessCount() == 1 ? " person has" : " people have")
+            .append(" nowhere to sleep. ");
+      } else if (report.freeBeds() == 0) {
+        situation.append("Every bed is taken, so no one new can move in and no empty post can be "
+            + "staffed until more beds are built. ");
+      } else {
+        situation.append(report.freeBeds())
+            .append(report.freeBeds() == 1 ? " bed stands free. " : " beds stand free. ");
       }
+    }
+    if (!producesFood(village)) {
+      situation.append("No building grows or gathers food yet. ");
     }
     appendRequests(village, situation);
     situation.append("Choose what to build next.");
     return situation.toString();
+  }
+
+  /** Whether any standing building already produces food. */
+  private static boolean producesFood(Village village) {
+    return village.getBuildings().stream().anyMatch(building -> building.getInfo() != null
+        && (building.getInfo().getGrants().contains("GRAIN")
+            || building.getInfo().getGrants().contains("MEAT")));
   }
 
   /**
@@ -343,19 +311,13 @@ public class UrbanPlanner {
   }
 
   /**
-   * Every building the village could legally and affordably start, best first.
-   * Higher levels are in the list only as upgrades of something already
-   * standing: a level above 1 is never built fresh (docs/building-spec.md), so
-   * one is offered when the village owns the level below, can pay the new
+   * Every building the village could legally and affordably start, in catalogue
+   * order and unranked. Higher levels are here only as upgrades of something
+   * already standing: a level above 1 is never built fresh (docs/building-spec.md),
+   * so one is offered when the village owns the level below, can pay the new
    * level's own cost, and the larger footprint has somewhere to grow into.
    */
-  public static List<Candidate> rankCandidates(Village village) {
-    return rankCandidates(village, village.stockTally());
-  }
-
-  private static List<Candidate> rankCandidates(Village village, Map<Item, Integer> stock) {
-    Needs needs = Needs.of(village);
-
+  private static List<Candidate> affordableBuilds(Village village, Map<Item, Integer> stock) {
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.allBuildings().values()) {
       if (isFoundingOnly(info)) {
@@ -369,61 +331,15 @@ public class UrbanPlanner {
       }
       Building standing = BuildingUpgrade.standingSource(village, info);
       if (standing != null) {
-        candidates.add(new Candidate(info, upgradeScore(village, info, standing, needs),
-            BuildingUpgrade.describe(standing, info)));
+        candidates.add(new Candidate(info, BuildingUpgrade.describe(standing, info)));
         continue;
       }
       if (info.getUpgradesFrom() != null || (info.hasWellFormedId() && info.getLevel() > 1)) {
         continue;
       }
-      candidates.add(new Candidate(info, scoreOf(village, info, needs), describe(info)));
+      candidates.add(new Candidate(info, describe(info)));
     }
-
-    candidates.sort(Comparator.comparingDouble(Candidate::score).reversed());
     return candidates;
-  }
-
-  /**
-   * How badly the village wants the improvement, which is the value of what the
-   * upgrade ADDS rather than of the whole building. Scoring an upgrade as if it
-   * were a new building would make a bigger farm look worth as much as a farm
-   * to a village that already has one.
-   */
-  private static double upgradeScore(Village village, BuildingInfo info, Building standing, Needs needs) {
-    BuildingInfo current = standing.getInfo();
-    if (current == null) {
-      return scoreOf(village, info, needs);
-    }
-    double score = 0.0;
-    score += (info.getBedLocations().size() - current.getBedLocations().size()) * (1.0 + needs.housing());
-    score += (info.getWorkLocations().size() - current.getWorkLocations().size()) * (1.0 + needs.work());
-    score += (info.getContainerLocations().size() - current.getContainerLocations().size()) * 0.25;
-    for (Occupation occupation : info.getWorkLocations().values().stream().distinct().toList()) {
-      int added = stationsFor(info, occupation) - stationsFor(current, occupation);
-      if (added <= 0) {
-        continue;
-      }
-      if (occupation == Occupation.GUARD) {
-        score += needs.safety() * added;
-      }
-      if (occupation == Occupation.FARMER || occupation == Occupation.LUMBERJACK) {
-        score += needs.food() * 0.5 * added;
-      }
-    }
-    // Improving something is a smaller act than founding something new, and it
-    // costs the village the use of the building while it happens, so a tie goes
-    // to the new thing.
-    return score - 0.5;
-  }
-
-  private static int stationsFor(BuildingInfo info, Occupation occupation) {
-    int count = 0;
-    for (Occupation station : info.getWorkLocations().values()) {
-      if (station == occupation) {
-        count++;
-      }
-    }
-    return count;
   }
 
   /**
@@ -472,7 +388,27 @@ public class UrbanPlanner {
         gives.add(effect);
       }
     }
-    return gives.isEmpty() ? "a " + name : "a " + name + " (" + String.join(", ", gives) + ")";
+    String base = gives.isEmpty() ? "a " + name : "a " + name + " (" + String.join(", ", gives) + ")";
+    return base + unlockNote(info);
+  }
+
+  /**
+   * A fact appended to a producer's line: that it makes a material other
+   * buildings are built from, so the model can see why raising a lumberjack (for
+   * oak logs) or a mason (for stone) comes before the buildings that need them.
+   * Derived from the cost data, never hand-authored per building. Empty for a
+   * building whose grants produce no building material.
+   */
+  private static String unlockNote(BuildingInfo info) {
+    for (String grant : info.getGrants()) {
+      for (Map.Entry<Item, String> source : MATERIAL_SOURCE.entrySet()) {
+        if (source.getValue().equals(grant)) {
+          return ", which provides the " + itemName(source.getKey())
+              + " that other buildings are built from";
+        }
+      }
+    }
+    return "";
   }
 
   /**
@@ -506,20 +442,58 @@ public class UrbanPlanner {
 
   /**
    * What a save-for goal still lacks against current stock, as ", still needs 40
-   * cobblestone", or empty when nothing is short. Gives the brain the cost side
-   * of a long-term goal so it can weigh how far off it is.
+   * cobblestone", or empty when nothing is short. Where a missing material can
+   * only be produced by a building the village does not have, the building is
+   * named, so the goal reads as a chain the model can follow: the farm still
+   * needs oak log, which a lumberjack would make.
    */
   private static String shortfall(Village village, BuildingInfo info, Map<Item, Integer> stock) {
     List<String> parts = new ArrayList<>();
+    String chain = "";
     for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
       int missing = cost.getCount() - stock.getOrDefault(cost.getItem(), 0);
       if (missing > 0) {
-        parts.add(missing + " " + cost.getItem().toString().replace("minecraft:", "").replace('_', ' '));
+        parts.add(missing + " " + itemName(cost.getItem()));
+        if (chain.isEmpty()) {
+          chain = producerHint(village, cost.getItem());
+        }
       }
     }
-    return parts.isEmpty() ? "" : ", still needs " + String.join(", ", parts);
+    return parts.isEmpty() ? "" : ", still needs " + String.join(", ", parts) + chain;
   }
 
+  /**
+   * If a material can only come from a building the village lacks, the clause
+   * that names it, otherwise empty. This is the backward step of the chain: the
+   * material the goal is short of, resolved to the building that produces it.
+   */
+  private static String producerHint(Village village, Item item) {
+    String capability = MATERIAL_SOURCE.get(item);
+    if (capability == null || village.canDo(capability)) {
+      return "";
+    }
+    BuildingInfo producer = producerFor(capability);
+    if (producer == null) {
+      return "";
+    }
+    String name = producer.hasWellFormedId() ? producer.getCategory().replace('_', ' ') : producer.getName();
+    return " (a " + name + " would make " + itemName(item) + ")";
+  }
+
+  /** The first building in the catalogue that grants a capability, or null. */
+  private static BuildingInfo producerFor(String capability) {
+    for (BuildingInfo info : Buildings.allBuildings().values()) {
+      if (info.getGrants().contains(capability)) {
+        return info;
+      }
+    }
+    return null;
+  }
+
+  /** An item's id as plain words: "oak log", not "minecraft:oak_log". */
+  private static String itemName(Item item) {
+    return item.toString().replace("minecraft:", "").replace('_', ' ');
+  }
 
   /**
    * Whether the village already knows nothing this size will fit.
@@ -553,21 +527,6 @@ public class UrbanPlanner {
       }
     }
     return true;
-  }
-
-  public static boolean payForBuilding(Village village, BuildingInfo build){
-    boolean paidFullCost = true;
-    for(ItemStack itemCost : build.getMaterialCost()){
-
-      ItemStack gatheredStack = village.gatherItemStackFromVillage(itemCost);
-      if(gatheredStack.getCount() < itemCost.getCount()){
-        paidFullCost = false;
-        village.logEvent(new NoResourceBookkeepingEvent(itemCost.getItem(),
-            itemCost.getCount() - gatheredStack.getCount()));
-      }
-
-    }
-    return paidFullCost;
   }
 
   /**

@@ -545,6 +545,7 @@ public class Village {
     BlockPos fire = gatheringPointPos();
     if (fire != null && level != null && !level.getBlockState(fire).is(Blocks.CAMPFIRE)) {
       level.setBlock(fire, Blocks.CAMPFIRE.defaultBlockState(), 3);
+      com.quzzar.villagelife.savedata.PlacedBlockStore.get(level).markVillagePlaced(fire);
     }
   }
 
@@ -581,6 +582,21 @@ public class Village {
     }
     Building townCenter = getTownCenter();
     return townCenter != null ? BlockPos.of(townCenter.getCenterLocation()) : BlockPos.ZERO;
+  }
+
+  /**
+   * The lit gathering-point campfire block itself, or null when it is missing or
+   * doused. Unlike {@link #getGatheringPoint} this is the fire, not the standing
+   * spot beside it: the idle cook roasts food on it (CookStep).
+   */
+  @javax.annotation.Nullable
+  public BlockPos getCampfire() {
+    BlockPos fire = gatheringPointPos();
+    if (fire == null || level == null) {
+      return null;
+    }
+    var state = level.getBlockState(fire);
+    return state.is(Blocks.CAMPFIRE) && state.getValue(CampfireBlock.LIT) ? fire : null;
   }
 
   /** The first free neighbour of the fire a person can stand in, else the nearest air above it. */

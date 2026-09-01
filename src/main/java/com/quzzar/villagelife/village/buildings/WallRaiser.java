@@ -3,8 +3,11 @@ package com.quzzar.villagelife.village.buildings;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.quzzar.villagelife.savedata.PlacedBlockStore;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
@@ -89,7 +92,12 @@ public final class WallRaiser {
   public static int place(Level level, int x, int z, int[] range, WallTier tier) {
     BlockState state = tier.block().defaultBlockState();
     for (int y = range[0]; y <= range[1]; y++) {
-      level.setBlock(new BlockPos(x, y, z), state, 3);
+      BlockPos pos = new BlockPos(x, y, z);
+      level.setBlock(pos, state, 3);
+      // The wall is the village's: the wood tier's logs must never read as trees.
+      if (level instanceof ServerLevel serverLevel) {
+        PlacedBlockStore.get(serverLevel).markVillagePlaced(pos);
+      }
     }
     return range[1] - range[0] + 1;
   }
@@ -111,6 +119,11 @@ public final class WallRaiser {
     level.setBlock(new BlockPos(x, base, z), lower, 3);
     level.setBlock(new BlockPos(x, base + 1, z),
         lower.setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER), 3);
+    if (level instanceof ServerLevel serverLevel) {
+      PlacedBlockStore store = PlacedBlockStore.get(serverLevel);
+      store.markVillagePlaced(new BlockPos(x, base, z));
+      store.markVillagePlaced(new BlockPos(x, base + 1, z));
+    }
   }
 
   /** The horizontal direction from a gate column toward a point, so a gate faces the town. */

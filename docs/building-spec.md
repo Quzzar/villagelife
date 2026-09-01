@@ -628,7 +628,10 @@ where the tanner cultivates a herd that stays put.
 | 2 (upgrade) | stockyard | 15x15 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool | MEAT more, LEATHER more |
 | 3 (upgrade) | ranch | 21x21 | 48 oak log, 68 oak planks, 72 cobblestone, 12 glass, 8 wool | breeding: the herd grows on its own |
 
-Wool still matters as the bottleneck on beds, and nothing produces it yet.
+Wool still matters as the bottleneck on beds, and the pen is what produces it: the shipped
+butchery structures carry their starting cows and sheep in the template, and a HERDER
+station beside the pen keeps the herd sheared, fed, and marked as farmed stock the hunter
+will not touch (docs/worker-loops.md).
 
 #### `hunting_lodge`
 

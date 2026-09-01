@@ -33,6 +33,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnGroupData;
@@ -49,6 +50,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.GatherStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal;
 import com.quzzar.villagelife.entities.ai.goals.work.BonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.ChopStep;
+import com.quzzar.villagelife.entities.ai.goals.work.CookStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HarvestStep;
 import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
@@ -60,9 +62,14 @@ import com.quzzar.villagelife.entities.ai.goals.work.WallStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MarketStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HuntStep;
+import com.quzzar.villagelife.entities.ai.goals.work.FetchStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
+import com.quzzar.villagelife.entities.ai.goals.work.ClearBrushStep;
+import com.quzzar.villagelife.entities.ai.goals.work.CompostStep;
+import com.quzzar.villagelife.entities.ai.goals.work.FetchBonemealStep;
+import com.quzzar.villagelife.entities.ai.goals.work.StashBonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunAwayGoal;
@@ -97,7 +104,7 @@ import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.core.component.DataComponents;
@@ -141,6 +148,15 @@ public class RealPerson extends Person {
    */
   private static final int TORCHES_PER_COAL = 4;
 
+  /**
+   * Bone meal the farmer's bedtime restock tops the pack up to; BonemealStep
+   * spends it on whatever is still growing.
+   */
+  private static final int BONEMEAL_PACK_TARGET = 16;
+
+  /** Bone meal one bone grinds into, as the vanilla recipe has it. */
+  private static final int MEAL_PER_BONE = 3;
+
   public int callToBedCoolDown = 0;
 
   // Game day of the last bedtime torch-craft offer. goToBed refires every 100
@@ -148,6 +164,9 @@ public class RealPerson extends Person {
   // question to the brain over and over. Not persisted: a reload mid-night at
   // worst asks once more.
   private transient long torchOfferDay = -1;
+
+  // Same guard for the farmer's bedtime bone-grind offer.
+  private transient long bonemealOfferDay = -1;
 
   // Village-directed walk target (arriving at the campfire / leaving the
   // village); driven by Village.tickTravelers, executed by VillageTravelGoal.
@@ -466,9 +485,19 @@ public class RealPerson extends Person {
     // Grab replacement gear if not holding any
     if (getOccupation() == Occupation.GUARD) {
 
-      // The blacksmith now forges iron armour into the stores (BlacksmithStep), so a
-      // guard takes the best armour and sword the village can spare at bedtime.
-      equipBestPossibleGear(SwordItem.class, null, true, depositToLoc);
+      // The guard's axe is both a serviceable weapon and their quiet daytime
+      // work tool. Saved guards from before this rule may still carry swords;
+      // return those to the village before entering the axe upgrade track.
+      ItemStack held = this.getItemBySlot(EquipmentSlot.MAINHAND);
+      if (!held.isEmpty() && !(held.getItem() instanceof AxeItem)) {
+        this.getVillage().placeItemStackIntoVillage(held, this, depositToLoc);
+        this.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+      }
+      // Take the best axe and armour the village can spare.
+      equipBestPossibleGear(AxeItem.class, null, true, depositToLoc);
+      if (this.getItemBySlot(EquipmentSlot.MAINHAND).isEmpty()) {
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+      }
 
       // Restock rations: apples for now, until a farm lets the village bake bread.
       if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
@@ -519,7 +548,8 @@ public class RealPerson extends Person {
     // Grab bonemeal
     if (getOccupation() == Occupation.LUMBERJACK || getOccupation() == Occupation.FARMER) {
 
-      ItemStack item = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BONE_MEAL, 16), depositToLoc);
+      ItemStack item = this.getVillage()
+          .gatherItemStackFromVillage(new ItemStack(Items.BONE_MEAL, BONEMEAL_PACK_TARGET), depositToLoc);
       this.addItems(Arrays.asList(item));
 
     }
@@ -534,6 +564,8 @@ public class RealPerson extends Person {
       }
 
       this.addItems(gatheredSeeds);
+
+      maybeCraftBonemealFromBones(depositToLoc);
 
     }
 
@@ -573,6 +605,41 @@ public class RealPerson extends Person {
         + " torches. Decide whether to spend " + coalToSpend
         + " coal on light for tomorrow's dig, and give your reason in a few words.";
     CraftOffer.offer(this, depositToLoc, press, coalToSpend, situation);
+  }
+
+  /**
+   * Offers the farmer's brain a bedtime bone grind when the restock above left
+   * the pack short and the stores hold bones - the same press as the miner's
+   * torch craft, through the same {@link CraftOffer} (silence crafts, only an
+   * explicit "leave it" keeps the stores; docs/llm-brain.md). The meal lands in
+   * the pack for tomorrow's crops, and the shelf steps move any surplus into
+   * the farm's barrel once the field stops asking for it.
+   */
+  private void maybeCraftBonemealFromBones(BlockPos depositToLoc) {
+    long day = this.level().getDayTime() / 24000L;
+    if (this.bonemealOfferDay == day) {
+      return;
+    }
+    int mealHeld = this.personMainInv.countItem(Items.BONE_MEAL);
+    int mealWanted = BONEMEAL_PACK_TARGET - mealHeld;
+    if (mealWanted <= 0) {
+      return;
+    }
+    int bonesHeld = com.quzzar.villagelife.economy.VillagePricing.countHeld(this.getVillage(), Items.BONE);
+    if (bonesHeld <= 0) {
+      return;
+    }
+    this.bonemealOfferDay = day;
+
+    int bonesToSpend = Math.min(bonesHeld, Math.ceilDiv(mealWanted, MEAL_PER_BONE));
+    CraftOffer.Press press = new CraftOffer.Press(List.of(Items.BONE), Items.BONE_MEAL, MEAL_PER_BONE);
+    String situation = CraftOffer.identityLead(this)
+        + "You are turning in for the night carrying " + mealHeld + " of the " + BONEMEAL_PACK_TARGET
+        + " bone meal you like to keep for the crops. The village stores hold " + bonesHeld
+        + " bones, and one presses into " + MEAL_PER_BONE
+        + " bone meal. Decide whether to press " + bonesToSpend
+        + " bones for tomorrow's fields, and give your reason in a few words.";
+    CraftOffer.offer(this, depositToLoc, press, bonesToSpend, situation);
   }
 
   public void equipBestPossibleGear(Class mainHand, Class offHand, boolean includeArmor, BlockPos preferNearestToLoc) {
@@ -659,11 +726,10 @@ public class RealPerson extends Person {
   protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
     switch (getOccupation()) {
       case GUARD:
-        // Sword and rations only, no armor, and both kept basic until the village
-        // can make better: armor waits on the leather chain (butchery -> leather),
-        // and the ration is foraged apples until a farm exists to bake bread. A
-        // fresh guard stands watch with a stone sword and apples.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
+        // An axe doubles as a serviceable weapon and the guard's occasional
+        // woodland tool. Both it and the rations stay basic until the village
+        // can make better; armour waits on the leather chain.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.APPLE, 16));
         break;
       case LUMBERJACK:
@@ -684,13 +750,25 @@ public class RealPerson extends Person {
         this.setItemSlot(EquipmentSlot.MAINHAND, regenPotion);
         break;
       case FARMER:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_HOE));
+        // A basic hoe, like the lumberjack's stone axe and miner's stone
+        // pickaxe: kept basic until the village can make better. An iron hoe is
+        // the blacksmith's to forge later (BlacksmithStep), not a starting tool
+        // that fakes iron the village has not yet mined.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_HOE));
         break;
       case LEADER:
         this.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
         break;
       case LIBRARIAN:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
+        break;
+      case HUNTER:
+        // A plain bow, like the guard's stone sword: enough to work with until
+        // the bedtime gear pass finds better. No arrows come with it - the
+        // plain fallback is conjured per shot (Person.getProjectile), and only
+        // special arrows someone hands them are real. HuntStep re-grants this
+        // if the bow ever wears out mid-career.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         break;
       case MINER:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
@@ -860,7 +938,18 @@ public class RealPerson extends Person {
     } else {
       double i = 0.0;
       switch (getOccupation()) {
+        case IDLE:
+        case NITWIT:
+          // The campfire reservoir is the settlement's last line of defence:
+          // every idle resident stands their ground when the camp is attacked.
+          i += 1.0;
+          break;
         case GUARD:
+          i += 0.9;
+          break;
+        case HUNTER:
+          // The village's own archer does not run from a zombie: all but the
+          // meekest hunters stand and shoot (docs/worker-loops.md).
           i += 0.9;
           break;
         case MINER:
@@ -889,8 +978,19 @@ public class RealPerson extends Person {
   public boolean willInitiateCombat() {
     double i = 0.0;
     switch (getOccupation()) {
+      case IDLE:
+      case NITWIT:
+        // Idle residents do not go hunting, but they do actively clear threats
+        // from the campfire area; the target predicate below supplies the tether.
+        i += 1.0;
+        break;
       case GUARD:
         i += 0.8;
+        break;
+      case HUNTER:
+        // Below the guard, above everyone else: killing is the trade, so most
+        // hunters take on nearby monsters, but they are not the watch.
+        i += 0.6;
         break;
       case MINER:
         i += 0.15;
@@ -912,6 +1012,23 @@ public class RealPerson extends Person {
     }
     i += getVirtue(Virtue.AGGRESSION);
     return (i > 0.5);
+  }
+
+  /** Whether a hostile is close enough for an idle resident to defend the camp from it. */
+  private boolean isCampfireThreat(LivingEntity mob) {
+    if (!(mob instanceof Enemy) || mob instanceof Creeper || mob instanceof EnderMan) {
+      return false;
+    }
+    if (!getOccupation().isIdle()) {
+      return true;
+    }
+    Village village = getVillage();
+    if (village == null) {
+      return false;
+    }
+    BlockPos campfire = village.getGatheringPoint();
+    return campfire != null && !campfire.equals(BlockPos.ZERO)
+        && campfire.closerToCenterThan(mob.position(), 16.0D);
   }
 
   public boolean willDefendBestFriend() {
@@ -1016,7 +1133,7 @@ public class RealPerson extends Person {
     if (willInitiateCombat()) {// Actively seeks out combat
 
       this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Mob.class, 5, true, true, (mob) -> {
-        return mob instanceof Enemy && !(mob instanceof Creeper) && !(mob instanceof EnderMan);
+        return isCampfireThreat(mob);
       }));
 
       // The bottom rung of standing: a village whose people loathe you sets its
@@ -1046,6 +1163,11 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(2, new WorkLoopGoal<>(this, new HealStep(1, 7, 7.0F)));
     }
     if (getOccupation() == Occupation.GUARD) {
+      // Guarding always wins on priority. In a quiet spell, a guard very
+      // occasionally clears one natural tree close to their post using the
+      // exact same chopping step as the lumberjack.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
+          new ChopStep(6, 0.05F, 200)));
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
     if (getOccupation() == Occupation.MINER) {
@@ -1073,6 +1195,10 @@ public class RealPerson extends Person {
           new BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new ChopStep()));
+      // The planted stand above is the reliable job. This lower-priority pass
+      // also clears nearby woodland, more often and farther out than a guard.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
+          new ChopStep(12, 0.25F, 100)));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),
@@ -1110,6 +1236,9 @@ public class RealPerson extends Person {
       // a trip to a chest before harvesting more, or the crops overflow the pack
       // and drop on the ground. The farmer was the only gatherer missing this.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      // Before the feeder: a farmer with an empty pack but a stocked barrel
+      // walks over and refills rather than watching the crops sulk.
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FetchBonemealStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HarvestStep(true)));
@@ -1126,13 +1255,15 @@ public class RealPerson extends Person {
           4,
           SoundEvents.PUMPKIN_CARVE)));
 
-      for (Item seed : TillStep.PLANTABLES.keySet()) {
-        this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
-            new ItemStack(seed, 64),
-            new ItemStack(Items.BONE_MEAL, 3), // ~2.74
-            4,
-            SoundEvents.COMPOSTER_FILL_SUCCESS)));
-      }
+      // The idle chain, in working order: finish converting what is carried,
+      // shelve what nothing wants, and only then pull more brush. Together they
+      // are the farmer's answer to a field that is all still growing. The
+      // composter also eats surplus sowing seeds (CompostStep), which is what
+      // replaced the abstract seeds-to-bone-meal craft that used to sit here:
+      // the farmer has a real composter at the station, so it uses that.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CompostStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new StashBonemealStep()));
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new ClearBrushStep()));
     }
     if (getOccupation() == Occupation.BLACKSMITH) {
       // The forge's SMELTING half: raw iron the mine brings up becomes ingots, the stock
@@ -1199,8 +1330,9 @@ public class RealPerson extends Person {
           6, SoundEvents.FURNACE_FIRE_CRACKLE)));
     }
     if (getOccupation() == Occupation.HUNTER) {
-      // Fells game on the ground around the lodge; the kill's meat and leather fall
-      // for pickup, and a full pack goes home ahead of the next quarry.
+      // Shoots game on the ground around the lodge (HuntStep: bow work, special
+      // arrows loosed first); the kill's meat and leather fall for pickup, and a
+      // full pack goes home ahead of the next quarry.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HuntStep()));
     }
@@ -1212,8 +1344,18 @@ public class RealPerson extends Person {
       // Shears wool and breeds the herd rather than culling it -- the pasture's
       // renewable half, distinct from the hunter's. Haul carries the sheared wool
       // home; without it the CLOTH output strands in the herder's own pack.
+      // Fetch carries the breeding wheat OUT: an empty pocket refills from a
+      // chest before the round, so no grain is conjured across the village.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FetchStep(Items.WHEAT, 8)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HerdStep()));
+    }
+    if (getOccupation().isIdle()) {
+      // Idle hands at the fire: cook raw food the village holds into keeping
+      // food, the campfire-model twin of the farmer's composter chain and an
+      // early-camp bridge until a butchery exists (docs/population-and-labor.md).
+      // Lowest priority, so defence, eating and sleep all pull them off it.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CookStep()));
     }
 
     // this.goalSelector.addGoal(3, new FollowHeroGoal(this)); Doesn't work?

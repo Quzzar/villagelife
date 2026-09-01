@@ -1,5 +1,7 @@
 package com.quzzar.villagelife.village;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map.Entry;
 
 import javax.annotation.Nullable;
@@ -91,6 +93,26 @@ public class LocationManager {
         if(job == null){ return null; }
         
         return village.getBuilding(job.getBuildingUUID());
+
+    }
+
+    /**
+     * The container positions of the worker's own workplace, in world space, in
+     * the order the structure declares them. Empty when the worker has no job
+     * building or it declares none; a caller that can settle for any village
+     * container falls back to {@link #getNearestContainerPos} itself.
+     */
+    public static List<BlockPos> getJobContainerPositions(RealPerson person){
+
+        Building building = getJobBuilding(person);
+        if(building == null || building.getInfo() == null){ return List.of(); }
+
+        ArrayList<BlockPos> positions = new ArrayList<>();
+        BlockPos origin = BlockPos.of(building.getOriginLocation());
+        for(Long local : building.getInfo().getContainerLocations()) {
+            positions.add(origin.offset(BlockPos.of(local).rotate(building.getRotation())));
+        }
+        return positions;
 
     }
 

@@ -32,7 +32,19 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class HarvestStep implements BlockWorkStep {
 
-  private static final int SEARCH_RADIUS = 2;
+  /**
+   * How far around the station to scan for ripe crops. Two — the port's
+   * carry-over — is a box barely larger than the villager, but the shipped farms
+   * put the FARMER station at one CORNER of the plot (local [5,1,7]) with the
+   * field reaching eight blocks from it, so a radius of two saw only about four
+   * of a tier-one farm's twenty-six wheat and the farmer walked past the rest.
+   * Eight covers the whole plot, matching {@link BonemealStep}'s WORK_RADIUS so
+   * the two farm scans read the same. Harvest may reach this wide because it
+   * only takes ripe crops and replants them in place; tilling keeps the small
+   * radius (see TillStep) because it converts ground and must not spill past the
+   * field.
+   */
+  private static final int WORK_RADIUS = 8;
 
   private final boolean useStation;
   private final ShortageWatch dry = new ShortageWatch();
@@ -109,9 +121,9 @@ public final class HarvestStep implements BlockWorkStep {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     BlockPos found = null;
     int seen = 0;
-    for (int x = -SEARCH_RADIUS; x <= SEARCH_RADIUS; ++x) {
-      for (int y = -SEARCH_RADIUS; y <= SEARCH_RADIUS; ++y) {
-        for (int z = -SEARCH_RADIUS; z <= SEARCH_RADIUS; ++z) {
+    for (int x = -WORK_RADIUS; x <= WORK_RADIUS; ++x) {
+      for (int y = -2; y <= 2; ++y) {
+        for (int z = -WORK_RADIUS; z <= WORK_RADIUS; ++z) {
           cursor.setWithOffset(around, x, y, z);
           if (!ripe(person, cursor)) {
             continue;

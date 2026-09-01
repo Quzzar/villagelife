@@ -1,13 +1,17 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
+import com.quzzar.villagelife.village.BlockOwnership;
 import com.quzzar.villagelife.village.LocationManager;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
@@ -18,29 +22,34 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Felling a log at the lumberjack's stand: a BREAK step, which destroys a block
- * and takes what it drops.
+ * Felling a tree: a BREAK step that brings a whole tree down and takes what it
+ * drops.
  *
- * <b>This fixes an item duplication.</b> The goal it replaces never removed the
- * log. It accumulated break progress for a hundred ticks, showed the cracking
- * overlay, collected {@code Block.getDrops} into the worker's pack - and left
- * the block standing, because {@code destroyBlockProgress} only draws cracks.
- * The goal then ended on its own break timer, {@code canUse} found the same log
- * still there, and it started again. One log, chopped forever, printing timber
- * into the village stores for as long as the lumberjack lived. It is why no
- * village ever ran short of wood.
+ * A worker strikes one log for a chop's worth of ticks; when it gives, the
+ * whole connected tree comes down at once (a bounded flood fill over its logs),
+ * and every log lands in the worker's pack. Leaves are left to decay on their
+ * own schedule, as natural leaves do once their tree is gone.
  *
- * Removing the log also revives code that was already written and could never
- * run: the replant branch fires only when the stand is air over dirt, which it
- * never became. So the intended loop - fell it, plant a sapling, wait for it to
- * grow back - is what happens now, and wood is finite.
+ * <b>It only ever cuts real trees.</b> Two guards keep it off the village's own
+ * timber and off anything a player built:
+ * <ul>
+ * <li>A candidate must have a <i>natural</i> canopy nearby, leaves whose
+ * {@code persistent} flag is false. Player-placed leaves are persistent; a
+ * building's timber has none of its own; so this excludes authored structures
+ * far more reliably than mere leaf-proximity did.</li>
+ * <li>{@link BlockOwnership#mayFell} vetoes any block a player placed, and any
+ * block the village owns unless it has declared that column a tree slot (the
+ * lumberjack's planted stand). The flood fill re-checks every log, so a wild
+ * tree overhanging a roof drops its own wood and spares the building's.</li>
+ * </ul>
  */
 public final class ChopStep implements BlockWorkStep {
 
-  /** Ticks of chopping a log takes. */
+  /** Ticks of chopping the first log takes before the tree comes down. */
   private static final int CHOP_TICKS = 100;
 
   /** Chance a felled log yields its stripped form instead. */
@@ -49,18 +58,61 @@ public final class ChopStep implements BlockWorkStep {
   /** Chance per scan of planting a sapling on an empty stand. */
   private static final float REPLANT_CHANCE = 0.01F;
 
+  /** Vertical reach of the bounded woodland scan around a worker's post. */
+  private static final int WOODLAND_VERTICAL_RADIUS = 8;
+
+  /** Natural leaves this close mark a trunk as a living tree, not authored timber. */
+  private static final int LEAF_RADIUS = 3;
+
+  /** Most logs one fell removes: a ceiling for giant trees so the flood fill always ends. */
+  private static final int TREE_LOG_CAP = 256;
+
+  private final int woodlandRadius;
+  private final float woodlandChance;
+  private final int woodlandScanTicks;
+
   private final ShortageWatch dry = new ShortageWatch();
 
   private BlockPos chopping;
   private int chopTime;
   private int lastProgress = -1;
 
+  /** The lumberjack's planted stand: deterministic, renewable primary work. */
+  public ChopStep() {
+    this(0, 0.0F, 20);
+  }
+
+  /**
+   * A bounded idle woodland pass shared by lumberjacks and guards.
+   *
+   * @param woodlandRadius    horizontal distance from where the worker stands
+   * @param woodlandChance    chance that a scan elects to fell one tree
+   * @param woodlandScanTicks ticks between scans while idle
+   */
+  public ChopStep(int woodlandRadius, float woodlandChance, int woodlandScanTicks) {
+    this.woodlandRadius = woodlandRadius;
+    this.woodlandChance = woodlandChance;
+    this.woodlandScanTicks = woodlandScanTicks;
+  }
+
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
+    if (this.woodlandRadius > 0) {
+      // The idle pass sweeps around wherever the worker is standing, not a
+      // fixed post, so as a guard patrols or a lumberjack roams they clear the
+      // natural trees ringing the village rather than only those at one spot.
+      if (person.isInventoryFull() || person.getRandom().nextFloat() >= this.woodlandChance) {
+        return null;
+      }
+      if (!(person.level() instanceof ServerLevel level)) {
+        return null;
+      }
+      return findWoodlandTree(person, level, person.blockPosition());
+    }
     BlockPos stand = LocationManager.getJobLocation(person);
     if (stand == BlockPos.ZERO) {
-      return null; // no stand assigned yet: a misconfiguration, not a wood shortage
+      return null; // no post assigned yet: a misconfiguration, not a wood shortage
     }
     BlockState state = person.level().getBlockState(stand);
 
@@ -109,7 +161,7 @@ public final class ChopStep implements BlockWorkStep {
       return true;
     }
 
-    fell(person, target, state);
+    fellTree(person, target);
     return false;
   }
 
@@ -126,6 +178,11 @@ public final class ChopStep implements BlockWorkStep {
     return "the trees";
   }
 
+  @Override
+  public int selectEveryTicks() {
+    return this.woodlandScanTicks;
+  }
+
   /** Chopping is timed in ticks, so the act runs on every one of them. */
   @Override
   public int actEveryTicks() {
@@ -137,31 +194,151 @@ public final class ChopStep implements BlockWorkStep {
     return 6.0D; // as the goal this replaces used
   }
 
-  private void fell(RealPerson person, BlockPos target, BlockState state) {
-    if (person.level().isClientSide) {
+  /**
+   * Brings a whole tree down from the struck log. A bounded flood fill walks the
+   * connected logs; each one the village and players do not own is removed and
+   * its drops taken, so a tree touching a building loses its own wood and not
+   * the building's. One break sound plays for the lot.
+   */
+  private void fellTree(RealPerson person, BlockPos struck) {
+    if (!(person.level() instanceof ServerLevel level)) {
       return;
     }
-    List<ItemStack> drops = Block.getDrops(state, (ServerLevel) person.level(), target,
-        person.level().getBlockEntity(target), person, person.getMainHandItem());
+    List<ItemStack> haul = new ArrayList<>();
+    BlockState soundFrom = null;
+    for (BlockPos pos : collectTree(level, struck)) {
+      BlockState state = level.getBlockState(pos);
+      if (!state.is(BlockTags.LOGS_THAT_BURN) || !BlockOwnership.mayFell(level, pos)) {
+        continue;
+      }
+      List<ItemStack> drops = Block.getDrops(state, level, pos, level.getBlockEntity(pos),
+          person, person.getMainHandItem());
+      stripSome(person, state, drops);
+      haul.addAll(drops);
+      if (soundFrom == null) {
+        soundFrom = state;
+      }
+      level.removeBlock(pos, false);
+    }
+    if (soundFrom != null) {
+      level.playSound((Player) null, struck.getX(), struck.getY(), struck.getZ(),
+          soundFrom.getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
+          person.getRandom().nextFloat() * 0.4F + 0.8F);
+    }
+    // Straight into the pack; HaulStep walks it to the workplace container once
+    // the pack is worth a trip.
+    person.addItems(haul);
+  }
 
-    // A strippable log sometimes comes off the stump already stripped.
+  /** A strippable log sometimes comes off already stripped. */
+  private void stripSome(RealPerson person, BlockState state, List<ItemStack> drops) {
     BlockState stripped = AxeItem.getAxeStrippingState(state);
-    if (stripped != null && person.getRandom().nextFloat() < STRIP_CHANCE) {
-      for (int i = 0; i < drops.size(); i++) {
-        if (drops.get(i).getItem() == state.getBlock().asItem()) {
-          drops.set(i, new ItemStack(stripped.getBlock().asItem(), drops.get(i).getCount()));
+    if (stripped == null || person.getRandom().nextFloat() >= STRIP_CHANCE) {
+      return;
+    }
+    for (int i = 0; i < drops.size(); i++) {
+      if (drops.get(i).getItem() == state.getBlock().asItem()) {
+        drops.set(i, new ItemStack(stripped.getBlock().asItem(), drops.get(i).getCount()));
+      }
+    }
+  }
+
+  /**
+   * The connected logs of one tree, reached from the struck log by a bounded
+   * breadth-first walk over all twenty-six neighbours so branches and leaning
+   * trunks come with it. Capped so a giant tree cannot make the fill unbounded.
+   */
+  private List<BlockPos> collectTree(ServerLevel level, BlockPos start) {
+    List<BlockPos> logs = new ArrayList<>();
+    ArrayDeque<BlockPos> frontier = new ArrayDeque<>();
+    LongOpenHashSet visited = new LongOpenHashSet();
+    frontier.add(start);
+    visited.add(start.asLong());
+    while (!frontier.isEmpty() && logs.size() < TREE_LOG_CAP) {
+      BlockPos pos = frontier.poll();
+      if (!level.hasChunkAt(pos) || !level.getBlockState(pos).is(BlockTags.LOGS_THAT_BURN)) {
+        continue;
+      }
+      logs.add(pos);
+      for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+          for (int dz = -1; dz <= 1; dz++) {
+            if (dx == 0 && dy == 0 && dz == 0) {
+              continue;
+            }
+            BlockPos next = pos.offset(dx, dy, dz);
+            if (visited.add(next.asLong())) {
+              frontier.add(next);
+            }
+          }
         }
       }
     }
+    return logs;
+  }
 
-    person.level().playSound((Player) null, target.getX(), target.getY(), target.getZ(),
-        state.getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
-        person.getRandom().nextFloat() * 0.4F + 0.8F);
+  /**
+   * Reservoir-samples a fellable trunk with a natural canopy, then returns its
+   * lowest connected log so the worker walks to the base and the tree comes down
+   * from the ground up.
+   */
+  @Nullable
+  private BlockPos findWoodlandTree(RealPerson person, ServerLevel level, BlockPos around) {
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    BlockPos found = null;
+    int seen = 0;
+    for (int x = -this.woodlandRadius; x <= this.woodlandRadius; ++x) {
+      for (int y = -WOODLAND_VERTICAL_RADIUS; y <= WOODLAND_VERTICAL_RADIUS; ++y) {
+        for (int z = -this.woodlandRadius; z <= this.woodlandRadius; ++z) {
+          cursor.setWithOffset(around, x, y, z);
+          if (!level.hasChunkAt(cursor)
+              || !level.getBlockState(cursor).is(BlockTags.LOGS_THAT_BURN)
+              || !hasNaturalCanopy(level, cursor)
+              || !BlockOwnership.mayFell(level, cursor)) {
+            continue;
+          }
+          BlockPos base = lowestConnectedLog(level, cursor.immutable());
+          if (person.getRandom().nextInt(++seen) == 0) {
+            found = base;
+          }
+        }
+      }
+    }
+    return found;
+  }
 
-    // The log actually comes down. Straight into the pack; HaulStep walks it to
-    // the workplace container once the pack is worth a trip.
-    person.level().removeBlock(target, false);
-    person.addItems(drops);
+  /**
+   * Whether naturally grown leaves ({@code persistent == false}) sit close to a
+   * log. This is what tells a living tree from a stack of authored timber: a
+   * player's placed leaves are persistent, and a building carries none.
+   */
+  private boolean hasNaturalCanopy(ServerLevel level, BlockPos log) {
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    for (int x = -LEAF_RADIUS; x <= LEAF_RADIUS; ++x) {
+      for (int y = -LEAF_RADIUS; y <= LEAF_RADIUS; ++y) {
+        for (int z = -LEAF_RADIUS; z <= LEAF_RADIUS; ++z) {
+          cursor.setWithOffset(log, x, y, z);
+          if (!level.hasChunkAt(cursor)) {
+            continue;
+          }
+          BlockState state = level.getBlockState(cursor);
+          if (state.is(BlockTags.LEAVES) && state.hasProperty(LeavesBlock.PERSISTENT)
+              && !state.getValue(LeavesBlock.PERSISTENT)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private BlockPos lowestConnectedLog(ServerLevel level, BlockPos log) {
+    BlockPos lowest = log;
+    while (lowest.getY() > level.getMinBuildHeight()
+        && level.getBlockState(lowest.below()).is(BlockTags.LOGS_THAT_BURN)) {
+      lowest = lowest.below();
+    }
+    return lowest;
   }
 
 }

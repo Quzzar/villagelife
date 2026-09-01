@@ -855,31 +855,71 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     if (this.getMainHandItem().getItem() instanceof CrossbowItem)
       this.performCrossbowAttack(this, 6.0F);
     if (this.getMainHandItem().getItem() instanceof BowItem) {
-      ItemStack itemstack = this
-          .getProjectile(this.getItemInHand(Utils.getHandWith(this, item -> item instanceof BowItem)));
-      ItemStack hand = this.getMainHandItem();
-      AbstractArrow abstractarrowentity = ProjectileUtil.getMobArrow(this, itemstack, distanceFactor, hand);
-      double d0 = target.getX() - this.getX();
-      double d1 = target.getY(0.3333333333333333D) - abstractarrowentity.getY();
-      double d2 = target.getZ() - this.getZ();
-      double d3 = Mth.sqrt((float) (d0 * d0 + d2 * d2));
-      abstractarrowentity.shoot(d0, d1 + d3 * (double) 0.2F, d2, 1.6F,
-          (float) (14 - this.level().getDifficulty().getId() * 4));
-      this.playSound(SoundEvents.SKELETON_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
-      this.level().addFreshEntity(abstractarrowentity);
-      hand.hurtAndBreak(1, this, EquipmentSlot.MAINHAND);
+      shootArrowAt(target, distanceFactor, (float) (14 - this.level().getDifficulty().getId() * 4));
     }
   }
 
+  /**
+   * Looses one arrow from the held bow. Combat keeps vanilla's
+   * difficulty-scaled spread (performRangedAttack above); the hunter passes a
+   * tight spread of its own, because a hunter who misses half their shots
+   * starves the lodge (HuntStep).
+   *
+   * The projectile comes from getProjectile: a special arrow is a real item
+   * and is spent on the shot, while the plain-arrow fallback is conjured and
+   * never counted (docs/worker-loops.md).
+   */
+  public void shootArrowAt(LivingEntity target, float power, float inaccuracy) {
+    ItemStack bow = this.getItemInHand(Utils.getHandWith(this, item -> item instanceof BowItem));
+    if (!(bow.getItem() instanceof BowItem)) {
+      return; // callers gate on the bow, but a hand swapped mid-tick stays safe
+    }
+    ItemStack projectile = this.getProjectile(bow);
+    AbstractArrow arrow = ProjectileUtil.getMobArrow(this, projectile, power, bow);
+    double d0 = target.getX() - this.getX();
+    double d1 = target.getY(0.3333333333333333D) - arrow.getY();
+    double d2 = target.getZ() - this.getZ();
+    double d3 = Mth.sqrt((float) (d0 * d0 + d2 * d2));
+    arrow.shoot(d0, d1 + d3 * (double) 0.2F, d2, 1.6F, inaccuracy);
+    this.playSound(SoundEvents.SKELETON_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+    this.level().addFreshEntity(arrow);
+    if (!projectile.is(Items.ARROW)) {
+      projectile.shrink(1);
+    }
+    bow.hurtAndBreak(1, this, EquipmentSlot.MAINHAND);
+  }
+
+  /**
+   * What the next shot fires: any special arrow actually carried (tipped,
+   * spectral - anything the weapon accepts that is not a plain arrow), hands
+   * first and then the pack, else a conjured plain arrow. Plain arrows are
+   * never counted or consumed - workers do not bookkeep ammunition - but
+   * specials given to a villager are real, finite, and used first
+   * (docs/worker-loops.md). The crossbow's vanilla charge path consumes
+   * through here too, so a guard's tipped bolts follow the same rule.
+   */
   @Override
   public ItemStack getProjectile(ItemStack shootable) {
-    if (shootable.getItem() instanceof ProjectileWeaponItem) {
-      Predicate<ItemStack> predicate = ((ProjectileWeaponItem) shootable.getItem()).getSupportedHeldProjectiles();
-      ItemStack itemstack = ProjectileWeaponItem.getHeldProjectile(this, predicate);
-      return itemstack.isEmpty() ? new ItemStack(Items.ARROW) : itemstack;
-    } else {
+    if (!(shootable.getItem() instanceof ProjectileWeaponItem weapon)) {
       return ItemStack.EMPTY;
     }
+    Predicate<ItemStack> supported = weapon.getSupportedHeldProjectiles();
+    ItemStack held = ProjectileWeaponItem.getHeldProjectile(this, supported);
+    if (isSpecialArrow(held)) {
+      return held;
+    }
+    for (int slot = 0; slot < this.personMainInv.getContainerSize(); slot++) {
+      ItemStack stack = this.personMainInv.getItem(slot);
+      if (supported.test(stack) && isSpecialArrow(stack)) {
+        return stack;
+      }
+    }
+    return new ItemStack(Items.ARROW);
+  }
+
+  /** A projectile worth bookkeeping: present, and not the infinite plain arrow. */
+  private static boolean isSpecialArrow(ItemStack stack) {
+    return !stack.isEmpty() && !stack.is(Items.ARROW);
   }
 
   @Override

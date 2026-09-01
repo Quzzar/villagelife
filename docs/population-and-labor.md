@@ -22,7 +22,21 @@ belongs at the campfire: newcomers who just arrived, and workers whose job disap
 
 Idle people are not `NITWIT`s in the old sense (a permanent do-nothing occupation). Idle is a
 *state*, not an occupation. Any idle person can become any profession the moment a slot opens.
-While idle, they stroll near the campfire, sit, chat, eat, and sleep like anyone else.
+While idle, they stroll near the campfire, sit, chat and eat. The housed sleep in their own
+beds; an idle person without a bed stays up by the fire all night (bedless campfire dozing
+existed once, put villagers to sleep against the lit fire, glitched endlessly, and was
+removed: nobody sleeps rough). They are civilians, but not helpless ones: every idle resident
+defends themselves and joins in against ordinary hostile monsters within sixteen blocks of the
+campfire. They do not pursue creepers or Endermen, and the campfire tether makes this local
+defence rather than an unpaid hunting patrol.
+
+Idle hands also tend the fire. An idle resident who finds raw food in the village stores takes
+it to the campfire, cooks anything a campfire can cook (read from the vanilla recipe set, so
+modded food joins in for free), and returns the cooked food to storage. It is the campfire twin
+of the farmer's idle composter chain: a light, early-camp source of prepared food that needs no
+building, and one that quietly matters less once a butchery exists to cook at scale
+(`entities/ai/goals/work/CookStep`). It is the lowest-priority thing an idle person does, so
+defence, eating and sleep always pull them off it.
 
 ## What caps the reservoir
 
@@ -33,13 +47,27 @@ Two independent caps, checked at arrival time:
 | **Idle cap** | At most N people may be idle at the campfire at once (Stronghold uses 24; ours is per-tier, owned by [village-tiers.md](village-tiers.md)'s `idle_cap`, with a config fallback of 2 when no ladder is loaded). No new arrivals while the pool is full, no matter how much housing is free. |
 | **Housing cap** | Total population may exceed total beds by up to the idle cap, and no further: the campfire reservoir is exactly where bedless newcomers wait. The village center provides the starting beds; each house adds more. |
 
-Beds are assigned on arrival from `unassignedBeds`, independent of employment — which is
-coherent because **no workplace carries a bed** ([#61](https://github.com/Quzzar/villagelife/issues/61));
-houses and the village centre are the only sources of beds. A villager keeps the first free
-bed they are given and does not move when their job changes, so commutes across a village
-are normal and expected. Losing a bed
-(house destroyed) does not despawn a person; it makes them homeless, which hurts
-attractiveness (below) until rehoused.
+Beds are assigned on arrival from `unassignedBeds`, ahead of any employment. Houses and the
+village centre are the main sources of beds, and some workplaces carry a live-in bed as well
+(the lumberjack hut, the watchtower, the upper blacksmith, the church), superseding the
+older no-workplace-beds reading of [#61](https://github.com/Quzzar/villagelife/issues/61).
+A workplace bed registers into the same pool as any other, and a worker assigned to a
+building with a free bed moves in (`Village.preferWorkplaceBed`), releasing whatever bed
+they held. Otherwise a villager keeps the first free bed they are given and does not move
+when their job changes, so commutes across a village are normal and expected.
+
+**Employment requires housing** (decided 2026-08-31). A job can only be held by someone
+with a bed: claiming and the swap pass skip bedless candidates (unless a free bed exists
+somewhere, which reconciliation hands over within the second), and a worker whose bed is
+gone with no replacement stands down, their post reopening for someone housed
+(`JobClaiming.releaseUnhousedWorkers`). The bedless are exactly the campfire reservoir:
+they idle by the fire, take no work, and do not sleep until the village builds them a home,
+which is what makes housing a genuine construction need. The planner does not score this
+into a decision: it states the facts (how many idle, how many have nowhere to sleep) in the
+brain's briefing and lets the model weigh building homes against building workshops nobody
+housed could staff. Losing a bed
+(house destroyed) still does not despawn a person; it makes them homeless, which hurts
+attractiveness (below) and idles them until rehoused.
 
 ## What drives inflow: attractiveness
 
@@ -163,7 +191,8 @@ A workplace building finishing construction registers its work stations as open
 `JobAssignment`s (this part already exists: `VillageBrain.processNewBuilding` fills
 `unassignedJobs`). From there:
 
-- An open job claims an idle person from the campfire pool automatically. Aptitude is a
+- An open job claims a **housed** idle person from the campfire pool automatically (the
+  employment-requires-housing rule above; a bedless camper is not claimable). Aptitude is a
   weighted sum over the genetics stat block, with per-occupation weights as datapack JSON
   (`data/villagelife/villagelife/aptitude/`); FIFO breaks ties, and unprofiled occupations
   stay effectively FIFO.
@@ -178,8 +207,8 @@ A workplace building finishing construction registers its work stations as open
   project planner's discipline, `JobClaiming` + `Village.jobDecisionPending`). This is the
   first job-facing consumer of the LLM brain; see [llm-brain.md](llm-brain.md).
 - A slow-tick **swap pass** reorganizes only when the improvement clears the configured
-  threshold (default 3 points on the 3-18 scale): a markedly better idle candidate takes
-  over a job (the displaced worker returns to the pool and remembers it in their personal
+  threshold (default 3 points on the 3-18 scale): a markedly better housed idle candidate
+  takes over a job (the displaced worker returns to the pool and remembers it in their personal
   log), or one beneficial two-worker exchange per pass. A per-person cooldown (default 2
   game days) prevents churn. The swap pass stays **purely rule-based**: reorganization is a
   mechanical aptitude optimization, and only the initial claim of a contested post is
@@ -201,8 +230,9 @@ militarizing a starving village.
 
 Attractiveness governs inflow. The idle cap and the housing cap govern reservoir size.
 Demand (open jobs) governs outflow. The village grows by building houses (raises the
-housing cap) and workplaces (creates demand), and stays healthy by keeping people fed and
-safe (keeps attractiveness above threshold so the pool refills).
+housing cap and unlocks employment, since only the housed may hold jobs) and workplaces
+(creates demand), and stays healthy by keeping people fed and safe (keeps attractiveness
+above threshold so the pool refills).
 
 ## Implementation map
 
@@ -216,7 +246,8 @@ The campfire model is the current code. Key locations:
   minus mid-walk travelers). Idle behavior anchors to the `villagelife:campfire` POI.
 - Job claiming and swaps: `JobClaiming.tick`, called every second from `Village.update`:
   aptitude-based claiming (`JobAptitudes` + `JobAptitudeLoader` datapack profiles), a
-  visible commute, a reconciliation pass that returns orphaned workers to the pool, and
+  visible commute, reconciliation passes that return orphaned workers to the pool and
+  stand down workers left without a bed, and
   the threshold-gated swap pass on a phase-staggered slow tick (cooldowns persisted in the
   brain's strategy tag). Tunables: `Job swap threshold / interval / cooldown` in config.
 - `Occupation.IDLE` replaces NITWIT (kept only as a deprecated alias so old saves decode).
