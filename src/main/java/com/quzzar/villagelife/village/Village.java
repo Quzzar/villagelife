@@ -545,6 +545,7 @@ public class Village {
     BlockPos fire = gatheringPointPos();
     if (fire != null && level != null && !level.getBlockState(fire).is(Blocks.CAMPFIRE)) {
       level.setBlock(fire, Blocks.CAMPFIRE.defaultBlockState(), 3);
+      com.quzzar.villagelife.savedata.PlacedBlockStore.get(level).markVillagePlaced(fire);
     }
   }
 

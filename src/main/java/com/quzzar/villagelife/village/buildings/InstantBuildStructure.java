@@ -154,6 +154,12 @@ public class InstantBuildStructure {
                         }
 
                         if (levelAccess.setBlock(blockpos, blockstate, magicInt)) {
+                            // The stamped block is the village's; record it so a
+                            // building's timber never reads as a fellable tree.
+                            if (!blockstate.isAir()) {
+                                com.quzzar.villagelife.savedata.PlacedBlockStore
+                                        .get(levelAccess.getLevel()).markVillagePlaced(blockpos);
+                            }
                             i = Math.min(i, blockpos.getX());
                             j = Math.min(j, blockpos.getY());
                             k = Math.min(k, blockpos.getZ());

@@ -255,14 +255,26 @@ inside a hunting ground is safe, and a wild cow the herder adopts stops being qu
 also fight now: the occupation weighs into both combat checks, so they defend themselves and
 take on nearby monsters with the same bow, where before a hunter fled like a baker.
 
-**Built, 2026-08-31: lumberjacks and guards clear nearby woodland.** The lumberjack's planted
-stand remains its reliable, renewable source of work, but an idle lumberjack also ranges up to
-twelve blocks from the post to fell natural trees. A quiet guard does the same only rarely and
-within six blocks. Both roles run the same `ChopStep`, take the real block drops into their pack,
-and distinguish trees from authored timber by requiring leaves near the trunk. The lumberjack
-checks more often and accepts the work more readily; combat goals outrank the guard's chopping.
-The guard therefore carries a stone axe rather than a stone sword, keeping the apple ration in
-the other hand, and upgrades through the village's axe supply at bedtime.
+**Built, 2026-08-31: lumberjacks and guards clear nearby woodland; whole trees, and never the
+village's own.** The lumberjack's planted stand remains its reliable, renewable source of work,
+but an idle lumberjack also ranges out to fell natural trees, and a quiet guard does the same
+only rarely and closer in. The scan follows the worker: it sweeps a radius around wherever they
+currently stand, not a fixed post, so as a guard patrols or a lumberjack roams they clear the
+trees ringing the village rather than only those at one spot. The lumberjack scans a wider
+radius, more often, and accepts the work more readily; combat goals outrank the guard's chopping.
+
+Both roles run the same `ChopStep`. A worker strikes one log for a chop's worth of ticks, and
+when it gives the whole connected tree comes down at once: a bounded flood fill over its logs,
+all of it into the pack, with the leaves left to decay on their own. Two guards keep the axe off
+anything but a wild tree. A candidate must have a natural canopy nearby, leaves whose
+`persistent` flag is false, which a building's timber and a player's placed leaves never carry.
+And every log is checked against [block-ownership.md](block-ownership.md), which vetoes anything
+a player placed. The village's own claim deliberately does not protect trees: a village founded
+in a forest starts with claimed ground full of them, and the canopy test is what tells a tree
+from a building. So a wild tree overhanging a roof drops its own wood and spares the building's.
+
+The guard carries a stone axe rather than a stone sword, keeping the apple ration in the other
+hand, and upgrades through the village's axe supply at bedtime.
 
 ## When there is nothing to work on
 
