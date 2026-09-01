@@ -19,6 +19,7 @@ import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
+import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
@@ -561,15 +562,20 @@ public final class PersonChatContext {
     return String.join(", ", parts);
   }
 
+  /** What a villager holds, by its plain name: "stone axe" for "minecraft:stone_axe". */
   private static String itemName(ItemStack stack) {
     return stack.getItem().toString().replace("minecraft:", "").replace('_', ' ');
   }
 
-  /** The full recipe as "104 cobblestone, 8 iron ingot", for the goal briefing. */
+  /**
+   * The full recipe as "104 cobblestone, 8 iron ingot", for the goal briefing.
+   * Each line is spoken as what pays for it ({@link Materials#describe}): a
+   * log cost is "logs", since any wood the village has will do.
+   */
   private static String joinCosts(List<ItemStack> costs) {
     List<String> parts = new ArrayList<>();
     for (ItemStack cost : costs) {
-      parts.add(cost.getCount() + " " + itemName(cost));
+      parts.add(cost.getCount() + " " + Materials.describe(cost.getItem()));
     }
     return String.join(", ", parts);
   }
@@ -583,9 +589,9 @@ public final class PersonChatContext {
   private static String remainingCosts(List<ItemStack> costs, Map<Item, Integer> stock) {
     List<String> parts = new ArrayList<>();
     for (ItemStack cost : costs) {
-      int missing = cost.getCount() - stock.getOrDefault(cost.getItem(), 0);
+      int missing = cost.getCount() - Materials.counted(stock, cost.getItem());
       if (missing > 0) {
-        parts.add(missing + " " + itemName(cost));
+        parts.add(missing + " " + Materials.describe(cost.getItem()));
       }
     }
     return String.join(", ", parts);

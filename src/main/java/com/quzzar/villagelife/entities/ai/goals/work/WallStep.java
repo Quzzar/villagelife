@@ -11,6 +11,7 @@ import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
 import com.quzzar.villagelife.village.buildings.WallProject;
 import com.quzzar.villagelife.village.buildings.WallRaiser;
+import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.WallTier;
 
 import net.minecraft.core.BlockPos;
@@ -165,13 +166,13 @@ public final class WallStep implements BlockWorkStep {
     if (PackLogistics.carried(person, tier.material()) < count) {
       // What is carried stays carried for the next column; the shortage is only
       // real when the village's chests have none left to fetch either.
-      if (!village.hasItemStackInVillage(new ItemStack(tier.material(), 1))) {
+      if (Materials.counted(village.stockTally(), tier.material()) == 0) {
         village.logEvent(new NoResourceBookkeepingEvent(tier.material(), count));
         person.logIssue("we are short of materials to raise the village wall", Optional.empty());
       }
       return false;
     }
-    Utils.removeItem(person.personMainInv, tier.material(), count);
+    Materials.take(person.personMainInv, tier.material(), count);
 
     WallRaiser.place(level, x, z, range, tier);
     if (gate) {

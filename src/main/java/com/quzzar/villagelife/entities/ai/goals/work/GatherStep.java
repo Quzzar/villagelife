@@ -10,6 +10,7 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.BuildingUpgrade;
+import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 
 import net.minecraft.core.BlockPos;
@@ -36,6 +37,8 @@ import net.minecraft.world.item.ItemStack;
  *
  * Emeralds are never a recipe item, so a build never draws on the treasury even
  * though the sweep would reach it; nothing here needs to special-case money.
+ * What pays for each recipe line is {@link Materials}' rule, not the item's
+ * name: a log cost is met by any log the village has.
  */
 public final class GatherStep implements BlockWorkStep {
 
@@ -103,7 +106,7 @@ public final class GatherStep implements BlockWorkStep {
   private boolean stillNeeds(RealPerson person, StructureInProgress project) {
     Container pack = person.personMainInv;
     for (ItemStack cost : recipe(person, project)) {
-      if (Utils.getAmountOfItemType(pack, cost.getItem()) < cost.getCount()) {
+      if (Materials.held(pack, cost.getItem()) < cost.getCount()) {
         return true;
       }
     }
@@ -115,14 +118,14 @@ public final class GatherStep implements BlockWorkStep {
     Container pack = person.personMainInv;
     int pulledTotal = 0;
     for (ItemStack cost : recipe(person, project)) {
-      int need = cost.getCount() - Utils.getAmountOfItemType(pack, cost.getItem());
+      int need = cost.getCount() - Materials.held(pack, cost.getItem());
       if (need <= 0) {
         continue;
       }
-      ItemStack pulled = Utils.removeItem(chest, cost.getItem(), need);
+      List<ItemStack> pulled = Materials.take(chest, cost.getItem(), need);
       if (!pulled.isEmpty()) {
-        Utils.insertItems(pack, List.of(pulled), person);
-        pulledTotal += pulled.getCount();
+        Utils.insertItems(pack, pulled, person);
+        pulledTotal += pulled.stream().mapToInt(ItemStack::getCount).sum();
       }
     }
     if (pulledTotal > 0) {
@@ -155,8 +158,8 @@ public final class GatherStep implements BlockWorkStep {
   private boolean holdsSomethingNeeded(RealPerson person, Container chest, StructureInProgress project) {
     Container pack = person.personMainInv;
     for (ItemStack cost : recipe(person, project)) {
-      int need = cost.getCount() - Utils.getAmountOfItemType(pack, cost.getItem());
-      if (need > 0 && Utils.getAmountOfItemType(chest, cost.getItem()) > 0) {
+      int need = cost.getCount() - Materials.held(pack, cost.getItem());
+      if (need > 0 && Materials.held(chest, cost.getItem()) > 0) {
         return true;
       }
     }

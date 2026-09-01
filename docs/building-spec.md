@@ -145,7 +145,10 @@ unbuildable:
   cobblestone, sand, sandstone and iron; the lumberjack yields logs and oak
   planks; the mason turns cobblestone into stone and stone brick. **Nothing
   produces glass, wool, or non-oak planks**, so a recipe naming them can never be
-  paid however honestly it describes the building.
+  paid however honestly it describes the building. A recipe's "oak log" is paid
+  by any log (`village/buildings/Materials.java`): the guard's woodland chop
+  yields whatever wood grows around the camp, and a mangrove-swamp camp with a
+  store full of mangrove was otherwise stuck on its first house for good.
 - **Never price a building in what it alone produces.** The lumberjack is the only
   source of planks, so it costs cobblestone and nothing else: a village that has
   only founded, and so has only a miner, must be able to build it. The stoneworks

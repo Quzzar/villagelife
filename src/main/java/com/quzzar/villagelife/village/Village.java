@@ -758,7 +758,7 @@ public class Village {
     // A rough bill, a course or two of slack per column for the slopes it steps
     // down. The exact draw happens column by column as it builds.
     int estimate = ring.size() * (tier.height() + 2);
-    if (stockTally().getOrDefault(tier.material(), 0) < estimate) {
+    if (com.quzzar.villagelife.village.buildings.Materials.counted(stockTally(), tier.material()) < estimate) {
       maybeLogShortage(new ItemStack(tier.material(), estimate));
       return false;
     }

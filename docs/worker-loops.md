@@ -268,6 +268,24 @@ currently stand, not a fixed post, so as a guard patrols or a lumberjack roams t
 trees ringing the village rather than only those at one spot. The lumberjack scans a wider
 radius, more often, and accepts the work more readily; combat goals outrank the guard's chopping.
 
+**Reach is measured from the eyes, not the feet (2026-09-01).** A tree is cut from beside its
+trunk or from beneath it: the worker stands within arm's length of the trunk horizontally, and
+the lowest log has to be within an axe's reach of their eyes, a player's block reach of four
+and a half. Mangrove trunks stand on stilts three to seven blocks over the mud, and with the
+loop's flat arrival test a fresh camp's guard at Mangrove's Edge walked under every tree it
+picked, gave up, stood down and was eventually sent home: not one log in an hour. The woodland
+scan applies the same test in advance from every standing spot beside a trunk, so the tallest
+stilts are left rather than walked to and given up on. `WorkStep.inReach` is the seam: the
+loop's default is still the flat distance to the target, and the chop is the one step that
+answers differently.
+
+**What the felled wood pays for.** A recipe names oak because the catalogue does, but the
+village pays in kind: a cost naming a log is met by any log (`village/buildings/Materials.java`,
+the one place that rule lives), so a swamp camp's mangrove pays for its house. The planner's
+tally, a goal's shortfall, the builder's gathering and the commit that spends the recipe, the
+wall's draw and the market's reserve all ask that rule rather than comparing items. Everything
+else is exact.
+
 Both roles run the same `ChopStep`. A worker strikes one log for a chop's worth of ticks, and
 when it gives the whole connected tree comes down at once: a bounded flood fill over its logs,
 all of it into the pack, with the leaves left to decay on their own. Two guards keep the axe off

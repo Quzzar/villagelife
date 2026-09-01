@@ -3,6 +3,7 @@ package com.quzzar.villagelife.economy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -13,6 +14,7 @@ import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
+import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
@@ -223,8 +225,9 @@ public final class VillageTrading {
     if (info == null) {
       return null;
     }
+    Map<Item, Integer> stock = village.stockTally();
     for (ItemStack cost : info.getMaterialCost()) {
-      int short_ = cost.getCount() - VillagePricing.countHeld(village, cost.getItem());
+      int short_ = cost.getCount() - Materials.counted(stock, cost.getItem());
       if (short_ > 0) {
         return new ItemStack(cost.getItem(), short_);
       }
@@ -288,7 +291,7 @@ public final class VillageTrading {
     }
     int cost = 0;
     for (ItemStack stack : info.getMaterialCost()) {
-      if (stack.getItem() == item) {
+      if (Materials.pays(item, stack.getItem())) {
         cost += stack.getCount();
       }
     }

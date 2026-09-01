@@ -128,7 +128,8 @@ Concrete choices the code now makes, all one line to tune:
 - heights: 3 courses for wood, 5 for stone (a merlon on alternate stone columns),
 - gateways: one at the midpoint of each edge, a wooden door below a lintel that faces the town
   so it opens inward, which villagers open and close as they path,
-- material: one palette per tier (oak log, stone brick), not varied by biome.
+- material: one palette per tier (oak log, stone brick), not varied by biome; the wood tier is
+  paid for by any log ([building-spec.md](building-spec.md), `Materials`) and placed as oak.
 
 Deferred, and the honest gaps against "real defence":
 

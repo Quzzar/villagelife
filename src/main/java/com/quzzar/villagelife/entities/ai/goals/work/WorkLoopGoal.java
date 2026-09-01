@@ -114,7 +114,7 @@ public class WorkLoopGoal<T> extends Goal {
     BlockPos where = this.step.positionOf(this.target);
     this.ticksInReach++;
 
-    if (this.person.blockPosition().distSqr(where) > this.step.reachSqr(this.person)) {
+    if (!this.step.inReach(this.person, where)) {
       // A worker who cannot reach their work holds the job forever otherwise:
       // the navigator only calls a path stalled if it found one, and a path it
       // never found cannot stall.

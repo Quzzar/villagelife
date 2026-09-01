@@ -207,12 +207,12 @@ public class StructureInProgress {
             return false;
         }
         for (net.minecraft.world.item.ItemStack cost : recipe) {
-            if (com.quzzar.villagelife.Utils.getAmountOfItemType(pack, cost.getItem()) < cost.getCount()) {
+            if (Materials.held(pack, cost.getItem()) < cost.getCount()) {
                 return false; // the recipe is not all here yet
             }
         }
         for (net.minecraft.world.item.ItemStack cost : recipe) {
-            com.quzzar.villagelife.Utils.removeItem(pack, cost.getItem(), cost.getCount());
+            Materials.take(pack, cost.getItem(), cost.getCount());
         }
         this.progress = remainingPrepWork() > 0
                 ? BuildProgress.PREPARING

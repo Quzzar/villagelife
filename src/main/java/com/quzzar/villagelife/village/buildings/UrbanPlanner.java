@@ -15,6 +15,8 @@ import com.quzzar.villagelife.village.VillageRequests;
 
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -128,7 +130,9 @@ public class UrbanPlanner {
    * before any of it exists. Anything absent from this map comes straight out of
    * the ground, and a village that has founded can always get it. This is also
    * the source of the dependency chain the model is shown: an item's capability
-   * names the building that produces it (see producerFor).
+   * names the building that produces it (see producerFor). Ask through
+   * {@link #sourceOf}: any log waits on LOGS, since any log pays a log cost
+   * ({@link Materials}), and oak stands here for all of them.
    */
   private static final Map<Item, String> MATERIAL_SOURCE = Map.of(
       Items.OAK_LOG, "LOGS",
@@ -138,6 +142,12 @@ public class UrbanPlanner {
       Items.SANDSTONE, "CUT_STONE",
       Items.CUT_SANDSTONE, "CUT_STONE");
 
+  /** The capability a material waits on, or null when it comes out of the ground. */
+  @Nullable
+  private static String sourceOf(Item item) {
+    return Materials.isLog(item) ? "LOGS" : MATERIAL_SOURCE.get(item);
+  }
+
   /**
    * Whether a village could ever pay for this, which is a different question
    * from whether it can today. A goal it has no way to work toward is not a
@@ -146,13 +156,13 @@ public class UrbanPlanner {
    */
   private static boolean withinReach(Village village, Map<Item, Integer> stock, BuildingInfo info) {
     for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
-      String capability = MATERIAL_SOURCE.get(cost.getItem());
+      String capability = sourceOf(cost.getItem());
       if (capability == null || village.canDo(capability)) {
         continue;
       }
       // Some already in store counts: whoever put it there can get more, and a
       // village part-way to a goal should be allowed to finish it.
-      if (stock.getOrDefault(cost.getItem(), 0) > 0) {
+      if (Materials.counted(stock, cost.getItem()) > 0) {
         continue;
       }
       return false;
@@ -403,7 +413,7 @@ public class UrbanPlanner {
     for (String grant : info.getGrants()) {
       for (Map.Entry<Item, String> source : MATERIAL_SOURCE.entrySet()) {
         if (source.getValue().equals(grant)) {
-          return ", which provides the " + itemName(source.getKey())
+          return ", which provides the " + Materials.describe(source.getKey())
               + " that other buildings are built from";
         }
       }
@@ -451,9 +461,9 @@ public class UrbanPlanner {
     List<String> parts = new ArrayList<>();
     String chain = "";
     for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
-      int missing = cost.getCount() - stock.getOrDefault(cost.getItem(), 0);
+      int missing = cost.getCount() - Materials.counted(stock, cost.getItem());
       if (missing > 0) {
-        parts.add(missing + " " + itemName(cost.getItem()));
+        parts.add(missing + " " + Materials.describe(cost.getItem()));
         if (chain.isEmpty()) {
           chain = producerHint(village, cost.getItem());
         }
@@ -468,7 +478,7 @@ public class UrbanPlanner {
    * material the goal is short of, resolved to the building that produces it.
    */
   private static String producerHint(Village village, Item item) {
-    String capability = MATERIAL_SOURCE.get(item);
+    String capability = sourceOf(item);
     if (capability == null || village.canDo(capability)) {
       return "";
     }
@@ -477,7 +487,7 @@ public class UrbanPlanner {
       return "";
     }
     String name = producer.hasWellFormedId() ? producer.getCategory().replace('_', ' ') : producer.getName();
-    return " (a " + name + " would make " + itemName(item) + ")";
+    return " (a " + name + " would make " + Materials.describe(item) + ")";
   }
 
   /** The first building in the catalogue that grants a capability, or null. */
@@ -488,11 +498,6 @@ public class UrbanPlanner {
       }
     }
     return null;
-  }
-
-  /** An item's id as plain words: "oak log", not "minecraft:oak_log". */
-  private static String itemName(Item item) {
-    return item.toString().replace("minecraft:", "").replace('_', ' ');
   }
 
   /**
@@ -522,7 +527,7 @@ public class UrbanPlanner {
     // build, so an upgrade becomes affordable as soon as its ADDITIONS are in
     // store rather than a second building's worth.
     for(ItemStack itemCost : BuildingUpgrade.effectiveCost(village, build)){
-      if(stock.getOrDefault(itemCost.getItem(), 0) < itemCost.getCount()){
+      if(Materials.counted(stock, itemCost.getItem()) < itemCost.getCount()){
         return false;
       }
     }
@@ -541,7 +546,7 @@ public class UrbanPlanner {
         continue;
       }
       for(ItemStack itemCost : build.getMaterialCost()){
-        if(stock.getOrDefault(itemCost.getItem(), 0) < itemCost.getCount()){
+        if(Materials.counted(stock, itemCost.getItem()) < itemCost.getCount()){
           return itemCost;
         }
       }

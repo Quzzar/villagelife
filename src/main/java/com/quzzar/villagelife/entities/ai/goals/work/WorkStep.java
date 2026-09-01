@@ -80,6 +80,16 @@ public interface WorkStep<T> {
     return 9.0D;
   }
 
+  /**
+   * Whether the worker is close enough to act: within {@link #reachSqr} of the
+   * target's position, by default. A step whose work is not at foot level
+   * answers for itself, because no single distance can say that a log four
+   * blocks up a stilted trunk is in reach of an axe from the mud beneath it.
+   */
+  default boolean inReach(RealPerson person, BlockPos where) {
+    return person.blockPosition().distSqr(where) <= reachSqr(person);
+  }
+
   /** Ticks between {@link #act} calls once in reach. Half a second by default. */
   default int actEveryTicks() {
     return 10;

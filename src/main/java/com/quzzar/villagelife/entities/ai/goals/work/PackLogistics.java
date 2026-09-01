@@ -9,6 +9,7 @@ import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
+import com.quzzar.villagelife.village.buildings.Materials;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -30,7 +31,8 @@ import net.minecraft.world.item.ItemStack;
  *
  * All of it is pack-relative: "wanted" always means the amount still missing
  * from the worker's own inventory, so a half-loaded pack asks only for the
- * rest.
+ * rest. What counts toward a wanted item is {@link Materials}' rule: a log
+ * cost is met by any log.
  */
 final class PackLogistics {
 
@@ -40,9 +42,9 @@ final class PackLogistics {
   private PackLogistics() {
   }
 
-  /** How many of this item the worker already carries. */
+  /** How many the worker already carries that pay toward this item. */
   static int carried(RealPerson person, Item item) {
-    return Utils.getAmountOfItemType(person.personMainInv, item);
+    return Materials.held(person.personMainInv, item);
   }
 
   /** Whether the pack is still short of any of these, counts and all. */
@@ -64,7 +66,7 @@ final class PackLogistics {
     return nearestChest(person, village, chest -> {
       for (ItemStack want : wanted) {
         int need = want.getCount() - carried(person, want.getItem());
-        if (need > 0 && Utils.getAmountOfItemType(chest, want.getItem()) > 0) {
+        if (need > 0 && Materials.held(chest, want.getItem()) > 0) {
           return true;
         }
       }
@@ -104,10 +106,10 @@ final class PackLogistics {
       if (need <= 0) {
         continue;
       }
-      ItemStack pulled = Utils.removeItem(chest, want.getItem(), need);
+      List<ItemStack> pulled = Materials.take(chest, want.getItem(), need);
       if (!pulled.isEmpty()) {
-        Utils.insertItems(person.personMainInv, List.of(pulled), person);
-        pulledTotal += pulled.getCount();
+        Utils.insertItems(person.personMainInv, pulled, person);
+        pulledTotal += pulled.stream().mapToInt(ItemStack::getCount).sum();
       }
     }
     if (pulledTotal > 0) {

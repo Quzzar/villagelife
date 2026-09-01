@@ -64,7 +64,7 @@ public final class BuildingUpgrade {
     }
     List<ItemStack> delta = new ArrayList<>();
     for (ItemStack cost : info.getMaterialCost()) {
-      int extra = cost.getCount() - already.getOrDefault(cost.getItem(), 0);
+      int extra = cost.getCount() - Materials.counted(already, cost.getItem());
       if (extra > 0) {
         delta.add(new ItemStack(cost.getItem(), extra));
       }
