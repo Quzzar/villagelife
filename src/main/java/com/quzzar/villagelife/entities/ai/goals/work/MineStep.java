@@ -39,9 +39,18 @@ import net.minecraft.world.level.block.WallTorchBlock;
  * broken is always computed from the job location and the cursor, never from
  * where the miner is standing, so the loop's TARGET is free to be a foothold
  * beside the face ({@link #standToMine}). The shaft therefore advances the same
- * way it always did, and the descent is layered on top - when no footing near
- * the face can be found the target falls back to the mouth, so the digging can
- * never fail even if the footing search comes up empty.
+ * way it always did, and the descent is layered on top.
+ *
+ * <p>When no footing near the face can be found, the descent has broken into a
+ * cave: an open void sits between the miner and the face. Rather than target a
+ * spot across a gap the navigator can never path to - the bug behind every
+ * "the miner is stuck at a cave" report - the step switches to
+ * {@link #bridgeAcross bridging}: it walks the miner TOWARD the face and lays a
+ * cobblestone plank ahead of its own feet a block at a time (the path-layer
+ * pattern of {@link PathStep}, but over air instead of on the ground), until
+ * footing at the face returns and digging resumes. With no cobblestone to
+ * spare it falls back to the mouth, so the shaft still advances, exactly as a
+ * missing foothold always did.
  */
 public final class MineStep implements BlockWorkStep {
 
@@ -80,6 +89,13 @@ public final class MineStep implements BlockWorkStep {
   private int sinceTorch;
   private int bucketShownTicks;
 
+  /**
+   * True while the miner is carrying the walkway across a cave: the descent has
+   * opened onto a void, so the step lays a plank ahead of its feet as it walks
+   * rather than digging. Cleared the moment footing at the face returns.
+   */
+  private boolean bridging;
+
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
@@ -91,16 +107,25 @@ public final class MineStep implements BlockWorkStep {
       return null;
     }
     // Stand next to the face and work it, walking down into the shaft as it
-    // deepens. When no footing near the face can be found, the descent has opened
-    // onto a void, so lay a single foothold to carry the path on (bridgeFooting).
-    // Failing that, fall back to the mouth and the shaft still advances, so the
-    // descent never stalls the digging.
+    // deepens.
     BlockPos face = face(mouth, rotation(person));
     BlockPos stand = standToMine(person, face);
-    if (stand == null) {
-      stand = bridgeFooting(person, face);
+    if (stand != null) {
+      this.bridging = false;
+      return stand;
     }
-    return stand != null ? stand : mouth;
+    // No footing at the face: the descent has broken into a cave, an open void
+    // between the miner and the face. With cobblestone to spare, carry the
+    // walkway across it - walk toward the face and lay a plank ahead a block at a
+    // time (bridgeAcross), which the navigator can then step onto. With none,
+    // fall back to the mouth so the shaft still advances, as a missing foothold
+    // always did.
+    if (person.hasItem(Items.COBBLESTONE)) {
+      this.bridging = true;
+      return face;
+    }
+    this.bridging = false;
+    return mouth;
   }
 
   @Override
@@ -111,6 +136,9 @@ public final class MineStep implements BlockWorkStep {
       return false;
     }
     BlockPos face = face(mouth, rotation(person));
+    if (this.bridging) {
+      return bridgeAcross(person, face);
+    }
     person.getLookControl().setLookAt(face.getX(), face.getY(), face.getZ(), 30.0F, 30.0F);
 
     this.breakTime++;
@@ -148,6 +176,7 @@ public final class MineStep implements BlockWorkStep {
     }
     this.breakTime = 0;
     this.lastProgress = -1;
+    this.bridging = false;
     stowBucket(person);
     this.bucketShownTicks = 0;
   }
@@ -163,10 +192,21 @@ public final class MineStep implements BlockWorkStep {
     return 1;
   }
 
-  /** Close, so the miner stands at the face they are working, deep in the shaft. */
+  /**
+   * Close, so the miner stands at the face they are working, deep in the shaft.
+   * While bridging, arm's length instead: the miner must keep walking the plank
+   * the whole way across the cave rather than "arriving" from the near lip and
+   * trying to dig the far wall across the gap.
+   */
   @Override
   public double reachSqr(RealPerson person) {
-    return 6.0D;
+    return this.bridging ? 1.5D : 6.0D;
+  }
+
+  /** Laying the plank is the journey; digging waits for arrival at the face. */
+  @Override
+  public boolean actWhileTravelling() {
+    return this.bridging;
   }
 
   private int breakTicks() {
@@ -219,43 +259,74 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * Make a foothold to work {@code face} when {@link #standToMine} found none: the
-   * descent has opened onto a void, a cave undercutting the walkway. The nearest spot
-   * that is open with headroom but has nothing to stand on gets a SINGLE cobblestone
-   * under it, and the miner stands there. One block, only where a foot needs to go, so
-   * a cave is carried across a step at a time rather than flooded with a whole floor.
-   * Null when the miner has no cobblestone to spare or nothing around the face is
-   * floorable, which sends the caller back to the mouth as a missing foothold always
-   * did.
+   * Carry the walkway one step across a cave, laid AHEAD of the miner's own feet
+   * rather than beside the far face: the descent has broken into a void, and the
+   * miner stands on the near side of it. Every prior version reasoned about the
+   * frontier and laid cobble THERE - across a gap the navigator could never path
+   * to - which is why the miner kept getting stuck at caves. The plank has to
+   * grow from where the miner is.
+   *
+   * <p>Called each tick while {@link #bridging} and {@link #actWhileTravelling}
+   * has the goal walking toward the face. It drops a single cobblestone in the
+   * cell just ahead, at foot level, whenever that cell is open air - so a floor
+   * appears for the next step and the miner treads across a block at a time.
+   * Placement paces itself with the walk: once a plank is down the cell is no
+   * longer air, so nothing more is laid there until the miner has moved on.
+   *
+   * <p>Returns true to keep bridging. Returns false - handing control back to
+   * digging - the moment footing at the face returns, and also if the
+   * cobblestone runs out mid-cave, which is logged and resets the shaft rather
+   * than leaving the miner treading air.
    */
-  @Nullable
-  private BlockPos bridgeFooting(RealPerson person, BlockPos face) {
+  private boolean bridgeAcross(RealPerson person, BlockPos face) {
+    // Footing at the face at last: the plank has reached the far side. Stop
+    // bridging so the next select stands the miner down to dig as usual.
+    if (standToMine(person, face) != null) {
+      this.bridging = false;
+      return false;
+    }
     Level level = person.level();
-    BlockPos[] candidates = {
-        face.above(),
-        face.north(), face.south(), face.east(), face.west(),
-        face.above().north(), face.above().south(), face.above().east(), face.above().west(),
-    };
-    BlockPos best = null;
-    double bestDist = Double.MAX_VALUE;
-    for (BlockPos candidate : candidates) {
-      // A foothold but for its missing floor: open, headroom above, a void below.
-      boolean floorless = level.getBlockState(candidate).isAir()
-          && level.getBlockState(candidate.above()).isAir()
-          && !level.getBlockState(candidate.below())
-              .isFaceSturdy(level, candidate.below(), Direction.UP);
-      if (floorless && candidate.distSqr(person.blockPosition()) < bestDist) {
-        bestDist = candidate.distSqr(person.blockPosition());
-        best = candidate;
-      }
+    BlockPos foot = person.getOnPos(); // the block the miner is standing on
+    BlockPos ahead = foot.relative(towardFace(foot, face));
+    person.getLookControl().setLookAt(ahead.getX(), ahead.getY(), ahead.getZ(), 30.0F, 30.0F);
+
+    // Already floored - existing ground, or a plank laid a step ago: nothing to
+    // add here, the walk carries the miner onward.
+    if (!level.getBlockState(ahead).isAir()) {
+      return true;
     }
-    if (best == null || person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
-      return null;
+    // Open air but no room to stand: a low pocket, not a walkable gap. Give up
+    // this shaft rather than plank a crawlspace the miner cannot use.
+    boolean headroom = level.getBlockState(ahead.above()).isAir()
+        && level.getBlockState(ahead.above(2)).isAir();
+    if (!headroom) {
+      this.bridging = false;
+      resetShaft();
+      return false;
     }
-    level.setBlock(best.below(), Blocks.COBBLESTONE.defaultBlockState(), 3);
-    Villagelife.LOGGER.info("[mine] {} laid a foothold at {} to carry the shaft across a void",
-        person.getName().getString(), best.toShortString());
-    return best;
+    if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
+      person.logIssue("I ran out of cobblestone to bridge a cave in my mine", Optional.empty());
+      this.bridging = false;
+      resetShaft();
+      return false;
+    }
+    level.setBlock(ahead, Blocks.COBBLESTONE.defaultBlockState(), 3);
+    level.playSound((Player) null, ahead.getX(), ahead.getY(), ahead.getZ(),
+        Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(), SoundSource.BLOCKS,
+        1.0F, person.getRandom().nextFloat() * 0.4F + 0.8F);
+    Villagelife.LOGGER.info("[mine] {} planked across a cave at {}",
+        person.getName().getString(), ahead.toShortString());
+    return true;
+  }
+
+  /** The dominant horizontal step from {@code from} toward {@code face}. */
+  private Direction towardFace(BlockPos from, BlockPos face) {
+    int dx = face.getX() - from.getX();
+    int dz = face.getZ() - from.getZ();
+    if (Math.abs(dx) >= Math.abs(dz)) {
+      return dx >= 0 ? Direction.EAST : Direction.WEST;
+    }
+    return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
   }
 
   /**
@@ -532,6 +603,7 @@ public final class MineStep implements BlockWorkStep {
     this.inward = 1;
     this.breakTime = 0;
     this.lastProgress = -1;
+    this.bridging = false;
   }
 
 }
