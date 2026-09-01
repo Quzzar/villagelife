@@ -72,7 +72,16 @@ public class UrbanPlanner {
     String goal = VillageGoal.current(village);
     if (goal != null) {
       if (VillageGoal.hasExpired(village, village.getVillageTime())) {
+        // A goal that expires with its shortfall exactly as it was when named
+        // proved something the reachability test could not: nobody here can get
+        // what it needs. Sit it out, or the village re-names it forever.
+        BuildingInfo expired = Buildings.getByName(goal);
+        String before = VillageGoal.shortfallAtSet(village);
+        String now = expired == null ? "" : shortfall(village, expired, stock);
         VillageGoal.clear(village, "waited too long");
+        if (expired != null && !before.isEmpty() && before.equals(now)) {
+          VillageGoal.markStalled(village, goal, village.getVillageTime());
+        }
       } else {
         BuildingInfo wanted = Buildings.getByName(goal);
         if (wanted == null) {
@@ -122,7 +131,7 @@ public class UrbanPlanner {
     Villagelife.LOGGER.debug("Village '{}' is choosing among {} it can build now, {} to work toward, plus waiting. Situation: {}",
         village.getName(), buildable.size(), goals.size(), situation);
     return LlmService.get().decide(situation, options)
-        .thenApply(decision -> pick(village, buildable, goals, fallback, decision));
+        .thenApply(decision -> pick(village, buildable, goals, fallback, decision, stock));
   }
 
   /**
@@ -178,8 +187,13 @@ public class UrbanPlanner {
    */
   private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
     List<Candidate> unaffordable = new ArrayList<>();
+    String stalled = VillageGoal.stalled(village, village.getVillageTime());
     for (BuildingInfo info : Buildings.allBuildings().values()) {
       if (isFoundingOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
+        continue;
+      }
+      // Sitting out after a goal lifetime in which nothing came in for it.
+      if (info.getName().equals(stalled)) {
         continue;
       }
       // A goal the village has nowhere to put, or no path to pay for, is not a
@@ -203,7 +217,7 @@ public class UrbanPlanner {
   }
 
   private static BuildingInfo pick(Village village, List<Candidate> buildable, List<Candidate> goals,
-      Candidate fallback, Optional<LlmDecision> decision) {
+      Candidate fallback, Optional<LlmDecision> decision, Map<Item, Integer> stock) {
     if (decision.isEmpty()) {
       if (fallback == null) {
         return null;
@@ -220,7 +234,8 @@ public class UrbanPlanner {
         BuildingInfo goalInfo = goals.get(goalIndex).info();
         Villagelife.LOGGER.info("Village '{}' decided to save up for {}: {}",
             village.getName(), goalInfo.getName(), chosen.reason());
-        VillageGoal.set(village, goalInfo.getName(), chosen.reason(), village.getVillageTime());
+        VillageGoal.set(village, goalInfo.getName(), chosen.reason(), shortfall(village, goalInfo, stock),
+            village.getVillageTime());
         return null;
       }
       return fallback == null ? null : fallback.info();
@@ -289,6 +304,15 @@ public class UrbanPlanner {
       situation.append("No building grows or gathers food yet. ");
     }
     appendRequests(village, situation);
+    // A stalled goal is stated as a fact, so the brain knows why a building it
+    // wanted is missing from its options rather than quietly choosing around a gap.
+    String stalled = VillageGoal.stalled(village, village.getVillageTime());
+    if (stalled != null) {
+      BuildingInfo info = Buildings.getByName(stalled);
+      String label = info != null && info.hasWellFormedId() ? info.getCategory().replace('_', ' ') : stalled;
+      situation.append("You saved up for a ").append(label)
+          .append(" before and nothing came in for it the whole time, so it is off the table for now. ");
+    }
     situation.append("Choose what to build next.");
     return situation.toString();
   }

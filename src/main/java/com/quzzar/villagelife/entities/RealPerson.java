@@ -1189,10 +1189,13 @@ public class RealPerson extends Person {
     }
     if (getOccupation() == Occupation.GUARD) {
       // Guarding always wins on priority. In a quiet spell, a guard very
-      // occasionally clears one natural tree close to their post using the
-      // exact same chopping step as the lumberjack.
+      // occasionally clears one natural tree around their post using the exact
+      // same chopping step as the lumberjack. The reach matches the lumberjack's
+      // because this is a fresh camp's only wood until it can afford a lodge: at
+      // six blocks the guard found no tree at all, and a camp sat on its first
+      // lodge goal for four hours, nine logs short the whole time.
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
-          new ChopStep(6, 0.05F, 200)));
+          new ChopStep(12, 0.05F, 200)));
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
     if (getOccupation() == Occupation.MINER) {

@@ -23,6 +23,15 @@ project, but within that field the choice is entirely its own. The cap that once
 list was a crutch for a weak model; richer per-option context, including the dependency chain,
 serves a small model better than a short list did.
 
+One correction the rules make after the fact (2026-09-01, [#80](https://github.com/Quzzar/villagelife/issues/80)):
+a save-for goal that runs its whole lifetime with its shortfall exactly as it was when named
+has proved something `outOfReach` could not see, that nobody here can get what it needs
+(`withinReach` lets a material through when some is already in store, and a fresh camp starts
+with a few logs it has no way to add to). `VillageGoal` marks such a goal stalled and it sits out
+two goal lifetimes; the brain is told so in its situation ("nothing came in for it the whole
+time, so it is off the table for now") rather than quietly losing an option. Without this a camp
+re-named its lumberjack lodge ten times over four hours, nine logs short throughout.
+
 A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
 and when two or more idle people are near-equally suited by aptitude (within a small
 `PICK_DELTA`) it offers those near-equals to `decide()` to choose among on character, each
