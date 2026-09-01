@@ -79,4 +79,9 @@ exist today.
 - **Per-player attribution.** The player set is a boolean today: it knows a player placed a
   block, not which player. A use that needs the placer turns the set into a map.
 - **More callers.** Anything that edits the world near a village should ask `mayFell` or
-  `query` rather than re-deriving ownership.
+  `query` rather than re-deriving ownership. The second caller is the builder's ground grading
+  ([worker-loops.md](worker-loops.md)): `GradeStep` never cuts a village-placed block or the
+  ground under one, reads village-placed and player-placed tops as not-ground in its survey,
+  grades a player's placed dirt like any other (a hummock is a hummock whoever piled it), and
+  prunes the record of what it digs so a player's dug dirt does not linger as "the player's".
+  Its fill is dirt and is not recorded, per the contract above.

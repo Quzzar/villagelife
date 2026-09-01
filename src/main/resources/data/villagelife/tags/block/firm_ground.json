@@ -1,0 +1,14 @@
+{
+  "values": [
+    "#minecraft:base_stone_overworld",
+    "#minecraft:terracotta",
+    "minecraft:sandstone",
+    "minecraft:red_sandstone",
+    "minecraft:calcite",
+    "minecraft:dripstone_block",
+    "minecraft:packed_ice",
+    "minecraft:blue_ice",
+    "minecraft:snow_block",
+    "minecraft:obsidian"
+  ]
+}

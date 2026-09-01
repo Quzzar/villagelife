@@ -179,6 +179,46 @@ This is deliberately the low-priority half of the job: a village with something 
 always building it, and a village with nothing to build is tidying itself. It also means
 paths are the visible sign of a village that has caught up with its own plans.
 
+**Built, 2026-09-01: the idle builder grades the ground first, and wears paths second.** A
+village on a hillside gets level footprints and rough ground between them: two-block steps a
+villager cannot climb, the notch where a site was cut in, the ledge where one was filled up.
+So between projects the builder now grades the ground around the buildings toward a surface
+with no step taller than one block (`GradeStep`, priority 7, above `PathStep` at 8). One
+reading of the ground yields a plan, the height every column should stand at; the builder
+works it nearest column first, digging high ground out a block at a time into the pack and
+raising low ground with the same spoil, so the earth from one side of a slope is the fill on
+the other: dirt where there is dirt, mud in a swamp (the first live village to grade sat in a
+mangrove swamp and dug nothing but mud), sand in a desert. When only filling is left and the
+pack holds nothing to fill with, the builder fetches dirt from a village chest by hand, and
+shelves the spoil in one when it piles up; a village with no dirt anywhere raises the ordinary
+shortage. When the plan is spent the ground is read
+again, and a reading that finds nothing ends the job. Planning first matters: a plan is one
+walkable surface, so working it makes one, whereas re-reading after every block (the first
+cut of this) chased a target that moved with each block and left dips on steep ground. One job
+strings many blocks together (the loop's target moves, like the cleric's patient), which is
+what keeps path-laying from twitching the builder toward a random building between blocks.
+
+Where each column should end up comes from one reading of the whole area (`GradingSurvey`):
+the buildings' footprints plus an eight-block margin, capped at 96 blocks across. Ground the
+village has claimed stands at its building's plane and is fixed; natural rock (the
+`villagelife:firm_ground` tag: stone, terracotta, sandstone, ice) is fixed too, being both the
+shape of the land and beyond a builder's hands; soft ground (the `villagelife:gradeable` tag:
+dirt, grass, sand, gravel, clay) moves; everything else is not ground at all: water, trees,
+anything a village or player built, and any block neither tag names. Rock used to be
+"whatever is left", and the first live swamp village taught why that is wrong: a mangrove's
+stilt roots read as a rock ledge four blocks up, and the builder set about raising the mud
+around every tree toward them. Neighbours that differ by more
+than four blocks are not connected: a cliff is a feature. Each movable column is aimed at the
+middle of the one-step envelope over the ground, clamped to what the fixed columns allow, so a
+slope is spread rather than pushed uphill or down and the graded ground actually meets a
+building's floor. The rule that keeps this to the surface of the land and not its shape
+([site-selection.md](site-selection.md)) is enforced against a per-level record of every graded
+column's original height (`GradedColumnStore`): no column ever stands more than three blocks
+from where it started, and none is moved back across its own starting height, so grading always
+ends. Ownership is the felling rule's neighbour ([block-ownership.md](block-ownership.md)): a
+village-placed block is never cut and nothing under one is; a player's placed dirt is graded
+like any other, and its record is dropped when it is dug.
+
 ## The farmer's idle hands feed the composter
 
 The farmer gets the same treatment: a field that is all still growing used to mean pure

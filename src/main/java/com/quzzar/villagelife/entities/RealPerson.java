@@ -66,6 +66,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.FetchStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
+import com.quzzar.villagelife.entities.ai.goals.work.GradeStep;
 import com.quzzar.villagelife.entities.ai.goals.work.ClearBrushStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CompostStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FetchBonemealStep;
@@ -1205,6 +1206,9 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new GatherStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new BuildStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new WallStep()));
+      // With nothing to build, the ground between the buildings is graded to
+      // walkable slopes before the paths across it are worn in.
+      this.goalSelector.addGoal(7, new WorkLoopGoal<>(this, new GradeStep()));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new PathStep()));
     }
     if (getOccupation() == Occupation.MERCHANT) {
