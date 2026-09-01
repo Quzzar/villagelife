@@ -130,7 +130,7 @@ public class UrbanPlanner {
     String situation = situationOf(village);
     Villagelife.LOGGER.debug("Village '{}' is choosing among {} it can build now, {} to work toward, plus waiting. Situation: {}",
         village.getName(), buildable.size(), goals.size(), situation);
-    return LlmService.get().decide(situation, options)
+    return LlmService.get().decide("what " + village.getName() + " builds next", situation, options)
         .thenApply(decision -> pick(village, buildable, goals, fallback, decision, stock));
   }
 

@@ -262,14 +262,15 @@ public final class PersonChatDispatcher {
     // depend on a model honouring a sampling parameter.
     String lastAnswer = history.isEmpty() ? null : history.get(history.size() - 1).villagerLine();
 
-    return ask(chat, VillagelifeConfig.LlmChatTemperature, CHAT_REPETITION_PENALTY, background)
+    String purpose = speakerName + " -> " + person.getFullName();
+    return ask(purpose, chat, VillagelifeConfig.LlmChatTemperature, CHAT_REPETITION_PENALTY, background)
         .thenCompose(first -> {
           if (!echoesLastAnswer(first, lastAnswer)) {
             return CompletableFuture.completedFuture(first);
           }
           Villagelife.LOGGER.debug("{} opened exactly as they did last time; sampling once more",
               person.getFullName());
-          return ask(chat, RETRY_TEMPERATURE, RETRY_REPETITION_PENALTY, background)
+          return ask(purpose + " (resampled)", chat, RETRY_TEMPERATURE, RETRY_REPETITION_PENALTY, background)
               .thenApply(second -> echoesLastAnswer(second, lastAnswer) ? first : second);
         })
         .thenApply(result -> {
@@ -305,12 +306,12 @@ public final class PersonChatDispatcher {
         });
   }
 
-  private static CompletableFuture<Optional<String>> ask(AssembledChat chat, double temperature,
+  private static CompletableFuture<Optional<String>> ask(String purpose, AssembledChat chat, double temperature,
       double penalty, boolean background) {
     return background
-        ? LlmService.get().submitBackgroundChat(chat.system(), chat.user(), chat.examples(),
+        ? LlmService.get().submitBackgroundChat(purpose, chat.system(), chat.user(), chat.examples(),
             VillagelifeConfig.LlmChatMaxNewTokens, temperature, penalty)
-        : LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(),
+        : LlmService.get().submitChat(purpose, chat.system(), chat.user(), chat.examples(),
             VillagelifeConfig.LlmChatMaxNewTokens, temperature, penalty);
   }
 
@@ -521,7 +522,8 @@ public final class PersonChatDispatcher {
       user.append("You: \"").append(e.reply()).append("\"\n");
     }
 
-    LlmService.get().submitPersona(system, user.toString(), SUMMARY_MAX_TOKENS, SUMMARY_TEMPERATURE)
+    LlmService.get().submitPersona(person.getFullName() + " keeps a memory of " + playerName, system,
+        user.toString(), SUMMARY_MAX_TOKENS, SUMMARY_TEMPERATURE)
         .whenComplete((result, error) -> {
           if (error != null || result == null || result.isEmpty()) {
             return;

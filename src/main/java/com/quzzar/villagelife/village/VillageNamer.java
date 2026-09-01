@@ -51,7 +51,7 @@ public final class VillageNamer {
 
   private static void request(ServerLevel level, String system, String user, boolean mayRetry,
       Consumer<String> onName) {
-    LlmService.get().submitPersona(system, user, 16, 0.7)
+    LlmService.get().submitPersona("naming a new settlement", system, user, 16, 0.7)
         .thenAccept(reply -> level.getServer().execute(() -> {
           Optional<String> name = reply.flatMap(VillageNamer::parse);
           if (name.isPresent()) {

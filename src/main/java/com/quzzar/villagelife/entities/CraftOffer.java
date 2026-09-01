@@ -87,7 +87,8 @@ public final class CraftOffer {
         "Press " + unitsToSpend + " " + press.spendName() + " into " + unitsToSpend * press.yieldPerUnit()
             + " " + press.productName() + " for your pack",
         "Leave the " + press.spendName() + " in the stores");
-    llm.decide(situation, options).whenComplete((decision, error) -> {
+    String purpose = person.getFullName() + "'s " + press.productName() + " press";
+    llm.decide(purpose, situation, options).whenComplete((decision, error) -> {
       if (error != null) {
         Villagelife.LOGGER.error("'{}' could not weigh the {} press", person.getFullName(),
             press.productName(), error);

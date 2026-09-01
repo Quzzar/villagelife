@@ -95,7 +95,7 @@ public final class PersonaJudge {
             return CompletableFuture.completedFuture(new Result(List.of(), true, ""));
         }
         CompletionRequest request = new CompletionRequest(SYSTEM, buildUser(traits, blurb, quirk), List.of(), 512, 0.0D);
-        return provider.get().complete(request)
+        return LlmService.callProvider(provider.get(), "judge", "grading a persona blurb", request)
                 .thenApply(raw -> raw.map(text -> parse(text, traits))
                         .orElse(Result.failed("judge returned no answer")));
     }

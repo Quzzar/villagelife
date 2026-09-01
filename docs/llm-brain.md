@@ -70,7 +70,7 @@ a cloud provider; internet on first boot for the model download.
 
 ## How a decision works
 
-`LlmService.decide(situation, options)` returns `CompletableFuture<Optional<LlmDecision>>`:
+`LlmService.decide(purpose, situation, options)` returns `CompletableFuture<Optional<LlmDecision>>`:
 
 - The prompt is a one-shot example plus the situation and a numbered option list; the model
   answers `{"reason": "...", "choice": <number>, "action": "<option text>"}`. Reason comes
@@ -84,6 +84,32 @@ a cloud provider; internet on first boot for the model download.
   (loaded at server start with a warm-up generation, so a broken backend fails at load, not
   mid-game) or as a cloud call. Requests time out after 60s and count as "no answer".
 - `/vlbrain status | load` and the developer `ask` command exercise all of it in-game.
+
+## Every call is on record
+
+`logs/llm.log`, beside `latest.log` and `debug.log`, holds every model call in full: the
+system prompt, the few-shot turns, the user message, and the reply, with the sampling settings
+and the time it took. Each request is written when it goes out and its reply when it lands,
+tied together by a running number (`#123 REQUEST` / `#123 REPLY`), so a call that times out
+still leaves its input on record. Calls that never reach a provider (not ready, deferred
+behind a player's conversation, background queue full, LLM disabled) are one `SKIPPED` line
+each with the reason, because from the game "the village never decided" and "the village was
+never asked" look the same.
+
+Every entry carries a **lane** (which queue it rode: `chat`, `decide`, `background`,
+`villager-chat`, `judge`) and a **purpose** the caller wrote in a few words: `Quzzar -> Jasper
+Ferguson`, `what Mangrove's Edge builds next`, `who takes the miner post at Emberstead`, `a
+persona for Birdie Hull`. Every public entry point of `LlmService` takes the purpose as its
+first argument, and nothing reaches a provider except through `LlmService.callProvider`, which
+is what makes the record complete (the persona judge, which builds its own cloud provider, goes
+through it too).
+
+The file is its own rolling appender (`LlmCallLog`), attached to the live log4j configuration
+at startup because a mod cannot ship a log4j config: it rolls at 20 MB and keeps five
+generations, and none of it repeats in the console. If the appender cannot be installed the
+same text goes to the main log at debug level, so a logging failure never costs a call its
+record. The main log keeps its one-line summaries (`[chat]`, `decided to build`); when one of
+those looks wrong, the number in `llm.log` is where to read exactly what the model was told.
 
 ## Providers and models
 

@@ -269,7 +269,7 @@ public class LlmEvents {
 
     long start = System.currentTimeMillis();
     MinecraftServer server = source.getServer();
-    llm.decide(situation, options).thenAccept(decision -> server.execute(() -> {
+    llm.decide("/vlbrain ask", situation, options).thenAccept(decision -> server.execute(() -> {
       long tookMs = System.currentTimeMillis() - start;
       String message = decision
           .map(d -> "Chose \"" + d.choice() + "\"" + (d.reason().isEmpty() ? "" : ": " + d.reason())

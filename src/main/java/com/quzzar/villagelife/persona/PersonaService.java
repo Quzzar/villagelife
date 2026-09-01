@@ -54,7 +54,7 @@ public final class PersonaService {
         // The example rides as a true few-shot turn, never concatenated into the
         // user message: a pasted example bleeds into outputs (villagers started
         // describing themselves as the example character, Doria Fenn).
-        return LlmService.get().submitPersona(PersonaPrompts.SYSTEM, sheet,
+        return LlmService.get().submitPersona("a persona for " + person.getFullName(), PersonaPrompts.SYSTEM, sheet,
                 java.util.List.of(
                         new LlmService.FewShotExample(PersonaPrompts.EXAMPLE_IN, PersonaPrompts.EXAMPLE_OUT),
                         new LlmService.FewShotExample(PersonaPrompts.EXAMPLE_IN_2, PersonaPrompts.EXAMPLE_OUT_2)),

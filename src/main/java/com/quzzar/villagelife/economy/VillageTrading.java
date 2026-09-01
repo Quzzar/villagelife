@@ -118,7 +118,7 @@ public final class VillageTrading {
     options.add(NO_TRADE);
     Villagelife.LOGGER.debug("Village '{}' is weighing {} trades with the bank",
         village.getName(), deals.size());
-    LlmService.get().decide(situationOf(village, level), options)
+    LlmService.get().decide("a bank trade for " + village.getName(), situationOf(village, level), options)
         .thenAccept(decision -> level.getServer().execute(
             () -> settle(village, level, deals, ruleChoice, decision)));
     return true;

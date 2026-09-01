@@ -30,6 +30,12 @@ import com.quzzar.villagelife.llm.provider.OpenAiCompatibleProvider;
  * {@link Optional#empty()} whenever the provider is unavailable, times out,
  * or produces an unusable answer — game logic defers and retries next cycle,
  * per the LLM-required design.
+ *
+ * Every request names its purpose in a few words ("Quzzar -> Jasper Ferguson",
+ * "what Mangrove's Edge builds next"), and every call, served or skipped, is
+ * written in full to the call log ({@link LlmCallLog}). Nothing reaches a
+ * provider except through {@link #callProvider}, which is what makes that
+ * record complete.
  */
 public final class LlmService {
 
@@ -94,10 +100,16 @@ public final class LlmService {
   }
 
   /** Background requests wait here so foreground work always jumps the line. */
-  private record QueuedPersona(String system, String user, List<FewShotExample> examples,
-      int maxNewTokens, double temperature, double frequencyPenalty,
+  private record QueuedPersona(String lane, String purpose, String system, String user,
+      List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty,
       CompletableFuture<Optional<String>> future) {
   }
+
+  /** The lane names in the call log: which queue a request rode. */
+  private static final String LANE_CHAT = "chat";
+  private static final String LANE_DECIDE = "decide";
+  private static final String LANE_BACKGROUND = "background";
+  private static final String LANE_VILLAGER_CHAT = "villager-chat";
 
   private static final int PERSONA_QUEUE_LIMIT = 64;
   private final java.util.ArrayDeque<QueuedPersona> personaQueue = new java.util.ArrayDeque<>();
@@ -136,6 +148,7 @@ public final class LlmService {
     if (!VillagelifeConfig.LlmEnabled) {
       return;
     }
+    LlmCallLog.install();
     synchronized (providerLock) {
       if (provider == null) {
         provider = createProvider(VillagelifeConfig.LlmProviderName);
@@ -190,13 +203,29 @@ public final class LlmService {
     }
   }
 
-  private CompletableFuture<Optional<String>> foregroundComplete(CompletionRequest request) {
+  /**
+   * The one road to a provider. Records the request, sends it, records the
+   * reply (or the failure) against the same call number. Every public entry
+   * point ends here, so the call log is the whole story of what the model was
+   * asked and said.
+   */
+  public static CompletableFuture<Optional<String>> callProvider(LlmProvider active, String lane,
+      String purpose, CompletionRequest request) {
+    long id = LlmCallLog.request(lane, purpose, request);
+    long startedMs = System.currentTimeMillis();
+    return active.complete(request).whenComplete((result, error) ->
+        LlmCallLog.reply(id, lane, purpose, result, error, System.currentTimeMillis() - startedMs));
+  }
+
+  private CompletableFuture<Optional<String>> foregroundComplete(String lane, String purpose,
+      CompletionRequest request) {
     LlmProvider active = provider;
     if (active == null || active.getStatus() != Status.READY) {
+      LlmCallLog.skipped(lane, purpose, "provider not ready (" + getStatus() + ")");
       return CompletableFuture.completedFuture(Optional.empty());
     }
     activeForeground.incrementAndGet();
-    return active.complete(request).whenComplete((result, error) -> {
+    return callProvider(active, lane, purpose, request).whenComplete((result, error) -> {
       activeForeground.decrementAndGet();
       tryDispatchPersona();
     });
@@ -205,10 +234,15 @@ public final class LlmService {
   /**
    * Asks the LLM to pick one of the given options for the given situation.
    * Completes with empty if unavailable, timed out, or unmatchable — callers
-   * defer to their previous state and ask again next cycle.
+   * defer to their previous state and ask again next cycle. {@code purpose}
+   * names the decision for the call log, in a few words.
    */
-  public CompletableFuture<Optional<LlmDecision>> decide(String situation, List<String> options) {
-    if (!isReady() || options.isEmpty()) {
+  public CompletableFuture<Optional<LlmDecision>> decide(String purpose, String situation, List<String> options) {
+    if (options.isEmpty()) {
+      return CompletableFuture.completedFuture(Optional.empty());
+    }
+    if (!isReady()) {
+      LlmCallLog.skipped(LANE_DECIDE, purpose, "provider not ready (" + getStatus() + ")");
       return CompletableFuture.completedFuture(Optional.empty());
     }
     // A build choice waits behind a live conversation. decide already treats an
@@ -216,6 +250,7 @@ public final class LlmService {
     // village simply re-decides once the player has stopped talking - no work
     // is lost, and a player's reply is not slowed by a village thinking.
     if (playerTalking()) {
+      LlmCallLog.skipped(LANE_DECIDE, purpose, "a player is mid-conversation; asked again next cycle");
       return CompletableFuture.completedFuture(Optional.empty());
     }
 
@@ -227,28 +262,24 @@ public final class LlmService {
     user.append("\nAnswer with ONLY the JSON object.");
 
     List<String> optionsCopy = List.copyOf(options);
-    return foregroundComplete(new CompletionRequest(DECIDE_SYSTEM, user.toString(), DECIDE_EXAMPLES,
-        VillagelifeConfig.LlmDecisionMaxNewTokens, VillagelifeConfig.LlmDecisionTemperature))
+    return foregroundComplete(LANE_DECIDE, purpose, new CompletionRequest(DECIDE_SYSTEM, user.toString(),
+        DECIDE_EXAMPLES, VillagelifeConfig.LlmDecisionMaxNewTokens, VillagelifeConfig.LlmDecisionTemperature))
         .thenApply(raw -> raw.flatMap(text -> parseDecision(text, optionsCopy)));
   }
 
   /**
    * Player-facing conversation request — the top of the queue order. See the
-   * chat contract (conversation map #24).
+   * chat contract (conversation map #24). The frequency penalty pushes the
+   * model off tokens it has just used (see PersonChatDispatcher). {@code
+   * purpose} names the exchange for the call log: who is talking to whom.
    */
-  public CompletableFuture<Optional<String>> submitChat(String system, String user,
-      List<FewShotExample> examples, int maxNewTokens, double temperature) {
-    return submitChat(system, user, examples, maxNewTokens, temperature, 0.0D);
-  }
-
-  /** As above, pushing the model off tokens it has just used (see PersonChatDispatcher). */
-  public CompletableFuture<Optional<String>> submitChat(String system, String user,
+  public CompletableFuture<Optional<String>> submitChat(String purpose, String system, String user,
       List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
     // Mark a conversation live so village work yields, and keep the window open
     // a few seconds past this reply for the player's next line.
     activeChat.incrementAndGet();
     chatWindowUntilMs = System.currentTimeMillis() + CHAT_PRIORITY_WINDOW_MS;
-    return foregroundComplete(
+    return foregroundComplete(LANE_CHAT, purpose,
         new CompletionRequest(system, user, examples, maxNewTokens, temperature, frequencyPenalty))
         .whenComplete((result, error) -> {
           activeChat.decrementAndGet();
@@ -257,39 +288,27 @@ public final class LlmService {
   }
 
   /**
-   * Free-text generation with no queue priority — for callers that manage
-   * their own scheduling. Most background work wants {@link #submitPersona}.
-   */
-  public CompletableFuture<Optional<String>> generate(String system, String user, int maxNewTokens,
-      double temperature) {
-    LlmProvider active = provider;
-    if (active == null || active.getStatus() != Status.READY) {
-      return CompletableFuture.completedFuture(Optional.empty());
-    }
-    return active.complete(new CompletionRequest(system, user, List.of(), maxNewTokens, temperature));
-  }
-
-  /**
    * Low-priority free-text generation for personas, relationship flavor, and
    * similar background work. Requests queue locally and dispatch only when
    * nothing foreground (chat or decide) is in flight and no other persona is
    * running. Same contract: empty on unavailability, error, or timeout.
    * Requests submitted while the provider is still loading wait in the queue.
+   * {@code purpose} names the work for the call log.
    */
-  public CompletableFuture<Optional<String>> submitPersona(String system, String user, int maxNewTokens,
-      double temperature) {
-    return submitPersona(system, user, List.of(), maxNewTokens, temperature);
+  public CompletableFuture<Optional<String>> submitPersona(String purpose, String system, String user,
+      int maxNewTokens, double temperature) {
+    return submitPersona(purpose, system, user, List.of(), maxNewTokens, temperature);
   }
 
   /**
-   * As {@link #submitPersona(String, String, int, double)}, with true few-shot
-   * example turns — NEVER concatenate examples into the user message instead;
-   * small models conflate the example with the request (a prototype-verified
-   * failure: the example character bleeds into real output).
+   * As {@link #submitPersona(String, String, String, int, double)}, with true
+   * few-shot example turns — NEVER concatenate examples into the user message
+   * instead; small models conflate the example with the request (a
+   * prototype-verified failure: the example character bleeds into real output).
    */
-  public CompletableFuture<Optional<String>> submitPersona(String system, String user,
+  public CompletableFuture<Optional<String>> submitPersona(String purpose, String system, String user,
       List<FewShotExample> examples, int maxNewTokens, double temperature) {
-    return submitBackground(system, user, examples, maxNewTokens, temperature, 0.0D);
+    return submitBackground(LANE_BACKGROUND, purpose, system, user, examples, maxNewTokens, temperature, 0.0D);
   }
 
   /**
@@ -298,24 +317,28 @@ public final class LlmService {
    * screen waiting for it, so it must never delay a player's reply or a
    * village decision, and it holds no priority window of its own.
    */
-  public CompletableFuture<Optional<String>> submitBackgroundChat(String system, String user,
+  public CompletableFuture<Optional<String>> submitBackgroundChat(String purpose, String system, String user,
       List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
-    return submitBackground(system, user, examples, maxNewTokens, temperature, frequencyPenalty);
+    return submitBackground(LANE_VILLAGER_CHAT, purpose, system, user, examples, maxNewTokens, temperature,
+        frequencyPenalty);
   }
 
-  private CompletableFuture<Optional<String>> submitBackground(String system, String user,
-      List<FewShotExample> examples, int maxNewTokens, double temperature, double frequencyPenalty) {
+  private CompletableFuture<Optional<String>> submitBackground(String lane, String purpose, String system,
+      String user, List<FewShotExample> examples, int maxNewTokens, double temperature,
+      double frequencyPenalty) {
     if (!VillagelifeConfig.LlmEnabled) {
+      LlmCallLog.skipped(lane, purpose, "the LLM is disabled in the config");
       return CompletableFuture.completedFuture(Optional.empty());
     }
     CompletableFuture<Optional<String>> future = new CompletableFuture<>();
     synchronized (personaQueue) {
       if (personaQueue.size() >= PERSONA_QUEUE_LIMIT) {
         Villagelife.LOGGER.warn("Background LLM queue full ({}), rejecting request", PERSONA_QUEUE_LIMIT);
+        LlmCallLog.skipped(lane, purpose, "background queue full (" + PERSONA_QUEUE_LIMIT + ")");
         return CompletableFuture.completedFuture(Optional.empty());
       }
-      personaQueue.add(new QueuedPersona(system, user, List.copyOf(examples), maxNewTokens, temperature,
-          frequencyPenalty, future));
+      personaQueue.add(new QueuedPersona(lane, purpose, system, user, List.copyOf(examples), maxNewTokens,
+          temperature, frequencyPenalty, future));
     }
     tryDispatchPersona();
     return future;
@@ -337,8 +360,8 @@ public final class LlmService {
     // path only. Nothing fails loudly: the knob works in chat, does nothing
     // here, and looks like a model problem. Chat reaches the provider via
     // foregroundComplete and is not affected.
-    provider.complete(new CompletionRequest(next.system(), next.user(), next.examples(),
-        next.maxNewTokens(), next.temperature(), next.frequencyPenalty()))
+    callProvider(provider, next.lane(), next.purpose(), new CompletionRequest(next.system(), next.user(),
+        next.examples(), next.maxNewTokens(), next.temperature(), next.frequencyPenalty()))
         .whenComplete((result, error) -> {
           synchronized (personaQueue) {
             personaInFlight = false;

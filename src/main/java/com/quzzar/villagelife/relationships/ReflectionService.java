@@ -121,7 +121,7 @@ public final class ReflectionService {
     user.append("Your JSON answer:");
 
     long now = person.level().getDayTime();
-    LlmService.get().submitPersona(SYSTEM, user.toString(), 128, 0.4)
+    LlmService.get().submitPersona(person.getFullName() + " reflects on the day", SYSTEM, user.toString(), 128, 0.4)
         .thenAccept(reply -> level.getServer().execute(() -> {
           if (!person.isAlive()) {
             return;

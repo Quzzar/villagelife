@@ -342,7 +342,9 @@ public final class JobClaiming {
     village.setJobDecisionPending(true);
     Applicant ruleChoice = shortlist.get(0);
     List<String> options = shortlist.stream().map(applicant -> describeApplicant(applicant.person())).toList();
-    LlmService.get().decide(situationOf(village, job), options)
+    String purpose = "who takes the " + job.getOccupation().name().toLowerCase(java.util.Locale.ROOT)
+        + " post at " + village.getName();
+    LlmService.get().decide(purpose, situationOf(village, job), options)
         .whenComplete((decision, error) -> {
           if (level == null) {
             village.setJobDecisionPending(false);

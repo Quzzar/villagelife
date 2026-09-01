@@ -105,7 +105,8 @@ public final class RelationshipService {
             prompt.append("- ").append(candidate.descriptor()).append('\n');
         }
 
-        LlmService.get().submitPersona(SELECTION_SYSTEM, prompt.toString(),
+        LlmService.get().submitPersona("who " + newcomer.getFullName() + " takes to in " + village.getName(),
+                SELECTION_SYSTEM, prompt.toString(),
                 List.of(SELECTION_EXAMPLE), SELECTION_TOKENS, TEMPERATURE)
                 .thenAccept(raw -> raw.ifPresent(text -> level.getServer().execute(
                         () -> onSelection(village, level, newcomer, roster, text))));
@@ -221,7 +222,8 @@ public final class RelationshipService {
 
     private static void requestPair(Village village, ServerLevel level, RealPerson newcomer, Candidate candidate) {
         String prompt = "Person A: " + describe(newcomer) + ".\nPerson B: " + candidate.descriptor() + ".";
-        LlmService.get().submitPersona(PAIR_SYSTEM, prompt, List.of(PAIR_EXAMPLE, PAIR_EXAMPLE_COOL),
+        LlmService.get().submitPersona(newcomer.getFullName() + " and " + candidate.fullName() + " size each other up",
+                PAIR_SYSTEM, prompt, List.of(PAIR_EXAMPLE, PAIR_EXAMPLE_COOL),
                 PAIR_TOKENS, TEMPERATURE)
                 .thenAccept(raw -> raw.ifPresent(text -> level.getServer().execute(() -> {
                     RelationshipPair pair = parsePair(newcomer.getUUID(), candidate.id(), text);

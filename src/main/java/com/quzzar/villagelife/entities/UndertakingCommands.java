@@ -80,7 +80,8 @@ public final class UndertakingCommands {
                 List.of(), message);
         boolean offered = chat.system().toLowerCase(java.util.Locale.ROOT).contains("undertaking");
         source.sendSuccess(() -> Component.literal("undertaking tool offered (gate open): " + offered), false);
-        LlmService.get().submitChat(chat.system(), chat.user(), chat.examples(), 128, 0.4D, 0.3D)
+        LlmService.get().submitChat("undertaking probe on " + person.getFullName(), chat.system(), chat.user(),
+                chat.examples(), 128, 0.4D, 0.3D)
                 .thenAccept(raw -> {
                     String r = raw.orElse("(no reply)");
                     boolean emitted = r.contains("undertaking");
@@ -465,7 +466,7 @@ public final class UndertakingCommands {
         String system = AUDIT_BASE + clause + SHAPE_UNDERTAKING;
         String user = "Situation: " + c.context() + "\nPlayer says: \"" + c.playerLine()
                 + "\"\nYour JSON answer:";
-        return LlmService.get().submitChat(system, user, shots, 96, 0.4D, 0.3D)
+        return LlmService.get().submitChat("undertaking audit: " + c.playerLine(), system, user, shots, 96, 0.4D, 0.3D)
                 .thenAccept(raw -> {
                     Optional<Op> op = raw.flatMap(UndertakingCommands::opOf);
                     // Score the EFFECTIVE op, i.e. what UndertakingService.apply lands

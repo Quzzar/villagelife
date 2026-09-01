@@ -114,7 +114,8 @@ public final class QuartermasterPlanner {
             + ". You keep the storehouse and decide which slots hold what.";
     String user = round == 0 ? openingPrompt(context) : fixPrompt(context, priorRender, priorErrors);
 
-    return LlmService.get().submitPersona(system, user, PLAN_MAX_TOKENS, TEMPERATURE).thenCompose(reply -> {
+    String purpose = context.who() + " shelves the storehouse, round " + round;
+    return LlmService.get().submitPersona(purpose, system, user, PLAN_MAX_TOKENS, TEMPERATURE).thenCompose(reply -> {
       String raw = reply.orElse("");
       List<RawCategory> proposal = parseCategories(raw, context.items().size());
       List<String> errors = validate(proposal, context.items().size(), context.totalSlots());
