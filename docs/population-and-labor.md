@@ -25,7 +25,10 @@ Idle people are not `NITWIT`s in the old sense (a permanent do-nothing occupatio
 While idle, they stroll near the campfire, sit, chat and eat. The housed sleep in their own
 beds; an idle person without a bed stays up by the fire all night (bedless campfire dozing
 existed once, put villagers to sleep against the lit fire, glitched endlessly, and was
-removed: nobody sleeps rough).
+removed: nobody sleeps rough). They are civilians, but not helpless ones: every idle resident
+defends themselves and joins in against ordinary hostile monsters within sixteen blocks of the
+campfire. They do not pursue creepers or Endermen, and the campfire tether makes this local
+defence rather than an unpaid hunting patrol.
 
 ## What caps the reservoir
 

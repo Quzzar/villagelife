@@ -49,18 +49,55 @@ public final class ChopStep implements BlockWorkStep {
   /** Chance per scan of planting a sapling on an empty stand. */
   private static final float REPLANT_CHANCE = 0.01F;
 
+  /** Vertical reach of the bounded woodland scan around a worker's post. */
+  private static final int WOODLAND_VERTICAL_RADIUS = 8;
+
+  /** Leaves this close distinguish a tree trunk from a building's timber. */
+  private static final int LEAF_RADIUS = 3;
+
+  private final int woodlandRadius;
+  private final float woodlandChance;
+  private final int woodlandScanTicks;
+
   private final ShortageWatch dry = new ShortageWatch();
 
   private BlockPos chopping;
   private int chopTime;
   private int lastProgress = -1;
 
+  /** The lumberjack's planted stand: deterministic, renewable primary work. */
+  public ChopStep() {
+    this(0, 0.0F, 20);
+  }
+
+  /**
+   * A bounded idle woodland pass shared by lumberjacks and guards.
+   *
+   * @param woodlandRadius    horizontal distance from where the worker stands
+   * @param woodlandChance    chance that a scan elects to chop one tree
+   * @param woodlandScanTicks ticks between scans while idle
+   */
+  public ChopStep(int woodlandRadius, float woodlandChance, int woodlandScanTicks) {
+    this.woodlandRadius = woodlandRadius;
+    this.woodlandChance = woodlandChance;
+    this.woodlandScanTicks = woodlandScanTicks;
+  }
+
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
+    if (this.woodlandRadius > 0) {
+      // The idle pass sweeps around wherever the worker is standing, not a
+      // fixed post, so as a guard patrols or a lumberjack roams they clear the
+      // natural trees ringing the village rather than only those at one spot.
+      if (person.isInventoryFull() || person.getRandom().nextFloat() >= this.woodlandChance) {
+        return null;
+      }
+      return findWoodlandLog(person, person.blockPosition());
+    }
     BlockPos stand = LocationManager.getJobLocation(person);
     if (stand == BlockPos.ZERO) {
-      return null; // no stand assigned yet: a misconfiguration, not a wood shortage
+      return null; // no post assigned yet: a misconfiguration, not a wood shortage
     }
     BlockState state = person.level().getBlockState(stand);
 
@@ -126,6 +163,11 @@ public final class ChopStep implements BlockWorkStep {
     return "the trees";
   }
 
+  @Override
+  public int selectEveryTicks() {
+    return this.woodlandScanTicks;
+  }
+
   /** Chopping is timed in ticks, so the act runs on every one of them. */
   @Override
   public int actEveryTicks() {
@@ -162,6 +204,60 @@ public final class ChopStep implements BlockWorkStep {
     // the workplace container once the pack is worth a trip.
     person.level().removeBlock(target, false);
     person.addItems(drops);
+  }
+
+  /**
+   * Reservoir-samples a natural trunk, then returns its lowest connected log.
+   * Requiring nearby leaves keeps authored buildings and log piles out of the
+   * pass; descending the trunk makes a tree come down from the base upward.
+   */
+  @Nullable
+  private BlockPos findWoodlandLog(RealPerson person, BlockPos around) {
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    BlockPos found = null;
+    int seen = 0;
+    for (int x = -this.woodlandRadius; x <= this.woodlandRadius; ++x) {
+      for (int y = -WOODLAND_VERTICAL_RADIUS; y <= WOODLAND_VERTICAL_RADIUS; ++y) {
+        for (int z = -this.woodlandRadius; z <= this.woodlandRadius; ++z) {
+          cursor.setWithOffset(around, x, y, z);
+          if (!person.level().hasChunkAt(cursor)
+              || !person.level().getBlockState(cursor).is(BlockTags.LOGS_THAT_BURN)
+              || !hasLeavesNearby(person, cursor)) {
+            continue;
+          }
+          BlockPos lowest = lowestConnectedLog(person, cursor);
+          if (person.getRandom().nextInt(++seen) == 0) {
+            found = lowest;
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  private boolean hasLeavesNearby(RealPerson person, BlockPos log) {
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    for (int x = -LEAF_RADIUS; x <= LEAF_RADIUS; ++x) {
+      for (int y = -LEAF_RADIUS; y <= LEAF_RADIUS; ++y) {
+        for (int z = -LEAF_RADIUS; z <= LEAF_RADIUS; ++z) {
+          cursor.setWithOffset(log, x, y, z);
+          if (person.level().hasChunkAt(cursor)
+              && person.level().getBlockState(cursor).is(BlockTags.LEAVES)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private BlockPos lowestConnectedLog(RealPerson person, BlockPos log) {
+    BlockPos lowest = log;
+    while (lowest.getY() > person.level().getMinBuildHeight()
+        && person.level().getBlockState(lowest.below()).is(BlockTags.LOGS_THAT_BURN)) {
+      lowest = lowest.below();
+    }
+    return lowest;
   }
 
 }

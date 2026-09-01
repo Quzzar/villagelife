@@ -33,6 +33,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnGroupData;
@@ -101,7 +102,7 @@ import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.core.component.DataComponents;
@@ -482,9 +483,19 @@ public class RealPerson extends Person {
     // Grab replacement gear if not holding any
     if (getOccupation() == Occupation.GUARD) {
 
-      // The blacksmith now forges iron armour into the stores (BlacksmithStep), so a
-      // guard takes the best armour and sword the village can spare at bedtime.
-      equipBestPossibleGear(SwordItem.class, null, true, depositToLoc);
+      // The guard's axe is both a serviceable weapon and their quiet daytime
+      // work tool. Saved guards from before this rule may still carry swords;
+      // return those to the village before entering the axe upgrade track.
+      ItemStack held = this.getItemBySlot(EquipmentSlot.MAINHAND);
+      if (!held.isEmpty() && !(held.getItem() instanceof AxeItem)) {
+        this.getVillage().placeItemStackIntoVillage(held, this, depositToLoc);
+        this.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+      }
+      // Take the best axe and armour the village can spare.
+      equipBestPossibleGear(AxeItem.class, null, true, depositToLoc);
+      if (this.getItemBySlot(EquipmentSlot.MAINHAND).isEmpty()) {
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+      }
 
       // Restock rations: apples for now, until a farm lets the village bake bread.
       if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
@@ -713,11 +724,10 @@ public class RealPerson extends Person {
   protected void populateDefaultEquipmentSlots(RandomSource random, DifficultyInstance difficulty) {
     switch (getOccupation()) {
       case GUARD:
-        // Sword and rations only, no armor, and both kept basic until the village
-        // can make better: armor waits on the leather chain (butchery -> leather),
-        // and the ration is foraged apples until a farm exists to bake bread. A
-        // fresh guard stands watch with a stone sword and apples.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
+        // An axe doubles as a serviceable weapon and the guard's occasional
+        // woodland tool. Both it and the rations stay basic until the village
+        // can make better; armour waits on the leather chain.
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.APPLE, 16));
         break;
       case LUMBERJACK:
@@ -926,6 +936,12 @@ public class RealPerson extends Person {
     } else {
       double i = 0.0;
       switch (getOccupation()) {
+        case IDLE:
+        case NITWIT:
+          // The campfire reservoir is the settlement's last line of defence:
+          // every idle resident stands their ground when the camp is attacked.
+          i += 1.0;
+          break;
         case GUARD:
           i += 0.9;
           break;
@@ -960,6 +976,12 @@ public class RealPerson extends Person {
   public boolean willInitiateCombat() {
     double i = 0.0;
     switch (getOccupation()) {
+      case IDLE:
+      case NITWIT:
+        // Idle residents do not go hunting, but they do actively clear threats
+        // from the campfire area; the target predicate below supplies the tether.
+        i += 1.0;
+        break;
       case GUARD:
         i += 0.8;
         break;
@@ -988,6 +1010,23 @@ public class RealPerson extends Person {
     }
     i += getVirtue(Virtue.AGGRESSION);
     return (i > 0.5);
+  }
+
+  /** Whether a hostile is close enough for an idle resident to defend the camp from it. */
+  private boolean isCampfireThreat(LivingEntity mob) {
+    if (!(mob instanceof Enemy) || mob instanceof Creeper || mob instanceof EnderMan) {
+      return false;
+    }
+    if (!getOccupation().isIdle()) {
+      return true;
+    }
+    Village village = getVillage();
+    if (village == null) {
+      return false;
+    }
+    BlockPos campfire = village.getGatheringPoint();
+    return campfire != null && !campfire.equals(BlockPos.ZERO)
+        && campfire.closerToCenterThan(mob.position(), 16.0D);
   }
 
   public boolean willDefendBestFriend() {
@@ -1092,7 +1131,7 @@ public class RealPerson extends Person {
     if (willInitiateCombat()) {// Actively seeks out combat
 
       this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Mob.class, 5, true, true, (mob) -> {
-        return mob instanceof Enemy && !(mob instanceof Creeper) && !(mob instanceof EnderMan);
+        return isCampfireThreat(mob);
       }));
 
       // The bottom rung of standing: a village whose people loathe you sets its
@@ -1122,6 +1161,11 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(2, new WorkLoopGoal<>(this, new HealStep(1, 7, 7.0F)));
     }
     if (getOccupation() == Occupation.GUARD) {
+      // Guarding always wins on priority. In a quiet spell, a guard very
+      // occasionally clears one natural tree close to their post using the
+      // exact same chopping step as the lumberjack.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
+          new ChopStep(6, 0.05F, 200)));
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
     if (getOccupation() == Occupation.MINER) {
@@ -1149,6 +1193,10 @@ public class RealPerson extends Person {
           new BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new ChopStep()));
+      // The planted stand above is the reliable job. This lower-priority pass
+      // also clears nearby woodland, more often and farther out than a guard.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
+          new ChopStep(12, 0.25F, 100)));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),

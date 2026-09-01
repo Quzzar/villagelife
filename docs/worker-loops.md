@@ -204,6 +204,15 @@ inside a hunting ground is safe, and a wild cow the herder adopts stops being qu
 also fight now: the occupation weighs into both combat checks, so they defend themselves and
 take on nearby monsters with the same bow, where before a hunter fled like a baker.
 
+**Built, 2026-08-31: lumberjacks and guards clear nearby woodland.** The lumberjack's planted
+stand remains its reliable, renewable source of work, but an idle lumberjack also ranges up to
+twelve blocks from the post to fell natural trees. A quiet guard does the same only rarely and
+within six blocks. Both roles run the same `ChopStep`, take the real block drops into their pack,
+and distinguish trees from authored timber by requiring leaves near the trunk. The lumberjack
+checks more often and accepts the work more readily; combat goals outrank the guard's chopping.
+The guard therefore carries a stone axe rather than a stone sword, keeping the apple ration in
+the other hand, and upgrades through the village's axe supply at bedtime.
+
 ## When there is nothing to work on
 
 Emit a `NoResourceBookkeepingEvent`, write an entry to the worker's `PersonalLogData` as
