@@ -283,8 +283,9 @@ does not stand down at the mouth: it completes the shaft's missing floor, one co
 own mined stock) under each ramp cell that opens into void, laid standing on the floor already
 there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget: a miner
 out of cobblestone logs it and waits at the mouth until restocked, so a cavern too large to floor
-ends the shaft. Torches follow the same shape, one wall torch per descent layer where it is deep and
-dark. And ore that a shaft or cave wall exposes is not left in the rock: the miner pulls the vein,
+ends the shaft. Torches are hung the way a player hangs them: at head height on the shaft wall, one
+wherever the light at the miner's feet has fallen to dim (about every twelve blocks of ramp),
+and only once the shaft is deep enough to be dark. And ore that a shaft or cave wall exposes is not left in the rock: the miner pulls the vein,
 capped so a rich seam is a detour and not a second career, and plugs the holes back up with
 cobblestone so the wall ends solid. **That pattern with deviation is probably what roaming really
 is** for most jobs, and the model has to be able to express it. Keep the excavation as it stands;

@@ -77,6 +77,16 @@ public final class MineStep implements BlockWorkStep {
   private static final int TORCH_MIN_DEPTH = 10;
 
   /**
+   * The light at the miner's feet below which the shaft wants a torch: a player's
+   * spacing. A torch gives 14 and light falls one per block, the ramp costs about
+   * two per layer, so 4 hangs one roughly every six layers, twelve blocks of ramp,
+   * and the dimmest stretch between two torches never nears the dark that spawns
+   * monsters. At 8 the shaft was lit every three or four layers, brighter than any
+   * player bothers with.
+   */
+  private static final int TORCH_LIGHT_FLOOR = 4;
+
+  /**
    * Ticks to keep the bucket out in the off hand after a seal or a clear, so the
    * waterproofing is a beat you can watch rather than an instant. About two
    * seconds; a wider leak reseals cell by cell and holds it out longer on its own.
@@ -477,8 +487,10 @@ public final class MineStep implements BlockWorkStep {
    *
    * A WALL torch, not a floor one: a torch standing on the floor sits in the dig
    * path, and the block under it then has to be left unbroken to avoid knocking it
-   * out -- which is what riddled the shaft with holes. And only once the shaft has
-   * dropped {@link #TORCH_MIN_DEPTH} below its lit mouth, and only where it is dark.
+   * out -- which is what riddled the shaft with holes. It hangs at head height,
+   * where a player puts one (see the row rule inside). And only once the shaft has
+   * dropped {@link #TORCH_MIN_DEPTH} below its lit mouth, and only where the light
+   * has fallen under {@link #TORCH_LIGHT_FLOOR}.
    */
   private void maybeTorch(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos face) {
     int layer = -this.offset.getY();
@@ -494,9 +506,26 @@ public final class MineStep implements BlockWorkStep {
     // the stone it was, every layer looked dark, and a torch went on every
     // step down. The miner stands a block or two from the face on ground that
     // has been open for a while, so its light is settled.
-    if (level.getMaxLocalRawBrightness(person.blockPosition()) >= 8
+    if (level.getMaxLocalRawBrightness(person.blockPosition()) >= TORCH_LIGHT_FLOOR
         || mouth.getY() - face.getY() < TORCH_MIN_DEPTH) {
       return;
+    }
+    // Hang it at head height, where a player puts one. The sweep digs each column
+    // from its ceiling down, so the cell under the cursor is always still stone
+    // and "one lower" can never be used at the moment of digging; instead the
+    // cursor itself is at floor level on a layer's first row (the torch goes one
+    // above it, in air the previous layer opened) and at head height on its
+    // second (the torch goes in the cursor's own cell). Later rows of a layer sit
+    // above head height and are passed over, so a torch is at most one layer
+    // late, never on the ceiling. Before this rule torches hung wherever the
+    // light first read dark, three of five on the ceiling.
+    int lift = -(this.offset.getZ() + 1) - this.offset.getY();
+    if (lift < 0 || lift > 1) {
+      return;
+    }
+    BlockPos at = lift == 1 ? face.above() : face;
+    if (lift == 1 && !level.getBlockState(at).isAir()) {
+      return; // something already hangs or sits there
     }
     // Hang it on a wall that STAYS put -- a solid cell just outside the dig corridor,
     // so the cursor never comes back and digs the torch's own support out. Work in the
@@ -508,12 +537,12 @@ public final class MineStep implements BlockWorkStep {
         continue;
       }
       Direction worldDir = rotation.rotate(local);
-      BlockPos wall = face.relative(worldDir);
+      BlockPos wall = at.relative(worldDir);
       if (!level.getBlockState(wall).isFaceSturdy(level, wall, worldDir.getOpposite())) {
         continue;
       }
       if (person.removeItem(Items.TORCH, 1).getCount() >= 1) {
-        level.setBlock(face, Blocks.WALL_TORCH.defaultBlockState()
+        level.setBlock(at, Blocks.WALL_TORCH.defaultBlockState()
             .setValue(WallTorchBlock.FACING, worldDir.getOpposite()), 3);
         this.torchedLayer = layer;
       }
