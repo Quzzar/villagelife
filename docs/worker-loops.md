@@ -263,10 +263,13 @@ take on nearby monsters with the same bow, where before a hunter fled like a bak
 **Built, 2026-08-31: lumberjacks and guards clear nearby woodland; whole trees, and never the
 village's own.** The lumberjack's planted stand remains its reliable, renewable source of work,
 but an idle lumberjack also ranges out to fell natural trees, and a quiet guard does the same
-only rarely and closer in. The scan follows the worker: it sweeps a radius around wherever they
+only rarely. The scan follows the worker: it sweeps a radius around wherever they
 currently stand, not a fixed post, so as a guard patrols or a lumberjack roams they clear the
-trees ringing the village rather than only those at one spot. The lumberjack scans a wider
-radius, more often, and accepts the work more readily; combat goals outrank the guard's chopping.
+trees ringing the village rather than only those at one spot. Both reach twelve blocks: the
+guard's chop is a fresh camp's only wood until it can afford a lodge, and at six blocks a
+camp's guard found no tree at all and the village sat on its first lodge goal for four hours.
+The lumberjack scans more often and accepts the work more readily; combat goals outrank the
+guard's chopping.
 
 **Reach is measured from the eyes, not the feet (2026-09-01).** A tree is cut from beside its
 trunk or from beneath it: the worker stands within arm's length of the trunk horizontally, and
@@ -287,7 +290,8 @@ wall's draw and the market's reserve all ask that rule rather than comparing ite
 else is exact.
 
 Both roles run the same `ChopStep`. A worker strikes one log for a chop's worth of ticks, and
-when it gives the whole connected tree comes down at once: a bounded flood fill over its logs,
+when it gives the whole connected tree comes down at once through `TreeFelling` (shared with
+building placement, [site-selection.md](site-selection.md)): a bounded flood fill over its logs,
 all of it into the pack, with the leaves left to decay on their own. Two guards keep the axe off
 anything but a wild tree. A candidate must have a natural canopy nearby, leaves whose
 `persistent` flag is false, which a building's timber and a player's placed leaves never carry.

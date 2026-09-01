@@ -5,9 +5,12 @@ player placed is the player's, a block the village placed is the village's, and 
 neither placed is nobody's.** Both facts are recorded at placement time and dropped when the
 block is broken. Nothing is derived from geometry at query time.
 
-The first caller is tree-clearing (see [worker-loops.md](worker-loops.md)): a worker may fell
-a log that nobody placed. That protects a mine's timber supports and a player's cabin block
-by block, while a natural tree - wherever it stands, village ground included - is fellable.
+The first caller is tree-clearing, through `village/TreeFelling.java` (see
+[worker-loops.md](worker-loops.md) for the workers that swing the axe and
+[site-selection.md](site-selection.md) for the felling a new building does over its own
+roof): a feller may bring down a log that nobody placed. That protects a mine's timber
+supports and a player's cabin block by block, while a natural tree - wherever it stands,
+village ground included - is fellable.
 
 ## The store: `PlacedBlockStore`
 
@@ -35,6 +38,7 @@ Plants are nobody's, and what grows from them is fellable.
 | Writer | What |
 | --- | --- |
 | `InstantBuildStructure.buildInstantly` | every non-air block a building template stamps |
+| `StructureInProgress.progressMiddlePhase` | every non-air block the builder lays, one per swing |
 | `WallRaiser.place` / `placeGateDoor` | wall segments and gate doors (the wood tier is logs) |
 | `Village.placeCampfireIfMissing` | the gathering-point campfire |
 
@@ -49,7 +53,9 @@ places structural village blocks, it records them; that is the contract.
 - `query(level, pos)` returns `Ownership(village, building, playerPlaced, villagePlaced)`.
   The village/building fields are best-effort context from the ground claim and building
   circles; the two booleans are the stored facts.
-- `mayFell(level, pos)`: nobody placed it. The felling verdict.
+- `mayFell(level, pos)`: nobody placed it. The felling verdict. `TreeFelling` asks it for
+  every log of a tree it brings down, and once more up front (with the natural-canopy test)
+  before a log is offered as a tree at all.
 - `isPlayerPlaced` / `isVillagePlaced`: the stored facts individually.
 
 ## No backfill

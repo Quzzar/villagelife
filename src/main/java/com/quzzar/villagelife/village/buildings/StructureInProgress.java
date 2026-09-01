@@ -9,6 +9,7 @@ import com.google.common.collect.Lists;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.savedata.PlacedBlockStore;
 import com.quzzar.villagelife.utils.VillagelifeCodecs;
 
 import net.minecraft.core.BlockPos;
@@ -427,6 +428,12 @@ public class StructureInProgress {
             }
 
             if (levelAccess.setBlock(blockpos, blockstate, magicInt)) {
+                // The laid block is the village's (docs/block-ownership.md), recorded
+                // here as the instant path records its stamp: without it a cabin the
+                // builder raised read as a fellable tree to every guard on patrol.
+                if (!blockstate.isAir()) {
+                    PlacedBlockStore.get(levelAccess.getLevel()).markVillagePlaced(blockpos);
+                }
                 i = Math.min(i, blockpos.getX());
                 j = Math.min(j, blockpos.getY());
                 k = Math.min(k, blockpos.getZ());

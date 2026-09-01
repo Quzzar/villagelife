@@ -162,6 +162,22 @@ A `NoResourceBookkeepingEvent` fires when fill is short, exactly as it does for 
 materials, so a village that cannot afford to level a site complains in the way it already
 complains about everything else.
 
+## What stands over the roof
+
+Ground clearing stops at the footprint's headroom: founding cuts each building's own columns,
+and the prepare phase clears `CLEARANCE_HEIGHT` blocks above the plane. A tall tree outreaches
+both, and a neighbour's branch can hang over the footprint without a single log in it at ground
+level. So the moment a building is added to the village (`Village.addBuilding`, and
+`replaceBuilding` for an upgrade) it fells whatever tree still has a log in or over its volume:
+`TreeFelling.fellOver` reads each footprint column from the world surface down to the
+building's floor and brings every fellable tree it meets down whole, under the same canopy and
+ownership guards the lumberjack's axe uses ([block-ownership.md](block-ownership.md)), which is
+also what keeps it off the building's own timber. That covers every way a building arrives:
+founding, `/vldev village place`, the builder finishing a project, and an upgrade. The wood
+goes to village storage like any clearing yield; what will not fit drops where the tree stood.
+A canopy with no log over the footprint is left alone: a tree beside a house is scenery, not
+an obstruction.
+
 ## What it costs at runtime
 
 The expensive part is **finding** sites, not clearing them. Clearing is a villager breaking a

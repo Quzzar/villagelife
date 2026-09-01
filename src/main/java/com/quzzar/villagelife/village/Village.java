@@ -22,6 +22,7 @@ import com.quzzar.villagelife.village.bookkeeping.BookkeepingEvent;
 import com.quzzar.villagelife.village.buildings.BuildProgress;
 import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
+import com.quzzar.villagelife.village.buildings.BuildingUpgrade;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.InstantBuildStructure;
 import com.quzzar.villagelife.village.buildings.LocationValidator;
@@ -42,6 +43,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.CampfireBlock;
@@ -646,6 +648,7 @@ public class Village {
   protected void addBuilding(Building building) {
     this.buildings.put(building.getUUID(), building);
     this.brain.processNewBuilding(building, unassignedBeds, unassignedJobs);
+    fellTreesOver(building);
     this.capabilities = null;
     // Raising something changes what will fit next, so what the village had
     // learned about its room no longer applies.
@@ -670,8 +673,51 @@ public class Village {
     this.brain.registerNewContainers(upgraded);
     JobClaiming.registerMissingStations(this);
     JobClaiming.registerMissingBeds(this);
+    fellTreesOver(upgraded);
     this.capabilities = null;
     Villagelife.LOGGER.info("Village '{}' finished upgrading to {}", name, upgraded.getName());
+  }
+
+  /**
+   * Whatever natural tree still stands over a building the moment it goes up
+   * comes down with it, whole (docs/site-selection.md). Founding cuts only the
+   * footprint's own columns and the prepare phase clears a fixed headroom, so
+   * what survives either is the top of a tall tree, a trunk remnant, or a
+   * branch reaching in from a neighbour: all of it a tree, none of it the
+   * village's, and none of it wanted floating over a roof. Every way a
+   * building arrives passes through here, founding, the dev command, a
+   * finished project and an upgrade alike. The wood goes to village storage,
+   * as clearing yields do; what will not fit lies where the tree stood, as it
+   * would for anyone else who felled it.
+   */
+  private void fellTreesOver(Building building) {
+    if (level == null) {
+      return;
+    }
+    BoundingBox footprint = BuildingUpgrade.footprintOf(level, building);
+    if (footprint == null) {
+      return;
+    }
+    BlockPos origin = BlockPos.of(building.getOriginLocation());
+    BoundingBox volume = new BoundingBox(
+        origin.getX() + footprint.minX(), origin.getY() + footprint.minY(), origin.getZ() + footprint.minZ(),
+        origin.getX() + footprint.maxX(), origin.getY() + footprint.maxY(), origin.getZ() + footprint.maxZ());
+    List<TreeFelling.FelledTree> felled = TreeFelling.fellOver(level, volume);
+    if (felled.isEmpty()) {
+      return;
+    }
+    int logs = 0;
+    for (TreeFelling.FelledTree tree : felled) {
+      for (ItemStack drop : tree.drops()) {
+        logs += drop.getCount();
+        ItemStack left = storeAwayFrom(drop, List.of());
+        if (!left.isEmpty()) {
+          Block.popResource(level, tree.struck(), left);
+        }
+      }
+    }
+    Villagelife.LOGGER.info("Village '{}' felled {} tree(s) standing over its new {}: {} logs to store",
+        name, felled.size(), building.getName(), logs);
   }
 
   /**

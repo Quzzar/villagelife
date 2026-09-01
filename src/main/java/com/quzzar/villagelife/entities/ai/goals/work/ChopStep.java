@@ -1,7 +1,5 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -9,22 +7,18 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
-import com.quzzar.villagelife.village.BlockOwnership;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.TreeFelling;
 
 import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -33,22 +27,15 @@ import net.minecraft.world.phys.Vec3;
  * drops.
  *
  * A worker strikes one log for a chop's worth of ticks; when it gives, the
- * whole connected tree comes down at once (a bounded flood fill over its logs),
- * and every log lands in the worker's pack. Leaves are left to decay on their
- * own schedule, as natural leaves do once their tree is gone.
+ * whole connected tree comes down at once through {@link TreeFelling}, and
+ * every log lands in the worker's pack. Leaves are left to decay on their own
+ * schedule, as natural leaves do once their tree is gone.
  *
- * <b>It only ever cuts real trees.</b> Two guards keep it off the village's own
- * timber and off anything a player built:
- * <ul>
- * <li>A candidate must have a <i>natural</i> canopy nearby, leaves whose
- * {@code persistent} flag is false. Player-placed leaves are persistent; a
- * building's timber has none of its own; so this excludes authored structures
- * far more reliably than mere leaf-proximity did.</li>
- * <li>{@link BlockOwnership#mayFell} vetoes any block a player placed, and any
- * block the village owns unless it has declared that column a tree slot (the
- * lumberjack's planted stand). The flood fill re-checks every log, so a wild
- * tree overhanging a roof drops its own wood and spares the building's.</li>
- * </ul>
+ * <b>It only ever cuts real trees.</b> {@link TreeFelling#isFellableLog} holds
+ * the two guards, a natural canopy nearby and nobody's ownership, that keep the
+ * axe off the village's own timber and off anything a player built; the flood
+ * fill re-checks every log, so a wild tree overhanging a roof drops its own
+ * wood and spares the building's.
  *
  * <b>A tree is cut from beside its trunk or from beneath it.</b> The worker
  * stands within arm's length of the trunk horizontally, and the lowest log has
@@ -81,12 +68,6 @@ public final class ChopStep implements BlockWorkStep {
 
   /** How far below a trunk's lowest log to look for ground to stand on. */
   private static final int STAND_SEARCH_DEPTH = 6;
-
-  /** Natural leaves this close mark a trunk as a living tree, not authored timber. */
-  private static final int LEAF_RADIUS = 3;
-
-  /** Most logs one fell removes: a ceiling for giant trees so the flood fill always ends. */
-  private static final int TREE_LOG_CAP = 256;
 
   private final int woodlandRadius;
   private final float woodlandChance;
@@ -229,38 +210,16 @@ public final class ChopStep implements BlockWorkStep {
   }
 
   /**
-   * Brings a whole tree down from the struck log. A bounded flood fill walks the
-   * connected logs; each one the village and players do not own is removed and
-   * its drops taken, so a tree touching a building loses its own wood and not
-   * the building's. One break sound plays for the lot.
+   * Brings a whole tree down from the struck log through {@link TreeFelling}
+   * and pockets the wood: straight into the pack, where HaulStep walks it to
+   * the workplace container once the pack is worth a trip.
    */
   private void fellTree(RealPerson person, BlockPos struck) {
     if (!(person.level() instanceof ServerLevel level)) {
       return;
     }
-    List<ItemStack> haul = new ArrayList<>();
-    BlockState soundFrom = null;
-    for (BlockPos pos : collectTree(level, struck)) {
-      BlockState state = level.getBlockState(pos);
-      if (!state.is(BlockTags.LOGS_THAT_BURN) || !BlockOwnership.mayFell(level, pos)) {
-        continue;
-      }
-      List<ItemStack> drops = Block.getDrops(state, level, pos, level.getBlockEntity(pos),
-          person, person.getMainHandItem());
-      stripSome(person, state, drops);
-      haul.addAll(drops);
-      if (soundFrom == null) {
-        soundFrom = state;
-      }
-      level.removeBlock(pos, false);
-    }
-    if (soundFrom != null) {
-      level.playSound((Player) null, struck.getX(), struck.getY(), struck.getZ(),
-          soundFrom.getSoundType().getBreakSound(), SoundSource.BLOCKS, 1.0F,
-          person.getRandom().nextFloat() * 0.4F + 0.8F);
-    }
-    // Straight into the pack; HaulStep walks it to the workplace container once
-    // the pack is worth a trip.
+    List<ItemStack> haul = TreeFelling.fell(level, struck, person, person.getMainHandItem());
+    stripSome(person, haul);
     person.addItems(haul);
     Villagelife.LOGGER.debug("[resource-flow] {} ({}) felled a tree at {}: {} log(s) into the pack",
         person.getName().getString(), person.getOccupation(), struck.toShortString(),
@@ -268,50 +227,14 @@ public final class ChopStep implements BlockWorkStep {
   }
 
   /** A strippable log sometimes comes off already stripped. */
-  private void stripSome(RealPerson person, BlockState state, List<ItemStack> drops) {
-    BlockState stripped = AxeItem.getAxeStrippingState(state);
-    if (stripped == null || person.getRandom().nextFloat() >= STRIP_CHANCE) {
-      return;
-    }
+  private void stripSome(RealPerson person, List<ItemStack> drops) {
     for (int i = 0; i < drops.size(); i++) {
-      if (drops.get(i).getItem() == state.getBlock().asItem()) {
-        drops.set(i, new ItemStack(stripped.getBlock().asItem(), drops.get(i).getCount()));
+      ItemStack drop = drops.get(i);
+      BlockState stripped = AxeItem.getAxeStrippingState(Block.byItem(drop.getItem()).defaultBlockState());
+      if (stripped != null && person.getRandom().nextFloat() < STRIP_CHANCE) {
+        drops.set(i, new ItemStack(stripped.getBlock().asItem(), drop.getCount()));
       }
     }
-  }
-
-  /**
-   * The connected logs of one tree, reached from the struck log by a bounded
-   * breadth-first walk over all twenty-six neighbours so branches and leaning
-   * trunks come with it. Capped so a giant tree cannot make the fill unbounded.
-   */
-  private List<BlockPos> collectTree(ServerLevel level, BlockPos start) {
-    List<BlockPos> logs = new ArrayList<>();
-    ArrayDeque<BlockPos> frontier = new ArrayDeque<>();
-    LongOpenHashSet visited = new LongOpenHashSet();
-    frontier.add(start);
-    visited.add(start.asLong());
-    while (!frontier.isEmpty() && logs.size() < TREE_LOG_CAP) {
-      BlockPos pos = frontier.poll();
-      if (!level.hasChunkAt(pos) || !level.getBlockState(pos).is(BlockTags.LOGS_THAT_BURN)) {
-        continue;
-      }
-      logs.add(pos);
-      for (int dx = -1; dx <= 1; dx++) {
-        for (int dy = -1; dy <= 1; dy++) {
-          for (int dz = -1; dz <= 1; dz++) {
-            if (dx == 0 && dy == 0 && dz == 0) {
-              continue;
-            }
-            BlockPos next = pos.offset(dx, dy, dz);
-            if (visited.add(next.asLong())) {
-              frontier.add(next);
-            }
-          }
-        }
-      }
-    }
-    return logs;
   }
 
   /**
@@ -330,13 +253,10 @@ public final class ChopStep implements BlockWorkStep {
       for (int y = -WOODLAND_VERTICAL_RADIUS; y <= WOODLAND_VERTICAL_RADIUS; ++y) {
         for (int z = -this.woodlandRadius; z <= this.woodlandRadius; ++z) {
           cursor.setWithOffset(around, x, y, z);
-          if (!level.hasChunkAt(cursor)
-              || !level.getBlockState(cursor).is(BlockTags.LOGS_THAT_BURN)
-              || !hasNaturalCanopy(level, cursor)
-              || !BlockOwnership.mayFell(level, cursor)) {
+          if (!TreeFelling.isFellableLog(level, cursor)) {
             continue;
           }
-          BlockPos base = lowestConnectedLog(level, cursor.immutable());
+          BlockPos base = TreeFelling.lowestConnectedLog(level, cursor.immutable());
           long key = base.asLong();
           if (!reachable.containsKey(key)) {
             reachable.put(key, cuttableFromTheGround(level, person, base));
@@ -395,40 +315,6 @@ public final class ChopStep implements BlockWorkStep {
     return !level.getBlockState(ground).getCollisionShape(level, ground).isEmpty()
         && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
         && level.getBlockState(head).getCollisionShape(level, head).isEmpty();
-  }
-
-  /**
-   * Whether naturally grown leaves ({@code persistent == false}) sit close to a
-   * log. This is what tells a living tree from a stack of authored timber: a
-   * player's placed leaves are persistent, and a building carries none.
-   */
-  private boolean hasNaturalCanopy(ServerLevel level, BlockPos log) {
-    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-    for (int x = -LEAF_RADIUS; x <= LEAF_RADIUS; ++x) {
-      for (int y = -LEAF_RADIUS; y <= LEAF_RADIUS; ++y) {
-        for (int z = -LEAF_RADIUS; z <= LEAF_RADIUS; ++z) {
-          cursor.setWithOffset(log, x, y, z);
-          if (!level.hasChunkAt(cursor)) {
-            continue;
-          }
-          BlockState state = level.getBlockState(cursor);
-          if (state.is(BlockTags.LEAVES) && state.hasProperty(LeavesBlock.PERSISTENT)
-              && !state.getValue(LeavesBlock.PERSISTENT)) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
-  private BlockPos lowestConnectedLog(ServerLevel level, BlockPos log) {
-    BlockPos lowest = log;
-    while (lowest.getY() > level.getMinBuildHeight()
-        && level.getBlockState(lowest.below()).is(BlockTags.LOGS_THAT_BURN)) {
-      lowest = lowest.below();
-    }
-    return lowest;
   }
 
 }
