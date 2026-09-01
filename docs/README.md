@@ -66,3 +66,18 @@ in it, and update it in the same change that moves what it describes.
 - [structure-authoring.md](structure-authoring.md): how a building's structure file gets made,
   headlessly, with commands plus `/vldev village save-structure`. The loop the current village
   center was built with.
+
+## Research
+
+Findings gathered against primary sources, kept as read at the time. The topic files above
+carry the decisions; these carry the evidence behind them.
+
+- [research/poi-gathering-points.md](research/poi-gathering-points.md): POI types on NeoForge
+  1.21.1 for the campfire gathering point. Why a custom `villagelife:campfire` POI beats reusing
+  `minecraft:meeting`, and what goal-based claiming costs without the Brain system.
+- [research/vanilla-structure-conversion.md](research/vanilla-structure-conversion.md): what
+  vanilla village templates actually ship, how much of phase 1 they cover, and why copying them
+  into the jar is forbidden while referencing them at runtime is not.
+- [research/villager-work-loops.md](research/villager-work-loops.md): how MineColonies,
+  Millenaire, Minecraft Comes Alive, and Ancient Warfare drive villager work, and which of their
+  mechanisms survive the trip to NeoForge 1.21.1.
