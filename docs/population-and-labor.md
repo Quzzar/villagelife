@@ -62,8 +62,10 @@ somewhere, which reconciliation hands over within the second), and a worker whos
 gone with no replacement stands down, their post reopening for someone housed
 (`JobClaiming.releaseUnhousedWorkers`). The bedless are exactly the campfire reservoir:
 they idle by the fire, take no work, and do not sleep until the village builds them a home,
-which is what makes housing a genuine construction need (`UrbanPlanner.Needs`: bedless
-idlers count toward the housing need and never toward workplace demand). Losing a bed
+which is what makes housing a genuine construction need. The planner does not score this
+into a decision: it states the facts (how many idle, how many have nowhere to sleep) in the
+brain's briefing and lets the model weigh building homes against building workshops nobody
+housed could staff. Losing a bed
 (house destroyed) still does not despawn a person; it makes them homeless, which hurts
 attractiveness (below) and idles them until rehoused.
 
