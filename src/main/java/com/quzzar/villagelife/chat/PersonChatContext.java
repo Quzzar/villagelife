@@ -50,10 +50,13 @@ public final class PersonChatContext {
 
   private static final String RULES_BODY = "Rules: Answer in one or two short sentences, always in character. "
       + "Never use an em dash; use a comma, period, or semicolon instead. "
-      + "Never invent events, people, places, or items that are not in your briefing above. "
+      + "Never invent events, people, places, or items that are not in your briefing above: no family, "
+      + "children, journeys, or plans that are not written there. Small talk is about what IS there: your "
+      + "work, what the village is building and still short of, the time of day, and the people you know. "
       + "You may hand an item from your pockets to the person you are talking to with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
-      + "When this moment genuinely changes how you feel about them, add \"opinion\": a whole number "
-      + "from -10 to 10; omit it when your feeling is unchanged. ";
+      + "Add \"opinion\" (a whole number from -10 to 10) ONLY when something in this exact moment changes "
+      + "how you feel about them: a real kindness, a real slight, a promise kept or broken. A greeting, "
+      + "small talk, or agreeing changes nothing. Most replies have no \"opinion\" at all. ";
 
   private static final String RULES = RULES_BODY
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "

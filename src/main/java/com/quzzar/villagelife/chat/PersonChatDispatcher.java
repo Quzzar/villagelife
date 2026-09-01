@@ -1,6 +1,8 @@
 package com.quzzar.villagelife.chat;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -492,15 +494,26 @@ public final class PersonChatDispatcher {
     }
     String earlier = person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerId);
 
-    String system = "You are " + person.getFullName() + ". Summarize your conversation with " + playerName
-        + " in two or three sentences, in the first person, as a memory you will keep: what you talked about, "
-        + "anything you promised or they asked of you, and how you feel about them now. Write only the summary, "
-        + "with no preamble.";
+    // Framed as an UPDATE of the earlier memory, not a fresh summary beside it: given
+    // "what you remembered before" as plain context, the small model copies it back
+    // near-verbatim (a live finding: the same memory returned word for word across
+    // three talks, growing invented time depth), so memories persisted but never
+    // moved. Only what the transcript actually contains may enter the memory.
+    String system = "You are " + person.getFullName() + ". Write the memory you will keep of " + playerName
+        + ", in two or three first-person sentences: what you talked about, anything promised or asked, "
+        + "and how you feel about them now. "
+        + (earlier.isBlank()
+            ? ""
+            : "You already hold an earlier memory of them. Update it with this conversation: keep what still "
+              + "holds, replace what changed, and add what is new. Do not copy the earlier memory word for "
+              + "word, and do not stretch how long you have known them. ")
+        + "Mention only things said in the conversation below; invent nothing. Write only the memory, with no "
+        + "preamble.";
     StringBuilder user = new StringBuilder();
     if (!earlier.isBlank()) {
-      user.append("What you remembered before this conversation: ").append(earlier).append("\n\n");
+      user.append("Your earlier memory of them: ").append(earlier).append("\n\n");
     }
-    user.append("The conversation to summarize:\n");
+    user.append("The conversation just now:\n");
     for (ChatHistoryData.Exchange e : session) {
       if (!e.playerLine().isBlank()) {
         user.append(playerName).append(": \"").append(e.playerLine()).append("\"\n");
@@ -517,6 +530,14 @@ public final class PersonChatDispatcher {
           if (summary.isEmpty()) {
             return;
           }
+          // An echo of the old memory is not a new memory. Keep the stored one
+          // rather than overwrite it with a clone, so a copied summary cannot
+          // accrete embellishments ("over the years") talk after talk.
+          if (isEcho(summary, earlier)) {
+            Villagelife.LOGGER.info("[chat summary] {} keeps their memory of {} (new summary echoed the old)",
+                person.getFullName(), playerName);
+            return;
+          }
           server.execute(() -> {
             person.setData(VillagelifeAttachments.CHAT_SUMMARY.get(),
                 person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).withSummary(playerId, summary));
@@ -529,6 +550,38 @@ public final class PersonChatDispatcher {
         });
   }
 
+
+  /** Share of the earlier memory's words the new one must reuse to count as an echo. */
+  private static final double ECHO_THRESHOLD = 0.85D;
+
+  /**
+   * Whether a fresh summary is just the earlier one back again. Compared on the
+   * bag of words rather than exact text, so a copy with one flourish swapped
+   * ("a mix of kindness and frustration" for "a test of my patience") still
+   * reads as the echo it is.
+   */
+  private static boolean isEcho(String fresh, String earlier) {
+    if (earlier == null || earlier.isBlank()) {
+      return false;
+    }
+    Set<String> before = words(earlier);
+    Set<String> now = words(fresh);
+    if (before.isEmpty() || now.isEmpty()) {
+      return false;
+    }
+    long shared = now.stream().filter(before::contains).count();
+    return shared >= ECHO_THRESHOLD * Math.max(before.size(), now.size());
+  }
+
+  private static Set<String> words(String text) {
+    Set<String> out = new HashSet<>();
+    for (String word : text.toLowerCase(Locale.ROOT).split("[^a-z0-9']+")) {
+      if (word.length() > 2) {
+        out.add(word);
+      }
+    }
+    return out;
+  }
 
   /**
    * A parsed reply. {@code undertaking} carries the raw {@code "undertaking"}
