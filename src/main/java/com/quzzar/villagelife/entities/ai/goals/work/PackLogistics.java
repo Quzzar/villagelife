@@ -27,7 +27,8 @@ import net.minecraft.world.item.ItemStack;
  * the fetch trip was skipped, so a cook at the campfire was fed by a chest on
  * the other side of the village. The builder's {@link GatherStep} always did
  * this honestly; these helpers are its chest-finding and pack-filling mechanics
- * extracted so every other step can walk the same walk without re-writing them.
+ * extracted so every step, the builder included, walks the same walk without
+ * re-writing it.
  *
  * All of it is pack-relative: "wanted" always means the amount still missing
  * from the worker's own inventory, so a half-loaded pack asks only for the
