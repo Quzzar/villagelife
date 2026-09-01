@@ -10,9 +10,8 @@ import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService;
+import com.quzzar.villagelife.networking.VillagerSpeechPacket;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -259,20 +258,18 @@ public final class VillagerConversation {
   }
 
   /**
-   * Speaks a line aloud: players within earshot see it as ambient gray chat.
-   * Plain system chat on purpose, not a packet of our own: overheard talk
-   * needs no screen, and a new network channel would invalidate deployed
-   * clients for a cosmetic line.
+   * Speaks a line aloud: players within earshot see it briefly above the
+   * speaker's head, keeping ambient villager talk in the world instead of
+   * filling the player's chat transcript.
    */
   private static void speak(RealPerson speaker, String line) {
     if (!(speaker.level() instanceof ServerLevel level)) {
       return;
     }
-    Component spoken = Component.literal(speaker.getFullName() + ": “" + line + "”")
-        .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
     for (ServerPlayer player : level.players()) {
       if (player.distanceToSqr(speaker) <= EARSHOT * EARSHOT) {
-        player.displayClientMessage(spoken, false);
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
+            new VillagerSpeechPacket(speaker.getId(), line));
       }
     }
   }

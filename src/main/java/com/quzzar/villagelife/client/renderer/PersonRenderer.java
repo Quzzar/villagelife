@@ -55,6 +55,18 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
     protected void renderNameTag(Person entity, net.minecraft.network.chat.Component displayName,
             PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick) {
         super.renderNameTag(entity, displayName, poseStack, bufferSource, packedLight, partialTick);
+        String speech = VillagerSpeechBubbles.visibleText(entity.getId());
+        if (speech != null) {
+            java.util.List<String> lines = wrapSpeech(speech);
+            for (int lineIndex = 0; lineIndex < Math.min(lines.size(), 3); lineIndex++) {
+                poseStack.pushPose();
+                poseStack.translate(0.0D, 0.55D + (lines.size() - lineIndex - 1) * 0.25D, 0.0D);
+                super.renderNameTag(entity,
+                        net.minecraft.network.chat.Component.literal(lines.get(lineIndex)),
+                        poseStack, bufferSource, packedLight, partialTick);
+                poseStack.popPose();
+            }
+        }
         if (entity instanceof com.quzzar.villagelife.entities.RealPerson person
                 && !person.getRoleLabel().isBlank()) {
             poseStack.pushPose();
@@ -65,6 +77,32 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
                     poseStack, bufferSource, packedLight, partialTick);
             poseStack.popPose();
         }
+    }
+
+    /** Wraps bubble copy without depending on formatted-text internals. */
+    private java.util.List<String> wrapSpeech(String speech) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : speech.strip().split("\\s+")) {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (!line.isEmpty() && this.getFont().width(candidate) > 150) {
+                lines.add(line.toString());
+                line.setLength(0);
+            }
+            if (!line.isEmpty()) {
+                line.append(' ');
+            }
+            line.append(word);
+        }
+        if (!line.isEmpty()) {
+            lines.add(line.toString());
+        }
+        if (lines.size() > 3) {
+            lines = new java.util.ArrayList<>(lines.subList(0, 3));
+            int last = lines.size() - 1;
+            lines.set(last, this.getFont().plainSubstrByWidth(lines.get(last), 144) + "...");
+        }
+        return lines;
     }
 
     private void setModelVisibilities(Person entityIn) {

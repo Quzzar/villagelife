@@ -29,8 +29,9 @@ by villager talk for free.
    becomes the line the other answers, via
    `PersonChatDispatcher.converse(..., background=true)`.
 3. **Overhear.** Each spoken line is shown to players within earshot
-   (16 blocks) as gray italic chat. Plain system chat on purpose: a new
-   network channel would invalidate deployed clients for a cosmetic line.
+   (16 blocks) as a short-lived speech bubble above the speaker. A new line
+   replaces the previous one, and disappears after six seconds, so ambient
+   talk stays in the world instead of filling the player's chat transcript.
 4. **Close.** After 4 or 6 lines (always ending on an answer), or on any
    failure, both sides summarize the session into their memory of the other,
    exactly as a screen-close does. Next conversation on a later day starts
@@ -92,6 +93,11 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
 - `chat/PersonChatDispatcher.java`: `converse(..., background)`, the shared
   session store (`markTalking`/`conversingWith`), the villager `executeGive`
   overload, `isFallback`.
+- `chat/VillagerText.java`: the final prose boundary. It replaces any em dash
+  with a semicolon after generation, backing up the matching prompt rule.
+- `networking/VillagerSpeechPacket.java` and
+  `client/renderer/VillagerSpeechBubbles.java`: the earshot packet and the
+  client's six-second bubble state.
 - `chat/PersonChatContext.java`: the briefing, speaker-agnostic; standing
   feelings read through `OpinionService.opinionOf`.
 - `llm/LlmService.java`: `submitBackgroundChat`, the background lane.
