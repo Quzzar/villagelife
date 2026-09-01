@@ -82,6 +82,7 @@ import com.quzzar.villagelife.entities.ai.goals.PanicToBedGoal;
 import com.quzzar.villagelife.entities.ai.goals.RaiseShieldGoal;
 import com.quzzar.villagelife.entities.ai.goals.RangedBowAttackPassiveGoal;
 import com.quzzar.villagelife.entities.ai.goals.RangedCrossbowAttackPassiveGoal;
+import com.quzzar.villagelife.entities.ai.goals.NightWatchRestockGoal;
 import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.SlowToAngerGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
@@ -461,6 +462,28 @@ public class RealPerson extends Person {
       this.getNavigation().moveTo(headingToLoc.getX(), headingToLoc.getY(), headingToLoc.getZ(), speed);
     }
 
+    stowPackAndRestock();
+  }
+
+  /**
+   * The bedtime stow-and-restock without the bed. Jobs that stand watch through
+   * the night (Occupation.sleepsAtNight() false) never run goToBed, but bedtime
+   * is when the village hands out gear, rations and upgrades, so the night
+   * watch runs the same routine at their post (NightWatchRestockGoal). Shares
+   * goToBed's cooldown, so a bell ring and the nightly cadence cannot
+   * double-fire it.
+   */
+  public void restockForNightWatch() {
+    if (this.callToBedCoolDown > 0 || this.getVillage() == null) {
+      return;
+    }
+    this.callToBedCoolDown = 100;
+    stowPackAndRestock();
+  }
+
+  /** The shared bedtime routine: empty the pack into stores, re-gear for the job. */
+  private void stowPackAndRestock() {
+    BlockPos depositToLoc = LocationManager.getJobLocation(this);
     // If no depositToLoc, set to null to indicate no container preference
     if (depositToLoc.equals(BlockPos.ZERO)) {
       depositToLoc = null;
@@ -507,7 +530,8 @@ public class RealPerson extends Person {
         if (rations.getCount() >= 1) {
           this.setItemSlot(EquipmentSlot.OFFHAND, rations);
         } else {
-          // A guard going to bed with no rations is a shortage worth remembering.
+          // A guard starting the night watch with no rations is a shortage
+          // worth remembering.
           this.getVillage().logEvent(
               new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(Items.APPLE, 16));
         }
@@ -1368,7 +1392,16 @@ public class RealPerson extends Person {
       }
     });
 
-    this.goalSelector.addGoal(6, new SleepAtNightGoal(this));
+    // Safe to decide at registration: every occupation change goes through
+    // setOccupation + reloadState, which rebuilds all goals.
+    if (getOccupation().sleepsAtNight()) {
+      this.goalSelector.addGoal(6, new SleepAtNightGoal(this));
+    } else {
+      // The watch stands all night. They keep their bed (the JobClaiming
+      // housing gate is untouched); only the sleeping is skipped, and the
+      // bedtime stow-and-restock runs at their post instead.
+      this.goalSelector.addGoal(6, new NightWatchRestockGoal(this));
+    }
     // this.goalSelector.addGoal(6, new RunToClericGoal(this)); Don't need it seems
     this.goalSelector.addGoal(6, new ArmorerRepairPersonArmorGoal(this));
 

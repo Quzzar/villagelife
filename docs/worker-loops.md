@@ -151,6 +151,16 @@ should stay outside:
   ranged, shield, defend-others. Do not give them a work array.
 - **`LEADER`** is not physical work. It marks that the brain has a voice.
 
+**Built, 2026-09-01: guards do not sleep.** Whether a job beds down is a fact of the job
+(`Occupation.sleepsAtNight()`), and the guard's answer is no: they stand watch through the
+night. A sleepless job still keeps its bed and passes the housing gate in `JobClaiming`
+unchanged; only the lying-down is skipped. Bedtime is also when the village hands out gear
+and rations, so the watch runs the same stow-and-restock at their post instead
+(`NightWatchRestockGoal`, sharing `goToBed`'s cadence), and a bell ring restocks a guard
+without walking them to bed. The village center's guard slot is intended as the **guard
+captain**, the founding twin of the barracks captain station above; the rename and any
+captain-specific behavior are not built yet.
+
 `DRILLMASTER` is cut. A **captain** replaces it: a station in the barracks that a guard occupies,
 giving nearby guards equipment priority and a rally point. It needs no new verbs, and it explains
 why a barracks beats scattered watchtowers.

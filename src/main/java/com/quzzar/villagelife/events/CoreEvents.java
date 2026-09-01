@@ -247,7 +247,14 @@ public class CoreEvents {
 
       for (RealPerson person : nearbyPeople) {
         if (person.isAlive() && !person.isRemoved()) {
-          person.goToBed(0.7D);
+          if (person.getOccupation().sleepsAtNight()) {
+            person.goToBed(0.7D);
+          } else {
+            // The watch does not bed down on a bell: no walk to the bed and no
+            // interrupting whatever they are doing, but the stow-and-restock
+            // half of bedtime still applies.
+            person.restockForNightWatch();
+          }
         }
       }
 

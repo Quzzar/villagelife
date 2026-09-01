@@ -21,7 +21,10 @@ import net.minecraft.world.entity.ai.goal.Goal;
  * ApproachWatch. That is also why no isSleeping guard remains here: it existed
  * because a sleeper's leftover path read as "stuck", and the one sleep path
  * (SleepAtNightGoal) zeroes daysSinceSleep before lying down, so the branch
- * below cannot fire against a sleeper.
+ * below cannot fire against a sleeper. A job that never sleeps by design
+ * (Occupation.sleepsAtNight() false) zeroes it nightly in
+ * NightWatchRestockGoal instead, so a bedded guard on watch does not read as
+ * three days wedged.
  */
 public class UnstuckPersonGoal extends Goal {
 

@@ -33,4 +33,16 @@ public enum Occupation {
     public boolean isIdle() {
         return this == IDLE || this == NITWIT;
     }
+
+    /**
+     * Whether this job beds down at night. Night behavior is a fact of the job,
+     * not a global rule (docs/worker-loops.md): the guard stands watch through
+     * the night instead of sleeping. A sleepless job still keeps its bed and
+     * passes the JobClaiming housing gate like any other; only the lying-down
+     * is skipped, and the bedtime stow-and-restock runs at their post instead
+     * (NightWatchRestockGoal).
+     */
+    public boolean sleepsAtNight() {
+        return this != GUARD;
+    }
 }
