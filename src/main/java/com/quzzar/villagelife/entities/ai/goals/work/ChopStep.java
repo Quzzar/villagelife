@@ -1,5 +1,7 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -10,7 +12,8 @@ import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.TreeFelling;
 
-import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
@@ -20,6 +23,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.Node;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -38,15 +43,22 @@ import net.minecraft.world.phys.Vec3;
  * wood and spares the building's.
  *
  * <b>A tree is cut from beside its trunk or from beneath it.</b> The worker
- * stands within arm's length of the trunk horizontally, and the lowest log has
- * to be within an axe's reach of their eyes: a player's block reach. Mangrove
- * trunks stand on stilts three to seven blocks over the mud, and measured from
- * the feet a guard walked under every one, gave up, stood down and was
- * eventually sent home. The woodland scan applies the same test in advance
- * from every standing spot beside a trunk, so a trunk nobody could reach is
- * left rather than walked to.
+ * walks to a standing spot beside the tree's base, within arm's length of it
+ * horizontally, from which the base is within an axe's reach of their eyes: a
+ * player's block reach. Mangrove trunks stand on stilts three to seven blocks
+ * over the mud, and measured from the feet a guard walked under every one,
+ * gave up, stood down and was eventually sent home. The base is the lowest
+ * log of the whole connected tree ({@link TreeFelling#treeLogs}), because a
+ * mangrove is all branches and walking straight down from a scanned log stops
+ * at one in the canopy. The standing spot is one the navigator confirms a path
+ * to before the tree is offered at all, so a trunk nobody could walk beside is
+ * left rather than walked to; a spot on top of the leaves does not count.
  */
-public final class ChopStep implements BlockWorkStep {
+public final class ChopStep implements WorkStep<ChopStep.Cut> {
+
+  /** A tree to fell: the log to strike, and the ground to strike it from. */
+  public record Cut(BlockPos log, BlockPos stand) {
+  }
 
   /** Ticks of chopping the first log takes before the tree comes down. */
   private static final int CHOP_TICKS = 100;
@@ -66,8 +78,11 @@ public final class ChopStep implements BlockWorkStep {
   /** How far from the eyes an axe reaches a log: a player's block reach. */
   private static final double AXE_REACH = 4.5D;
 
-  /** How far below a trunk's lowest log to look for ground to stand on. */
+  /** How far below a trunk's base to look for ground to stand on. */
   private static final int STAND_SEARCH_DEPTH = 6;
+
+  /** Paths the navigator is asked for per tree before it is called unreachable. */
+  private static final int PATHS_PER_TREE = 4;
 
   private final int woodlandRadius;
   private final float woodlandChance;
@@ -99,7 +114,10 @@ public final class ChopStep implements BlockWorkStep {
 
   @Override
   @Nullable
-  public BlockPos select(RealPerson person) {
+  public Cut select(RealPerson person) {
+    if (!(person.level() instanceof ServerLevel level)) {
+      return null;
+    }
     if (this.woodlandRadius > 0) {
       // The idle pass sweeps around wherever the worker is standing, not a
       // fixed post, so as a guard patrols or a lumberjack roams they clear the
@@ -107,28 +125,26 @@ public final class ChopStep implements BlockWorkStep {
       if (person.isInventoryFull() || person.getRandom().nextFloat() >= this.woodlandChance) {
         return null;
       }
-      if (!(person.level() instanceof ServerLevel level)) {
-        return null;
-      }
       return findWoodlandTree(person, level, person.blockPosition());
     }
-    BlockPos stand = LocationManager.getJobLocation(person);
-    if (stand == BlockPos.ZERO) {
+    BlockPos post = LocationManager.getJobLocation(person);
+    if (post == BlockPos.ZERO) {
       return null; // no post assigned yet: a misconfiguration, not a wood shortage
     }
-    BlockState state = person.level().getBlockState(stand);
+    BlockState state = level.getBlockState(post);
 
     if (state.is(BlockTags.LOGS_THAT_BURN)) {
       this.dry.foundWork();
-      return stand;
+      BlockPos stand = standBeside(person, level, post);
+      return new Cut(post, stand == null ? post : stand);
     }
 
     // An empty stand over dirt is a felled tree waiting to be replanted. This
     // branch existed before and could never fire, because nothing ever cleared
     // the stand.
-    if (state.isAir() && person.level().getBlockState(stand.below()).is(BlockTags.DIRT)) {
+    if (state.isAir() && level.getBlockState(post.below()).is(BlockTags.DIRT)) {
       if (person.getRandom().nextFloat() < REPLANT_CHANCE) {
-        person.level().setBlock(stand, Blocks.OAK_SAPLING.defaultBlockState(), 2);
+        level.setBlock(post, Blocks.OAK_SAPLING.defaultBlockState(), 2);
       }
     }
 
@@ -141,7 +157,8 @@ public final class ChopStep implements BlockWorkStep {
   }
 
   @Override
-  public boolean act(RealPerson person, BlockPos target) {
+  public boolean act(RealPerson person, Cut cut) {
+    BlockPos target = cut.log();
     if (!target.equals(this.chopping)) {
       this.chopping = target;
       this.chopTime = 0;
@@ -167,9 +184,15 @@ public final class ChopStep implements BlockWorkStep {
     return false;
   }
 
+  /** The worker walks to the ground beside the tree, not to the log. */
   @Override
-  public void released(RealPerson person, BlockPos target) {
-    person.level().destroyBlockProgress(person.getId(), target, -1);
+  public BlockPos positionOf(Cut cut) {
+    return cut.stand();
+  }
+
+  @Override
+  public void released(RealPerson person, Cut cut) {
+    person.level().destroyBlockProgress(person.getId(), cut.log(), -1);
     this.chopping = null;
     this.chopTime = 0;
     this.lastProgress = -1;
@@ -197,16 +220,21 @@ public final class ChopStep implements BlockWorkStep {
    * mangrove's lowest log sits four blocks over the mud a worker stands on.
    */
   @Override
-  public boolean inReach(RealPerson person, BlockPos log) {
-    BlockPos feet = person.blockPosition();
-    int dx = feet.getX() - log.getX();
-    int dz = feet.getZ() - log.getZ();
-    return dx * dx + dz * dz <= HORIZONTAL_REACH_SQR && axeReaches(person.getEyePosition(), log);
+  public boolean inReach(RealPerson person, Cut cut) {
+    return axeReachesFrom(person.blockPosition(), person.getEyePosition(), cut.log());
   }
 
-  /** Whether an axe swung from these eyes reaches the log. */
-  private static boolean axeReaches(Vec3 eyes, BlockPos log) {
-    return eyes.distanceToSqr(Vec3.atCenterOf(log)) <= AXE_REACH * AXE_REACH;
+  /** Whether an axe swung from these eyes, over these feet, reaches the log. */
+  private static boolean axeReachesFrom(BlockPos feet, Vec3 eyes, BlockPos log) {
+    int dx = feet.getX() - log.getX();
+    int dz = feet.getZ() - log.getZ();
+    return dx * dx + dz * dz <= HORIZONTAL_REACH_SQR
+        && eyes.distanceToSqr(Vec3.atCenterOf(log)) <= AXE_REACH * AXE_REACH;
+  }
+
+  /** The eyes of a worker standing with their feet in this block. */
+  private static Vec3 eyesAt(BlockPos feet, RealPerson person) {
+    return new Vec3(feet.getX() + 0.5D, feet.getY() + person.getEyeHeight(), feet.getZ() + 0.5D);
   }
 
   /**
@@ -238,16 +266,18 @@ public final class ChopStep implements BlockWorkStep {
   }
 
   /**
-   * Reservoir-samples a fellable trunk with a natural canopy that a worker
-   * could reach from the ground beside it, then returns its lowest connected
-   * log so the worker walks to the base and the tree comes down from there.
-   * Each trunk's verdict is kept for the scan, since every log on it asks.
+   * Reservoir-samples a fellable tree with a natural canopy that the worker
+   * can walk up to, and returns its base and the spot to cut it from. Each
+   * tree is flood-filled once per scan and every log on it mapped to the base,
+   * and each base is asked for its standing spot once, because every log of a
+   * tree in the box asks.
    */
   @Nullable
-  private BlockPos findWoodlandTree(RealPerson person, ServerLevel level, BlockPos around) {
+  private Cut findWoodlandTree(RealPerson person, ServerLevel level, BlockPos around) {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-    Long2BooleanOpenHashMap reachable = new Long2BooleanOpenHashMap();
-    BlockPos found = null;
+    Long2LongOpenHashMap baseOf = new Long2LongOpenHashMap();
+    Long2ObjectOpenHashMap<BlockPos> standOf = new Long2ObjectOpenHashMap<>();
+    Cut found = null;
     int seen = 0;
     for (int x = -this.woodlandRadius; x <= this.woodlandRadius; ++x) {
       for (int y = -WOODLAND_VERTICAL_RADIUS; y <= WOODLAND_VERTICAL_RADIUS; ++y) {
@@ -256,16 +286,24 @@ public final class ChopStep implements BlockWorkStep {
           if (!TreeFelling.isFellableLog(level, cursor)) {
             continue;
           }
-          BlockPos base = TreeFelling.lowestConnectedLog(level, cursor.immutable());
-          long key = base.asLong();
-          if (!reachable.containsKey(key)) {
-            reachable.put(key, cuttableFromTheGround(level, person, base));
+          long key = cursor.asLong();
+          if (!baseOf.containsKey(key)) {
+            List<BlockPos> logs = TreeFelling.treeLogs(level, cursor.immutable());
+            long base = lowestOf(logs).asLong();
+            for (BlockPos log : logs) {
+              baseOf.put(log.asLong(), base);
+            }
           }
-          if (!reachable.get(key)) {
+          long baseKey = baseOf.get(key);
+          if (!standOf.containsKey(baseKey)) {
+            standOf.put(baseKey, standBeside(person, level, BlockPos.of(baseKey)));
+          }
+          BlockPos stand = standOf.get(baseKey);
+          if (stand == null) {
             continue;
           }
           if (person.getRandom().nextInt(++seen) == 0) {
-            found = base;
+            found = new Cut(BlockPos.of(baseKey), stand);
           }
         }
       }
@@ -273,13 +311,28 @@ public final class ChopStep implements BlockWorkStep {
     return found;
   }
 
+  /** The base of a tree: the lowest of its logs. */
+  private static BlockPos lowestOf(List<BlockPos> logs) {
+    BlockPos lowest = logs.get(0);
+    for (BlockPos log : logs) {
+      if (log.getY() < lowest.getY()) {
+        lowest = log;
+      }
+    }
+    return lowest;
+  }
+
   /**
-   * Whether somewhere within arm's length of this trunk there is ground to
-   * stand on from which the lowest log is within the axe's reach: beside it,
-   * or beneath it in the mud a stilted mangrove stands over. The highest
-   * standing spot in each column is the nearest one, so it is the one asked.
+   * Somewhere within arm's length of this trunk that the worker can walk to
+   * and swing an axe at its base from: beside it, or beneath it in the mud a
+   * stilted mangrove stands over. Candidate spots are the highest standable
+   * block of each column round the base, nearest column first, and the
+   * navigator has the last word: a spot with no path to it, such as one on top
+   * of the leaves, is not a spot. Null when there is none.
    */
-  private static boolean cuttableFromTheGround(ServerLevel level, RealPerson person, BlockPos base) {
+  @Nullable
+  private static BlockPos standBeside(RealPerson person, ServerLevel level, BlockPos base) {
+    List<BlockPos> spots = new ArrayList<>();
     BlockPos.MutableBlockPos feet = new BlockPos.MutableBlockPos();
     for (int dx = -2; dx <= 2; dx++) {
       for (int dz = -2; dz <= 2; dz++) {
@@ -291,15 +344,34 @@ public final class ChopStep implements BlockWorkStep {
           if (!standable(level, feet)) {
             continue;
           }
-          Vec3 eyes = new Vec3(feet.getX() + 0.5D, y + person.getEyeHeight(), feet.getZ() + 0.5D);
-          if (axeReaches(eyes, base)) {
-            return true;
+          if (axeReachesFrom(feet, eyesAt(feet, person), base)) {
+            spots.add(feet.immutable());
           }
-          break;
+          break; // the highest standing spot of a column is its nearest to the base
         }
       }
     }
-    return false;
+    spots.sort(Comparator.comparingInt(spot -> spot.distManhattan(base)));
+    int asked = 0;
+    for (BlockPos spot : spots) {
+      if (asked++ >= PATHS_PER_TREE) {
+        break;
+      }
+      Path path = person.getNavigation().createPath(spot, 1);
+      if (path == null || !path.canReach()) {
+        continue;
+      }
+      Node end = path.getEndNode();
+      if (end == null) {
+        continue;
+      }
+      // Where the path actually ends is where the worker will stand.
+      BlockPos there = end.asBlockPos();
+      if (axeReachesFrom(there, eyesAt(there, person), base)) {
+        return there;
+      }
+    }
+    return null;
   }
 
   /**

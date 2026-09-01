@@ -327,11 +327,16 @@ trunk or from beneath it: the worker stands within arm's length of the trunk hor
 the lowest log has to be within an axe's reach of their eyes, a player's block reach of four
 and a half. Mangrove trunks stand on stilts three to seven blocks over the mud, and with the
 loop's flat arrival test a fresh camp's guard at Mangrove's Edge walked under every tree it
-picked, gave up, stood down and was eventually sent home: not one log in an hour. The woodland
-scan applies the same test in advance from every standing spot beside a trunk, so the tallest
-stilts are left rather than walked to and given up on. `WorkStep.inReach` is the seam: the
-loop's default is still the flat distance to the target, and the chop is the one step that
-answers differently.
+picked, gave up, stood down and was eventually sent home: not one log in an hour. Two more
+things a mangrove taught the scan. The base is the lowest log of the whole connected tree
+(`TreeFelling.treeLogs`), not the first log below the one scanned: a mangrove is all branches,
+and walking straight down stops at a log in the canopy with leaves beneath it. And before a
+tree is offered, the scan asks the navigator for a path to a standing spot beside its base
+from which the axe reaches; the worker then walks to that spot, not to the log, and a tree
+with no such spot (the tallest stilts, a spot only on top of the leaves) is left rather than
+walked to and given up on. `WorkStep.inReach` is the seam, taking the target so a step can
+look past the position it walks to: the loop's default is still the flat distance, and the
+chop is the one step that answers differently.
 
 **What the felled wood pays for.** A recipe names oak because the catalogue does, but the
 village pays in kind: a cost naming a log is met by any log (`village/buildings/Materials.java`,

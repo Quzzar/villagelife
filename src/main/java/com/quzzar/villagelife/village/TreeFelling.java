@@ -81,7 +81,7 @@ public final class TreeFelling {
       ItemStack tool) {
     List<ItemStack> drops = new ArrayList<>();
     BlockState soundFrom = null;
-    for (BlockPos pos : collectTree(level, struck)) {
+    for (BlockPos pos : treeLogs(level, struck)) {
       BlockState state = level.getBlockState(pos);
       if (!state.is(BlockTags.LOGS_THAT_BURN) || !BlockOwnership.mayFell(level, pos)) {
         continue;
@@ -132,24 +132,14 @@ public final class TreeFelling {
   }
 
   /**
-   * The lowest log connected straight down from this one: the base of the
-   * trunk, so a worker walks to the ground and the tree comes down from there.
-   */
-  public static BlockPos lowestConnectedLog(ServerLevel level, BlockPos log) {
-    BlockPos lowest = log;
-    while (lowest.getY() > level.getMinBuildHeight()
-        && level.getBlockState(lowest.below()).is(BlockTags.LOGS_THAT_BURN)) {
-      lowest = lowest.below();
-    }
-    return lowest;
-  }
-
-  /**
-   * The connected logs of one tree, reached from the struck log by a bounded
+   * The connected logs of one tree, reached from any of its logs by a bounded
    * breadth-first walk over all twenty-six neighbours so branches and leaning
    * trunks come with it. Capped so a giant tree cannot make the fill unbounded.
+   * This is also how a tree's base is found: the lowest of these. Walking
+   * straight down from a log is not enough, because a mangrove is all
+   * branches and the walk stops at a log in the canopy with leaves under it.
    */
-  private static List<BlockPos> collectTree(ServerLevel level, BlockPos start) {
+  public static List<BlockPos> treeLogs(ServerLevel level, BlockPos start) {
     List<BlockPos> logs = new ArrayList<>();
     ArrayDeque<BlockPos> frontier = new ArrayDeque<>();
     LongOpenHashSet visited = new LongOpenHashSet();
