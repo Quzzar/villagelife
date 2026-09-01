@@ -30,6 +30,14 @@ defends themselves and joins in against ordinary hostile monsters within sixteen
 campfire. They do not pursue creepers or Endermen, and the campfire tether makes this local
 defence rather than an unpaid hunting patrol.
 
+Idle hands also tend the fire. An idle resident who finds raw food in the village stores takes
+it to the campfire, cooks anything a campfire can cook (read from the vanilla recipe set, so
+modded food joins in for free), and returns the cooked food to storage. It is the campfire twin
+of the farmer's idle composter chain: a light, early-camp source of prepared food that needs no
+building, and one that quietly matters less once a butchery exists to cook at scale
+(`entities/ai/goals/work/CookStep`). It is the lowest-priority thing an idle person does, so
+defence, eating and sleep always pull them off it.
+
 ## What caps the reservoir
 
 Two independent caps, checked at arrival time:

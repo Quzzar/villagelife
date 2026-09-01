@@ -168,6 +168,24 @@ bedtime restock leaves the pack short and the village stores hold bones, the far
 brain is offered a grind through the shared `CraftOffer` press
 ([llm-brain.md](llm-brain.md)), so skeleton drops end up as crops too.
 
+## The idle camper tends the fire
+
+Idle residents get the same treatment as the farmer's idle hands, on the campfire model rather
+than a workplace. An idle person who finds raw food in the village stores cooks it at the town's
+own gathering-point campfire and returns it (`CookStep`, a `BlockWorkStep`): the raw item really
+roasts on the fire via `CampfireBlockEntity.placeFood`, and the step owns the timing so the
+cooked food is lifted straight into storage rather than dropped on the ground when the block's
+own cook tick would finish it. What counts as cookable is read from the vanilla
+`CampfireCookingRecipe` set, so it is broader than the butcher's six hand-listed meats and
+modded food comes along for free.
+
+This is deliberately scoped to idle campers as an early-camp bridge. A young camp has no
+butchery, so raw meat a hunter brings home would sit uncooked; once a butchery exists its
+`BUTCHER` cooks the same meats at its station and simply drains the shared stores first, so the
+fireside quietly matters less with no explicit hand-off. It sits at the bottom of the idle
+priority order, below defence, eating and sleep, and its `select` returns nothing when the
+stores hold no raw food, so an idle camper with nothing to cook just wanders as before.
+
 ## Roaming, fixed, and the shape in between
 
 **Roaming by default, fixed where a job is simpler that way.** Per job, not global.

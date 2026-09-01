@@ -50,6 +50,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.GatherStep;
 import com.quzzar.villagelife.entities.ai.goals.work.WorkLoopGoal;
 import com.quzzar.villagelife.entities.ai.goals.work.BonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.ChopStep;
+import com.quzzar.villagelife.entities.ai.goals.work.CookStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HarvestStep;
 import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
@@ -1344,6 +1345,13 @@ public class RealPerson extends Person {
       // home; without it the CLOTH output strands in the herder's own pack.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HerdStep()));
+    }
+    if (getOccupation().isIdle()) {
+      // Idle hands at the fire: cook raw food the village holds into keeping
+      // food, the campfire-model twin of the farmer's composter chain and an
+      // early-camp bridge until a butchery exists (docs/population-and-labor.md).
+      // Lowest priority, so defence, eating and sleep all pull them off it.
+      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CookStep()));
     }
 
     // this.goalSelector.addGoal(3, new FollowHeroGoal(this)); Doesn't work?

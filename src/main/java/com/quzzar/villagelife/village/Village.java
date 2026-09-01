@@ -583,6 +583,21 @@ public class Village {
     return townCenter != null ? BlockPos.of(townCenter.getCenterLocation()) : BlockPos.ZERO;
   }
 
+  /**
+   * The lit gathering-point campfire block itself, or null when it is missing or
+   * doused. Unlike {@link #getGatheringPoint} this is the fire, not the standing
+   * spot beside it: the idle cook roasts food on it (CookStep).
+   */
+  @javax.annotation.Nullable
+  public BlockPos getCampfire() {
+    BlockPos fire = gatheringPointPos();
+    if (fire == null || level == null) {
+      return null;
+    }
+    var state = level.getBlockState(fire);
+    return state.is(Blocks.CAMPFIRE) && state.getValue(CampfireBlock.LIT) ? fire : null;
+  }
+
   /** The first free neighbour of the fire a person can stand in, else the nearest air above it. */
   private BlockPos standingSpotBeside(BlockPos fire) {
     for (net.minecraft.core.Direction direction : net.minecraft.core.Direction.Plane.HORIZONTAL) {
