@@ -524,6 +524,37 @@ the rewrite, because the ranking it encodes is the same ranking `SELECT` will wa
 by category and level, so a whole catalog can be walked end to end. Built for reviewing candidate
 structures ([structure-sourcing.md](structure-sourcing.md)) and checking content passes.
 
+## The quartermaster shelves by plan
+
+*Prototype, 2026-09-01: built behind a dev command, not yet verified live.* The quartermaster
+already sweeps every workplace chest into the storehouse (`ConsolidateStep`, a CARRY loop). On
+top of that it now organises the storehouse to a **shelving plan**: a partition of the
+storehouse's numbered slots into named categories, each owning a contiguous run of slots and
+the items that live there. The tidy pass lays the shelves out to match, with no model in the
+loop.
+
+The plan is built by a conversation, not by rules. The storehouse's slots are numbered across
+its chests, and the model is asked to assign every slot to one category and every item to one
+category. It does the slot arithmetic itself; a deterministic validator then checks the
+partition (every slot covered once, no gaps, no overlaps, every item placed) and, when it does
+not hold, hands the errors back. The quartermaster and the village brain alternate turns
+correcting it, up to six rounds. The first partition that validates wins; if none does, the
+shelves keep the order they had, never a corrupted one. Membership is a frozen item-id map (the
+model placed each item by hand), so tidy-time resolution is an exact lookup, and an item the
+plan never saw spills to a free slot and waits for the next re-plan.
+
+Design decided over chat: fully generative categories, a two-role brain/quartermaster dialogue,
+rebuilt on the first storehouse and when new items pile up. Only the manual trigger exists so
+far: `/vldev llm plan <quartermaster>` runs the dialogue, prints the result and the
+quartermaster's note, and applies it once; watch the `[quartermaster]` log lines for the
+round-by-round convergence. The auto-triggers are still to come.
+
+- `village/QuartermasterPlanner.java`: the iterate-until-valid dialogue and the validator.
+- `village/ShelvingPlan.java`: the slot partition, persisted in the brain's strategy tag.
+- `village/Storehouse.java`: the shared storehouse chests, slot flattening, and plan execution.
+- `entities/ai/goals/work/ConsolidateStep.java`: the tidy pass that applies a plan or, with
+  none, falls back to ordering like goods together.
+
 ## Still open
 
 - **Resource depletion** ([#54](https://github.com/Quzzar/villagelife/issues/54)): trees replant,

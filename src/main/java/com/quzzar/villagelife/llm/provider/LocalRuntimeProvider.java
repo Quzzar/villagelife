@@ -38,7 +38,12 @@ import com.quzzar.villagelife.llm.LlmService;
 public final class LocalRuntimeProvider implements LlmProvider {
 
   private static final int PORT = 8127;
-  private static final int CONTEXT = 4096;
+  // Total context, split across the launcher's parallel slots (-np 2), so each
+  // request gets half. At 4096 that left 2048 per request, which a long villager
+  // conversation and the quartermaster's repair rounds could both overrun; 8192
+  // gives 4096 per request. Raising it costs KV-cache RAM (a few hundred MB at
+  // 3B); dial back toward 6144 if a small machine feels the pressure.
+  private static final int CONTEXT = 8192;
   private static final Duration STARTUP_BUDGET = Duration.ofMinutes(45);
 
   private final AtomicReference<LlmService.Status> status =

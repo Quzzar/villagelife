@@ -1,6 +1,7 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -9,6 +10,8 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.economy.Treasury;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.ShelvingPlan;
+import com.quzzar.villagelife.village.Storehouse;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
@@ -130,7 +133,7 @@ public final class ConsolidateStep implements BlockWorkStep {
     Container pack = person.personMainInv;
     List<BlockPos> stores = new ArrayList<>();
     stores.add(target);
-    for (BlockPos other : storehouseChests(person)) {
+    for (BlockPos other : Storehouse.chests(person)) {
       if (!other.equals(target)) {
         stores.add(other);
       }
@@ -161,17 +164,31 @@ public final class ConsolidateStep implements BlockWorkStep {
   }
 
   /**
-   * Tidy the storehouse when it is quiet: lift every stack out, order them by
-   * item so like goods sit together, and lay them back in.
-   * {@link HopperBlockEntity#addItem} merges compatible stacks as it refills -
-   * compacting partial stacks and freeing slots - and respects item components,
-   * so enchanted or named items are never wrongly merged. Count-preserving:
-   * exactly what came out goes back into the same shelves, and merging only ever
-   * frees room, so it always fits.
+   * Tidy the storehouse when it is quiet: lift every stack out and lay it back
+   * shelved. With a {@link ShelvingPlan} each item goes to its category's chest
+   * (spilling to the others only when that chest is full); with no plan yet, like
+   * goods are simply ordered together as before.
+   * {@link HopperBlockEntity#addItem} merges compatible stacks as it refills,
+   * compacting partial stacks and respecting item components, so enchanted or
+   * named items are never wrongly merged. Count-preserving: exactly what came out
+   * goes back into the same shelves, and merging only ever frees room, so it
+   * always fits. Public and static so the plan prototype command can apply a
+   * fresh plan at once, rather than waiting for the next quiet spell.
    */
-  private void tidyStorehouse(RealPerson person) {
+  public static void tidyStorehouse(RealPerson person) {
+    Village village = person.getVillage();
+    ShelvingPlan plan = village == null ? null : ShelvingPlan.load(village);
+    if (plan != null) {
+      // A plan owns the slot layout; the storehouse lays itself out to match it.
+      Storehouse.applyPlan(person, plan);
+      Villagelife.LOGGER.debug("[quartermaster] {} shelved the storehouse to plan",
+          person.getName().getString());
+      return;
+    }
+
+    // No plan yet: the original behaviour, order like goods together and compact.
     List<Container> stores = new ArrayList<>();
-    for (BlockPos pos : storehouseChests(person)) {
+    for (BlockPos pos : Storehouse.chests(person)) {
       if (person.level().getBlockEntity(pos) instanceof Container store) {
         stores.add(store);
       }
@@ -189,27 +206,27 @@ public final class ConsolidateStep implements BlockWorkStep {
         }
       }
     }
-    goods.sort(java.util.Comparator.comparing((ItemStack stack) -> stack.getItem().toString()));
+    goods.sort(Comparator.comparing((ItemStack stack) -> stack.getItem().toString()));
     for (ItemStack stack : goods) {
-      putBack(stores, stack);
+      reseat(stores, stack);
     }
     if (goods.size() > 1) {
-      Villagelife.LOGGER.debug("[resource-flow] {} (QUARTERMASTER) tidied the storehouse ({} stacks)",
+      Villagelife.LOGGER.debug("[quartermaster] {} tidied the storehouse ({} stacks)",
           person.getName().getString(), goods.size());
     }
   }
 
-  /** Refill a stack across the storehouse containers, merging compatible stacks. */
-  private void putBack(List<Container> stores, ItemStack stack) {
+  /** Lay a stack back across the storehouse, merging where it can; warns only if nothing fits. */
+  private static void reseat(List<Container> stores, ItemStack stack) {
     ItemStack remaining = stack;
     for (Container store : stores) {
-      remaining = HopperBlockEntity.addItem(null, store, remaining, null);
       if (remaining.isEmpty()) {
         return;
       }
+      remaining = HopperBlockEntity.addItem(null, store, remaining, null);
     }
     if (!remaining.isEmpty()) {
-      Villagelife.LOGGER.warn("[resource-flow] storehouse tidy could not reseat {} x{}",
+      Villagelife.LOGGER.warn("[quartermaster] storehouse tidy could not reseat {} x{}",
           remaining.getItem(), remaining.getCount());
     }
   }
@@ -241,7 +258,7 @@ public final class ConsolidateStep implements BlockWorkStep {
     if (!(person.level() instanceof ServerLevel level)) {
       return null;
     }
-    List<BlockPos> skip = new ArrayList<>(storehouseChests(person));
+    List<BlockPos> skip = new ArrayList<>(Storehouse.chests(person));
     skip.addAll(Treasury.chestPositions(village, level));
     // Homes hold villagers' private belongings; never sweep them into the shared
     // storehouse (a home is a residence - a building with beds).
@@ -284,23 +301,10 @@ public final class ConsolidateStep implements BlockWorkStep {
     return info != null && !info.getBedLocations().isEmpty();
   }
 
-  /** The storehouse's own containers: the quartermaster's workplace, in world space. */
-  private List<BlockPos> storehouseChests(RealPerson person) {
-    List<BlockPos> out = new ArrayList<>();
-    Building building = LocationManager.getJobBuilding(person);
-    if (building != null && building.getInfo() != null) {
-      BlockPos origin = BlockPos.of(building.getOriginLocation());
-      for (Long local : building.getInfo().getContainerLocations()) {
-        out.add(origin.offset(BlockPos.of(local).rotate(building.getRotation())));
-      }
-    }
-    return out;
-  }
-
   /** The first storehouse container that exists, as the walk target for a delivery. */
   @Nullable
   private BlockPos storehouseChest(RealPerson person) {
-    for (BlockPos pos : storehouseChests(person)) {
+    for (BlockPos pos : Storehouse.chests(person)) {
       if (person.level().getBlockEntity(pos) instanceof Container) {
         return pos;
       }
