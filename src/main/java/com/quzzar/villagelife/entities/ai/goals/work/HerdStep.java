@@ -97,6 +97,11 @@ public final class HerdStep implements WorkStep<Animal> {
   }
 
   @Override
+  public String activity() {
+    return "tending the animals in the pasture";
+  }
+
+  @Override
   public int actEveryTicks() {
     return 20;
   }

@@ -228,6 +228,11 @@ public final class CookStep implements BlockWorkStep {
     return "the campfire";
   }
 
+  @Override
+  public String activity() {
+    return "cooking at the campfire";
+  }
+
   /** A batch check once a second is plenty; the roast itself is the long wait. */
   @Override
   public int actEveryTicks() {

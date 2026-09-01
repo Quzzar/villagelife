@@ -76,6 +76,11 @@ public final class StashBonemealStep implements BlockWorkStep {
     return "somewhere to shelve the bone meal";
   }
 
+  @Override
+  public String activity() {
+    return "shelving bone meal";
+  }
+
   /** Emptying the pack is one action, taken on arrival. */
   @Override
   public int actEveryTicks() {

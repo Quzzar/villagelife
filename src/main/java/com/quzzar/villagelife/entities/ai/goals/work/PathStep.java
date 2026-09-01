@@ -111,6 +111,11 @@ public final class PathStep implements BlockWorkStep {
     return "the way between our buildings";
   }
 
+  @Override
+  public String activity() {
+    return "laying paths between our buildings";
+  }
+
   /** Laying happens on the move; walking to the near end does not. */
   @Override
   public boolean actWhileTravelling() {

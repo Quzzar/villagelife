@@ -252,6 +252,11 @@ public final class MineStep implements BlockWorkStep {
     return "the mine";
   }
 
+  @Override
+  public String activity() {
+    return "digging in the mine";
+  }
+
   /** Breaking is timed in ticks, so the act runs on every one of them. */
   @Override
   public int actEveryTicks() {

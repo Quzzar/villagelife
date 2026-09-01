@@ -204,6 +204,11 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
   }
 
   @Override
+  public String activity() {
+    return "felling trees";
+  }
+
+  @Override
   public int selectEveryTicks() {
     return this.woodlandScanTicks;
   }

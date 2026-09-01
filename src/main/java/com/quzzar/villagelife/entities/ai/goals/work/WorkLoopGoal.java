@@ -85,6 +85,7 @@ public class WorkLoopGoal<T> extends Goal {
     this.ticksInReach = 0;
     this.approach.begin();
     if (this.target != null) {
+      this.person.noteActivity(this.step.activity());
       this.step.acquired(this.person, this.target);
     }
   }
@@ -108,6 +109,11 @@ public class WorkLoopGoal<T> extends Goal {
   public final void tick() {
     if (this.target == null) {
       return; // canContinueToUse ends us on the next pass
+    }
+    // Kept fresh while the work goes on, so the chat briefing can tell "was
+    // doing this a moment ago" from "did this once, hours back".
+    if (this.person.tickCount % 20 == 0) {
+      this.person.noteActivity(this.step.activity());
     }
 
     // Asked fresh each tick: a target that walks away has to be followed.

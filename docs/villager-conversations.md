@@ -99,7 +99,12 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
   `client/renderer/VillagerSpeechBubbles.java`: the earshot packet and the
   client's six-second bubble state.
 - `chat/PersonChatContext.java`: the briefing, speaker-agnostic; standing
-  feelings read through `OpinionService.opinionOf`.
+  feelings read through `OpinionService.opinionOf`. The villager's own work in
+  hand comes from what their work loop last noted (`RealPerson.recentActivity`,
+  written by `WorkLoopGoal` from each step's `activity()`), stated in the past
+  tense because opening a chat pauses the loop; the village's building
+  programme is always stated, even as "nothing at the moment", since a gap
+  there is what a small model fills with an invented project.
 - `llm/LlmService.java`: `submitBackgroundChat`, the background lane.
 - `entities/ai/goals/PauseForConversationGoal.java`: faces players and
   villager partners alike.

@@ -119,6 +119,11 @@ public final class ConsolidateStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "sorting the storehouse shelves";
+  }
+
+  @Override
   public double reachSqr(RealPerson person) {
     return 6.0D;
   }

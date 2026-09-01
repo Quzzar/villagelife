@@ -93,6 +93,11 @@ public final class BuildStep implements BlockWorkStep {
     return "where the new building is going";
   }
 
+  @Override
+  public String activity() {
+    return "putting up the new building";
+  }
+
   /** Half a second, as the goal this replaces used. */
   @Override
   public int actEveryTicks() {

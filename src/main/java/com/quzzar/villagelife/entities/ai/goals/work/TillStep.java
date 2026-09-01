@@ -93,6 +93,11 @@ public final class TillStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "tilling the field";
+  }
+
+  @Override
   public int actEveryTicks() {
     return 20;
   }

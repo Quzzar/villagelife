@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.mojang.authlib.GameProfile;
 import com.quzzar.villagelife.Utils;
@@ -51,7 +52,9 @@ public final class PersonChatContext {
   private static final String RULES_BODY = "Rules: Answer in one or two short sentences, always in character. "
       + "Never use an em dash; use a comma, period, or semicolon instead. "
       + "Never invent events, people, places, or items that are not in your briefing above: no family, "
-      + "children, journeys, or plans that are not written there. Small talk is about what IS there: your "
+      + "children, journeys, or plans that are not written there. If you are asked about something your "
+      + "briefing does not cover, say you do not know or that there is nothing to tell; never fill the gap "
+      + "with a guess. Small talk is about what IS there: your "
       + "work, what the village is building and still short of, the time of day, and the people you know. "
       + "You may hand an item from your pockets to the person you are talking to with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
       + "Add \"opinion\" (a whole number from -10 to 10) ONLY when something in this exact moment changes "
@@ -349,15 +352,24 @@ public final class PersonChatContext {
       if (project != null) {
         BuildingInfo built = project.getBuilding().getInfo();
         String label = built.hasWellFormedId() ? built.getCategory().replace('_', ' ') : built.getName();
-        if (project.isGathering()) {
-          system.append("Your village is gathering materials to build a ").append(label).append(".\n");
-        } else {
-          system.append(person.getOccupation() == Occupation.BUILDER
-              ? "Right now you are building a " + label + " for the village."
-              : "Your village is now building a " + label + ".").append('\n');
-        }
+        system.append(project.isGathering()
+            ? "Your village is gathering materials to build a " + label + "."
+            : "Your village is now building a " + label + ".").append('\n');
+      } else if (goal == null) {
+        // Stated even when there is nothing, for the same reason the pockets
+        // are: an unmentioned building programme is a gap the model fills. A
+        // quartermaster asked what the village was working on, with no project
+        // in the briefing, invented a hut for a travelling merchant and the
+        // planks it was short of (a live finding).
+        system.append("Your village is not saving up for or building anything at the moment.\n");
       }
     }
+
+    // The villager's own work in hand. Their job is a title; this is what a
+    // person asked "what are you up to" answers with. Only the builder used to
+    // get it, and only for a building; every other occupation had a title and
+    // nothing to say about their day, and said something invented instead.
+    system.append(activityLine(person)).append('\n');
 
     // Everything on their person is ALWAYS stated, even when empty: an omitted
     // line is an invitation for the model to invent contents (dogfood finding).
@@ -568,6 +580,26 @@ public final class PersonChatContext {
   /** What a villager holds, by its plain name: "stone axe" for "minecraft:stone_axe". */
   private static String itemName(ItemStack stack) {
     return stack.getItem().toString().replace("minecraft:", "").replace('_', ' ');
+  }
+
+  /**
+   * The villager's own work in hand, always stated. Sleep first, since a
+   * sleeper's last activity is yesterday's; then what the work loops noted
+   * within the last few minutes ("just before" is the honest tense, because
+   * opening a chat pauses the loop); then the truth about having nothing on.
+   */
+  private static String activityLine(RealPerson person) {
+    if (person.isSleeping()) {
+      return "Right now you are asleep in your bed.";
+    }
+    Optional<String> activity = person.recentActivity();
+    if (activity.isPresent()) {
+      return "Just before this conversation you were " + activity.get() + ".";
+    }
+    if (person.getOccupation().isIdle()) {
+      return "You have no job yet and no work in hand; you pass the day about the camp.";
+    }
+    return "You have no work in hand at the moment.";
   }
 
   /**

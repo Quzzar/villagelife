@@ -106,6 +106,11 @@ public final class WallStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "raising the village wall";
+  }
+
+  @Override
   public int actEveryTicks() {
     return 10;
   }

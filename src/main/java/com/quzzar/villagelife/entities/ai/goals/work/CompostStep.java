@@ -104,6 +104,11 @@ public final class CompostStep implements BlockWorkStep {
     return "the farm's composter";
   }
 
+  @Override
+  public String activity() {
+    return "feeding the farm's composter";
+  }
+
   /** A fill every second or so reads as work without eating the whole day. */
   @Override
   public int actEveryTicks() {

@@ -117,6 +117,12 @@ public final class CraftStep implements BlockWorkStep {
     return "my workbench";
   }
 
+  @Override
+  public String activity() {
+    return "making " + this.output.getHoverName().getString().toLowerCase(java.util.Locale.ROOT)
+        + " at my workbench";
+  }
+
   /** One batch per configured interval. */
   @Override
   public int actEveryTicks() {

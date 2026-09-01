@@ -93,6 +93,11 @@ public final class GatherStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "gathering materials for the build";
+  }
+
+  @Override
   public double reachSqr(RealPerson person) {
     return 6.0D;
   }

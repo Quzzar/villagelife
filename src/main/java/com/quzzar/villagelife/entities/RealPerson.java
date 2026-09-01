@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -116,6 +117,40 @@ public class RealPerson extends Person {
 
   // Constants
   private static final int MIN_FAV_ITEMS = 3, MAX_FAV_ITEMS = 7;
+
+  /**
+   * How long a noted activity still counts as "just now" for the chat
+   * briefing: five minutes. Long enough to outlast any conversation (the chat
+   * pauses the work that would refresh it), short enough that yesterday's
+   * felling is not today's answer.
+   */
+  private static final long RECENT_ACTIVITY_TICKS = 6000L;
+
+  /**
+   * What this villager was last doing, as they would put it ("felling trees"),
+   * and when. Every work loop notes it while it runs and the chat briefing
+   * reads it. Remembered rather than asked live because opening a chat pauses
+   * the work goal (PauseForConversationGoal), so by the time the villager is
+   * asked what they are up to, the honest answer is what they were doing a
+   * moment ago. Not persisted: after a reload nobody has done anything yet.
+   */
+  private String lastActivity;
+  private long lastActivityTick;
+
+  /** Records what this villager is doing right now; see {@link #recentActivity}. */
+  public void noteActivity(String activity) {
+    this.lastActivity = activity;
+    this.lastActivityTick = this.level().getGameTime();
+  }
+
+  /** The activity noted within the last few minutes, if any. */
+  public Optional<String> recentActivity() {
+    if (this.lastActivity == null
+        || this.level().getGameTime() - this.lastActivityTick > RECENT_ACTIVITY_TICKS) {
+      return Optional.empty();
+    }
+    return Optional.of(this.lastActivity);
+  }
 
   // Variables
   private static final EntityDataAccessor<String> FIRST_NAME = SynchedEntityData.defineId(RealPerson.class,

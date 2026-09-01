@@ -70,4 +70,10 @@ public final class FetchStep implements BlockWorkStep {
   public String describe() {
     return "fetching supplies";
   }
+
+  @Override
+  public String activity() {
+    return "fetching " + this.item.getDescription().getString().toLowerCase(java.util.Locale.ROOT)
+        + " from the stores";
+  }
 }

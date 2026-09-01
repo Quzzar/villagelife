@@ -60,6 +60,11 @@ public final class FishStep implements BlockWorkStep {
     return "the water's edge";
   }
 
+  @Override
+  public String activity() {
+    return "fishing at the water's edge";
+  }
+
   /** A catch every twenty seconds -- the waiting is the point, not the throughput. */
   @Override
   public int actEveryTicks() {

@@ -102,6 +102,11 @@ public final class HarvestStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "harvesting the field";
+  }
+
+  @Override
   public int actEveryTicks() {
     return 20;
   }

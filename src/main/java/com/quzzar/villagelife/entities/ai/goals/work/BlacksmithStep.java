@@ -137,6 +137,11 @@ public final class BlacksmithStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "working the forge";
+  }
+
+  @Override
   public int actEveryTicks() {
     return 20 * FORGE_SECONDS;
   }

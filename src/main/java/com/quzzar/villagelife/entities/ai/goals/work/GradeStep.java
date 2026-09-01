@@ -226,6 +226,11 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   }
 
   @Override
+  public String activity() {
+    return "levelling the ground between our buildings";
+  }
+
+  @Override
   public int selectEveryTicks() {
     return SCAN_TICKS;
   }

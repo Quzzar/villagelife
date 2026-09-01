@@ -73,6 +73,11 @@ public final class BonemealStep implements BlockWorkStep {
     return "the crops that need feeding";
   }
 
+  @Override
+  public String activity() {
+    return "feeding bone meal to what is still growing";
+  }
+
   /**
    * Resolved every time rather than once at construction. The goal this
    * replaces read the job location in its constructor, so a worker assigned

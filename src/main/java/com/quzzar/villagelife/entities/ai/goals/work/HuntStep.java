@@ -138,6 +138,11 @@ public final class HuntStep implements WorkStep<Animal> {
     return "the hunting ground";
   }
 
+  @Override
+  public String activity() {
+    return "out hunting";
+  }
+
   /** A full draw between acts: an arrow every other act, none of them rushed. */
   @Override
   public int actEveryTicks() {

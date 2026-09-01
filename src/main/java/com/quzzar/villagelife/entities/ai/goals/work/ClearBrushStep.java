@@ -78,6 +78,11 @@ public final class ClearBrushStep implements BlockWorkStep {
     return "the brush that wants clearing";
   }
 
+  @Override
+  public String activity() {
+    return "clearing brush";
+  }
+
   /** An idle tidy-up scans wider than the field work, so it looks less often. */
   @Override
   public int selectEveryTicks() {

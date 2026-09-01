@@ -55,6 +55,15 @@ public interface WorkStep<T> {
   String describe();
 
   /**
+   * What the worker is doing while on this step, as they would say it
+   * themselves: a present-participle phrase ("felling trees") that completes
+   * "you were ...". The loop notes it on the villager while it runs, and the
+   * chat briefing reads it, so a villager asked about their day has a true
+   * answer instead of an invented one.
+   */
+  String activity();
+
+  /**
    * Called once when the loop takes a target on, before the worker sets off.
    * Somewhere to tell a subsystem that work has started on it.
    */

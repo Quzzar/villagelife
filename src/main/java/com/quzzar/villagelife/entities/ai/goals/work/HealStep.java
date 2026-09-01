@@ -115,6 +115,11 @@ public final class HealStep implements WorkStep<LivingEntity> {
     return "anyone who needs tending";
   }
 
+  @Override
+  public String activity() {
+    return "tending the hurt";
+  }
+
   /** Close enough to throw, not close enough to touch. */
   @Override
   public double reachSqr(RealPerson person) {

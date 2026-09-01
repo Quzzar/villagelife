@@ -108,6 +108,11 @@ public final class MarketStep implements BlockWorkStep {
   }
 
   @Override
+  public String activity() {
+    return "minding the market";
+  }
+
+  @Override
   public double reachSqr(RealPerson person) {
     return 6.0D;
   }

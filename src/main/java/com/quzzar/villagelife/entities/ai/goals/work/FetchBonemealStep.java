@@ -79,6 +79,11 @@ public final class FetchBonemealStep implements BlockWorkStep {
     return "the shelf with the bone meal";
   }
 
+  @Override
+  public String activity() {
+    return "fetching bone meal from the shelf";
+  }
+
   /** Filling the pack is one action, taken on arrival. */
   @Override
   public int actEveryTicks() {
