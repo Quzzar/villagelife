@@ -198,7 +198,13 @@ public final class PersonChatContext {
       new FewShotExample("Steve says: \"Remember the goblin king we robbed last summer?\"\nYour JSON answer:",
           "{\"say\": \"I recall no such thing, Steve.\"}"),
       new FewShotExample("Steve says: \"Could you spare a few torches? You've always been kind to me.\"\nYour JSON answer:",
-          "{\"say\": \"Take three, and mind the dark.\", \"give\": \"minecraft:torch\", \"give_count\": 3, \"opinion\": 2}"));
+          "{\"say\": \"Take three, and mind the dark.\", \"give\": \"minecraft:torch\", \"give_count\": 3, \"opinion\": 2}"),
+      // The one example that ENDS a talk: a goodbye is not enough on its own, the
+      // farewell needs "done": true on the same reply or the pair say their
+      // goodbyes over and over and never part (Aaron, 2026-09-02). Shown last, so
+      // it is the freshest pattern for the turn where the talk has run its course.
+      new FewShotExample("Steve says: \"Anyway, I'll not keep you. Good day to you.\"\nYour JSON answer:",
+          "{\"say\": \"And to you. I'll get back to my work.\", \"done\": true}"));
 
   /**
    * Shown when a NEW matter may open. Both are the villager's OWN matters - a
