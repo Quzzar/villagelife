@@ -32,10 +32,6 @@
     {
       "item": "minecraft:cobblestone",
       "count": 40
-    },
-    {
-      "item": "minecraft:iron_ingot",
-      "count": 4
     }
   ],
   "grants": [

@@ -838,11 +838,16 @@ Worker: **BLACKSMITH**  ·  Phase 2  ·  Variants: `plains`, `desert`
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | forge | 11x11 | 28 oak log, 44 oak planks, 44 cobblestone, 8 glass, 6 wool, 8 iron ingot, 1 anvil | TOOLS_IRON, REPAIR, SMELTING |
+| 1 | forge | 11x11 | 28 oak log, 44 oak planks, 44 cobblestone, 8 glass, 6 wool | TOOLS_IRON, REPAIR, SMELTING |
 | 2 (upgrade) | smithy | 11x11 | 44 oak log, 64 oak planks, 68 cobblestone, 12 glass, 8 wool, 16 iron ingot | ARMOR_IRON |
 | 3 (upgrade) | foundry | 15x15 | 84 oak log, 128 oak planks, 136 cobblestone, 24 glass, 16 wool, 32 iron ingot, 4 diamond | TOOLS_DIAMOND, ARMOR_DIAMOND (requires mine_3) |
 
 The worked example for capability-by-level. Every level is a genuine unlock rather than throughput, and L3 additionally requires mine_3 for its diamond supply.
+Level 1 costs no iron (decided 2026-09-02): the forge is what makes iron ingots possible, so a
+recipe that needed them could never be started. Wildflower Downs was offered "save up for a
+blacksmith, still needs 4 iron ingot" every round with no way to smelt one. The datapack
+recipes (`buildings/blacksmith_*_1.json`) lost their iron the same day; the upper levels keep
+theirs, since a standing forge smelts it.
 
 #### `workshop`
 
