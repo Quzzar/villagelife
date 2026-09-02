@@ -170,6 +170,16 @@ public final class MineStep implements BlockWorkStep {
    */
   private boolean bailWater;
 
+  /**
+   * True when a cell of the tunnel's lining, a wall to the side or the ceiling
+   * above, stands open into a cave: the act lays one cobblestone at
+   * {@link #sealCell} to close it, standing on the walkway exactly as flooring
+   * does. Floor, walls and ceiling are the same work, a cobblestone placed at a
+   * boundary the shaft would otherwise leave gaping into the cavern.
+   */
+  private boolean placeSeal;
+  private BlockPos sealCell;
+
 
   // A wall vein under extraction: ore already pulled and awaiting its cobblestone
   // plug (sealed deepest-first, so the miner backs out toward the shaft as it
@@ -202,12 +212,22 @@ public final class MineStep implements BlockWorkStep {
     // used to fall back to the mouth as the target, which handed act a face
     // twenty blocks off and had the miner dig it from the doorstep.
     BlockPos face = face(mouth, rotation(person));
-    BlockPos stand = standToMine(person, face);
+    // Sealing a wall or the ceiling is done standing on the walkway, the reachable
+    // footing at the column's floor, and placing the lining from there, the way a
+    // player lines a tunnel from inside it. Everything else stands beside the face.
+    BlockPos footingAt = this.placeSeal ? columnFloor(mouth, rotation(person)) : face;
+    BlockPos stand = standToMine(person, footingAt);
     if (stand == null) {
       resetShaft();
       return null;
     }
     return stand;
+  }
+
+  /** The walkway cell at the cursor column's floor, the footing lining work stands on. */
+  private BlockPos columnFloor(BlockPos mouth, Rotation rotation) {
+    return mouth.offset(new BlockPos(this.offset.getX(), -(this.offset.getZ() + 2), this.offset.getZ())
+        .rotate(rotation));
   }
 
   @Override
@@ -240,6 +260,10 @@ public final class MineStep implements BlockWorkStep {
     if (this.bailWater) {
       bailAct(person, mouth, rotation(person), face);
       return false; // dry (or out of cobble); the next select re-scans
+    }
+    if (this.placeSeal) {
+      laySeal(person, this.sealCell);
+      return false; // walled (or out of cobble); the next select re-scans
     }
     return breakAct(person, mouth, face, false);
   }
@@ -432,6 +456,36 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
+   * Lay the one cobblestone that closes an open cell of the tunnel's lining, a
+   * wall or the ceiling, from the walkway the miner stands on ({@link #columnFloor}
+   * found the footing). The same placement the floor is, at a different edge of the
+   * same tunnel. Out of cobblestone is logged and resets the shaft; the sweep meets
+   * the same gap again once restocked.
+   */
+  private void laySeal(RealPerson person, BlockPos cell) {
+    this.placeSeal = false;
+    if (cell == null) {
+      return;
+    }
+    Level level = person.level();
+    person.getLookControl().setLookAt(cell.getX(), cell.getY(), cell.getZ(), 30.0F, 30.0F);
+    if (!level.getBlockState(cell).isAir()) {
+      return; // sealed in the meantime
+    }
+    if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
+      person.logIssue("I ran out of cobblestone to wall off the cave in my mine", Optional.empty());
+      resetShaft();
+      return;
+    }
+    level.setBlock(cell, Blocks.COBBLESTONE.defaultBlockState(), 3);
+    level.playSound((Player) null, cell.getX(), cell.getY(), cell.getZ(),
+        Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(), SoundSource.BLOCKS,
+        1.0F, person.getRandom().nextFloat() * 0.4F + 0.8F);
+    Villagelife.LOGGER.info("[mine] {} sealed the shaft lining at {}",
+        person.getName().getString(), cell.toShortString());
+  }
+
+  /**
    * The vein detour: pull the ore a shaft or cave wall has exposed, then seal the
    * holes back up. Returns a foothold to work from while there is vein to mine or to
    * seal, or null when there is none and the shaft should drive on. It only ever
@@ -556,6 +610,29 @@ public final class MineStep implements BlockWorkStep {
     return MineShaft.withinCorridor(local)
         && local.getY() >= -(local.getZ() + 2)
         && local.getY() <= -(local.getZ() - 2);
+  }
+
+  /**
+   * A cell of the lining beside {@code local} that has opened into a cave and
+   * wants sealing: the ceiling block above the column's topmost dug cell, or the
+   * wall just outside a corridor edge at this cell's own height, when either
+   * stands open. Null when the lining here is already solid rock. The caller has
+   * already checked the cursor cell is an open corridor cell, so a wall is sealed
+   * only beside dug space and a ceiling only over it, never out in the cavern.
+   */
+  @Nullable
+  private BlockPos openLining(Level level, BlockPos mouth, Rotation rotation, BlockPos worldCell, BlockPos local) {
+    if (local.getY() == -(local.getZ() - 2) && level.getBlockState(worldCell.above()).isAir()) {
+      return worldCell.above();
+    }
+    if (Math.abs(local.getX()) == RADIUS) {
+      int outward = local.getX() > 0 ? RADIUS + 1 : -(RADIUS + 1);
+      BlockPos wall = mouth.offset(new BlockPos(outward, local.getY(), local.getZ()).rotate(rotation));
+      if (level.getBlockState(wall).isAir()) {
+        return wall;
+      }
+    }
+    return null;
   }
 
   /** Whether the miner's held tool would actually drop {@code pos}, not shatter it for nothing. */
@@ -865,6 +942,7 @@ public final class MineStep implements BlockWorkStep {
     this.placeFloor = false;
     this.bailWater = false;
     this.placeTorch = false;
+    this.placeSeal = false;
     int steps = 0;
     BlockPos facePos = null;
     do {
@@ -910,6 +988,18 @@ public final class MineStep implements BlockWorkStep {
       if (this.block == Blocks.AIR && wantsTorch(person, mouth, rotation, facePos)) {
         this.placeTorch = true;
         return true;
+      }
+      // The tunnel's lining where the shaft has broken into a cave: a wall to the
+      // side of an open corridor cell, or the ceiling above one, standing open into
+      // the cavern. Sealed the same way as the floor, one cobblestone from the
+      // walkway, so a shaft crosses a cave as an enclosed passage, not a bare catwalk.
+      if (this.block == Blocks.AIR && onRamp(this.offset)) {
+        BlockPos lining = openLining(person.level(), mouth, rotation, facePos, this.offset);
+        if (lining != null) {
+          this.sealCell = lining;
+          this.placeSeal = true;
+          return true;
+        }
       }
       // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
       // the cursor leaves the shaft's own lighting alone. Torches now hang on the
