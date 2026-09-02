@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -21,20 +22,30 @@ import net.minecraft.world.phys.Vec3;
  * and sets them down in their own chest by hand. Runs ahead of
  * {@link SleepAtNightGoal}, which takes over the moment the pack is put away.
  *
- * <p>Bounded so a bad night cannot cost the village the goods: a chest that
- * cannot be reached, is gone, or is full gives the trip up, the items stay in
- * the pack, and the next bedtime stow returns them to the stores as before.
+ * <p>Bounded so a bad night cannot cost the village the goods: a chest the
+ * pathfinder cannot reach (a bed up a ladder, say) gives the trip up at once,
+ * a long walk gets a few minutes and no more, and a chest that is gone or
+ * full gives up on arrival. In every case the items stay in the pack and the
+ * next bedtime stow returns them to the stores as before.
  */
 public class StashAtHomeGoal extends Goal {
 
-  /** Ticks of walking before the trip is given up and the pack keeps the goods. */
-  private static final int GIVE_UP_TICKS = 600;
+  /**
+   * Goal ticks of walking before the trip is given up. The selector ticks a
+   * goal every other server tick, so this is about three minutes: a worker
+   * who chose at the far end of the village still has time to walk home and
+   * climb the stairs.
+   */
+  private static final int GIVE_UP_TICKS = 1800;
+  /** Consecutive paths that stop short of the chest before it counts as unreachable. */
+  private static final int UNREACHABLE_PATHS = 3;
   /** Close enough to reach into the chest, squared. */
   private static final double REACH_SQR = 6.25;
 
   private final RealPerson person;
   private BlockPos chest;
   private int ticks;
+  private int shortPaths;
 
   public StashAtHomeGoal(RealPerson person) {
     this.setFlags(EnumSet.of(Flag.MOVE));
@@ -67,6 +78,7 @@ public class StashAtHomeGoal extends Goal {
   @Override
   public void start() {
     this.ticks = 0;
+    this.shortPaths = 0;
     walk();
   }
 
@@ -76,6 +88,12 @@ public class StashAtHomeGoal extends Goal {
     if (person.position().distanceToSqr(Vec3.atCenterOf(this.chest)) <= REACH_SQR) {
       person.getNavigation().stop();
       putAway();
+      return;
+    }
+    if (this.shortPaths >= UNREACHABLE_PATHS) {
+      Villagelife.LOGGER.info("'{}' has no path to their chest at home; the {} stays in the pack",
+          person.getFullName(), StashOffer.names(person.keepingForHome()));
+      person.doneKeeping();
       return;
     }
     if (this.ticks >= GIVE_UP_TICKS) {
@@ -89,8 +107,23 @@ public class StashAtHomeGoal extends Goal {
     }
   }
 
+  /**
+   * One leg of the walk. The pathfinder hands back the closest route it can
+   * find even when the chest is out of reach, so a path that stops short is
+   * counted: a few in a row mean no route exists (a chest up a ladder), and
+   * the trip is given up rather than walked to the foot of the ladder all
+   * night.
+   */
   private void walk() {
-    person.getNavigation().moveTo(this.chest.getX(), this.chest.getY(), this.chest.getZ(), 0.5D);
+    Path path = person.getNavigation().createPath(this.chest, 1);
+    if (path == null || !path.canReach()) {
+      this.shortPaths++;
+    } else {
+      this.shortPaths = 0;
+    }
+    if (path != null) {
+      person.getNavigation().moveTo(path, 0.5D);
+    }
   }
 
   private void putAway() {
