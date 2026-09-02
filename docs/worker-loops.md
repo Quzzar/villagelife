@@ -408,6 +408,19 @@ is** for most jobs, and the model has to be able to express it. Keep the excavat
 the miner floors a cave rather than exploring it and works the veins its own shaft exposes, while a
 prospector that roams to find caves and hunt veins is a better story still deliberately left as fog.
 
+**The ramp is the way in and out** (2026-09-02). A villager's pathfinder expands nodes only within
+twenty blocks of where they stand and, past that, hands back the partial path to whichever node lies
+closest to the target as the crow flies. For a face twenty layers down that node is the surface
+above the shaft bottom, which is where Reed Macdonald kept walking, standing over his own work with
+no way down, and the walk back up to bed failed the same way in reverse until the stranded recovery
+teleported him home. `PersonPathNavigation` now routes any walk that starts or ends down a shaft by
+the ramp, a hop of eight columns at a time (`village/buildings/MineShaft`, which also holds the one
+definition of the corridor's shape that `MineStep` digs to): in, the mouth first and then down the
+walk cells; out, up the walk cells to the mouth; between two points of one shaft, straight when they
+are within a hop. It sits under `moveTo`, so every goal gets it, the miner's descent, the haul to the
+storehouse, the walk to bed. The stranded teleport stays as the last resort, for a villager in a cave
+the ramp does not reach.
+
 **The hunter is bounded roaming, not a chase.** It works a hunting ground rather than pursuing
 animals wherever they wander. Pure roaming would walk a hunter arbitrarily far into danger, and
 passive mobs barely respawn, so it would strip its region permanently. A hunting ground that runs

@@ -2,6 +2,9 @@ package com.quzzar.villagelife.entities.ai;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.village.buildings.MineShaft;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Mob;
@@ -11,6 +14,7 @@ import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Node;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathFinder;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.PathfindingContext;
@@ -45,6 +49,15 @@ import net.minecraft.world.phys.Vec3;
  * climbing speed while the next node is straight up, and holds the walk still
  * meanwhile: walking into the wall is what vanilla reads as "climb up", which
  * is the wrong answer on the way down.
+ *
+ * <b>A mine shaft is walked by its ramp.</b> The search expands nodes only
+ * within the follow range, twenty blocks, and past that hands back the partial
+ * path to the node nearest the target as the crow flies: for a face twenty
+ * layers down that is the surface above the shaft bottom, where the miner
+ * stood over his work with no way down, and the walk back out to bed failed
+ * the same way until the stranded recovery teleported him. Any route that
+ * starts or ends down a shaft is therefore routed by the ramp a hop at a time
+ * ({@link MineShaft#waypoint}), under {@code moveTo}, so every goal gets it.
  */
 public final class PersonPathNavigation extends GroundPathNavigation {
 
@@ -63,6 +76,24 @@ public final class PersonPathNavigation extends GroundPathNavigation {
     this.nodeEvaluator = new PersonNodeEvaluator();
     this.nodeEvaluator.setCanPassDoors(true);
     return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
+  }
+
+  /**
+   * The path to {@code pos}, or to the next ramp waypoint on the way when this
+   * walk starts or ends down one of the village's mine shafts. The goal keeps
+   * asking for its real target, and each answer is the next hop from wherever
+   * the walker has got to, so the shaft is descended and climbed by the ramp.
+   */
+  @Override
+  @Nullable
+  public Path createPath(BlockPos pos, int accuracy) {
+    if (this.mob instanceof RealPerson person && person.getVillage() != null) {
+      BlockPos hop = MineShaft.waypoint(person.getVillage(), this.mob.blockPosition(), pos);
+      if (hop != null) {
+        return super.createPath(hop, accuracy);
+      }
+    }
+    return super.createPath(pos, accuracy);
   }
 
   /** A climb is a path in progress, though the feet are off the ground. */

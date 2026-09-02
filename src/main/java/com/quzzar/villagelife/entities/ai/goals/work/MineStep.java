@@ -13,6 +13,7 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.buildings.Building;
+import com.quzzar.villagelife.village.buildings.MineShaft;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -86,7 +87,8 @@ import net.neoforged.neoforge.common.Tags;
  */
 public final class MineStep implements BlockWorkStep {
 
-  private static final int RADIUS = 2;
+  /** The corridor's half-width, the one definition of the shaft's shape (MineShaft). */
+  private static final int RADIUS = MineShaft.RADIUS;
 
   /**
    * How many blocks the cursor may step over in one search. The version this
@@ -535,7 +537,7 @@ public final class MineStep implements BlockWorkStep {
    * down to {@code -(z + 2)} at the floor (see {@link #columnBottom}).
    */
   private boolean onRamp(BlockPos local) {
-    return withinCorridor(local)
+    return MineShaft.withinCorridor(local)
         && local.getY() >= -(local.getZ() + 2)
         && local.getY() <= -(local.getZ() - 2);
   }
@@ -621,7 +623,7 @@ public final class MineStep implements BlockWorkStep {
   @Nullable
   private Direction torchWall(Level level, Rotation rotation, BlockPos cell) {
     for (Direction local : Direction.Plane.HORIZONTAL) {
-      if (withinCorridor(this.offset.relative(local))) {
+      if (MineShaft.withinCorridor(this.offset.relative(local))) {
         continue;
       }
       Direction worldDir = rotation.rotate(local);
@@ -661,18 +663,6 @@ public final class MineStep implements BlockWorkStep {
         1.0F, person.getRandom().nextFloat() * 0.4F + 0.8F);
     Villagelife.LOGGER.info("[mine] {} lit the shaft at {}", person.getName().getString(),
         cell.toShortString());
-  }
-
-  /**
-   * The shaft corridor the cursor actually digs: {@code RADIUS} to either side of
-   * the centre line, from the entrance (local z) down and forward. Liquid inside it
-   * is cleared to air; liquid outside it (the sides, the ceiling, behind the mouth)
-   * is a wall to seal, which is how {@link #onRamp} tells the two apart.
-   */
-  private boolean withinCorridor(BlockPos local) {
-    return Math.abs(local.getX()) <= RADIUS
-        && local.getY() <= -1
-        && local.getZ() >= -(RADIUS - 1);
   }
 
   /**
