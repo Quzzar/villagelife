@@ -294,11 +294,26 @@ public final class MineStep implements BlockWorkStep {
   @Nullable
   private BlockPos standToMine(RealPerson person, BlockPos face) {
     Level level = person.level();
-    BlockPos[] candidates = {
-        face.above(),
-        face.north(), face.south(), face.east(), face.west(),
-        face.above().north(), face.above().south(), face.above().east(), face.above().west(),
-    };
+    // Beside and above the block, as before, and now the cells one to three
+    // below it too. In a five-tall shaft the only footing is the walk cell at
+    // the bottom, so a wall ore at head height or in the ceiling, or a face cell
+    // high in its column, had no standable neighbour at its own level and was
+    // silently dropped: that, not the scan's reach, is why a miner walked past
+    // copper in the ceiling and iron mid-wall. Three below is a raised arm's
+    // reach, and the same reach a player mines a ceiling with.
+    java.util.List<BlockPos> candidates = new java.util.ArrayList<>();
+    candidates.add(face.above());
+    for (Direction d : Direction.Plane.HORIZONTAL) {
+      candidates.add(face.relative(d));
+      candidates.add(face.above().relative(d));
+    }
+    for (int down = 1; down <= 3; down++) {
+      BlockPos under = face.below(down);
+      candidates.add(under);
+      for (Direction d : Direction.Plane.HORIZONTAL) {
+        candidates.add(under.relative(d));
+      }
+    }
     BlockPos best = null;
     double bestDist = Double.MAX_VALUE;
     for (BlockPos candidate : candidates) {
