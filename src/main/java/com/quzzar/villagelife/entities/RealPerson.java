@@ -319,7 +319,7 @@ public class RealPerson extends Person {
 
     builder.define(PERSONALITY, "CHEERFUL");
     builder.define(MARRIAGE_STATUS, "SINGLE");
-    builder.define(OCCUPATION, "IDLE");
+    builder.define(OCCUPATION, "WANDERER");
     builder.define(GENDER, "NONBINARY");
     builder.define(TITLE, "");
 
@@ -839,8 +839,6 @@ public class RealPerson extends Person {
         // the ledger they are forever taking count in.
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
         break;
-      case NITWIT:
-        break;
       default:
         break;
     }
@@ -999,8 +997,7 @@ public class RealPerson extends Person {
     } else {
       double i = 0.0;
       switch (getOccupation()) {
-        case IDLE:
-        case NITWIT:
+        case WANDERER:
           // The campfire reservoir is the settlement's last line of defence:
           // every idle resident stands their ground when the camp is attacked.
           i += 1.0;
@@ -1039,8 +1036,7 @@ public class RealPerson extends Person {
   public boolean willInitiateCombat() {
     double i = 0.0;
     switch (getOccupation()) {
-      case IDLE:
-      case NITWIT:
+      case WANDERER:
         // Idle residents do not go hunting, but they do actively clear threats
         // from the campfire area; the target predicate below supplies the tether.
         i += 1.0;

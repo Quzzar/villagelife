@@ -1360,7 +1360,7 @@ public class Village {
     RealPerson wanderer = findNearbyWanderer();
     if (wanderer != null) {
       wanderer.setVillage(id);
-      wanderer.setOccupation(Occupation.IDLE);
+      wanderer.setOccupation(Occupation.WANDERER);
       pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
       Villagelife.LOGGER.info("'{}' the wanderer was drawn to village '{}' and is coming to join",
           wanderer.getFullName(), name);
@@ -1369,7 +1369,7 @@ public class Village {
 
     PersonaSpawner.trySpawn(level, spawnPos, person -> {
       person.setVillage(id);
-      person.setOccupation(Occupation.IDLE);
+      person.setOccupation(Occupation.WANDERER);
     }).thenAccept(attempt -> attempt.spawned().ifPresent(person -> {
       pendingArrivals.add(new PendingTraveler(person.getUUID(), deadline, fire.asLong()));
       Villagelife.LOGGER.info("'{}' is arriving at village '{}'", person.getFullName(), name);

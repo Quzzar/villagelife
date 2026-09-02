@@ -1,14 +1,18 @@
 package com.quzzar.villagelife.village;
 
 public enum Occupation {
-    IDLE,
+    /**
+     * No post yet: a resident who belongs at the campfire until a job opens
+     * (docs/population-and-labor.md). Idle is the state; Wanderer is the title
+     * a player sees, "Wanderer of Emberstead" rather than "Idle of". Saved by
+     * name like every constant here, and worlds saved under the earlier names
+     * (IDLE, NITWIT) are not read: the rename came with a wipe, not a migration.
+     */
+    WANDERER,
     GUARD,
     BLACKSMITH,
     FARMER,
     CLERIC,
-    /** Legacy alias for {@link #IDLE}; kept only so persisted "NITWIT" strings still decode. */
-    @Deprecated
-    NITWIT,
     LIBRARIAN,
     MERCHANT,
     LUMBERJACK,
@@ -31,7 +35,7 @@ public enum Occupation {
     LEADER;
 
     public boolean isIdle() {
-        return this == IDLE || this == NITWIT;
+        return this == WANDERER;
     }
 
     /**

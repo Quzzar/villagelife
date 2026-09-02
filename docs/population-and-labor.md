@@ -21,7 +21,9 @@ The town center has a campfire gathering point. Every person who is not currentl
 belongs at the campfire: newcomers who just arrived, and workers whose job disappeared.
 
 Idle people are not `NITWIT`s in the old sense (a permanent do-nothing occupation). Idle is a
-*state*, not an occupation. Any idle person can become any profession the moment a slot opens.
+*state*, not an occupation; the title a player sees on such a person is **Wanderer**
+(`Occupation.WANDERER`), a wanderer of the village rather than an idler. Any idle person can
+become any profession the moment a slot opens.
 While idle, they stroll near the campfire, sit, chat and eat. The housed sleep in their own
 beds; an idle person without a bed stays up by the fire all night (bedless campfire dozing
 existed once, put villagers to sleep against the lit fire, glitched endlessly, and was
@@ -250,7 +252,8 @@ The campfire model is the current code. Key locations:
   stand down workers left without a bed, and
   the threshold-gated swap pass on a phase-staggered slow tick (cooldowns persisted in the
   brain's strategy tag). Tunables: `Job swap threshold / interval / cooldown` in config.
-- `Occupation.IDLE` replaces NITWIT (kept only as a deprecated alias so old saves decode).
+- `Occupation.WANDERER` is the idle state's title. It replaced `IDLE` (and before that
+  `NITWIT`) with a world wipe rather than a migration: saves under the old names do not load.
 
 ## Tunables
 

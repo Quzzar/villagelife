@@ -118,7 +118,7 @@ public final class UiPreview {
         var inventory = client.player.getInventory();
         var menu = new com.quzzar.villagelife.menu.MarketMenu(0, inventory, 0,
                 merchant ? "Fallon Moody" : "Bartleby Sanford",
-                merchant ? "Merchant of Larkspur Creek" : "Idle of Larkspur Creek", merchant);
+                merchant ? "Merchant of Larkspur Creek" : "Wanderer of Larkspur Creek", merchant);
         client.setScreen(new PersonChatScreen(menu, inventory,
                 net.minecraft.network.chat.Component.literal("Fallon Moody")));
         PersonChatScreen.openChat(0, List.of(

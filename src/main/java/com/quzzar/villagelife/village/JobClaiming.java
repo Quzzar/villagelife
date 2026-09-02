@@ -215,7 +215,7 @@ public final class JobClaiming {
         continue;
       }
       Villagelife.LOGGER.debug("{} lost their job; returning to the campfire pool", person.getFullName());
-      person.setOccupation(Occupation.IDLE);
+      person.setOccupation(Occupation.WANDERER);
       person.setTravelTarget(null);
       person.reloadState();
     }
@@ -250,7 +250,7 @@ public final class JobClaiming {
       village.getUnassignedJobs().add(released);
       RealPerson person = village.getPerson(level, workerId);
       if (person != null) {
-        person.setOccupation(Occupation.IDLE);
+        person.setOccupation(Occupation.WANDERER);
         person.setTravelTarget(null);
         person.reloadState();
         person.logIssue("I gave up the " + released.getOccupation().name().toLowerCase(Locale.ROOT)
@@ -525,7 +525,7 @@ public final class JobClaiming {
       }
       village.assignJob(challenger.getUUID(), released);
       startJob(village, challenger, released);
-      worker.setOccupation(Occupation.IDLE);
+      worker.setOccupation(Occupation.WANDERER);
       worker.setTravelTarget(null);
       worker.reloadState();
       worker.logIssue("Lost the " + released.getOccupation().name().toLowerCase() + " job to "
