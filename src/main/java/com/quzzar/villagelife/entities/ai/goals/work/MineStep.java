@@ -2,8 +2,10 @@ package com.quzzar.villagelife.entities.ai.goals.work;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -56,6 +58,15 @@ import net.neoforged.neoforge.common.Tags;
  * bridging mode, no walking-and-planking - both were tried, and both ended with
  * cobble littered far outside the mine.
  *
+ * <p>Water and lava are work, not an emergency, for a miner with a bucket. A
+ * flooded stretch of the ramp is picked like any other cell: she walks down to
+ * it and, standing at the face, bails the whole connected pocket in one act,
+ * clearing every flooded ramp cell and plugging every liquid source off the
+ * ramp, wall, floor or ceiling, with cobblestone, so an aquifer becomes a
+ * cobbled tube. Clearing one cell at a time from wherever she happened to stand,
+ * which is what this did before, lost the race to the water flowing back between
+ * picks and looked from outside like a miner ignoring her bucket.
+ *
  * <p>Every pick re-walks the shaft from the mouth. An open cell costs one block
  * read, so auditing a thousand of them is nothing, and it is what makes a cell
  * an interruption skipped, or gravel refilled behind the miner, get dug on the
@@ -92,6 +103,12 @@ public final class MineStep implements BlockWorkStep {
    * player bothers with.
    */
   private static final int TORCH_LIGHT_FLOOR = 4;
+
+  /**
+   * Most flooded ramp cells one bail clears, so a whole drowned shaft cannot
+   * hang the tick; a bigger flood is bailed pocket by pocket, one per pick.
+   */
+  private static final int BAIL_CAP = 128;
 
   /**
    * Ticks to keep the bucket out in the off hand after a seal or a clear, so the
@@ -131,6 +148,12 @@ public final class MineStep implements BlockWorkStep {
    * cobblestone at face-below instead of digging the face.
    */
   private boolean placeFloor;
+
+  /**
+   * True when the cursor cell holds water or lava and the miner has a bucket:
+   * the act bails the flooded stretch from the face instead of digging.
+   */
+  private boolean bailWater;
 
 
   // A wall vein under extraction: ore already pulled and awaiting its cobblestone
@@ -189,6 +212,10 @@ public final class MineStep implements BlockWorkStep {
       layFloor(person, face);
       return false; // floored (or out of cobble); the next select re-scans
     }
+    if (this.bailWater) {
+      bailAct(person, mouth, rotation(person), face);
+      return false; // dry (or out of cobble); the next select re-scans
+    }
     return breakAct(person, mouth, face, false);
   }
 
@@ -213,6 +240,11 @@ public final class MineStep implements BlockWorkStep {
     }
 
     if (!person.level().isClientSide) {
+      // A pocket beside the block about to fall is cobbled off first, standing
+      // right here, so it cannot flood the shaft the moment the block goes.
+      if (carriesBucket(person)) {
+        sealAround(person, mouth, rotation(person), pos);
+      }
       List<ItemStack> drops = Block.getDrops(this.block.defaultBlockState(),
           (ServerLevel) person.level(), pos, person.level().getBlockEntity(pos), person,
           person.getMainHandItem());
@@ -612,7 +644,7 @@ public final class MineStep implements BlockWorkStep {
    * The shaft corridor the cursor actually digs: {@code RADIUS} to either side of
    * the centre line, from the entrance (local z) down and forward. Liquid inside it
    * is cleared to air; liquid outside it (the sides, the ceiling, behind the mouth)
-   * is a wall to seal, so the two cases in {@link #waterproof} split on this.
+   * is a wall to seal, which is how {@link #onRamp} tells the two apart.
    */
   private boolean withinCorridor(BlockPos local) {
     return Math.abs(local.getX()) <= RADIUS
@@ -634,61 +666,97 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * Keeps the shaft dry around {@code centre} (a cursor offset in the mine's local
-   * frame, so it stays orientation-correct once rotated): water or lava on the
-   * corridor walls is sealed with cobblestone from the miner's own mined stock, and
-   * liquid inside the corridor is cleared to air. The bucket that gates this stays a
-   * tool, never filled or consumed; each seal brings it out into the miner's off hand
-   * for a beat ({@link #showBucket}), so the clearing is something you can watch. A
-   * wall with no cobblestone to spare is left as it is, so the leak surfaces on the
-   * impassable path rather than being opened up.
+   * Bail the flooded stretch of the ramp the cursor found, standing at it. A
+   * bounded flood fill from the face over ramp cells holding water or lava
+   * clears every one of them to air and plugs every liquid neighbour OFF the
+   * ramp, wall, floor or ceiling, with cobblestone from the miner's own mined
+   * stock, so an aquifer becomes a cobbled tube and nothing flows back. One act
+   * takes the whole pocket, because clearing one cell at a time lost the race to
+   * the water flowing back between picks. The bucket is a tool, out for a beat
+   * ({@link #showBucket}), never filled. Out of cobblestone mid-pocket logs the
+   * shortage and stands the shaft down; the next pick finds the water again
+   * once the pack is restocked.
    */
-  private void waterproof(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos centre) {
+  private void bailAct(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos face) {
+    this.bailWater = false;
     Level level = person.level();
-    BlockPos[] cells = {
-        centre, centre.above(), centre.below(),
-        centre.north(), centre.south(), centre.east(), centre.west(),
-    };
-    for (BlockPos local : cells) {
+    person.getLookControl().setLookAt(face.getX(), face.getY(), face.getZ(), 30.0F, 30.0F);
+    if (!carriesBucket(person)) {
+      return; // handed away since the pick; the next pick treats it as an obstacle
+    }
+    Deque<BlockPos> frontier = new ArrayDeque<>();
+    Set<BlockPos> seen = new HashSet<>();
+    BlockPos start = face.subtract(mouth).rotate(inverse(rotation));
+    frontier.add(start);
+    seen.add(start);
+    int cleared = 0;
+    int sealed = 0;
+    while (!frontier.isEmpty() && cleared < BAIL_CAP) {
+      BlockPos local = frontier.poll();
       BlockPos world = mouth.offset(local.rotate(rotation));
-      Block found = level.getBlockState(world).getBlock();
-      if (found != Blocks.WATER && found != Blocks.LAVA) {
+      if (!isLiquid(level, world)) {
         continue;
       }
-      if (withinCorridor(local)) {
-        level.setBlock(world, Blocks.AIR.defaultBlockState(), 2);
-        sealShell(person, mouth, rotation, local);
-        showBucket(person);
-      } else if (person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
-        level.setBlock(world, Blocks.COBBLESTONE.defaultBlockState(), 3);
-        level.playSound((Player) null, world.getX(), world.getY(), world.getZ(),
-            Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(),
-            SoundSource.BLOCKS, 1.0F, 0.8F);
+      // Plug the sources first, then open the cell, so nothing pours in between.
+      for (Direction d : Direction.values()) {
+        BlockPos next = local.relative(d);
+        BlockPos nextWorld = mouth.offset(next.rotate(rotation));
+        if (!isLiquid(level, nextWorld)) {
+          continue;
+        }
+        if (onRamp(next)) {
+          if (seen.add(next)) {
+            frontier.add(next);
+          }
+          continue;
+        }
+        if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
+          person.logIssue("I ran out of cobblestone to seal the water in my mine", Optional.empty());
+          Villagelife.LOGGER.info("[mine] {} ran out of cobblestone bailing the shaft at {} ({} cleared, {} sealed)",
+              person.getName().getString(), face.toShortString(), cleared, sealed);
+          resetShaft();
+          return;
+        }
+        level.setBlock(nextWorld, Blocks.COBBLESTONE.defaultBlockState(), 3);
+        sealed++;
+      }
+      level.setBlock(world, Blocks.AIR.defaultBlockState(), 3);
+      cleared++;
+    }
+    showBucket(person);
+    level.playSound((Player) null, face.getX(), face.getY(), face.getZ(),
+        Blocks.COBBLESTONE.defaultBlockState().getSoundType().getPlaceSound(),
+        SoundSource.BLOCKS, 1.0F, 0.8F);
+    Villagelife.LOGGER.info("[mine] {} bailed the shaft at {}: {} cell(s) cleared, {} leak(s) sealed",
+        person.getName().getString(), face.toShortString(), cleared, sealed);
+  }
+
+  /**
+   * Cobble off any liquid touching the block about to be broken that lies off
+   * the ramp, so opening it cannot pour water or lava into the shaft. Done
+   * standing at the face, like the break itself. A liquid neighbour ON the ramp
+   * is left: the sweep meets it as a cell and bails it properly.
+   */
+  private void sealAround(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos world) {
+    Level level = person.level();
+    BlockPos local = world.subtract(mouth).rotate(inverse(rotation));
+    for (Direction d : Direction.values()) {
+      BlockPos next = local.relative(d);
+      BlockPos nextWorld = mouth.offset(next.rotate(rotation));
+      if (onRamp(next) || !isLiquid(level, nextWorld)) {
+        continue;
+      }
+      if (person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
+        level.setBlock(nextWorld, Blocks.COBBLESTONE.defaultBlockState(), 3);
         showBucket(person);
       }
     }
   }
 
-  /**
-   * Seal the wall of an interior cell just cleared to air, so lava or water cannot
-   * flow back into the walkway and re-strand the miner: only the shell (cells the
-   * shaft does not dig) is cobbled, the walkable interior stays air. Cobblestone
-   * comes from the miner's own mined stock; the bucket is a tool, never spent.
-   */
-  private void sealShell(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos interior) {
-    Level level = person.level();
-    for (Direction d : Direction.values()) {
-      BlockPos neighbor = interior.relative(d);
-      if (withinCorridor(neighbor)) {
-        continue; // walkway -> stays air, never walled off
-      }
-      BlockPos world = mouth.offset(neighbor.rotate(rotation));
-      Block found = level.getBlockState(world).getBlock();
-      if ((found == Blocks.WATER || found == Blocks.LAVA)
-          && person.removeItem(Items.COBBLESTONE, 1).getCount() == 1) {
-        level.setBlock(world, Blocks.COBBLESTONE.defaultBlockState(), 3);
-      }
-    }
+  /** Water or lava, flowing or still. */
+  private static boolean isLiquid(Level level, BlockPos pos) {
+    Block block = level.getBlockState(pos).getBlock();
+    return block == Blocks.WATER || block == Blocks.LAVA;
   }
 
   /**
@@ -719,8 +787,8 @@ public final class MineStep implements BlockWorkStep {
     ItemStack pulled = person.removeItem(Items.BUCKET, 1);
     if (pulled.getCount() == 1) {
       person.setItemSlot(EquipmentSlot.OFFHAND, pulled);
-      Villagelife.LOGGER.info("[mine] {} brought its bucket to its off hand to seal a leak at {}",
-          person.getName().getString(), person.blockPosition().toShortString());
+      Villagelife.LOGGER.info("[mine] {} brought its bucket to its off hand",
+          person.getName().getString());
     }
   }
 
@@ -766,6 +834,7 @@ public final class MineStep implements BlockWorkStep {
     this.offset = new BlockPos(-(RADIUS + 1), -1, -(RADIUS - 1));
     this.inward = 1;
     this.placeFloor = false;
+    this.bailWater = false;
     int steps = 0;
     BlockPos facePos = null;
     do {
@@ -783,14 +852,13 @@ public final class MineStep implements BlockWorkStep {
       }
       facePos = face(mouth, rotation);
       this.block = person.level().getBlockState(facePos).getBlock();
-      // With a bucket in the pack, keep the shaft dry rather than abandoning it at a
-      // leak: seal liquid on the walls with cobblestone and clear liquid inside the
-      // corridor to air (see waterproof). The bucket is only a tool, never filled or
-      // consumed. Clearing the face to air lets the loop scan on; with no bucket the
-      // liquid stays and drops to the sponge/impassable path below.
+      // Liquid at the cursor with a bucket in the pack is work, not an obstacle:
+      // the miner walks down to it and bails the flooded stretch standing at the
+      // face (bailAct). Nothing is cleared from here; the sweep only chooses.
+      // With no bucket the liquid stays and drops to the sponge/impassable path.
       if ((this.block == Blocks.WATER || this.block == Blocks.LAVA) && carriesBucket(person)) {
-        waterproof(person, mouth, rotation, this.offset);
-        this.block = person.level().getBlockState(facePos).getBlock();
+        this.bailWater = true;
+        return true;
       }
       // The shaft has broken into a cave here: this cell is the bottom of its
       // column's dug span and there is nothing under it to walk on. Completing
@@ -810,12 +878,6 @@ public final class MineStep implements BlockWorkStep {
       // exactly what left a hole under every torch.
     } while (this.block == Blocks.AIR
         || isLight(person.level(), facePos));
-
-    // Seal any liquid on the walls around the solid block about to be dug, so a
-    // pocket beside the frontier is cobbled off before it can flood the shaft.
-    if (carriesBucket(person)) {
-      waterproof(person, mouth, rotation, this.offset);
-    }
 
     if (impassable(person)) {
       if (this.block == Blocks.WATER && person.removeItem(Items.SPONGE, 1).getCount() == 1) {
@@ -851,6 +913,7 @@ public final class MineStep implements BlockWorkStep {
     this.breakTime = 0;
     this.lastProgress = -1;
     this.placeFloor = false;
+    this.bailWater = false;
   }
 
 }

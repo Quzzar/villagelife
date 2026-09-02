@@ -294,9 +294,13 @@ stores hold no raw food, so an idle camper with nothing to cook just wanders as 
 
 The miner is neither: it sweeps a pattern outward and downward from its work station, digging a
 real shaft, treating lava and water and bedrock and wrong-tool as obstacles. A miner holding a
-bucket keeps the shaft dry instead of abandoning it at a leak: liquid on the shaft walls is sealed
-with cobblestone (from its own mined stock) and liquid inside the corridor is cleared, so water and
-lava stop the shaft only when the miner has no bucket. The bucket is a tool, never filled or
+bucket keeps the shaft dry instead of abandoning it at a leak. A flooded stretch of the ramp is
+work she walks down to, and standing at it she bails the whole connected pocket at once: every
+flooded ramp cell is cleared and every liquid source off the ramp, wall, floor or ceiling, is
+plugged with cobblestone from her own mined stock, so an aquifer becomes a cobbled tube. (Clearing
+one cell at a time from wherever she happened to stand, which is what this did first, lost the race
+to the water flowing back between picks and read as a miner ignoring her bucket.) Water and lava
+stop the shaft only when the miner has no bucket. The bucket is a tool, never filled or
 consumed; bedrock and wrong-tool still stop it outright. When the shaft opens into a cave the miner
 does not stand down at the mouth: it completes the shaft's missing floor, one cobblestone (from its
 own mined stock) under each ramp cell that opens into void, laid standing on the floor already
