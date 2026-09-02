@@ -192,6 +192,19 @@ public class Village {
   /** Consecutive project checks the current build has spent gathering; abandons past the cap. */
   private transient int gatheringChecks;
 
+  /**
+   * A daily cache of this village's sellable stock, captured only while the
+   * market is loaded, so a wandering merchant (config "Wandering merchant") can
+   * be seeded from this village even after its chunks unload -- reading the
+   * chests then would force-load them, which bookkeeping must never do
+   * (docs/economy.md). Transient: rebuilt on the first loaded update after a
+   * restart, then once per in-game day. Null until the first capture, and a
+   * village never loaded since the feature turned on has none, so is never an
+   * eligible source.
+   */
+  private transient com.quzzar.villagelife.economy.EconomySnapshot economySnapshot;
+  private transient long lastSnapshotDay = Long.MIN_VALUE;
+
   private ArrayList<UUID> people;
   private HashMap<UUID, Building> buildings;
   private HashMap<UUID, JobAssignment> jobAssignments;
@@ -1366,6 +1379,12 @@ public class Village {
 
     }
 
+    // Cache this village's sellable stock once a day while its market is loaded,
+    // so a wandering merchant (config "Wandering merchant") can be seeded from
+    // it after the village unloads. Guarded on the market being loaded: the
+    // capture reads chests and must never be what force-loads them.
+    maybeSnapshotEconomy(level);
+
     // A village with a market it can trade from does business on its own
     // account, unattended, at the bank's punishing rate (docs/economy.md).
     if (time % com.quzzar.villagelife.economy.VillageTrading.TRADE_INTERVAL_SECONDS == 0) {
@@ -2221,6 +2240,38 @@ public class Village {
       return new ArrayList<>();
     }
     return this.brain.getVillageInventory(level);
+  }
+
+  /**
+   * The last daily cache of this village's sellable stock, or null if the
+   * village has not been captured yet (never loaded since the feature turned
+   * on). A wandering merchant seeds its virtual ledger from a copy of this.
+   */
+  public com.quzzar.villagelife.economy.EconomySnapshot getEconomySnapshot() {
+    return economySnapshot;
+  }
+
+  /**
+   * Captures this village's sellable stock once a day while its market is
+   * loaded, so a wandering merchant can be seeded from it after the village
+   * unloads. Gated on the market being loaded (the same guard VillageTrading
+   * uses): the capture reads chests and must never be what force-loads them.
+   */
+  private void maybeSnapshotEconomy(ServerLevel level) {
+    if (!com.quzzar.villagelife.configuration.VillagelifeConfig.WanderingMerchant) {
+      return;
+    }
+    Optional<Building> market = com.quzzar.villagelife.economy.Treasury.market(this);
+    if (market.isEmpty()
+        || !level.hasChunkAt(BlockPos.of(market.get().getCenterLocation()))) {
+      return;
+    }
+    long day = level.getGameTime() / 24000L;
+    if (this.economySnapshot != null && day == this.lastSnapshotDay) {
+      return;
+    }
+    this.economySnapshot = com.quzzar.villagelife.economy.EconomySnapshot.capture(stockTally());
+    this.lastSnapshotDay = day;
   }
 
   public void logEvent(BookkeepingEvent event) {

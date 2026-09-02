@@ -25,6 +25,7 @@ public class VillagelifeConfig {
     // --- general ---
     public static int DaysInYear;
     public static boolean GenerateVillages;
+    public static boolean WanderingMerchant;
 
     // --- llm ---
     public static boolean LlmEnabled;
@@ -91,6 +92,7 @@ public class VillagelifeConfig {
         // general
         DaysInYear = COMMON.DaysInYear.get();
         GenerateVillages = COMMON.GenerateVillages.get();
+        WanderingMerchant = COMMON.WanderingMerchant.get();
 
         // llm
         LlmEnabled = COMMON.LlmEnabled.get();
@@ -168,6 +170,7 @@ public class VillagelifeConfig {
         // general
         public final ModConfigSpec.IntValue DaysInYear;
         public final ModConfigSpec.BooleanValue GenerateVillages;
+        public final ModConfigSpec.BooleanValue WanderingMerchant;
 
         // llm
         public final ModConfigSpec.BooleanValue LlmEnabled;
@@ -236,6 +239,7 @@ public class VillagelifeConfig {
 
             DaysInYear = builder.comment("Days in one Minecraft year (there are 8 days in one full lunar cycle). Villagers know the current year from the world's age, derived from this.").translation(Villagelife.MODID + ".config.DaysInYear").defineInRange("Days in Year", 96, 8, 79992);
             GenerateVillages = builder.comment("Generate villagelife villages during world generation, replacing vanilla villages. On (default): our living villages generate in the world in place of vanilla ones. Off: no villages generate in the world - you can still spawn one manually with /villagelife create-village. Only vanilla minecraft:village is affected; other mods' villages are untouched.").translation(Villagelife.MODID + ".config.GenerateVillages").define("Generate villages", true);
+            WanderingMerchant = builder.comment("Replace Minecraft's wandering trader with a wandering merchant sent out from one of your villages. On (default): whenever the vanilla trader would appear, it is instead a merchant from a random village that has a staffed market, trading at that village's own prices and honouring your standing with it, with the usual trader llamas on a lead; if no village anywhere qualifies, none appears. Off: the ordinary vanilla wandering trader spawns as usual. Uses Minecraft's own trader spawning and wandering; only who shows up changes.").translation(Villagelife.MODID + ".config.WanderingMerchant").define("Wandering merchant", true);
 
             builder.pop();
 

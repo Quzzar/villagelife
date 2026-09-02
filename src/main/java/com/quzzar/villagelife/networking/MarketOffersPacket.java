@@ -3,6 +3,7 @@ package com.quzzar.villagelife.networking;
 import java.util.List;
 
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.economy.EconomySnapshot;
 import com.quzzar.villagelife.economy.MarketOffers;
 import com.quzzar.villagelife.economy.Treasury;
 import com.quzzar.villagelife.entities.RealPerson;
@@ -86,6 +87,46 @@ public record MarketOffersPacket(int entityId, String villageName, boolean block
         .toList();
     PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(), village.getName(),
         !blocker.isEmpty(), selling, wanted, note));
+  }
+
+  /**
+   * The wandering-merchant form: the stall comes from the merchant's own
+   * virtual ledger, priced at its home village's standing towards this player.
+   * There is no {@code tradeBlocker} (a merchant is always its own market); only
+   * standing can shut it, and a home village since deleted shuts nothing.
+   * Server thread.
+   */
+  public static void sendTo(ServerPlayer player, RealPerson merchant, ServerLevel level, String message) {
+    EconomySnapshot ledger = merchant.getWanderingStock();
+    if (ledger == null) {
+      PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(),
+          merchant.getVillageName(), true, List.of(), List.of(),
+          message.isEmpty() ? "This merchant has nothing to trade." : message));
+      return;
+    }
+    Village source = merchant.getSourceVillage();
+    String standing = source == null ? ""
+        : com.quzzar.villagelife.wrongdoing.Standing.refusalReason(
+            com.quzzar.villagelife.wrongdoing.Standing.tierOf(source, level, player.getUUID()));
+    double markup = source == null ? 1.0D
+        : com.quzzar.villagelife.wrongdoing.Standing.priceMultiplier(
+            com.quzzar.villagelife.wrongdoing.Standing.of(source, level, player.getUUID()));
+    String note = standing.isEmpty() ? message
+        : ("The merchant will not trade with you: " + standing + ".");
+    com.quzzar.villagelife.menu.MarketMenu menu =
+        player.containerMenu instanceof com.quzzar.villagelife.menu.MarketMenu open ? open : null;
+    List<MarketOffers.Offer> sellingOffers = menu != null ? menu.sellingSnapshot()
+        : MarketOffers.sellingFrom(ledger, level, markup);
+    List<MarketOffers.Offer> wantedOffers = menu != null ? menu.wantedSnapshot()
+        : MarketOffers.wantedFrom(ledger, level, markup);
+    List<Row> selling = sellingOffers.stream()
+        .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
+        .toList();
+    List<Row> wanted = wantedOffers.stream()
+        .map(offer -> new Row(MarketOffers.idOf(offer.item()), offer.itemCount(), offer.emeralds()))
+        .toList();
+    PacketDistributor.sendToPlayer(player, new MarketOffersPacket(merchant.getId(),
+        merchant.getVillageName(), !standing.isEmpty(), selling, wanted, note));
   }
 
   public static void handle(MarketOffersPacket msg, IPayloadContext context) {

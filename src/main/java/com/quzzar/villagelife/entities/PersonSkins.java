@@ -25,12 +25,37 @@ public final class PersonSkins {
   public static final List<String> NONBINARY = List.of(
       "6d4716178677e996", "8ea41bff3449f17b", "c3699c81218b4555", "d5b145de9663305c", "e706f556ee4c86cc");
 
-  /** The skin-hash pool for the given gender. */
+  /**
+   * The wandering-merchant skin pools, one per gender. Unlike the villager
+   * pools above these are hand-maintained (the curated trader set), kept
+   * apart so an ordinary villager never rolls a merchant's robe: only a
+   * {@link com.quzzar.villagelife.village.Occupation#WANDERING_MERCHANT} draws
+   * from them, through {@link #merchantForGender}.
+   */
+  public static final List<String> MERCHANT_MALE = List.of(
+      "51224385ce0274f6", "4335cb04abfc0469", "b9bd6c7ee0d0c5f4");
+
+  public static final List<String> MERCHANT_FEMALE = List.of(
+      "da20208d9009050c", "0d633ce8b926579a", "e7b34f6c19a6f583");
+
+  public static final List<String> MERCHANT_NONBINARY = List.of(
+      "e1af834facc4ad77");
+
+  /** The villager skin-hash pool for the given gender. */
   public static List<String> forGender(Gender gender) {
     return switch (gender) {
       case MALE -> MALE;
       case FEMALE -> FEMALE;
       case NONBINARY -> NONBINARY;
+    };
+  }
+
+  /** The wandering-merchant skin-hash pool for the given gender. */
+  public static List<String> merchantForGender(Gender gender) {
+    return switch (gender) {
+      case MALE -> MERCHANT_MALE;
+      case FEMALE -> MERCHANT_FEMALE;
+      case NONBINARY -> MERCHANT_NONBINARY;
     };
   }
 }

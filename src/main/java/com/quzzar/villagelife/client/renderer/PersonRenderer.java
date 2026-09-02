@@ -54,6 +54,12 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
      */
     @Override
     protected boolean shouldShowName(Person entity) {
+        // A wandering merchant that has drunk itself invisible at night gives
+        // nothing away: no name, no role line, no bubble while it is hidden.
+        if (entity instanceof RealPerson merchant && merchant.isWanderingMerchant()
+                && entity.isInvisible()) {
+            return false;
+        }
         if (VillagerSpeechBubbles.visibleText(entity.getId()) != null) {
             return true;
         }
@@ -313,7 +319,10 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
         // index (rolled before gender is known); map it in with index % poolSize so a man
         // draws a man's skin, a woman a woman's.
         Gender gender = (entity instanceof RealPerson realPerson) ? realPerson.getGender() : Gender.NONBINARY;
-        List<String> pool = PersonSkins.forGender(gender);
+        // A wandering merchant draws from the curated trader pool, by gender, so it
+        // wears the merchant's robe rather than an ordinary villager's skin.
+        boolean merchant = entity instanceof RealPerson rp && rp.isWanderingMerchant();
+        List<String> pool = merchant ? PersonSkins.merchantForGender(gender) : PersonSkins.forGender(gender);
         // A pool can be empty before its skins are added; fall back to any populated pool
         // so a villager never renders the missing-texture checkerboard.
         if (pool.isEmpty()) {

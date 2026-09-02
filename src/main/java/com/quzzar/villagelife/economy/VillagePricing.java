@@ -33,14 +33,21 @@ public final class VillagePricing {
    * value (a village never pays more than a thing is worth).
    */
   public static Optional<Double> villageBuys(Village village, Item item, MinecraftServer server) {
+    return buysAt(item, server, demand(village, item));
+  }
+
+  /**
+   * The buy price for a given demand (0 glutted, 1 short), independent of any
+   * village: the shared curve a wandering merchant prices from too, off its own
+   * virtual stock ({@link MerchantTrade}).
+   */
+  public static Optional<Double> buysAt(Item item, MinecraftServer server, double demand) {
     Optional<Double> value = ItemValues.valueOf(item, server);
     Optional<Double> floor = Bank.buyPrice(item, server);
     if (value.isEmpty() || floor.isEmpty()) {
       return Optional.empty();
     }
-    // 0 when the village is glutted, 1 when it is short.
-    double need = demand(village, item);
-    return Optional.of(floor.get() + (value.get() - floor.get()) * need);
+    return Optional.of(floor.get() + (value.get() - floor.get()) * demand);
   }
 
   /**
@@ -49,13 +56,17 @@ public final class VillagePricing {
    * A village sells its glut cheaply and guards what it is short of.
    */
   public static Optional<Double> villageSells(Village village, Item item, MinecraftServer server) {
+    return sellsAt(item, server, demand(village, item));
+  }
+
+  /** The sell price for a given demand, the village-independent half of {@link #villageSells}. */
+  public static Optional<Double> sellsAt(Item item, MinecraftServer server, double demand) {
     Optional<Double> value = ItemValues.valueOf(item, server);
     Optional<Double> ceiling = Bank.sellPrice(item, server);
     if (value.isEmpty() || ceiling.isEmpty()) {
       return Optional.empty();
     }
-    double need = demand(village, item);
-    return Optional.of(value.get() + (ceiling.get() - value.get()) * need);
+    return Optional.of(value.get() + (ceiling.get() - value.get()) * demand);
   }
 
   /**
@@ -63,7 +74,16 @@ public final class VillagePricing {
    * linearly between the scarce and glut thresholds.
    */
   public static double demand(Village village, Item item) {
-    int held = countHeld(village, item);
+    return demandFromHeld(countHeld(village, item));
+  }
+
+  /**
+   * The supply/demand curve for a raw held count: 0 when drowning in the item
+   * (at or above GLUT), 1 when it has none (at or below SCARCE), sliding
+   * linearly between. Shared so a wandering merchant reads the same curve off
+   * its own virtual stock.
+   */
+  public static double demandFromHeld(int held) {
     if (held >= GLUT) {
       return 0.0D;
     }

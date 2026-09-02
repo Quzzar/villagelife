@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.menu;
 
+import com.quzzar.villagelife.economy.EconomySnapshot;
 import com.quzzar.villagelife.economy.MarketOffers;
 import com.quzzar.villagelife.economy.Trade;
 import com.quzzar.villagelife.economy.Treasury;
@@ -208,11 +209,8 @@ public class MarketMenu extends AbstractContainerMenu {
   /** Runs the village side of the trade and spends the staged payment. */
   void completeTrade() {
     Deal offer = offerAt(selected);
-    if (offer == null || !(player instanceof ServerPlayer serverPlayer)) {
-      return;
-    }
-    Village village = villageOf(serverPlayer);
-    if (village == null || !(serverPlayer.level() instanceof ServerLevel level)) {
+    if (offer == null || !(player instanceof ServerPlayer serverPlayer)
+        || !(serverPlayer.level() instanceof ServerLevel level)) {
       return;
     }
     ItemStack cost = costOf(offer);
@@ -220,9 +218,16 @@ public class MarketMenu extends AbstractContainerMenu {
     if (staged.getCount() < cost.getCount()) {
       return;
     }
+    RealPerson merchant = merchantEntity(serverPlayer);
+    boolean wandering = merchant != null && merchant.isWanderingMerchant();
+    Village village = wandering ? null : villageOf(serverPlayer);
+    if (!wandering && village == null) {
+      return;
+    }
+
     // The CONTAINER owns the player's side: the staged payment is already out
     // of the pack, and the result slot has already handed the goods over. So
-    // this does the VILLAGE's side only. Calling Trade here as well delivered
+    // this does the SELLER's side only. Calling Trade here as well delivered
     // the goods a SECOND time, which is why 56 emeralds bought 30 bread at a
     // rate of four for one.
     staged.shrink(cost.getCount());
@@ -230,7 +235,20 @@ public class MarketMenu extends AbstractContainerMenu {
 
     int emeralds = offer.offer().emeralds();
     ItemStack goods = new ItemStack(offer.offer().item(), offer.offer().itemCount());
-    if (offer.playerBuys()) {
+    if (wandering) {
+      // A wandering merchant keeps books, not chests: shift its virtual ledger
+      // and its virtual money box, and touch no village.
+      EconomySnapshot ledger = merchant.getWanderingStock();
+      if (ledger != null) {
+        if (offer.playerBuys()) {
+          ledger.remove(goods.getItem(), goods.getCount());
+          ledger.add(Treasury.CURRENCY, emeralds);
+        } else {
+          ledger.add(goods.getItem(), goods.getCount());
+          ledger.remove(Treasury.CURRENCY, emeralds);
+        }
+      }
+    } else if (offer.playerBuys()) {
       // Goods leave the village; its money box gains the price.
       village.gatherItemStackFromVillage(goods);
       Treasury.deposit(village, level, emeralds);
@@ -267,6 +285,23 @@ public class MarketMenu extends AbstractContainerMenu {
         || !(serverPlayer.level() instanceof ServerLevel level)) {
       return;
     }
+    RealPerson merchant = merchantEntity(serverPlayer);
+    if (merchant != null && merchant.isWanderingMerchant()) {
+      // A wandering merchant's stall is built from its own virtual ledger, at
+      // its home village's standing towards this player.
+      EconomySnapshot ledger = merchant.getWanderingStock();
+      if (ledger == null) {
+        return;
+      }
+      double markup = merchantMarkup(merchant, serverPlayer, level);
+      for (MarketOffers.Offer offer : MarketOffers.sellingFrom(ledger, level, markup)) {
+        deals.add(new Deal(offer, true));
+      }
+      for (MarketOffers.Offer offer : MarketOffers.wantedFrom(ledger, level, markup)) {
+        deals.add(new Deal(offer, false));
+      }
+      return;
+    }
     Village village = villageOf(serverPlayer);
     if (village == null) {
       return;
@@ -293,6 +328,25 @@ public class MarketMenu extends AbstractContainerMenu {
       return null;
     }
     return level.getEntity(merchantId) instanceof RealPerson person ? person.getVillage() : null;
+  }
+
+  /** The merchant entity this menu speaks for, or null if it is gone. */
+  private RealPerson merchantEntity(ServerPlayer serverPlayer) {
+    return serverPlayer.level().getEntity(merchantId) instanceof RealPerson person ? person : null;
+  }
+
+  /**
+   * The price multiplier a wandering merchant charges this player, from its
+   * home village's standing towards them. Par (1.0) if the home village is
+   * gone, so a merchant orphaned by a deleted village still trades fairly.
+   */
+  private double merchantMarkup(RealPerson merchant, ServerPlayer player, ServerLevel level) {
+    Village source = merchant.getSourceVillage();
+    if (source == null) {
+      return 1.0D;
+    }
+    return com.quzzar.villagelife.wrongdoing.Standing.priceMultiplier(
+        com.quzzar.villagelife.wrongdoing.Standing.of(source, level, player.getUUID()));
   }
 
   /** Anything left staged goes home, never into the void. */

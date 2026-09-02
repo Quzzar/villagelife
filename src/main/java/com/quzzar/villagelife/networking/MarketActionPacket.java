@@ -59,6 +59,25 @@ public record MarketActionPacket(int entityId, boolean playerBuys, String itemId
           || player.distanceTo(merchant) >= 12.0F) {
         return;
       }
+      // A wandering merchant trades against its own virtual ledger, not a
+      // village's chests, and answers with the merchant form of the stall.
+      if (merchant.isWanderingMerchant()) {
+        String message = "";
+        if (msg.count() > 0) {
+          Optional<Item> item = ItemValues.item(msg.itemId());
+          if (item.isPresent()) {
+            Trade.Result result = msg.playerBuys()
+                ? com.quzzar.villagelife.economy.MerchantTrade.sellToPlayer(merchant, level, player, item.get(),
+                    msg.count())
+                : com.quzzar.villagelife.economy.MerchantTrade.buyFromPlayer(merchant, level, player, item.get(),
+                    msg.count());
+            message = result.message();
+          }
+        }
+        MarketOffersPacket.sendTo(player, merchant, level, message);
+        return;
+      }
+
       Village village = merchant.getVillage();
       if (village == null) {
         return;

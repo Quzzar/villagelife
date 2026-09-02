@@ -135,6 +135,55 @@ public final class MarketOffers {
     return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;
   }
 
+  /**
+   * A wandering merchant's stall, built from its own virtual ledger instead of
+   * a village's chests (docs/economy.md, "Wandering merchant"). Same shape and
+   * pricing as {@link #selling}, reading held counts from the ledger so the
+   * merchant's prices drift on its own trades.
+   */
+  public static List<Offer> sellingFrom(EconomySnapshot stock, ServerLevel level, double markup) {
+    List<Offer> offers = new ArrayList<>();
+    for (Item item : stock.items()) {
+      if (item == Treasury.CURRENCY) {
+        continue; // emeralds are its money box, not merchandise
+      }
+      int held = stock.count(item);
+      if (held <= 0) {
+        continue;
+      }
+      Optional<Double> price = VillagePricing.sellsAt(item, level.getServer(),
+          VillagePricing.demandFromHeld(held));
+      if (price.isEmpty()) {
+        continue;
+      }
+      bundle(item, price.get() * markup, held, true).ifPresent(offers::add);
+    }
+    offers.sort(Comparator.comparingInt(Offer::emeralds).reversed());
+    return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;
+  }
+
+  /** What a wandering merchant is short of and will pay for, from its own ledger. */
+  public static List<Offer> wantedFrom(EconomySnapshot stock, ServerLevel level, double markup) {
+    List<Offer> offers = new ArrayList<>();
+    for (String id : WANTED_STAPLES) {
+      Optional<Item> item = ItemValues.item(id);
+      if (item.isEmpty()) {
+        continue;
+      }
+      double demand = VillagePricing.demandFromHeld(stock.count(item.get()));
+      if (demand < 0.5D) {
+        continue;
+      }
+      Optional<Double> price = VillagePricing.buysAt(item.get(), level.getServer(), demand);
+      if (price.isEmpty()) {
+        continue;
+      }
+      bundle(item.get(), price.get() / markup, 0, false).ifPresent(offers::add);
+    }
+    offers.sort(Comparator.comparingInt(Offer::emeralds).reversed());
+    return offers.size() > MAX_ROWS ? offers.subList(0, MAX_ROWS) : offers;
+  }
+
   public static String idOf(Item item) {
     return BuiltInRegistries.ITEM.getKey(item).toString();
   }

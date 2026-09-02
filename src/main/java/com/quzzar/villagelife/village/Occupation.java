@@ -32,7 +32,17 @@ public enum Occupation {
     HERDER,
     INNKEEPER,
     QUARTERMASTER,
-    LEADER;
+    LEADER,
+
+    /**
+     * Not a village post but a traveller: a merchant sent out to wander and
+     * trade like Minecraft's wandering trader (config "Wandering merchant").
+     * A wandering merchant never joins a roster and keeps no bed; it trades
+     * from a virtual snapshot of its home village's economy rather than that
+     * village's chests, so it is exempt from the resident-only machinery.
+     * Added, never renamed: saved by name like every constant here.
+     */
+    WANDERING_MERCHANT;
 
     public boolean isIdle() {
         return this == WANDERER;
@@ -47,6 +57,6 @@ public enum Occupation {
      * (NightWatchRestockGoal).
      */
     public boolean sleepsAtNight() {
-        return this != GUARD;
+        return this != GUARD && this != WANDERING_MERCHANT;
     }
 }

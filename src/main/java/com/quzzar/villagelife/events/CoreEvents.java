@@ -53,6 +53,27 @@ public class CoreEvents {
 
   @SubscribeEvent
   public static void onLivingSpawned(EntityJoinLevelEvent event) {
+    // Config "Wandering merchant": stand our own merchant in for Minecraft's
+    // wandering trader. Cancel the vanilla trader's join and spawn ours where it
+    // was headed, reusing vanilla's spawn timing and placement; cancel the
+    // trader's llamas too, since our merchant brings its own escort. Our escort
+    // llamas carry a tag so this same handler lets them through.
+    if (com.quzzar.villagelife.configuration.VillagelifeConfig.WanderingMerchant
+        && event.getLevel() instanceof ServerLevel merchantLevel) {
+      if (event.getEntity() instanceof net.minecraft.world.entity.npc.WanderingTrader) {
+        event.setCanceled(true);
+        com.quzzar.villagelife.village.WanderingMerchantSpawner.spawnAt(merchantLevel,
+            event.getEntity().blockPosition());
+        return;
+      }
+      if (event.getEntity() instanceof net.minecraft.world.entity.animal.horse.TraderLlama llama
+          && !llama.getPersistentData()
+              .getBoolean(com.quzzar.villagelife.village.WanderingMerchantSpawner.MERCHANT_LLAMA_TAG)) {
+        event.setCanceled(true);
+        return;
+      }
+    }
+
     if (event.getEntity() instanceof Enemy
         && !(event.getEntity() instanceof EnderMan)
         && !(event.getEntity() instanceof Creeper)) {

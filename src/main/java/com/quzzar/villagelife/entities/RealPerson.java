@@ -186,6 +186,16 @@ public class RealPerson extends Person {
   private static final EntityDataAccessor<String> TITLE = SynchedEntityData.defineId(RealPerson.class,
       EntityDataSerializers.STRING);
 
+  /**
+   * Marks a wandering merchant ({@link Occupation#WANDERING_MERCHANT}). Synced
+   * because the client renderer needs it: it draws the trader skin pool and
+   * drops the nameplate while the merchant is invisible at night. The home
+   * village and virtual ledger it trades from are server-only
+   * ({@link #sourceVillageUuid}, {@link #wanderingStock}).
+   */
+  private static final EntityDataAccessor<Boolean> WANDERING_MERCHANT = SynchedEntityData.defineId(RealPerson.class,
+      EntityDataSerializers.BOOLEAN);
+
   /** Torches the miner's bedtime restock tops the pack up to; MineStep spends them lighting the shaft. */
   private static final int TORCH_PACK_TARGET = 16;
 
@@ -223,6 +233,25 @@ public class RealPerson extends Person {
   private static final int SAPLING_PACK_TARGET = 4;
 
   public int callToBedCoolDown = 0;
+
+  /**
+   * A wandering merchant's home village (server-only; empty for everyone
+   * else). Kept separate from {@link #VILLAGE_UUID} on purpose: a merchant is
+   * not a resident, and a non-empty VILLAGE_UUID would trip the orphan
+   * self-heal in {@link #aiStep} and demote it to a wanderer within seconds.
+   */
+  private String sourceVillageUuid = "";
+
+  /** Ticks a wandering merchant has left before it packs up and leaves, vanilla-trader style. */
+  private int merchantDespawnCountdown = 0;
+
+  /**
+   * A wandering merchant's virtual stock, seeded from its home village's daily
+   * snapshot and drifting as it trades. Never physical: nothing here rides on
+   * the merchant's body, so killing it drops no trade loot. Null for everyone
+   * who is not a wandering merchant.
+   */
+  private com.quzzar.villagelife.economy.EconomySnapshot wanderingStock = null;
 
   // Game day of the last bedtime torch-craft offer. goToBed refires every 100
   // ticks until sleep takes, so without this one night would put the same
@@ -520,6 +549,7 @@ public class RealPerson extends Person {
     builder.define(OCCUPATION, "WANDERER");
     builder.define(GENDER, "NONBINARY");
     builder.define(TITLE, "");
+    builder.define(WANDERING_MERCHANT, false);
 
   }
 
@@ -543,6 +573,13 @@ public class RealPerson extends Person {
 
     this.callToBedCoolDown = compound.getInt("CallToBedCooldown");
     this.camp = compound.contains("Camp") ? BlockPos.of(compound.getLong("Camp")) : null;
+
+    this.entityData.set(WANDERING_MERCHANT, compound.getBoolean("WanderingMerchant"));
+    this.sourceVillageUuid = compound.getString("SourceVillageUUID");
+    this.merchantDespawnCountdown = compound.getInt("MerchantDespawnCountdown");
+    this.wanderingStock = compound.contains("WanderingStock")
+        ? com.quzzar.villagelife.economy.EconomySnapshot.load(compound.getCompound("WanderingStock"))
+        : null;
 
     if (compound.contains("RoamOrigin")) {
       this.roamOrigin = BlockPos.of(compound.getLong("RoamOrigin"));
@@ -586,6 +623,15 @@ public class RealPerson extends Person {
       compound.putLong("Camp", camp.asLong());
     }
 
+    compound.putBoolean("WanderingMerchant", this.entityData.get(WANDERING_MERCHANT));
+    if (!this.sourceVillageUuid.isEmpty()) {
+      compound.putString("SourceVillageUUID", this.sourceVillageUuid);
+    }
+    compound.putInt("MerchantDespawnCountdown", this.merchantDespawnCountdown);
+    if (this.wanderingStock != null) {
+      compound.put("WanderingStock", this.wanderingStock.save());
+    }
+
     if (roamOrigin != null) {
       compound.putLong("RoamOrigin", roamOrigin.asLong());
       compound.putDouble("RoamHeading", roamHeading);
@@ -606,7 +652,7 @@ public class RealPerson extends Person {
     // watch through it (noteSlept).
     if (!this.level().isClientSide) {
       boolean night = this.level().isNight();
-      if (this.wasNight && !night && !this.sleptTonight) {
+      if (this.wasNight && !night && !this.sleptTonight && !isWanderingMerchant()) {
         setDaysSinceSleep(getDaysSinceSleep() + 1);
       }
       if (!this.wasNight && night) {
@@ -636,6 +682,37 @@ public class RealPerson extends Person {
       }
     }
     super.aiStep();
+
+    // A wandering merchant keeps its own clock: it counts down to its departure
+    // and, like the vanilla trader it replaces, slips out of sight at night.
+    // Last, so that a despawn ends the tick cleanly.
+    if (!this.level().isClientSide && isWanderingMerchant()) {
+      tickWanderingMerchant();
+    }
+  }
+
+  /**
+   * A wandering merchant's private clock (server side). It counts down to the
+   * hour it packs up and leaves (the vanilla trader despawns after a couple of
+   * days), carrying nothing tradeable since its ledger was only ever virtual;
+   * and it drinks itself invisible at night and visible again at dawn, the
+   * trader's signature disappearing act. The nameplate is dropped client-side
+   * while the effect holds ({@code PersonRenderer}), so an invisible merchant
+   * is not given away by a floating name.
+   */
+  private void tickWanderingMerchant() {
+    if (this.merchantDespawnCountdown > 0 && --this.merchantDespawnCountdown <= 0) {
+      this.discard();
+      return;
+    }
+    boolean night = this.level().isNight();
+    boolean hidden = this.hasEffect(net.minecraft.world.effect.MobEffects.INVISIBILITY);
+    if (night && !hidden) {
+      this.addEffect(new net.minecraft.world.effect.MobEffectInstance(
+          net.minecraft.world.effect.MobEffects.INVISIBILITY, -1, 0, false, false));
+    } else if (!night && hidden) {
+      this.removeEffect(net.minecraft.world.effect.MobEffects.INVISIBILITY);
+    }
   }
 
   @Override
@@ -720,6 +797,56 @@ public class RealPerson extends Person {
     this.entityData.set(OCCUPATION, occupation.name());
   }
 
+  /** Whether this person is a wandering merchant (config "Wandering merchant"). */
+  public boolean isWanderingMerchant() {
+    return this.entityData.get(WANDERING_MERCHANT);
+  }
+
+  public void setWanderingMerchant(boolean value) {
+    this.entityData.set(WANDERING_MERCHANT, value);
+  }
+
+  public String getSourceVillageUuid() {
+    return this.sourceVillageUuid;
+  }
+
+  public void setSourceVillageUuid(String uuid) {
+    this.sourceVillageUuid = uuid == null ? "" : uuid;
+  }
+
+  /**
+   * The home village a wandering merchant was sent from, resolved live (server,
+   * main thread only, like {@link #getVillage}); null for a resident, off the
+   * main thread, or if that village has since been deleted. Used only for the
+   * player's live standing with it; the goods come from {@link #wanderingStock}.
+   */
+  public Village getSourceVillage() {
+    if (this.sourceVillageUuid.isEmpty()
+        || !(this.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+      return null;
+    }
+    if (!serverLevel.getServer().isSameThread()) {
+      return null;
+    }
+    return VillageManager.get(serverLevel).getVillage(this.sourceVillageUuid);
+  }
+
+  public com.quzzar.villagelife.economy.EconomySnapshot getWanderingStock() {
+    return this.wanderingStock;
+  }
+
+  public void setWanderingStock(com.quzzar.villagelife.economy.EconomySnapshot stock) {
+    this.wanderingStock = stock;
+  }
+
+  public int getMerchantDespawnCountdown() {
+    return this.merchantDespawnCountdown;
+  }
+
+  public void setMerchantDespawnCountdown(int ticks) {
+    this.merchantDespawnCountdown = ticks;
+  }
+
   public String getTitle() {
     return this.entityData.get(TITLE);
   }
@@ -738,6 +865,9 @@ public class RealPerson extends Person {
     String title = getTitle();
     if (!title.isBlank()) {
       return title;
+    }
+    if (isWanderingMerchant()) {
+      return "Wandering Merchant";
     }
     return Utils.capitalize(getOccupation().name().toLowerCase());
   }
@@ -1473,9 +1603,13 @@ public class RealPerson extends Person {
       return;
     }
 
-    String detail = Utils.capitalize(getOccupation().name().toLowerCase());
+    String detail = isWanderingMerchant() ? "Wandering Merchant"
+        : Utils.capitalize(getOccupation().name().toLowerCase());
     if (getVillage() != null) {
       detail = detail + " of " + getVillage().getName();
+    } else if (isWanderingMerchant() && !getVillageName().isBlank()) {
+      // A wandering merchant is "of" its home village though no resident of it.
+      detail = detail + " of " + getVillageName();
     }
     com.quzzar.villagelife.chat.PersonChatDispatcher.markOpen(this, player);
 
@@ -1497,10 +1631,14 @@ public class RealPerson extends Person {
         : priorExchanges.stream()
             .map(e -> new OpenPersonChatPacket.ExchangeLine(e.playerLine(), e.reply()))
             .toList();
-    // A merchant at a staffed market gets a Trade tab; everyone else is chat alone.
-    boolean canTrade = getOccupation() == Occupation.MERCHANT && getVillage() != null
-        && com.quzzar.villagelife.economy.Treasury.tradeBlocker(getVillage(),
-            (net.minecraft.server.level.ServerLevel) level()).isEmpty();
+    // A merchant at a staffed market gets a Trade tab; everyone else is chat
+    // alone. A wandering merchant carries its own market, so it trades wherever
+    // it stands as long as its ledger holds something.
+    boolean canTrade = isWanderingMerchant()
+        ? getWanderingStock() != null && !getWanderingStock().isEmpty()
+        : getOccupation() == Occupation.MERCHANT && getVillage() != null
+            && com.quzzar.villagelife.economy.Treasury.tradeBlocker(getVillage(),
+                (net.minecraft.server.level.ServerLevel) level()).isEmpty();
     // The menu is what opens the screen now, because the screen is a real
     // container; the conversation follows separately, since a container's extra
     // data is written once and a chat log keeps growing.
@@ -1731,8 +1869,32 @@ public class RealPerson extends Person {
     return threatVerdict;
   }
 
+  /**
+   * The goal set of a wandering merchant: keep near where it arrived, amble
+   * about, watch passers-by, flee danger, and stay out of the water. This is
+   * the vanilla trader's roaming without any village-worker machinery. Trading
+   * is driven by right-click ({@link #openChat}), not a goal; its departure and
+   * night-invisibility live in {@link #tickWanderingMerchant}.
+   */
+  private void registerWanderingMerchantGoals() {
+    this.setImmobile(false);
+    this.goalSelector.addGoal(0, new FloatGoal(this));
+    this.goalSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.PanicGoal(this, 0.55D));
+    this.goalSelector.addGoal(2, new net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal(this, 0.5D));
+    this.goalSelector.addGoal(3, new net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal(this, 0.45D));
+    this.goalSelector.addGoal(8, new net.minecraft.world.entity.ai.goal.LookAtPlayerGoal(this, Player.class, 8.0F));
+    this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
+  }
+
   @Override
   protected void registerGoals() {
+
+    // A wandering merchant runs its own small goal set (above) and none of the
+    // village-worker machinery, so it branches out before any of that.
+    if (isWanderingMerchant()) {
+      registerWanderingMerchantGoals();
+      return;
+    }
 
     Villagelife.LOGGER.debug("REGISTERING GOALS FOR " + getUUID());
 
