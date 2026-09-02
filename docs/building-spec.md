@@ -656,7 +656,8 @@ Worker: **CLERIC**  ·  Phase 2  ·  Variants: `plains`, `taiga`, `desert`
 | 3 (upgrade) | cathedral | 21x21 | 52 oak log, 80 oak planks, 84 cobblestone, 8 wool, 2 diamond | raises ATTRACTIVENESS strongly |
 
 No glass at any level (decided 2026-09-02): nothing in the village makes it, and the shipped
-`church_*_1` recipe (1800 stone bricks, 133 logs) lost its 66 panes the same day.
+`church_*_1` recipe lost its 66 panes the same day, and its 1800 stone bricks became 380 with
+the 133 logs kept: a model shown eighteen hundred of anything sees no way to ever get there.
 
 The clearest two-building capability in the catalog: ENCHANTING needs church L2 AND library L1, and neither grants it alone.
 
