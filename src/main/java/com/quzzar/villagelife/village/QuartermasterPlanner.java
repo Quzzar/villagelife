@@ -36,16 +36,23 @@ import net.minecraft.world.item.Item;
  * which a small model gets wrong; the validator is what makes that safe, since a
  * plan that loses or double-books a slot can never be applied. What the rounds
  * are for is the grouping: which goods belong together, and under what name,
- * is the model's call. Once every item sits in exactly one group, a partition
- * whose slot sums still do not add up is not sent back again; the shelves are
- * laid out from those groups by count instead ({@link #layoutByCount}), because
- * arithmetic is bookkeeping, not a decision, and Llama-3.2-3B failed it six
- * rounds running on a real 81-slot storehouse (2026-09-01). Out of rounds with
- * the grouping still incomplete, the last grouping given is laid out the same
- * way, with the goods it never named on an "Odds and ends" shelf. Only a run
- * that never parsed a single group ends with no plan. Nothing here blocks a
- * tick: every round rides the background persona lane, and the future completes
- * off the game thread.
+ * is the model's call. Once every item sits in a group (a repeat stays with the
+ * first group to name it), a partition whose slot sums still do not add up is
+ * not sent back again; the shelves are laid out from those groups by count
+ * instead ({@link #layoutByCount}), because arithmetic is bookkeeping, not a
+ * decision, and Llama-3.2-3B failed it six rounds running on a real 81-slot
+ * storehouse (2026-09-01). Out of rounds with the grouping still incomplete,
+ * the last grouping given is laid out the same way, with the goods it never
+ * named on an "Odds and ends" shelf. Only a run that never parsed a single
+ * group ends with no plan.
+ *
+ * <p>Replies are read one group object at a time rather than as one JSON
+ * document, because a small model drops a bracket or tucks the note inside the
+ * array often enough that a strict parse threw away whole rounds of usable
+ * groups. The format is described in words with a bare template, not shown as
+ * a worked example, because the same model copied the example's groups into
+ * its answer verbatim. Nothing here blocks a tick: every round rides the
+ * background persona lane, and the future completes off the game thread.
  */
 public final class QuartermasterPlanner {
 
@@ -58,10 +65,15 @@ public final class QuartermasterPlanner {
   /** How many offending slots or items an error message lists before trailing off. */
   private static final int MAX_LISTED = 12;
 
-  private static final int PLAN_MAX_TOKENS = 500;
+  /** Enough for forty goods in a dozen groups; a reply that runs on past this is listing numbers, not planning. */
+  private static final int PLAN_MAX_TOKENS = 400;
   private static final double TEMPERATURE = 0.3D;
 
   private static final Pattern NUMBER = Pattern.compile("\\d+");
+  /** One flat JSON object, such as a group; the groups never nest. */
+  private static final Pattern FLAT_OBJECT = Pattern.compile("\\{[^{}]*\\}");
+  /** The note's string value, wherever in the reply it landed. */
+  private static final Pattern NOTE = Pattern.compile("\"note\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
 
   /** A finished plan and the quartermaster's one-line word on how it is arranged. */
   public record Outcome(ShelvingPlan plan, String note) {
@@ -145,7 +157,7 @@ public final class QuartermasterPlanner {
             context.who(), round + 1);
         return CompletableFuture.completedFuture(Optional.of(build(context, proposal, raw)));
       }
-      if (!proposal.isEmpty() && everyItemPlacedOnce(proposal, context.items().size())) {
+      if (!proposal.isEmpty() && everyItemPlaced(proposal, context.items().size())) {
         // The grouping is complete; only the slot sums are off. That part is
         // arithmetic, and arithmetic does not get more rounds.
         Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
@@ -169,18 +181,18 @@ public final class QuartermasterPlanner {
     });
   }
 
-  /** Whether every numbered item sits in exactly one group: the grouping is done, whatever the slots say. */
-  private static boolean everyItemPlacedOnce(List<RawCategory> groups, int itemCount) {
-    int[] seen = new int[itemCount + 1];
+  /** Whether every numbered item sits in some group: the grouping is done, whatever the slots or repeats say. */
+  private static boolean everyItemPlaced(List<RawCategory> groups, int itemCount) {
+    boolean[] seen = new boolean[itemCount + 1];
     for (RawCategory group : groups) {
       for (int number : group.itemNumbers()) {
         if (number >= 1 && number <= itemCount) {
-          seen[number]++;
+          seen[number] = true;
         }
       }
     }
     for (int number = 1; number <= itemCount; number++) {
-      if (seen[number] != 1) {
+      if (!seen[number]) {
         return false;
       }
     }
@@ -284,10 +296,15 @@ public final class QuartermasterPlanner {
         + " once, with no gaps and no overlaps, and put every item in one group.";
   }
 
+  /**
+   * The reply's shape, described rather than demonstrated: a worked example
+   * with real-looking groups came back copied into the plan verbatim.
+   */
   private static String formatExample() {
-    return "{\"groups\":[{\"name\":\"Ores\",\"items\":[1,4],\"slots\":\"1-6\"},"
-        + "{\"name\":\"Wood\",\"items\":[2,3],\"slots\":\"7-15\"}],"
-        + "\"note\":\"one short sentence, in your own voice\"}";
+    return "{\"groups\":[{\"name\":\"...\",\"items\":[...],\"slots\":\"...\"}],\"note\":\"...\"}\n"
+        + "name is what the group is called; items lists the numbers of the goods in it, from the list above; "
+        + "slots is the run of slot numbers the group owns, written first-last; "
+        + "note is one short sentence in your own voice.";
   }
 
   private static String layout(List<Container> containers) {
@@ -423,26 +440,28 @@ public final class QuartermasterPlanner {
 
   // ---- parsing ----
 
+  /**
+   * Every group the reply spells out, read one flat object at a time, so a reply
+   * whose outer JSON is broken (a bracket dropped, the note tucked inside the
+   * array, chatter around the object) still yields the groups it did give. An
+   * object without an items list is the note, or noise, and is skipped.
+   */
   private static List<RawCategory> parseCategories(String raw, int itemCount) {
     List<RawCategory> groups = new ArrayList<>();
-    try {
-      JsonElement root = JsonParser.parseString(extractObject(raw));
-      if (!root.isJsonObject()) {
-        return groups;
-      }
-      JsonArray array = root.getAsJsonObject().getAsJsonArray("groups");
-      if (array == null) {
-        return groups;
-      }
-      for (JsonElement element : array) {
-        if (!element.isJsonObject()) {
+    Matcher matcher = FLAT_OBJECT.matcher(raw);
+    while (matcher.find()) {
+      String text = matcher.group();
+      try {
+        JsonElement element = JsonParser.parseString(text);
+        if (!element.isJsonObject() || !element.getAsJsonObject().has("items")) {
           continue;
         }
         JsonObject group = element.getAsJsonObject();
-        String name = group.has("name") ? group.get("name").getAsString() : "";
+        String name = group.has("name") && group.get("name").isJsonPrimitive()
+            ? group.get("name").getAsString() : "";
         List<Integer> numbers = new ArrayList<>();
-        JsonArray items = group.getAsJsonArray("items");
-        if (items != null) {
+        if (group.get("items").isJsonArray()) {
+          JsonArray items = group.getAsJsonArray("items");
           for (JsonElement number : items) {
             try {
               numbers.add(number.getAsInt());
@@ -451,11 +470,12 @@ public final class QuartermasterPlanner {
             }
           }
         }
-        int[] range = parseRange(group.has("slots") ? group.get("slots").getAsString() : "");
-        groups.add(new RawCategory(name, numbers, range[0], range[1]));
+        String slots = group.has("slots") && group.get("slots").isJsonPrimitive()
+            ? group.get("slots").getAsString() : "";
+        groups.add(new RawCategory(name, numbers, parseRange(slots)[0], parseRange(slots)[1]));
+      } catch (RuntimeException e) {
+        Villagelife.LOGGER.debug("[quartermaster] skipped an unreadable group: {}", text);
       }
-    } catch (RuntimeException e) {
-      Villagelife.LOGGER.debug("[quartermaster] could not parse a plan reply: {}", e.getMessage());
     }
     return groups;
   }
@@ -475,23 +495,10 @@ public final class QuartermasterPlanner {
     return new int[] {Math.min(start, end), Math.max(start, end)};
   }
 
+  /** The note's text, wherever the model put it; empty when there is none. */
   private static String extractNote(String raw) {
-    try {
-      JsonElement root = JsonParser.parseString(extractObject(raw));
-      if (root.isJsonObject() && root.getAsJsonObject().has("note")) {
-        return root.getAsJsonObject().get("note").getAsString();
-      }
-    } catch (RuntimeException ignored) {
-      // no note is fine; the caller supplies a default
-    }
-    return "";
-  }
-
-  /** The outermost {@code {...}} in a reply, so leading chatter does not break parsing. */
-  private static String extractObject(String raw) {
-    int start = raw.indexOf('{');
-    int end = raw.lastIndexOf('}');
-    return start >= 0 && end > start ? raw.substring(start, end + 1) : raw;
+    Matcher matcher = NOTE.matcher(raw);
+    return matcher.find() ? matcher.group(1).replace("\\\"", "\"") : "";
   }
 
   private static String cleanName(String name, int ordinal) {

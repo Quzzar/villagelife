@@ -293,6 +293,11 @@ public final class ConsolidateStep implements BlockWorkStep {
         this.needsTidy = true; // laid out to the new plan on the next quiet moment, in person
         Villagelife.LOGGER.info("[quartermaster] {} adopted a shelving plan of {} categories: \"{}\"",
             person.getName().getString(), settled.plan().categories().size(), settled.note());
+        for (ShelvingPlan.Category category : settled.plan().categories()) {
+          Villagelife.LOGGER.info("[quartermaster]   {} (slots {} to {}): {}", category.name(),
+              category.firstSlot() + 1, category.firstSlot() + category.slotCount(),
+              String.join(", ", category.itemIds()));
+        }
       });
     });
   }

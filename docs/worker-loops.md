@@ -285,7 +285,11 @@ there, edge by edge, and drives the shaft on into the stone beyond. The pack is 
 out of cobblestone logs it and waits at the mouth until restocked, so a cavern too large to floor
 ends the shaft. Torches are hung the way a player hangs them: at head height on the shaft wall, one
 wherever the light at the miner's feet has fallen to dim (about every twelve blocks of ramp),
-and only once the shaft is deep enough to be dark. And ore that a shaft or cave wall exposes is not left in the rock: the miner pulls the vein,
+and only once the shaft is deep enough to be dark. Every pick re-walks the shaft from the mouth, an audit that costs a block read per
+open cell, so a cell an interruption skipped or gravel refilled behind the miner is dug on the next
+pass. Ore is taken from the shaft's own walls, floor and ceiling around the miner, the corridor's
+full width from either side, and followed into the rock only through the holes she opened, never
+out into a cave. And ore that a shaft or cave wall exposes is not left in the rock: the miner pulls the vein,
 capped so a rich seam is a detour and not a second career, and plugs the holes back up with
 cobblestone so the wall ends solid. **That pattern with deviation is probably what roaming really
 is** for most jobs, and the model has to be able to express it. Keep the excavation as it stands;
@@ -549,14 +553,19 @@ category. It does the slot arithmetic itself; a deterministic validator then che
 partition (every slot covered once, no gaps, no overlaps, every item placed) and, when it does
 not hold, hands the errors back. The quartermaster and the village brain alternate turns
 correcting it, up to six rounds. The first partition that validates wins. The rounds are for
-the grouping, though, not the sums: once every item sits in exactly one group, a partition
-whose slot numbers still overlap or leave gaps is not sent back again; the shelves are laid
+the grouping, though, not the sums: once every item sits in a group (a repeat stays with the
+first group to name it), a partition whose slot numbers still overlap or leave gaps is not
+sent back again; the shelves are laid
 out from those groups by count (each group a contiguous run sized to the stacks it holds, the
 spare slots shared out in proportion), because arithmetic is bookkeeping, not a decision, and
 Llama-3.2-3B got it wrong six rounds running on a real 81-slot storehouse. Out of rounds with
 the grouping still incomplete, the last grouping given is laid out the same way, with the goods
 it never named on an "Odds and ends" shelf. Only a run that never parsed a single group ends
-with no plan, and then the shelves keep the order they had, never a corrupted one. Membership
+with no plan, and then the shelves keep the order they had, never a corrupted one. Two
+lessons from Llama-3.2-3B shaped the wire format: replies are read one group object at a time,
+because a dropped bracket or a note tucked inside the array used to throw away whole rounds,
+and the reply shape is described in words rather than shown as a worked example, because the
+example's groups came back copied into the plan verbatim. Membership
 is a frozen item-id map (the model placed each item by hand), so tidy-time resolution is an
 exact lookup, and an item the plan never saw spills to a free slot and waits for the next
 re-plan.
