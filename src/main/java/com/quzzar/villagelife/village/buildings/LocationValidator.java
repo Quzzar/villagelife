@@ -90,6 +90,14 @@ public class LocationValidator {
       BlockPos candidate = levelAccess.getLevel()
           .getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column)
           .below();
+      // One column is not the ground. A footprint seated at its origin column's
+      // height went into the world one block low whenever that column happened
+      // to be a dip in an otherwise level plain (Aaron's house_plains_3: every
+      // column round it at 64, the house at 63), and the prepare phase would
+      // then have dug the whole footprint down to meet it. Seat the building at
+      // the height most of its footprint stands on; the prepare phase levels
+      // the odd columns toward that instead.
+      candidate = new BlockPos(candidate.getX(), commonGround(levelAccess, candidate, bounds), candidate.getZ());
       // The footprint extends from the origin, so a candidate whose far corner
       // sits on someone's roof is no better than one that starts there.
       if (village.hasClaimed(candidate.offset(bounds.maxX(), 0, bounds.maxZ()))
@@ -129,6 +137,38 @@ public class LocationValidator {
     }
     return BlockPos.ZERO;
 
+  }
+
+  /**
+   * The ground height most of a footprint's columns share, read from the same
+   * heightmap the snap uses, with ties going to the higher ground so a building
+   * is never seated in the lower half of a split. Unloaded columns are skipped;
+   * the origin column's own height stands in if nothing else can be read.
+   */
+  private static int commonGround(ServerLevelAccessor levelAccess, BlockPos origin, BoundingBox bounds) {
+    java.util.Map<Integer, Integer> counts = new java.util.HashMap<>();
+    BlockPos.MutableBlockPos column = new BlockPos.MutableBlockPos();
+    for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
+      for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
+        column.set(origin.getX() + x, 0, origin.getZ() + z);
+        if (!levelAccess.getLevel().isLoaded(column)) {
+          continue;
+        }
+        int ground = levelAccess.getLevel()
+            .getHeightmapPos(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column)
+            .getY() - 1;
+        counts.merge(ground, 1, Integer::sum);
+      }
+    }
+    int best = origin.getY();
+    int bestCount = 0;
+    for (java.util.Map.Entry<Integer, Integer> entry : counts.entrySet()) {
+      if (entry.getValue() > bestCount || (entry.getValue() == bestCount && entry.getKey() > best)) {
+        best = entry.getKey();
+        bestCount = entry.getValue();
+      }
+    }
+    return best;
   }
 
   public static double getBuildingRadius(BoundingBox bounds){

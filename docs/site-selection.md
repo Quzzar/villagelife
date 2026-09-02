@@ -15,7 +15,11 @@ the ground is ready. When fill runs out the village emits the ordinary shortage 
 the builder says so in their own log, rather than spinning.
 
 **Candidates are snapped to the real surface before scoring**, which is mitigation 1 below
-and was for a long time simply absent. Sites used to be scored at the village centre's
+and was for a long time simply absent. The snap reads the footprint's most common ground
+height, not one column's (2026-09-01): seated at its origin column, a house went into the
+world a block low whenever that column was a dip in an otherwise level plain, and the prepare
+phase would then have dug the whole footprint down to meet it; now the odd columns are the
+ones levelled. Sites used to be scored at the village centre's
 elevation plus a blind vertical offset, and the levelling budget then rejected anything that
 was not within about a block of the actual terrain — so in a live world every candidate came
 back impossible and no village could build anything at all. Snapping also removes the
