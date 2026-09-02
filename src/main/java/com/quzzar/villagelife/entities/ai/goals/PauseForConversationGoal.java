@@ -38,6 +38,16 @@ public class PauseForConversationGoal extends Goal {
     if (person.isQuarrelling()) {
       return false;
     }
+    // Bedtime outranks small talk: once night falls on someone who sleeps, they
+    // stop standing still to chat and let SleepAtNightGoal walk them home. The
+    // conversation ends on its own side too (VillagerConversation parts a pair
+    // at either one's bedtime); this is the backstop that frees the sleeper the
+    // very tick night falls, so a talk that ran past dusk can never freeze them
+    // by the mine all night while the sleep goal waits below it. A guard, who
+    // never sleeps, keeps talking.
+    if (person.getOccupation().sleepsAtNight() && person.level().isNight()) {
+      return false;
+    }
     return PersonChatDispatcher.isConversing(person);
   }
 

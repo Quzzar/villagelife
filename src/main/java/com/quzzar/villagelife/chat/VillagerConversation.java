@@ -225,15 +225,21 @@ public final class VillagerConversation {
 
   /**
    * Whether the pair is still in this conversation with each other: both
-   * alive, both sessions pointing at one another (which is also where the
-   * session timeout is felt), and still within talking range. Panic, combat,
+   * alive, neither past their bedtime, both sessions pointing at one another
+   * (which is also where the session timeout is felt), and still within
+   * talking range. Panic, combat,
    * or a death mid-talk fails this and the conversation ends cleanly.
    */
   private static boolean stillTogether(RealPerson a, RealPerson b) {
     return a.isAlive() && b.isAlive()
+        && !pastBedtime(a) && !pastBedtime(b)
         && PersonChatDispatcher.conversingWith(a).filter(b.getUUID()::equals).isPresent()
         && PersonChatDispatcher.conversingWith(b).filter(a.getUUID()::equals).isPresent()
         && a.distanceToSqr(b) <= TALK_RANGE * TALK_RANGE;
+  }
+
+  private static boolean pastBedtime(RealPerson person) {
+    return person.level().isNight() && person.getOccupation().sleepsAtNight();
   }
 
   /**
