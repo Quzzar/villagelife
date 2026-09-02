@@ -966,8 +966,9 @@ public class RealPerson extends Person {
 
   /**
    * The last resort for a villager who could not get home for nights on end:
-   * set them down at the head of their bed, or beside the campfire when they
-   * have no bed, or at the village center when the fire is out. A villager
+   * set them down at the head of their bed, or, with no bed, where the idle
+   * gather (the standing spot beside the campfire, which is the town center's
+   * own block when the fire is out; see Village.getGatheringPoint). A villager
    * with no village at all is left where they are; the road is their home.
    * Logged, because a teleport is exactly the kind of thing that should be
    * visible in the record when a villager is found somewhere surprising.
@@ -978,21 +979,11 @@ public class RealPerson extends Person {
       return;
     }
     BlockPos bed = LocationManager.getBedLocation(this);
-    BlockPos target;
-    String where;
-    if (!bed.equals(BlockPos.ZERO)) {
-      target = bed.above();
-      where = "their bed";
-    } else {
-      target = village.getGatheringPoint();
-      where = "the campfire";
-      if (target == null || target.equals(BlockPos.ZERO)) {
-        target = LocationManager.getVillageCenter(this);
-        where = "the village center";
-      }
-    }
+    boolean hasBed = !bed.equals(BlockPos.ZERO);
+    BlockPos target = hasBed ? bed.above() : village.getGatheringPoint();
+    String where = hasBed ? "their bed" : "the campfire";
     if (target.equals(BlockPos.ZERO)) {
-      return;
+      return; // no town center either: nowhere to bring them
     }
     this.getNavigation().stop();
     this.moveTo(target.getX() + 0.5D, target.getY(), target.getZ() + 0.5D, this.getYRot(), this.getXRot());
