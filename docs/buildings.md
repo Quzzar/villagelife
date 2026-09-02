@@ -211,7 +211,7 @@ actually moves attractiveness.
 | --- | --- | --- | --- | --- |
 | `mill` | MILLER | `GRAIN` to flour | 2 | 2 |
 | `bakery` | BAKER | flour to `BREAD` | 3 | 2 |
-| `butchery` | BUTCHER | a kind bred to twelve slaughtered down to six; raw `MEAT` to cooked, preserved | 2 | 2 |
+| `butchery` | BUTCHER | the pen kept at six a kind; raw `MEAT` to cooked, preserved | 2 | 2 |
 | `brewery` | BREWER | `GRAIN`, honey to `ALE` | 2 | 3 |
 
 `mill` is the clearest case of variants doing real work: a **windmill** (open, windy biomes)

@@ -351,11 +351,14 @@ take on nearby monsters with the same bow, where before a hunter fled like a bak
 butchery's pen: the herder is non-lethal by design and the hunter ignores farmed stock, so a
 butchery with wheat in store bred until the animals stood wall to wall and the herder and
 butcher, whose stations are both inside the fence, could not reach the door. The herd is now
-two numbers (`FarmedStock`): the herder breeds a kind up to twelve, counting the young, and
-once a kind has grown to that many the BUTCHER slaughters it down to six, nearest grown
-animal first, one blow each so nothing bolts wounded through a crowd (`CullStep`). A kind
-between the two numbers is left alone, so the pen swells and is thinned in cycles, and
-everything above the six the village keeps is meat and hide. The butcher steps onto the
+two numbers (`FarmedStock`): the pen keeps six of each kind, and the BUTCHER slaughters
+whatever stands above that, nearest grown animal first, one blow each so nothing bolts
+wounded through a crowd (`CullStep`); the herder keeps breeding below its own ceiling of
+twelve, which is only ever reached by a pen with no butcher. So every calf the herder's wheat
+buys is, once grown, meat and hide, and the pen holds a steady six of each while the wheat
+lasts. (A first cut thinned only a kind that had reached twelve, in cycles; that would have
+bred a pen that already trapped its people up to twenty-four before the first slaughter, so
+the butcher works from six up.) The butcher steps onto the
 drops to gather them, cooks the raw meat from the pack (the cook loop takes what is in hand
 before it fetches), and carries the leather, feathers and wool to a chest once the round is
 done. Villagers still cannot open fence gates; the pen's people leave through the building's

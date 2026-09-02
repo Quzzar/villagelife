@@ -1,12 +1,11 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.FarmedStock;
 import com.quzzar.villagelife.village.LocationManager;
@@ -30,12 +29,12 @@ import net.minecraft.world.phys.AABB;
  * hunter is coded to ignore farmed stock and the herder is non-lethal by
  * design, so a butchery with wheat in store bred until the animals filled the
  * pen wall to wall and the people working in it could no longer reach its
- * door. The herd's size is two numbers (FarmedStock): the herder breeds a kind
- * up to {@link FarmedStock#BREED_CAP}, and once it has grown to that many this
- * step thins it to {@link FarmedStock#KEEP}, one grown animal at a time,
- * nearest first, and the herder breeds it back up. A kind between the two
- * numbers is left alone, so the pen swells and is thinned in cycles rather
- * than losing a cow the moment a calf is born.
+ * door. The pen keeps {@link FarmedStock#KEEP} of each kind: this step takes
+ * whatever stands above that, one grown animal at a time, nearest first, while
+ * the herder keeps breeding below its own higher ceiling. So a calf the
+ * herder's wheat buys is, once grown, a slaughter, and the pen holds a steady
+ * six of each while the wheat lasts. The young are never taken, so a pen
+ * that is over its size because it is full of lambs thins as they grow.
  *
  * A slaughter is one blow, not a fight. A butcher's animal is not game to be
  * chased round the pen, and a wounded cow bolting through a crowd is exactly
@@ -48,14 +47,6 @@ import net.minecraft.world.phys.AABB;
  * ({@link HaulStep}) has enough to be worth the walk.
  */
 public final class CullStep implements WorkStep<CullStep.Job> {
-
-  /**
-   * The kinds a cull is under way on: entered when a kind reaches the breeding
-   * cap, left when it is down to what the pen keeps. The state is this
-   * butcher's own and starts empty, so after a restart a half-thinned pen
-   * simply breeds up to the cap again before the next cull.
-   */
-  private final Set<Class<?>> thinning = new HashSet<>();
 
   /** How far from the kill the butcher will step to gather what fell. */
   private static final double GATHER_RADIUS = 3.0D;
@@ -83,6 +74,8 @@ public final class CullStep implements WorkStep<CullStep.Job> {
     @Nullable
     private ItemEntity gathering;
     private int gatherActs;
+    /** How many of the animal's kind stood on the pasture when it was chosen. */
+    private int herdSize;
 
     private Job(@Nullable Animal animal, @Nullable BlockPos chest) {
       this.animal = animal;
@@ -98,9 +91,9 @@ public final class CullStep implements WorkStep<CullStep.Job> {
     if (pen == BlockPos.ZERO || village == null) {
       return null;
     }
-    Animal surplus = surplus(person, FarmedStock.herds(person.level(), pen));
+    Job surplus = surplus(person, FarmedStock.herds(person.level(), pen));
     if (surplus != null) {
-      return new Job(surplus, null);
+      return surplus;
     }
     // The round is done: whatever the slaughter left in the pack that the cook
     // loop will not use goes to a chest.
@@ -149,6 +142,9 @@ public final class CullStep implements WorkStep<CullStep.Job> {
       if (animal.isAlive()) {
         return true; // shrugged off (invulnerability frames): strike again next act
       }
+      Villagelife.LOGGER.debug("[pen] {} (BUTCHER) slaughtered a {}; {} of its kind left, the pen keeps {}",
+          person.getName().getString(), animal.getType().toShortString(), job.herdSize - 1,
+          FarmedStock.KEEP);
     }
     return gather(person, job);
   }
@@ -183,29 +179,26 @@ public final class CullStep implements WorkStep<CullStep.Job> {
   }
 
   /**
-   * The nearest grown animal of a kind being thinned, or null when no kind is.
-   * Kinds enter the cull at the breeding cap and leave it at the keep number,
-   * so the two numbers are only ever compared here.
+   * The nearest grown animal of any kind the pen holds more of than it keeps,
+   * or null when every herd is at its size.
    */
   @Nullable
-  private Animal surplus(RealPerson person, Map<Class<?>, List<Animal>> herds) {
-    for (Map.Entry<Class<?>, List<Animal>> herd : herds.entrySet()) {
-      if (herd.getValue().size() >= FarmedStock.BREED_CAP) {
-        this.thinning.add(herd.getKey());
-      }
-    }
-    this.thinning.removeIf(kind -> herds.getOrDefault(kind, List.of()).size() <= FarmedStock.KEEP);
-    Animal best = null;
+  private static Job surplus(RealPerson person, Map<Class<?>, List<Animal>> herds) {
+    Job best = null;
     double nearest = Double.MAX_VALUE;
-    for (Class<?> kind : this.thinning) {
-      for (Animal animal : herds.getOrDefault(kind, List.of())) {
+    for (List<Animal> herd : herds.values()) {
+      if (herd.size() <= FarmedStock.KEEP) {
+        continue;
+      }
+      for (Animal animal : herd) {
         if (animal.isBaby()) {
           continue;
         }
         double distance = person.distanceToSqr(animal);
         if (distance < nearest) {
           nearest = distance;
-          best = animal;
+          best = new Job(animal, null);
+          best.herdSize = herd.size();
         }
       }
     }

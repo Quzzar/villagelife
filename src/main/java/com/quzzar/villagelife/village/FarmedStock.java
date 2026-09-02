@@ -29,26 +29,28 @@ import net.minecraft.world.phys.AABB;
  * The hunter reads it to know what is not game (HuntStep), which is the whole
  * point: a butchery pen inside a hunting ground must not read as quarry.
  *
- * <b>The herd has a size, and it is two numbers.</b> The herder breeds a kind up
- * to {@link #BREED_CAP} and no further; once a kind has grown to that many the
- * butcher slaughters it down to {@link #KEEP} (CullStep), and the herder breeds
- * it back up. So a pen swells and is thinned in cycles, and every animal above
- * the six the village keeps is meat and hide. Without the numbers a butchery
- * with wheat in store bred until the animals filled the pen wall to wall and
- * the people working in it could not reach its door. Both figures are Aaron's:
- * twelve is what the shipped five-by-three yard can hold at a squeeze, six is
- * what it lives with. Young count toward both, so a pen at its size with lambs
- * on the ground does not breed again the moment they grow.
+ * <b>The herd has a size, and it is two numbers.</b> The pen keeps {@link #KEEP}
+ * of each kind: the butcher slaughters whatever stands above it (CullStep), so
+ * every calf the herder's wheat buys is, once grown, meat and hide, and the
+ * pen never holds more than it can move in. The herder alone stops at
+ * {@link #BREED_CAP}, which is the ceiling a pen reaches with no butcher to
+ * thin it. Without the numbers a butchery with wheat in store bred until the
+ * animals filled the pen wall to wall and the people working in it could not
+ * reach its door. Both figures are Aaron's. The first cut of this thinned only
+ * a kind that had reached twelve, in cycles; that would have bred a pen that
+ * already trapped its people (nineteen animals in fifteen cells) up to
+ * twenty-four before the first slaughter, so the butcher works from six up.
+ * Young count toward both numbers.
  */
 public final class FarmedStock {
 
   /** Key in the entity's persistent data, namespaced so nothing else collides. */
   private static final String TAG = "villagelife:farmed";
 
-  /** How many of each kind the herder breeds up to; the butcher's cue to thin the pen. */
+  /** How many of each kind the herder breeds up to: the pen's ceiling with no butcher. */
   public static final int BREED_CAP = 12;
 
-  /** How many of each kind a cull leaves standing. */
+  /** How many of each kind the pen keeps; the butcher slaughters above it. */
   public static final int KEEP = 6;
 
   /** How far around a pen's station its stock is counted and tended. */
