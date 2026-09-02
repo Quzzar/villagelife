@@ -379,12 +379,25 @@ so no mob ever plans a route through one. The butchery pen has two gates and a d
 own butcher it was a yard with one exit: every trip to the storehouse barrel three blocks past the
 fence became a thirty-block walk out through the building and round it, further than his
 pathfinder searches, so he stood at the fence until the loop stood him down. A person's
-navigation now uses vanilla's walking evaluator with one answer corrected (`GatePathNavigation`):
+navigation now uses vanilla's walking evaluator with one answer corrected (`PersonPathNavigation`):
 a closed gate is what a closed wooden door is, a node the route may pass through at the door's
 cost, orthogonally only, and `OpenFenceGateGoal` is the door goal written for gates, since the
 vanilla one tests for the door class and looks a block up for a top half a gate does not have.
 The gate swings away from the opener and closes twenty ticks later whether or not they are
 through, the door's rule, because a pen gate left open is an empty pen by evening.
+
+**Built, 2026-09-02: villagers climb ladders.** Vanilla mobs can climb, a zombie pressed against
+a ladder goes up, but they never plan to: the path search looks sideways, one step up and down a
+drop, so a ladder shaft is invisible to it and the watchtower's bed at the top of one was a bed
+nobody could reach. In the same evaluator a rung (anything in the climbable tag) is now a node
+the feet can stand in, its floor is its own height rather than the ground under the ladder, and
+it is joined to the rungs above and below it; a closed trapdoor over the top rung is a lid and
+ends the ladder. Reaching a landing is vanilla's step up, and leaving from one is vanilla's
+one-block drop into the top rung. The climb itself is the one thing vanilla will not do without a
+body pressing into the wall, so while the next node is straight up the navigation holds the walk
+still and supplies vanilla's climbing speed; on the way down it holds still and lets the ladder's
+own slide do it. Where the person re-plans mid-climb the route starts from the rung they are on,
+not from the floor beneath, which is where vanilla would have started them.
 
 **Built, 2026-08-31: lumberjacks and guards clear nearby woodland; whole trees, and never the
 village's own.** The lumberjack's planted stand remains its reliable, renewable source of work,
@@ -399,6 +412,25 @@ two-in-five roll every five seconds, against the guard's twelve blocks and one i
 seconds; the guard's roll was one in twenty until 2026-09-01, which left a fresh camp waiting a
 quarter of an hour per tree for the lodge it could not yet afford); combat goals outrank the
 guard's chopping.
+
+**Built, 2026-09-02: the stand is a loop.** The lumberjack's station is the base of the tree
+the lodge is authored with (local `[17,1,3]` in every family), over a block of dirt the
+structure carries so the tree stands on ground whatever the terrain under the footprint does.
+Two things had kept the stand dead since the lodge was reworked: the station sat four blocks
+away on the paved yard, so the stand chop read a bare andesite plinth on every scan of its
+life, and the ownership store recorded the tree's logs as the village's the instant the lodge
+was stamped, so even struck they would not have come away. The loop now runs as `ChopStep` at
+the station, `PlantStep`, `BonemealStep`, all at one priority since they cannot want the station
+at once: fell the tree at the station whole, whoever planted it (`TreeFelling.fellStand` takes
+the village's own logs and drops their record as it goes, and still refuses a player's); the
+canopy, authored as natural leaves, decays and drops its saplings; set a sapling from the pack
+on the stump, any kind (a plains lodge whose oak is down grows a spruce if spruce is what the
+pack holds), and it is nobody's, so the next fell is an ordinary one; feed it while there is
+bone meal in the pack; fell it again when it is a tree. Saplings reach the pack three ways:
+picked up under the decaying canopy, picked up in the woods, or drawn from the stores at
+bedtime, four at a time, the same way bone meal is. The replant used to be a one-in-a-hundred
+roll per scan that conjured an oak sapling from nothing; that is gone, and a stand that is bare
+with no sapling in the pack says so in the shortage report instead of "growing back".
 
 **Reach is measured from the eyes, not the feet (2026-09-01).** A tree is cut from beside its
 trunk or from beneath it: the worker stands within arm's length of the trunk horizontally, and

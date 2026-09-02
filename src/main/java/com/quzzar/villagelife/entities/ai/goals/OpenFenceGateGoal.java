@@ -17,7 +17,7 @@ import net.minecraft.world.level.pathfinder.Path;
 /**
  * Opening a fence gate on the way through, and closing it behind.
  *
- * The gate half of what {@link com.quzzar.villagelife.entities.ai.GatePathNavigation}
+ * The gate half of what {@link com.quzzar.villagelife.entities.ai.PersonPathNavigation}
  * starts: the route now runs through closed gates, and this is what turns the
  * bump against one into an open gate and, a second later, a closed one. It is
  * vanilla's {@code OpenDoorGoal} written for {@link FenceGateBlock}, which
