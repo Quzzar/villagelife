@@ -184,6 +184,13 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     }
 
     ((GroundPathNavigation) this.getNavigation()).setCanOpenDoors(true);
+    // Four times the pathfinder's node budget. A villager's follow range of 20
+    // caps a search at 320 nodes, under half a vanilla villager's, and that ran
+    // out on open ground before it found the way round a house to its door
+    // (the level-3 house at Wildflower Downs, door away from the village: its
+    // people stopped against the back wall). A search is made once per leg and
+    // throttled by the navigation, so this costs per path, not per tick.
+    this.getNavigation().setMaxVisitedNodesMultiplier(4.0F);
   }
 
   /**

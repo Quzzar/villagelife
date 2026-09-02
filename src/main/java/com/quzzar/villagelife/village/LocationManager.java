@@ -9,8 +9,15 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.buildings.Building;
+import com.quzzar.villagelife.village.buildings.BuildingUpgrade;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.DoorBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
@@ -145,6 +152,60 @@ public class LocationManager {
 
         Villagelife.LOGGER.debug("No container at location");
         return null;
+
+    }
+
+    /** A building's way in: the cell just outside its lowest door, and the box the building stands in. */
+    public record Entrance(BlockPos doorstep, BoundingBox bounds) {
+        public boolean contains(BlockPos pos) {
+            return bounds.isInside(pos);
+        }
+    }
+
+    /**
+     * Where to walk to get into a building: the cell just outside its lowest
+     * door. A path aimed straight at something indoors stalls against the
+     * nearest outside wall when the door is on the far side, because the
+     * pathfinder's budget runs out on the open ground before it finds the way
+     * round (the level-3 house at Wildflower Downs, whose door faced away from
+     * the village: everyone stopped under the upstairs chest, outside). From
+     * the doorstep the rest is a dozen nodes. Null when the building has no
+     * door, its footprint is unknown, or its chunks are not resident: this
+     * never pages a chunk in.
+     */
+    @Nullable
+    public static Entrance getEntrance(ServerLevel level, Building building){
+
+        BoundingBox local = BuildingUpgrade.footprintOf(level, building);
+        if(local == null){ return null; }
+        BlockPos origin = BlockPos.of(building.getOriginLocation());
+        BoundingBox bounds = local.moved(origin.getX(), origin.getY(), origin.getZ());
+        for(BlockPos corner : List.of(
+                new BlockPos(bounds.minX(), bounds.minY(), bounds.minZ()),
+                new BlockPos(bounds.maxX(), bounds.minY(), bounds.minZ()),
+                new BlockPos(bounds.minX(), bounds.minY(), bounds.maxZ()),
+                new BlockPos(bounds.maxX(), bounds.minY(), bounds.maxZ()))) {
+            if(!level.hasChunkAt(corner)){ return null; }
+        }
+
+        BlockPos door = null;
+        for(BlockPos pos : BlockPos.betweenClosed(bounds.minX(), bounds.minY(), bounds.minZ(),
+                bounds.maxX(), bounds.maxY(), bounds.maxZ())) {
+            BlockState state = level.getBlockState(pos);
+            if(state.getBlock() instanceof DoorBlock && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.LOWER
+                    && (door == null || pos.getY() < door.getY())){
+                door = pos.immutable();
+            }
+        }
+        if(door == null){ return null; }
+
+        // A door sits in a wall; of its two neighbours the one farther from the
+        // building's middle is the outside.
+        BlockPos centre = bounds.getCenter();
+        Direction facing = level.getBlockState(door).getValue(DoorBlock.FACING);
+        BlockPos front = door.relative(facing);
+        BlockPos back = door.relative(facing.getOpposite());
+        return new Entrance(front.distSqr(centre) >= back.distSqr(centre) ? front : back, bounds);
 
     }
 

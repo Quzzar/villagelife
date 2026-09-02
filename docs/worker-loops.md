@@ -86,6 +86,14 @@ The chat briefing tells a villager what their chest holds (when its chunk is in 
 they share it with, so they can speak to it. Watch for `keeps the ... for their chest at home`
 and `put N ... away in their chest at home` in the log.
 
+The walk home goes to the doorstep first when it starts outside (`LocationManager.getEntrance`,
+the cell outside the building's lowest door, read from the standing blocks), then to the chest.
+Aimed straight at a chest indoors it stalled against the back wall of a house whose door faced
+away from the village, night after night, because the search ran out of budget on the open
+ground before it found the way round, while a walk that began inside reached the same chest.
+Every villager's path search now also gets four times the default node budget (`Person`): a
+follow range of 20 allowed 320 nodes, under half a vanilla villager's.
+
 ## Three verbs
 
 A job is an **ordered array** of three verbs, any length, any order.

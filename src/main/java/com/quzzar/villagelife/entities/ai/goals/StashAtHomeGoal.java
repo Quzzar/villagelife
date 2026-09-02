@@ -7,9 +7,12 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.StashOffer;
 import com.quzzar.villagelife.entities.ai.goals.work.PackLogistics;
+import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.PersonalChest;
+import com.quzzar.villagelife.village.buildings.Building;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.Item;
@@ -21,17 +24,21 @@ import net.minecraft.world.phys.Vec3;
  * and sets them down in their own chest by hand. Runs ahead of
  * {@link SleepAtNightGoal}, which takes over the moment the pack is put away.
  *
+ * <p>Two legs when the walk starts outside: to the doorstep first, then to
+ * the chest ({@link LocationManager#getEntrance}). A path aimed straight at a
+ * chest indoors stalls against the nearest outside wall when the door is on
+ * the far side; the level-3 house at Wildflower Downs had its door away from
+ * the village and everyone stopped under the upstairs chest, outside, night
+ * after night, while a walk that began inside the house reached it. From the
+ * doorstep the rest is a dozen nodes.
+ *
  * <p>Bounded so a bad night cannot cost the village the goods, and bounded by
- * headway rather than by what the pathfinder says: its verdict on whether a
- * path reaches the chest proved worthless live, false from twenty blocks out
- * because that is a villager's search range, and false from inside the house
- * because a door, a turn and a staircase exhaust its node budget. So the
- * walk gets a larger budget for its duration, and a villager who has not
- * come closer to the chest for a stretch (stood at the foot of a ladder, or
- * found no way in) gives up, as does one still walking after a few minutes.
- * A chest that is gone or full gives up on arrival. In every case the items
- * stay in the pack and the next bedtime stow returns them to the stores as
- * before.
+ * headway rather than by what the pathfinder says, whose verdict on whether
+ * a path reaches proved worthless live: a villager who has not come closer
+ * to the leg's target for a stretch (stood at the foot of a ladder, or found
+ * no way in) gives up, as does one still walking after a few minutes. A chest
+ * that is gone or full gives up on arrival. In every case the items stay in
+ * the pack and the next bedtime stow returns them to the stores as before.
  */
 public class StashAtHomeGoal extends Goal {
 
@@ -42,17 +49,16 @@ public class StashAtHomeGoal extends Goal {
    * climb the stairs.
    */
   private static final int GIVE_UP_TICKS = 1800;
-  /** Goal ticks without coming closer to the chest before the walk counts as going nowhere (about 40 s). */
+  /** Goal ticks without coming closer to the target before the walk counts as going nowhere (about 40 s). */
   private static final int STALL_TICKS = 400;
   /** Closer by this much (blocks) counts as headway. */
   private static final double HEADWAY = 0.5D;
-  /** The pathfinder's node budget while walking home, over its usual one. */
-  private static final float PATH_BUDGET = 4.0F;
-  /** Close enough to reach into the chest, squared. */
+  /** Close enough to reach into the chest, or to count as standing on the doorstep, squared. */
   private static final double REACH_SQR = 6.25;
 
   private final RealPerson person;
   private BlockPos chest;
+  private BlockPos leg;
   private int ticks;
   private int stalledTicks;
   private double bestDistance;
@@ -95,24 +101,41 @@ public class StashAtHomeGoal extends Goal {
   @Override
   public void start() {
     this.ticks = 0;
-    this.stalledTicks = 0;
-    this.bestDistance = Double.MAX_VALUE;
-    person.getNavigation().setMaxVisitedNodesMultiplier(PATH_BUDGET);
-    walk();
+    this.leg = firstLeg();
+    aimAt(this.leg);
   }
 
-  @Override
-  public void stop() {
-    person.getNavigation().resetMaxVisitedNodesMultiplier();
+  /** The doorstep when the walk starts outside the home; the chest itself when it starts inside or the home has no door. */
+  private BlockPos firstLeg() {
+    Building home = PersonalChest.home(person);
+    if (home == null || !(person.level() instanceof ServerLevel level)) {
+      return this.chest;
+    }
+    LocationManager.Entrance entrance = LocationManager.getEntrance(level, home);
+    if (entrance == null || entrance.contains(person.blockPosition())) {
+      return this.chest;
+    }
+    return entrance.doorstep();
+  }
+
+  private void aimAt(BlockPos target) {
+    this.leg = target;
+    this.stalledTicks = 0;
+    this.bestDistance = Double.MAX_VALUE;
+    walk();
   }
 
   @Override
   public void tick() {
     this.ticks++;
-    double distance = person.position().distanceTo(Vec3.atCenterOf(this.chest));
+    double distance = person.position().distanceTo(Vec3.atCenterOf(this.leg));
     if (distance * distance <= REACH_SQR) {
-      person.getNavigation().stop();
-      putAway();
+      if (this.leg.equals(this.chest)) {
+        person.getNavigation().stop();
+        putAway();
+      } else {
+        aimAt(this.chest); // on the doorstep: the rest is indoors and short
+      }
       return;
     }
     if (distance < this.bestDistance - HEADWAY) {
@@ -122,8 +145,9 @@ public class StashAtHomeGoal extends Goal {
       this.stalledTicks++;
     }
     if (this.stalledTicks >= STALL_TICKS) {
-      Villagelife.LOGGER.info("'{}' made no headway toward their chest at home ({} blocks off); the {} stays in the pack",
-          person.getFullName(), Math.round(distance), StashOffer.names(person.keepingForHome()));
+      Villagelife.LOGGER.info("'{}' made no headway toward their chest at home ({} blocks off, {}); the {} stays in the pack",
+          person.getFullName(), Math.round(distance), this.leg.equals(this.chest) ? "indoors" : "on the way to the door",
+          StashOffer.names(person.keepingForHome()));
       person.doneKeeping();
       return;
     }
@@ -139,7 +163,7 @@ public class StashAtHomeGoal extends Goal {
   }
 
   private void walk() {
-    person.getNavigation().moveTo(this.chest.getX(), this.chest.getY(), this.chest.getZ(), 0.5D);
+    person.getNavigation().moveTo(this.leg.getX(), this.leg.getY(), this.leg.getZ(), 0.5D);
   }
 
   private void putAway() {
