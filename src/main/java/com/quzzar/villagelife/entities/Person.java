@@ -186,6 +186,15 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     ((GroundPathNavigation) this.getNavigation()).setCanOpenDoors(true);
   }
 
+  /**
+   * Walking that plans through closed fence gates as well as doors
+   * (GatePathNavigation); the opening itself is a goal on RealPerson.
+   */
+  @Override
+  protected net.minecraft.world.entity.ai.navigation.PathNavigation createNavigation(Level level) {
+    return new com.quzzar.villagelife.entities.ai.GatePathNavigation(this, level);
+  }
+
   public StatBlock getStatBlock() {
     return statBlock;
   }

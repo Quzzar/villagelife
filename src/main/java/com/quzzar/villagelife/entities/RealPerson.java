@@ -1690,6 +1690,9 @@ public class RealPerson extends Person {
         super.start();
       }
     });
+    // Fence gates too, since the route now runs through them
+    // (GatePathNavigation): opened on the bump, closed a second later.
+    this.goalSelector.addGoal(3, new com.quzzar.villagelife.entities.ai.goals.OpenFenceGateGoal(this));
 
     // The road: a wanderer with no village walks their heading until they pass
     // beyond the horizon. Below fleeing (5) so monsters still scatter them, and
