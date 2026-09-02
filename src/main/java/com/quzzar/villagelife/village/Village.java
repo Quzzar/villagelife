@@ -588,8 +588,11 @@ public class Village {
   }
 
   /**
-   * Where idle people gather: a standing spot BESIDE the lit campfire, or the
-   * village center as fallback (the fire may be broken or doused).
+   * Where idle people gather: a standing spot BESIDE the campfire's place. The
+   * place is the point, not the block (decided 2026-09-02): a fire that is
+   * doused or broken is still where the village meets, and the village re-lays
+   * it there anyway (placeCampfireIfMissing). Only a town center whose template
+   * names no gathering point falls back to the building's own centre block.
    *
    * Never the fire block itself. Everyone who gathers walks here, idles here,
    * and is snapped here when their travel times out, so returning the fire
@@ -598,10 +601,7 @@ public class Village {
   public BlockPos getGatheringPoint() {
     BlockPos fire = gatheringPointPos();
     if (fire != null && level != null) {
-      var state = level.getBlockState(fire);
-      if (state.is(Blocks.CAMPFIRE) && state.getValue(CampfireBlock.LIT)) {
-        return standingSpotBeside(fire);
-      }
+      return standingSpotBeside(fire);
     }
     Building townCenter = getTownCenter();
     return townCenter != null ? BlockPos.of(townCenter.getCenterLocation()) : BlockPos.ZERO;
