@@ -253,10 +253,12 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
     }
     List<ItemStack> haul = TreeFelling.fell(level, struck, person, person.getMainHandItem());
     stripSome(person, haul);
+    // Counted before the pack takes it: stacks that merge into ones already
+    // carried are emptied as they go in, and read as nothing afterwards.
+    int logs = haul.stream().mapToInt(ItemStack::getCount).sum();
     person.addItems(haul);
     Villagelife.LOGGER.debug("[resource-flow] {} ({}) felled a tree at {}: {} log(s) into the pack",
-        person.getName().getString(), person.getOccupation(), struck.toShortString(),
-        haul.stream().mapToInt(ItemStack::getCount).sum());
+        person.getName().getString(), person.getOccupation(), struck.toShortString(), logs);
   }
 
   /** A strippable log sometimes comes off already stripped. */

@@ -1230,7 +1230,16 @@ public class RealPerson extends Person {
       // because this is a fresh camp's only wood until it can afford a lodge: at
       // six blocks the guard found no tree at all, and a camp sat on its first
       // lodge goal for four hours, nine logs short the whole time.
-      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
+      //
+      // Level with strolling and visiting (5), and registered ahead of them: a
+      // goal only takes movement from one with a strictly higher number, so a
+      // pick already under way is walked out and cut rather than dropped for a
+      // stroll, while a stroll already under way still keeps a new pick from
+      // starting. At 8 the stroll roll, once every twelve seconds or so, threw
+      // away a third of the guard's rare picks between choosing a tree and
+      // reaching it, and the log showed the choice with neither a fell nor a
+      // miss after it.
+      this.goalSelector.addGoal(5, new WorkLoopGoal<>(this,
           new ChopStep(12, 0.05F, 200)));
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
@@ -1263,8 +1272,9 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new ChopStep()));
       // The planted stand above is the reliable job. This lower-priority pass
-      // also clears nearby woodland, more often and farther out than a guard.
-      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this,
+      // also clears nearby woodland, more often and farther out than a guard;
+      // level with strolling for the reason given at the guard's.
+      this.goalSelector.addGoal(5, new WorkLoopGoal<>(this,
           new ChopStep(12, 0.25F, 100)));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
