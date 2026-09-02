@@ -675,6 +675,15 @@ public class RealPerson extends Person {
       }
     }
     this.keepingForHome = Collections.unmodifiableSet(carried);
+    if (!this.keepingForHome.isEmpty() && this.isSleeping()) {
+      // The answer came after they had lain down. A sleeper at night is
+      // immobile (Person.isImmobile) and an immobile entity ticks no goals, so
+      // the walk home could only have started at dawn, and did, live: a
+      // lumberjack carried the day's planks to her chest the next morning. Up
+      // again for a minute: the stash goal outranks sleep and hands the bed
+      // back once the chest is done.
+      this.stopSleeping();
+    }
     if (this.getVillage() != null) {
       stowPackAndRestock();
     }

@@ -68,6 +68,12 @@ public class StashAtHomeGoal extends Goal {
     if (keeping.isEmpty()) {
       return false;
     }
+    if (!person.level().isNight()) {
+      // The night is over. Whatever was not put away is the stores' again at
+      // the next bedtime; nobody walks their keepsakes home by daylight.
+      person.doneKeeping();
+      return false;
+    }
     if (keeping.stream().noneMatch(item -> person.personMainInv.countItem(item) > 0)) {
       person.doneKeeping(); // already set down, or stowed by a refire
       return false;
@@ -82,7 +88,8 @@ public class StashAtHomeGoal extends Goal {
 
   @Override
   public boolean canContinueToUse() {
-    return !person.keepingForHome().isEmpty() && this.chest != null && this.ticks < GIVE_UP_TICKS;
+    return !person.keepingForHome().isEmpty() && this.chest != null && this.ticks < GIVE_UP_TICKS
+        && person.level().isNight();
   }
 
   @Override
