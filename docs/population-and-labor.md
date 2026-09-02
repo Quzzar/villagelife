@@ -246,7 +246,12 @@ A workplace building finishing construction registers its work stations as open
   mechanical aptitude optimization, and only the initial claim of a contested post is
   handed to the model.
 - The person walks from the campfire to the workplace, takes on the `Occupation` of the
-  station, and holds it until the job stops existing.
+  station, and holds it until the job stops existing. Taking the job is the one moment a
+  bare starting kit appears from nothing, and only into a bare hand: a stone axe, pickaxe or
+  hoe, or a plain bow (`RealPerson.issueStartingKit`, decided 2026-09-02). Nothing is conjured
+  after that; a tool given away or lost is replaced at bedtime from the stores or made from
+  real materials ([worker-loops.md](worker-loops.md), "Nothing is conjured after the starting
+  kit").
 - **Vacancy refills**: a worker dying or the building being removed puts the
   `JobAssignment` back in `unassignedJobs`, and the next idle person claims it. A building
   with no available worker just sits unstaffed until someone new arrives.
@@ -254,7 +259,9 @@ A workplace building finishing construction registers its work stations as open
   they return to the campfire pool and are immediately claimable by other open jobs.
 
 Guards and any future military work the same way: recruiting consumes an idle person.
-Equipment is not consumed at recruitment; gear is scavenged opportunistically afterwards.
+Equipment is not consumed at recruitment beyond that bare kit; better gear is drawn from the
+village's own stores at bedtime, and a lost tool is made from cobblestone and sticks, never
+conjured.
 An empty campfire means no recruiting, which is the natural brake on
 militarizing a starving village.
 

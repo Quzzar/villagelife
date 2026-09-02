@@ -60,6 +60,19 @@ a villager held back for themselves is theirs to work with, and the village's on
 sat in a miner's barrel at home while the next miner stood at a flooded shaft. Watch for
 `took N ... from their chest at home for tomorrow's work` in the log.
 
+**Nothing is conjured after the starting kit** (decided 2026-09-02). Taking a job is the one
+moment a tool appears from nothing: a stone axe, pickaxe or hoe, or a plain bow, into a bare hand
+only (`RealPerson.issueStartingKit`, from `JobClaiming.startJob`). It used to re-run on every
+state reload, which put a fresh stone axe over whatever a guard held on every chunk load, and the
+guard's bedtime pass refilled an empty hand with a new axe; a guard gave their axe away in
+conversation and had another five seconds later. Villagers may still give their tools away, that
+is their business. A hand bare at bedtime is filled the way a player would fill it
+(`entities/JobTool`): the best tool of the job's kind the stores can spare, else one made from what
+the stores hold (cobblestone and sticks for a stone tool, sticks and string for a bow, sticks split
+from planks and planks from a log with the spare planks put back), else the shortage is logged and
+the worker turns out bare-handed, which their chat briefing shows. Watch for `made a stone pickaxe
+from ...` and `has no stone axe and the stores hold nothing to make one from`.
+
 ### A chest of their own
 
 Built 2026-09-01. A house's chest is not village storage: a building definition lists it under
@@ -497,7 +510,8 @@ in a forest starts with claimed ground full of them, and the canopy test is what
 from a building. So a wild tree overhanging a roof drops its own wood and spares the building's.
 
 The guard carries a stone axe rather than a stone sword, keeping the apple ration in the other
-hand, and upgrades through the village's axe supply at bedtime.
+hand, and upgrades through the village's axe supply at bedtime; an axe given away or lost is
+replaced from that supply or made from cobblestone and sticks, never conjured (`JobTool`).
 
 ## When there is nothing to work on
 

@@ -623,9 +623,14 @@ public class RealPerson extends Person {
     return Utils.capitalize(getOccupation().name().toLowerCase());
   }
 
+  /**
+   * Re-registers the goals for the occupation as it now stands. The hands are
+   * not touched: the starting kit is issued once, when a job is first taken
+   * ({@link #issueStartingKit}). A state reload used to re-run it, which handed
+   * every guard and lumberjack a fresh stone axe on every chunk load, over
+   * whatever they held, and refilled a hand that had just given its axe away.
+   */
   public void reloadState() {
-    this.temp_setDefaultEquipment();
-
     // Reregister Goals
     this.goalSelector.removeAllGoals((goal) -> true);
     this.registerGoals();
@@ -761,30 +766,29 @@ public class RealPerson extends Person {
     }
     this.addItems(kept);
 
-    // Grab replacement gear if not holding any
+    // Re-gear for the job, from real stock only. The guard's axe is both a
+    // serviceable weapon and their quiet daytime work tool; saved guards from
+    // before that rule may still carry swords, returned to the village before
+    // the axe track. Then the best tool of the job's kind the village can spare
+    // (armour too, for guards), and a tool still missing after that is made from
+    // cobblestone and sticks out of the stores, or its absence logged
+    // (JobTool.replace). Nothing is conjured here: a guard once gave their axe
+    // away in conversation and had a new one in hand five seconds later.
     if (getOccupation() == Occupation.GUARD) {
-
-      // The guard's axe is both a serviceable weapon and their quiet daytime
-      // work tool. Saved guards from before this rule may still carry swords;
-      // return those to the village before entering the axe upgrade track.
       ItemStack held = this.getItemBySlot(EquipmentSlot.MAINHAND);
       if (!held.isEmpty() && !(held.getItem() instanceof AxeItem)) {
         this.getVillage().placeItemStackIntoVillage(held, this, depositToLoc);
         this.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
       }
-      // Take the best axe and armour the village can spare.
-      equipBestPossibleGear(AxeItem.class, null, true, depositToLoc);
-      if (this.getItemBySlot(EquipmentSlot.MAINHAND).isEmpty()) {
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
-      }
-
+    }
+    JobTool tool = JobTool.of(getOccupation());
+    equipBestPossibleGear(tool == null ? null : tool.kind(), null,
+        getOccupation() == Occupation.GUARD, depositToLoc);
+    if (tool != null && !tool.inHand(this)) {
+      JobTool.replace(this, tool, depositToLoc);
+    }
+    if (getOccupation() == Occupation.GUARD) {
       restockRations(depositToLoc);
-
-    } else {
-
-      // Will attempt to equip with upgraded main & offhand item
-      equipBestPossibleGear(null, null, false, depositToLoc);
-
     }
 
     // Take 1 sponge if builder or miner // TODO, change to if needed
@@ -845,7 +849,7 @@ public class RealPerson extends Person {
    * flooded shaft while it sat in the barrel. Returns the want with the count
    * actually found, possibly zero, like the village gather it wraps.
    */
-  private ItemStack gatherForWork(ItemStack want, BlockPos depositToLoc) {
+  public ItemStack gatherForWork(ItemStack want, BlockPos depositToLoc) {
     ItemStack fromHome = takeFromHomeChest(want);
     int short_ = want.getCount() - fromHome.getCount();
     if (short_ <= 0) {
@@ -1135,61 +1139,78 @@ public class RealPerson extends Person {
         // food is never conjured. The first bedtime restock draws apples from
         // the village stores, and a village with none logs the shortage rather
         // than inventing a meal.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         break;
       case LUMBERJACK:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         break;
       case BLACKSMITH:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_INGOT));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_INGOT));
         break;
       case BUILDER:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.CRAFTING_TABLE));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.CRAFTING_TABLE));
         break;
       case CLERIC:
         ItemStack healingPotion = new ItemStack(Items.POTION);
         healingPotion.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.HEALING));
-        this.setItemSlot(EquipmentSlot.OFFHAND, healingPotion);
+        kitIfEmpty(EquipmentSlot.OFFHAND, healingPotion);
         ItemStack regenPotion = new ItemStack(Items.SPLASH_POTION);
         regenPotion.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.REGENERATION));
-        this.setItemSlot(EquipmentSlot.MAINHAND, regenPotion);
+        kitIfEmpty(EquipmentSlot.MAINHAND, regenPotion);
         break;
       case FARMER:
         // A basic hoe, like the lumberjack's stone axe and miner's stone
         // pickaxe: kept basic until the village can make better. An iron hoe is
         // the blacksmith's to forge later (BlacksmithStep), not a starting tool
         // that fakes iron the village has not yet mined.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_HOE));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_HOE));
         break;
       case LEADER:
-        this.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
+        kitIfEmpty(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
         break;
       case LIBRARIAN:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
         break;
       case HUNTER:
-        // A plain bow, like the guard's stone sword: enough to work with until
+        // A plain bow, like the guard's stone axe: enough to work with until
         // the bedtime gear pass finds better. No arrows come with it - the
         // plain fallback is conjured per shot (Person.getProjectile), and only
-        // special arrows someone hands them are real. HuntStep re-grants this
-        // if the bow ever wears out mid-career.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        // special arrows someone hands them are real. A bow that wears out is
+        // replaced at bedtime from stores or made from sticks and string
+        // (JobTool), never re-granted.
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         break;
       case MINER:
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
       case QUARTERMASTER:
         // The quartermaster keeps the village's stores; a writable book reads as
         // the ledger they are forever taking count in.
-        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
+        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
         break;
       default:
         break;
     }
   }
 
-  public void temp_setDefaultEquipment() {
+  /**
+   * The bare starting kit, issued once, when a job is first taken
+   * (JobClaiming.startJob): a stone tool for the trades that work with one, a
+   * token of the trade for the rest. Only bare slots are filled, so a villager
+   * still carrying the pickaxe from an earlier posting keeps it rather than
+   * getting a second. After this nothing is conjured: a tool given away, lost or
+   * worn out is replaced at bedtime from the village stores or made from real
+   * materials, and a village with neither logs the shortage (JobTool).
+   */
+  public void issueStartingKit() {
     this.populateDefaultEquipmentSlots(this.random, null);
+  }
+
+  /** A starting-kit slot: filled only when bare, so nothing already held is replaced. */
+  private void kitIfEmpty(EquipmentSlot slot, ItemStack stack) {
+    if (this.getItemBySlot(slot).isEmpty()) {
+      this.setItemSlot(slot, stack);
+    }
   }
 
   protected void setFavoriteItems(Map<String, Double> favoriteItems) {

@@ -8,11 +8,8 @@ import com.quzzar.villagelife.village.LocationManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.item.BowItem;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -59,7 +56,6 @@ public final class HuntStep implements WorkStep<Animal> {
   @Override
   @Nullable
   public Animal select(RealPerson person) {
-    ensureBow(person);
     BlockPos lodge = LocationManager.getJobLocation(person);
     if (lodge == BlockPos.ZERO) {
       return null;
@@ -101,7 +97,8 @@ public final class HuntStep implements WorkStep<Animal> {
     person.getLookControl().setLookAt(target, 30.0F, 30.0F);
     if (!(person.getMainHandItem().getItem() instanceof BowItem)) {
       // Mid-meal, or the bow is simply gone: the spear-thrust keeps the larder
-      // filling until ensureBow re-arms them on the next scan.
+      // filling until the bedtime gear pass finds or makes another (JobTool).
+      // Nothing re-arms them here; a bow is never conjured mid-career.
       person.doHurtTarget(target);
       return target.isAlive();
     }
@@ -157,18 +154,6 @@ public final class HuntStep implements WorkStep<Animal> {
     if (drawn) {
       person.stopUsingItem();
       drawn = false;
-    }
-  }
-
-  /**
-   * The baseline bow, re-granted whenever the main hand is empty: the same
-   * conjured basic tool every job starts with (populateDefaultEquipmentSlots),
-   * issued here as well so a hunter who wore one out, or who predates the
-   * HUNTER case, is never reduced to fists for good.
-   */
-  private static void ensureBow(RealPerson person) {
-    if (person.getMainHandItem().isEmpty() && !person.isEating()) {
-      person.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
     }
   }
 

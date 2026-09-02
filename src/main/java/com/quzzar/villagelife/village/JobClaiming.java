@@ -483,9 +483,15 @@ public final class JobClaiming {
         job.getOccupation(), String.format("%.1f", score));
   }
 
-  /** Occupation, visible commute to the workplace, goal refresh. */
+  /**
+   * Occupation, the bare starting kit, visible commute to the workplace, goal
+   * refresh. The kit is issued here and nowhere else: taking a job is the one
+   * moment a tool appears from nothing, and only into a bare hand
+   * ({@link RealPerson#issueStartingKit}).
+   */
   private static void startJob(Village village, RealPerson person, JobAssignment job) {
     person.setOccupation(job.getOccupation());
+    person.issueStartingKit();
     Building workplace = village.getBuilding(job.getBuildingUUID());
     if (workplace != null) {
       person.setTravelTarget(BlockPos.of(workplace.getCenterLocation()));
