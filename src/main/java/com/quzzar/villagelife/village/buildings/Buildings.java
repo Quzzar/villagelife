@@ -93,7 +93,9 @@ public class Buildings {
   private static void warnOnDivergentRecipes() {
     Map<String, BuildingInfo> firstSeen = new HashMap<>();
     for (BuildingInfo info : registry.values()) {
-      if (!info.hasWellFormedId()) {
+      // Only real families are held to the rule: a dev-only stand-in such as the
+      // placeholder market is its own thing, not a mispriced variant.
+      if (!info.hasWellFormedId() || VillageStyle.parse(info.getVariant()) == null) {
         continue;
       }
       String key = info.getCategory() + "_" + info.getLevel();
