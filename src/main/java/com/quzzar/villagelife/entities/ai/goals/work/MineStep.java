@@ -446,20 +446,35 @@ public final class MineStep implements BlockWorkStep {
 
   /**
    * True when the ore (a cell in the mine's frame) shows an open face INTO the
-   * shaft: a neighbour that is air and lies inside the corridor, or is a hole the
-   * miner opened pulling this vein. Ore open only to a cave beyond the wall is
-   * left where it is; walking out to that is a prospector's job, not this one's.
+   * shaft: a neighbour that is air and lies on the dug ramp itself, or is a hole
+   * the miner opened pulling this vein. Ore open only to a cave, beyond the wall
+   * or under the floor, is left where it is; walking out to that is a
+   * prospector's job, not this one's. (The corridor test alone is not enough:
+   * it spans the whole prism below the mouth, so ore beside a cave pocket three
+   * blocks under the ramp floor read as shaft ore, and the miner shuttled after
+   * a footing she could never reach until the stranded rule sent her home.)
    */
   private boolean opensIntoShaft(Level level, BlockPos mouth, Rotation rotation, BlockPos cell) {
     for (Direction d : Direction.values()) {
       BlockPos neighbour = cell.relative(d);
       BlockPos world = mouth.offset(neighbour.rotate(rotation));
-      if ((withinCorridor(neighbour) || this.veinToSeal.contains(world))
+      if ((onRamp(neighbour) || this.veinToSeal.contains(world))
           && level.getBlockState(world).isAir()) {
         return true;
       }
     }
     return false;
+  }
+
+  /**
+   * Whether a local cell is one the sweep digs: inside the corridor and within
+   * the five-cell span a column is dug to, from {@code -(z - 2)} at the ceiling
+   * down to {@code -(z + 2)} at the floor (see {@link #columnBottom}).
+   */
+  private boolean onRamp(BlockPos local) {
+    return withinCorridor(local)
+        && local.getY() >= -(local.getZ() + 2)
+        && local.getY() <= -(local.getZ() - 2);
   }
 
   /** Whether the miner's held tool would actually drop {@code pos}, not shatter it for nothing. */
