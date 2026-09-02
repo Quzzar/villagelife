@@ -32,6 +32,17 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 @EventBusSubscriber(modid = Villagelife.MODID)
 public class VillagelifeCommands {
 
+  /**
+   * Tab completion for every argument that names a building: the loaded
+   * definitions, in order, so a dev can spawn or start any building without
+   * remembering its exact name (Aaron). Read at completion time, so a datapack
+   * reload is reflected at once.
+   */
+  private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> BUILDING_NAMES =
+      (ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+          com.quzzar.villagelife.village.buildings.Buildings.allBuildings().keySet().stream().sorted(), builder);
+
+
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
@@ -81,6 +92,7 @@ public class VillagelifeCommands {
                                                 BlockPosArgument.getBlockPos(ctx, "pos")))))
                         .then(Commands.literal("place")
                                 .then(Commands.argument("building", StringArgumentType.word())
+                                        .suggests(BUILDING_NAMES)
                                         .executes(ctx -> placeBuilding(ctx.getSource(),
                                                 BlockPos.containing(ctx.getSource().getPosition()),
                                                 StringArgumentType.getString(ctx, "building")))
@@ -103,6 +115,7 @@ public class VillagelifeCommands {
                                                 BlockPosArgument.getLoadedBlockPos(ctx, "pos")))))
                         .then(Commands.literal("start-project")
                                 .then(Commands.argument("building", StringArgumentType.word())
+                                        .suggests(BUILDING_NAMES)
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                                 .executes(ctx -> startProject(ctx.getSource(),
                                                         BlockPosArgument.getLoadedBlockPos(ctx, "pos"),
