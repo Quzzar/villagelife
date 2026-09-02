@@ -1,6 +1,7 @@
 package com.quzzar.villagelife.entities;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nullable;
@@ -22,8 +23,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.PickaxeItem;
-
-import net.neoforged.neoforge.common.Tags;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.TieredItem;
 
 /**
  * The tool a trade works with, and how a lost one is made again.
@@ -34,15 +35,23 @@ import net.neoforged.neoforge.common.Tags;
  * bare at bedtime is filled the way a player would fill it. First the best tool
  * of the kind the village stores can spare (the ordinary gear pass), then one
  * made from what the stores hold, in the fundamentals the recipes are written
- * in: three cobblestone for an axe or a pickaxe, two for a hoe, two planks for
- * a bow. Sticks and string are waived (Aaron, 2026-09-02: "a pickaxe is just
- * three cobblestone", "a bow is two planks"), the way the recipes waive the saw
- * between logs and planks, and a log pays for planks at the recipes' own rate
- * of four with the rounding lost ({@code Materials}). The stone is any
- * cobblestone kind the mine yields, the planks any wood; both come out of a
- * real chest and go back if the rest is short. A village with neither the tool
- * nor the materials logs the shortage, and the worker turns out tomorrow
- * bare-handed, which the chat briefing shows, so they can ask.
+ * in: the head alone, three pieces for an axe or a pickaxe, two for a hoe, two
+ * planks for a bow. Sticks and string are waived (Aaron, 2026-09-02: "a pickaxe
+ * is just three cobblestone", "a bow is two planks"), the way the recipes waive
+ * the saw between logs and planks, and a log pays for planks at the recipes'
+ * own rate of four with the rounding lost ({@code Materials}).
+ *
+ * <p>The best the stores allow, not the least, and every tier alike: the
+ * candidates are every registered tool of the kind, vanilla or modded, best
+ * tier first, and each one's head material is what its tier repairs with, read
+ * off the tier rather than written here. Stone is any cobblestone kind the mine
+ * yields, iron three ingots, diamond three diamonds, a modded copper pickaxe
+ * three of whatever its author repairs it with; a miner whose iron pickaxe wore
+ * out gets iron back when the village has it and stone when it does not.
+ * Everything comes out of a real chest and goes back if the rest is short. A
+ * village with neither the tool nor the materials for any tier logs the
+ * shortage, and the worker turns out tomorrow bare-handed, which the chat
+ * briefing shows, so they can ask.
  */
 public enum JobTool {
 
@@ -55,14 +64,16 @@ public enum JobTool {
   private static final int PLANKS_PER_LOG = 4;
 
   private final Class<? extends Item> kind;
+  /** The plain tool of the kind: the shortage is logged in its name, and an untiered kind makes only it. */
   private final Item basic;
-  private final int stone;
+  /** Head pieces a tool of this kind takes, of whatever its tier is made of. */
+  private final int head;
   private final int planks;
 
-  JobTool(Class<? extends Item> kind, Item basic, int stone, int planks) {
+  JobTool(Class<? extends Item> kind, Item basic, int head, int planks) {
     this.kind = kind;
     this.basic = basic;
-    this.stone = stone;
+    this.head = head;
     this.planks = planks;
   }
 
@@ -89,18 +100,19 @@ public enum JobTool {
   }
 
   /**
-   * Make the basic tool for a bare-handed worker out of the village's stock and
-   * put it in their hand, or log the shortage. Everything gathered goes back to
-   * the stores when the rest is short.
+   * Make a tool for a bare-handed worker out of the village's stock and put it
+   * in their hand, the best tier the stores have the makings of, or log the
+   * shortage.
    */
   public static void replace(RealPerson person, JobTool tool, @Nullable BlockPos depositToLoc) {
-    List<ItemStack> taken = new ArrayList<>();
-    boolean made = tool.gatherPlanks(person, depositToLoc, taken)
-        && gatherAnyOf(person, Tags.Items.COBBLESTONES, tool.stone, depositToLoc, taken) == tool.stone;
-    if (!made) {
-      for (ItemStack part : taken) {
-        person.getVillage().placeItemStackIntoVillage(part, person, depositToLoc);
+    ItemStack made = ItemStack.EMPTY;
+    for (Item candidate : tool.candidatesBestFirst()) {
+      made = tool.make(person, depositToLoc, candidate, headMaterialsOf(candidate));
+      if (!made.isEmpty()) {
+        break;
       }
+    }
+    if (made.isEmpty()) {
       person.getVillage().logEvent(new NoResourceBookkeepingEvent(tool.basic, 1));
       person.logIssue("I have no " + plain(tool.basic) + " to work with and nothing to make one from",
           java.util.Optional.empty());
@@ -108,9 +120,63 @@ public enum JobTool {
           person.getFullName(), plain(tool.basic));
       return;
     }
-    person.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(tool.basic));
+    person.setItemSlot(EquipmentSlot.MAINHAND, made);
+  }
+
+  /**
+   * Every registered tool of this kind whose tier says what it is made of,
+   * best tier first: faster to dig with, then longer-lived. An untiered kind
+   * (the bow) offers only its plain item.
+   */
+  private List<Item> candidatesBestFirst() {
+    List<Item> out = new ArrayList<>();
+    for (Item item : BuiltInRegistries.ITEM) {
+      if (this.kind.isInstance(item) && !headMaterialsOf(item).isEmpty()) {
+        out.add(item);
+      }
+    }
+    out.sort(Comparator.comparingDouble((Item item) -> (double) tierOf(item).getSpeed())
+        .thenComparingInt(item -> tierOf(item).getUses())
+        .reversed());
+    if (out.isEmpty()) {
+      out.add(this.basic);
+    }
+    return out;
+  }
+
+  private static Tier tierOf(Item item) {
+    return ((TieredItem) item).getTier();
+  }
+
+  /** What a tool's tier is made of, as its repair ingredient says; empty for an untiered item. */
+  private static List<Item> headMaterialsOf(Item item) {
+    List<Item> out = new ArrayList<>();
+    if (item instanceof TieredItem tiered) {
+      for (ItemStack stack : tiered.getTier().getRepairIngredient().getItems()) {
+        out.add(stack.getItem());
+      }
+    }
+    return out;
+  }
+
+  /**
+   * One attempt at {@code product}: the planks a bow wants, then the head pieces
+   * out of any of {@code headMaterials}. Everything gathered goes back to the
+   * stores when any part is short, and EMPTY comes back.
+   */
+  private ItemStack make(RealPerson person, @Nullable BlockPos near, Item product, List<Item> headMaterials) {
+    List<ItemStack> taken = new ArrayList<>();
+    boolean whole = gatherPlanks(person, near, taken)
+        && gatherAny(person, headMaterials, this.head, near, taken) == this.head;
+    if (!whole) {
+      for (ItemStack part : taken) {
+        person.getVillage().placeItemStackIntoVillage(part, person, near);
+      }
+      return ItemStack.EMPTY;
+    }
     Villagelife.LOGGER.info("'{}' made a {} from {} for tomorrow's work", person.getFullName(),
-        plain(tool.basic), describe(taken));
+        plain(product), describe(taken));
+    return new ItemStack(product);
   }
 
   /**
@@ -133,12 +199,22 @@ public enum JobTool {
   /** Up to {@code count} of any item in the tag, out of the home chest and stores; how many came. */
   private static int gatherAnyOf(RealPerson person, TagKey<Item> tag, int count, @Nullable BlockPos near,
       List<ItemStack> taken) {
-    int left = count;
+    List<Item> items = new ArrayList<>();
     for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(tag)) {
+      items.add(holder.value());
+    }
+    return gatherAny(person, items, count, near, taken);
+  }
+
+  /** Up to {@code count} of any of the items, out of the home chest and stores; how many came. */
+  private static int gatherAny(RealPerson person, List<Item> items, int count, @Nullable BlockPos near,
+      List<ItemStack> taken) {
+    int left = count;
+    for (Item item : items) {
       if (left <= 0) {
         break;
       }
-      ItemStack got = person.gatherForWork(new ItemStack(holder.value(), left), near);
+      ItemStack got = person.gatherForWork(new ItemStack(item, left), near);
       if (!got.isEmpty()) {
         taken.add(got);
         left -= got.getCount();

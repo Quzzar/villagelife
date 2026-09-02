@@ -70,9 +70,13 @@ is their business. A hand bare at bedtime is filled the way a player would fill 
 (`entities/JobTool`): the best tool of the job's kind the stores can spare, else one made from what
 the stores hold, in the fundamentals the recipes are written in: three cobblestone for an axe or
 pickaxe, two for a hoe, two planks of any wood for a bow, a log standing in for four planks with
-the rounding lost. Sticks and string are waived, "a pickaxe is just three cobblestone", "a bow is
-two planks", the way the saw is waived between logs and planks. Else the shortage is logged and
-the worker turns out bare-handed, which their chat
+the rounding lost, and the best tier the stores have the makings of before the least: the
+candidates are every registered tool of the kind, vanilla or modded, best tier first, and each
+one's head material is what its tier repairs with (stone is any cobblestone kind, iron three
+ingots, diamond three diamonds, a modded copper pickaxe three of whatever its author repairs it
+with), so nothing about tiers is written into the mod. Sticks and string are waived, "a pickaxe
+is just three cobblestone", "a bow is two planks", the way the saw is waived between logs and
+planks. Else the shortage is logged and the worker turns out bare-handed, which their chat
 briefing shows. Watch for `made a stone pickaxe from ...` and `has no stone axe and the stores hold
 nothing to make one from`.
 
