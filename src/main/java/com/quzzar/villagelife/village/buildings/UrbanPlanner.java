@@ -372,8 +372,7 @@ public class UrbanPlanner {
             .append(report.homelessCount() == 1 ? " person has" : " people have")
             .append(" nowhere to sleep. ");
       } else if (report.freeBeds() == 0) {
-        situation.append("Every bed is taken, so no one new can move in and no empty post can be "
-            + "staffed until more beds are built. ");
+        situation.append("Every bed is taken, so no one new can move in. ");
       } else {
         situation.append(report.freeBeds())
             .append(report.freeBeds() == 1 ? " bed stands free. " : " beds stand free. ");
@@ -383,6 +382,7 @@ public class UrbanPlanner {
       situation.append("No building grows or gathers food yet. ");
     }
     appendWoodShortage(village, situation);
+    appendHousingShortage(village, situation);
     appendRequests(village, situation);
     appendWorkplaceTrouble(village, situation);
     // A stalled goal is stated as a fact, so the brain knows why a building it
@@ -429,6 +429,24 @@ public class UrbanPlanner {
     situation.append("You have no way to make logs of your own, and nearly everything you could "
         + "build needs logs. A lumberjack turns stone into logs, so raising one is the way out of "
         + "this shortage. ");
+  }
+
+  /**
+   * Housing is a resource the way logs are. When every bed is full and work stands
+   * open, that work cannot be taken, because a villager needs a bed before they can
+   * hold a post: the empty farm is waiting on a house, not on another farm. Stated
+   * as a fact with its answer, so the model does not read "a job nobody has taken"
+   * and "someone has nowhere to sleep" as two unrelated troubles. Silent while a
+   * bed stands free or no post is going unfilled.
+   */
+  private static void appendHousingShortage(Village village, StringBuilder situation) {
+    VillageAttractiveness report = village.getAttractiveness();
+    if (report == null || report.freeBeds() > 0 || village.claimableJobs().isEmpty()) {
+      return;
+    }
+    situation.append("Work stands open that no one can take, because every bed is full and a "
+        + "villager needs somewhere to sleep before they can hold a post. A house adds the beds "
+        + "that let those posts be filled. ");
   }
 
   /**
