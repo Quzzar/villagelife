@@ -548,10 +548,18 @@ its chests, and the model is asked to assign every slot to one category and ever
 category. It does the slot arithmetic itself; a deterministic validator then checks the
 partition (every slot covered once, no gaps, no overlaps, every item placed) and, when it does
 not hold, hands the errors back. The quartermaster and the village brain alternate turns
-correcting it, up to six rounds. The first partition that validates wins; if none does, the
-shelves keep the order they had, never a corrupted one. Membership is a frozen item-id map (the
-model placed each item by hand), so tidy-time resolution is an exact lookup, and an item the
-plan never saw spills to a free slot and waits for the next re-plan.
+correcting it, up to six rounds. The first partition that validates wins. The rounds are for
+the grouping, though, not the sums: once every item sits in exactly one group, a partition
+whose slot numbers still overlap or leave gaps is not sent back again; the shelves are laid
+out from those groups by count (each group a contiguous run sized to the stacks it holds, the
+spare slots shared out in proportion), because arithmetic is bookkeeping, not a decision, and
+Llama-3.2-3B got it wrong six rounds running on a real 81-slot storehouse. Out of rounds with
+the grouping still incomplete, the last grouping given is laid out the same way, with the goods
+it never named on an "Odds and ends" shelf. Only a run that never parsed a single group ends
+with no plan, and then the shelves keep the order they had, never a corrupted one. Membership
+is a frozen item-id map (the model placed each item by hand), so tidy-time resolution is an
+exact lookup, and an item the plan never saw spills to a free slot and waits for the next
+re-plan.
 
 Design decided over chat: fully generative categories, a two-role brain/quartermaster dialogue,
 rebuilt on the first storehouse and when new items pile up. The trigger lives in the tidy pass.

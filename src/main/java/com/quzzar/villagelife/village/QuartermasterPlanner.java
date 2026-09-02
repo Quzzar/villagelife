@@ -34,9 +34,18 @@ import net.minecraft.world.item.Item;
  *
  * <p>The model does the slot arithmetic itself (the design's deliberate choice),
  * which a small model gets wrong; the validator is what makes that safe, since a
- * plan that loses or double-books a slot can never be applied, only sent back for
- * another try. Nothing here blocks a tick: every round rides the background
- * persona lane, and the future completes off the game thread.
+ * plan that loses or double-books a slot can never be applied. What the rounds
+ * are for is the grouping: which goods belong together, and under what name,
+ * is the model's call. Once every item sits in exactly one group, a partition
+ * whose slot sums still do not add up is not sent back again; the shelves are
+ * laid out from those groups by count instead ({@link #layoutByCount}), because
+ * arithmetic is bookkeeping, not a decision, and Llama-3.2-3B failed it six
+ * rounds running on a real 81-slot storehouse (2026-09-01). Out of rounds with
+ * the grouping still incomplete, the last grouping given is laid out the same
+ * way, with the goods it never named on an "Odds and ends" shelf. Only a run
+ * that never parsed a single group ends with no plan. Nothing here blocks a
+ * tick: every round rides the background persona lane, and the future completes
+ * off the game thread.
  */
 public final class QuartermasterPlanner {
 
@@ -62,9 +71,12 @@ public final class QuartermasterPlanner {
   private record RawCategory(String name, List<Integer> itemNumbers, int slotStart, int slotEnd) {
   }
 
+  /** The shelf for goods the model's grouping never named, when the shelves are laid out by count. */
+  private static final String ODDS_AND_ENDS = "Odds and ends";
+
   /** The fixed facts of one planning run, handed to every round. */
-  private record Context(RealPerson quartermaster, List<Item> items, int totalSlots,
-      String numbered, String layout, String who, String village) {
+  private record Context(RealPerson quartermaster, List<Item> items, Map<Item, Integer> counts,
+      int totalSlots, String numbered, String layout, String who, String village) {
   }
 
   private QuartermasterPlanner() {
@@ -95,24 +107,29 @@ public final class QuartermasterPlanner {
       items = new ArrayList<>(items.subList(0, MAX_ITEMS_SHOWN));
     }
 
-    Context context = new Context(quartermaster, items, totalSlots,
+    Context context = new Context(quartermaster, items, snapshot, totalSlots,
         numberedList(items, snapshot), layout(containers), quartermaster.getFullName(),
         quartermaster.getVillageName());
     Villagelife.LOGGER.info("[quartermaster] {} sits down to shelve {} slots across {} item types",
         context.who(), totalSlots, items.size());
-    return converge(context, 0, "", List.of());
+    return converge(context, 0, List.of(), List.of());
   }
 
-  /** One round of the dialogue, then recursion until valid or out of rounds. */
+  /**
+   * One round of the dialogue, then recursion until the grouping holds or the
+   * rounds run out. {@code prior} is the last proposal that parsed at all, so a
+   * correcting turn always sees a real attempt rather than a blank.
+   */
   private static CompletableFuture<Optional<Outcome>> converge(Context context, int round,
-      String priorRender, List<String> priorErrors) {
+      List<RawCategory> prior, List<String> priorErrors) {
     boolean brainSpeaks = round % 2 == 1;
     String system = brainSpeaks
         ? "You are the shared good sense of " + context.village()
             + ", working with your quartermaster " + context.who() + " to shelve the storehouse."
         : "You are " + context.who() + ", quartermaster of " + context.village()
             + ". You keep the storehouse and decide which slots hold what.";
-    String user = round == 0 ? openingPrompt(context) : fixPrompt(context, priorRender, priorErrors);
+    String user = round == 0 ? openingPrompt(context)
+        : fixPrompt(context, render(prior, context.items()), priorErrors);
 
     String purpose = context.who() + " shelves the storehouse, round " + round;
     return LlmService.get().submitPersona(purpose, system, user, PLAN_MAX_TOKENS, TEMPERATURE).thenCompose(reply -> {
@@ -128,13 +145,120 @@ public final class QuartermasterPlanner {
             context.who(), round + 1);
         return CompletableFuture.completedFuture(Optional.of(build(context, proposal, raw)));
       }
-      if (round + 1 >= MAX_ROUNDS) {
-        Villagelife.LOGGER.info("[quartermaster] {} could not settle a valid plan in {} rounds",
-            context.who(), MAX_ROUNDS);
-        return CompletableFuture.completedFuture(Optional.empty());
+      if (!proposal.isEmpty() && everyItemPlacedOnce(proposal, context.items().size())) {
+        // The grouping is complete; only the slot sums are off. That part is
+        // arithmetic, and arithmetic does not get more rounds.
+        Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
+            + "the slot sums did not add up, so the shelves are laid out by count",
+            context.who(), round + 1);
+        return CompletableFuture.completedFuture(Optional.of(layoutByCount(context, proposal, raw)));
       }
-      return converge(context, round + 1, render(proposal, context.items()), errors);
+      List<RawCategory> latest = proposal.isEmpty() ? prior : proposal;
+      if (round + 1 >= MAX_ROUNDS) {
+        if (latest.isEmpty()) {
+          Villagelife.LOGGER.info("[quartermaster] {} never gave a readable grouping in {} rounds",
+              context.who(), MAX_ROUNDS);
+          return CompletableFuture.completedFuture(Optional.empty());
+        }
+        Villagelife.LOGGER.info("[quartermaster] {} could not finish the grouping in {} rounds; "
+            + "keeping the groups given and laying the shelves out by count",
+            context.who(), MAX_ROUNDS);
+        return CompletableFuture.completedFuture(Optional.of(layoutByCount(context, latest, raw)));
+      }
+      return converge(context, round + 1, latest, errors);
     });
+  }
+
+  /** Whether every numbered item sits in exactly one group: the grouping is done, whatever the slots say. */
+  private static boolean everyItemPlacedOnce(List<RawCategory> groups, int itemCount) {
+    int[] seen = new int[itemCount + 1];
+    for (RawCategory group : groups) {
+      for (int number : group.itemNumbers()) {
+        if (number >= 1 && number <= itemCount) {
+          seen[number]++;
+        }
+      }
+    }
+    for (int number = 1; number <= itemCount; number++) {
+      if (seen[number] != 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Lays the model's groups out across the shelves by arithmetic. Each group, in
+   * the order given, gets a contiguous run sized to the stacks its goods make
+   * today, and the spare slots are shared out in proportion so the fuller
+   * shelves get the more headroom. An item claimed twice stays with the first
+   * group to name it; goods no group named go to a trailing "Odds and ends"
+   * shelf, so the plan accounts for everything on the shelves and is not redrawn
+   * tomorrow for the same goods. Every slot is covered exactly once.
+   */
+  private static Outcome layoutByCount(Context context, List<RawCategory> groups, String raw) {
+    List<String> names = new ArrayList<>();
+    List<List<Item>> members = new ArrayList<>();
+    boolean[] placed = new boolean[context.items().size()];
+    for (RawCategory group : groups) {
+      List<Item> held = new ArrayList<>();
+      for (int number : group.itemNumbers()) {
+        if (number >= 1 && number <= placed.length && !placed[number - 1]) {
+          placed[number - 1] = true;
+          held.add(context.items().get(number - 1));
+        }
+      }
+      if (!held.isEmpty()) {
+        names.add(cleanName(group.name(), names.size()));
+        members.add(held);
+      }
+    }
+    List<Item> loose = new ArrayList<>();
+    for (int i = 0; i < placed.length; i++) {
+      if (!placed[i]) {
+        loose.add(context.items().get(i));
+      }
+    }
+    if (!loose.isEmpty()) {
+      names.add(ODDS_AND_ENDS);
+      members.add(loose);
+    }
+
+    int shelves = members.size();
+    int[] needed = new int[shelves];
+    int neededInAll = 0;
+    for (int i = 0; i < shelves; i++) {
+      for (Item item : members.get(i)) {
+        int count = context.counts().getOrDefault(item, 0);
+        int perStack = Math.max(1, item.getDefaultMaxStackSize());
+        needed[i] += (count + perStack - 1) / perStack;
+      }
+      needed[i] = Math.max(1, needed[i]);
+      neededInAll += needed[i];
+    }
+    int total = context.totalSlots();
+    int[] size = new int[shelves];
+    int given = 0;
+    for (int i = 0; i < shelves; i++) {
+      // Goods came out of these slots, so what they need fits; the rest is headroom.
+      size[i] = neededInAll <= total
+          ? needed[i] + (total - neededInAll) * needed[i] / neededInAll
+          : Math.max(1, total * needed[i] / neededInAll);
+      given += size[i];
+    }
+    size[shelves - 1] += total - given; // rounding lands on the last shelf
+
+    List<ShelvingPlan.Category> categories = new ArrayList<>();
+    int at = 0;
+    for (int i = 0; i < shelves; i++) {
+      List<String> ids = new ArrayList<>();
+      for (Item item : members.get(i)) {
+        ids.add(idOf(item));
+      }
+      categories.add(new ShelvingPlan.Category(names.get(i), ids, at, size[i]));
+      at += size[i];
+    }
+    return finish(context, categories, raw);
   }
 
   // ---- prompts ----
@@ -285,6 +409,11 @@ public final class QuartermasterPlanner {
       categories.add(new ShelvingPlan.Category(cleanName(group.name(), i), ids,
           group.slotStart() - 1, group.slotEnd() - group.slotStart() + 1));
     }
+    return finish(context, categories, raw);
+  }
+
+  /** The plan and the quartermaster's word on it, from whichever layout produced the categories. */
+  private static Outcome finish(Context context, List<ShelvingPlan.Category> categories, String raw) {
     ShelvingPlan plan = new ShelvingPlan(categories, context.totalSlots());
     String note = extractNote(raw);
     // A note is villager writing; strip em dashes, and fall back when there is none.
