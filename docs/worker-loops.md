@@ -535,7 +535,8 @@ structures ([structure-sourcing.md](structure-sourcing.md)) and checking content
 
 ## The quartermaster shelves by plan
 
-*Prototype, 2026-09-01: built behind a dev command, not yet verified live.* The quartermaster
+*2026-09-01: the dialogue has converged live on Llama-3.2-3B (one round, four item types over
+27 slots); the automatic trigger shipped the same day.* The quartermaster
 already sweeps every workplace chest into the storehouse (`ConsolidateStep`, a CARRY loop). On
 top of that it now organises the storehouse to a **shelving plan**: a partition of the
 storehouse's numbered slots into named categories, each owning a contiguous run of slots and
@@ -553,10 +554,14 @@ model placed each item by hand), so tidy-time resolution is an exact lookup, and
 plan never saw spills to a free slot and waits for the next re-plan.
 
 Design decided over chat: fully generative categories, a two-role brain/quartermaster dialogue,
-rebuilt on the first storehouse and when new items pile up. Only the manual trigger exists so
-far: `/vldev llm plan <quartermaster>` runs the dialogue, prints the result and the
-quartermaster's note, and applies it once; watch the `[quartermaster]` log lines for the
-round-by-round convergence. The auto-triggers are still to come.
+rebuilt on the first storehouse and when new items pile up. The trigger lives in the tidy pass.
+Whenever the quartermaster settles in to mind a stocked storehouse, they redraw the plan if
+there is none yet, if the storehouse has changed size, or if the shelves hold goods the plan
+never placed. One dialogue at a time and at most one a day, so a day's new arrivals are planned
+together and a model that cannot converge is not asked again every quiet spell. A settled plan
+is stored, and the next quiet moment shelves to it in person. `/vldev llm plan <quartermaster>`
+runs the same dialogue on demand, prints the result and the quartermaster's note, and applies
+it at once; watch the `[quartermaster]` log lines for the round-by-round convergence.
 
 - `village/QuartermasterPlanner.java`: the iterate-until-valid dialogue and the validator.
 - `village/ShelvingPlan.java`: the slot partition, persisted in the brain's strategy tag.

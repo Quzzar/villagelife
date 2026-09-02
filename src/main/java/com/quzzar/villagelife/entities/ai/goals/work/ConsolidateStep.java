@@ -3,13 +3,16 @@ package com.quzzar.villagelife.entities.ai.goals.work;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.economy.Treasury;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.QuartermasterPlanner;
 import com.quzzar.villagelife.village.ShelvingPlan;
 import com.quzzar.villagelife.village.Storehouse;
 import com.quzzar.villagelife.village.Village;
@@ -17,8 +20,10 @@ import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 
@@ -41,9 +46,13 @@ import net.minecraft.world.level.block.entity.HopperBlockEntity;
  * into a barrel and fight the merchant); and HOMES hold villagers' private
  * belongings, so their chests are left alone.
  *
- * When the shelves fall quiet the quartermaster tidies the storehouse, ordering
- * like goods together and compacting partial stacks, so a full sweep leaves one
- * organised store rather than a heap.
+ * When the shelves fall quiet the quartermaster tidies the storehouse: laid out
+ * to the village's {@link ShelvingPlan} when it has one, and with like goods
+ * simply ordered together until then, so a full sweep leaves one organised store
+ * rather than a heap. The plan itself is the quartermaster's to draw up. Minding
+ * a stocked storehouse that has no plan, or whose shelves have outgrown the plan
+ * they have, starts the {@link QuartermasterPlanner} dialogue; the plan it
+ * settles is stored, and the next quiet moment shelves to it.
  *
  * A full storehouse is not an error. Whatever will not fit stays in the pack and
  * the strain flag goes up, which the planner reads as a reason to want a bigger
@@ -60,11 +69,23 @@ public final class ConsolidateStep implements BlockWorkStep {
   /** Dead container positions to step past before giving up on a source. */
   private static final int MAX_STALE_CHESTS = 8;
 
+  /**
+   * Ticks between shelving-plan attempts: one Minecraft day. New kinds of goods
+   * arrive a few at a time, so the plan is redrawn at most daily, taking the
+   * day's arrivals together rather than reshuffling the shelves for each one,
+   * and a model that cannot settle a plan is not asked again every quiet spell.
+   */
+  private static final int PLAN_COOLDOWN_TICKS = 24000;
+
   /** Set in select, read in act: which phase this target belongs to. */
   private boolean delivering;
   private int mindingTicks;
-  /** Raised by a delivery, cleared by the next idle tidy: the shelves changed. */
+  /** Raised by a delivery or a new plan, cleared by the next idle tidy: the shelves need laying out. */
   private boolean needsTidy;
+  /** A shelving dialogue is under way for this quartermaster; never two at once. */
+  private boolean planning;
+  /** Game time before which no shelving dialogue starts. */
+  private long nextPlanTick;
 
   @Override
   @Nullable
@@ -88,6 +109,9 @@ public final class ConsolidateStep implements BlockWorkStep {
       return storehouseChest(person);
     }
     // Nothing to carry and nothing to fetch: mind the storehouse, if there is one.
+    // The delivery flag must drop here, or act would run an empty delivery
+    // against the station on every visit and never mind the shelves at all.
+    this.delivering = false;
     BlockPos station = LocationManager.getJobLocation(person);
     return station.equals(BlockPos.ZERO) ? null : station;
   }
@@ -103,9 +127,12 @@ public final class ConsolidateStep implements BlockWorkStep {
       // The chest went, or this is the storehouse station and there is simply
       // nothing to move. One organise pass when the shelves first fall quiet
       // after a delivery, then standing is bounded so the legs come free again.
-      if (this.mindingTicks == 0 && this.needsTidy) {
-        tidyStorehouse(person);
-        this.needsTidy = false;
+      if (this.mindingTicks == 0) {
+        if (this.needsTidy) {
+          tidyStorehouse(person);
+          this.needsTidy = false;
+        }
+        planIfOutgrown(person);
       }
       return ++this.mindingTicks < MIND_TICKS;
     }
@@ -219,6 +246,68 @@ public final class ConsolidateStep implements BlockWorkStep {
       Villagelife.LOGGER.debug("[quartermaster] {} tidied the storehouse ({} stacks)",
           person.getName().getString(), goods.size());
     }
+  }
+
+  /**
+   * Redraws the shelving plan when the shelves have outgrown it: no plan yet (the
+   * first stocked storehouse), a storehouse of another size, or goods on the
+   * shelves the plan never placed. The dialogue rides the LLM lane and never
+   * blocks a tick; when it settles, the plan is stored and the next minding
+   * pass shelves to it in person. One dialogue at a time, and one a day at most.
+   */
+  private void planIfOutgrown(RealPerson person) {
+    Village village = person.getVillage();
+    long now = person.level().getGameTime();
+    if (village == null || this.planning || now < this.nextPlanTick || !LlmService.get().isReady()) {
+      return;
+    }
+    Map<Item, Integer> shelved = Storehouse.snapshot(person);
+    if (shelved.isEmpty()) {
+      return; // bare shelves, or the storehouse is out of sight: nothing to plan around
+    }
+    ShelvingPlan plan = ShelvingPlan.load(village);
+    int totalSlots = Storehouse.totalSlots(Storehouse.containers(person));
+    if (plan != null && !outgrown(plan, shelved, totalSlots)) {
+      return;
+    }
+    this.planning = true;
+    this.nextPlanTick = now + PLAN_COOLDOWN_TICKS;
+    QuartermasterPlanner.plan(person).whenComplete((outcome, failure) -> {
+      MinecraftServer server = person.getServer();
+      if (server == null) {
+        return; // the server is gone; the goal goes with it
+      }
+      server.execute(() -> {
+        this.planning = false;
+        if (failure != null) {
+          Villagelife.LOGGER.warn("[quartermaster] {}'s shelving dialogue broke off: {}",
+              person.getName().getString(), failure.toString());
+          return;
+        }
+        Village home = person.getVillage();
+        if (outcome.isEmpty() || home == null || !person.isAlive()) {
+          return; // the planner has already said why no plan landed
+        }
+        QuartermasterPlanner.Outcome settled = outcome.get();
+        ShelvingPlan.store(home, settled.plan());
+        this.needsTidy = true; // laid out to the new plan on the next quiet moment, in person
+        Villagelife.LOGGER.info("[quartermaster] {} adopted a shelving plan of {} categories: \"{}\"",
+            person.getName().getString(), settled.plan().categories().size(), settled.note());
+      });
+    });
+  }
+
+  /** Whether the shelves hold anything this plan has no place for, or have changed size under it. */
+  private static boolean outgrown(ShelvingPlan plan, Map<Item, Integer> shelved, int totalSlots) {
+    if (plan.totalSlots() != totalSlots) {
+      return true;
+    }
+    for (Item item : shelved.keySet()) {
+      if (!plan.covers(item)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Lay a stack back across the storehouse, merging where it can; warns only if nothing fits. */
