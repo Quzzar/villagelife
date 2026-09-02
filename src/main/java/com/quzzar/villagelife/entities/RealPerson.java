@@ -186,6 +186,14 @@ public class RealPerson extends Person {
   /** Torches the miner's bedtime restock tops the pack up to; MineStep spends them lighting the shaft. */
   private static final int TORCH_PACK_TARGET = 16;
 
+  /**
+   * Cobblestone one fetch trip tops the miner's pack up to: floor for a cave
+   * the shaft breaks into, and plugs for the veins it pulls. The bedtime stow
+   * returns the day's stone to the stores, so the pack starts each morning
+   * empty of it, and the trip brings a cave's worth back out.
+   */
+  private static final int COBBLE_PACK_TARGET = 32;
+
   // Bites a guard carries on watch: rations are topped up to this, best food first.
   private static final int RATION_TARGET = 6;
 
@@ -1748,6 +1756,12 @@ public class RealPerson extends Person {
     if (getOccupation() == Occupation.MINER) {
       // Ahead of the work goal: a full pack is worth a trip before more digging.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      // Cobblestone comes OUT of the stores when the pack holds none: the floor
+      // a cave wants and the plugs a vein leaves are spent far from any chest,
+      // and a miner whose pack ran dry mid-cavern used to stop flooring for
+      // good, since only digging stone refilled it and the face lay across the
+      // void. Same shape as the herder's wheat.
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FetchStep(Items.COBBLESTONE, COBBLE_PACK_TARGET)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MineStep()));
     }
     if (getOccupation() == Occupation.BUILDER) {

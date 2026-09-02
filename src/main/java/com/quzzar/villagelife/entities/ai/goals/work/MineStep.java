@@ -197,11 +197,17 @@ public final class MineStep implements BlockWorkStep {
       return null;
     }
     // Stand next to the face and work it, walking down into the shaft as it
-    // deepens. No footing reachable - a hole in the ramp behind, say - falls
-    // back to the mouth, and the shaft waits.
+    // deepens. No footing reachable - a hole in the ramp behind, say - and the
+    // shaft waits: nothing is picked, and nothing is dug from a distance. This
+    // used to fall back to the mouth as the target, which handed act a face
+    // twenty blocks off and had the miner dig it from the doorstep.
     BlockPos face = face(mouth, rotation(person));
     BlockPos stand = standToMine(person, face);
-    return stand != null ? stand : mouth;
+    if (stand == null) {
+      resetShaft();
+      return null;
+    }
+    return stand;
   }
 
   @Override
@@ -877,11 +883,14 @@ public final class MineStep implements BlockWorkStep {
       // The shaft has broken into a cave here: this cell is the bottom of its
       // column's dug span and there is nothing under it to walk on. Completing
       // the floor IS the work at this cell - one cobblestone along the cave's
-      // edge, before the sweep goes anywhere else. Without cobblestone the hole
-      // is left, and the ramp's own footing rules decide what stays reachable.
+      // edge, before the sweep goes anywhere else - whether or not the pack
+      // holds any: with none, layFloor logs the shortage and stands the shaft
+      // down, and the fetch trip refills the pack from the stores. The sweep
+      // used to skip the hole when the pack was empty and go on to a face
+      // across the void that nothing could stand at, which from outside was a
+      // miner who had simply stopped flooring.
       if (columnBottom(this.offset)
-          && person.level().getBlockState(facePos.below()).isAir()
-          && person.hasItem(Items.COBBLESTONE)) {
+          && person.level().getBlockState(facePos.below()).isAir()) {
         this.placeFloor = true;
         return true;
       }
