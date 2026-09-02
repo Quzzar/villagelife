@@ -151,8 +151,11 @@ public class UrbanPlanner {
    * the ground, and a village that has founded can always get it. This is also
    * the source of the dependency chain the model is shown: an item's capability
    * names the building that produces it (see producerFor). Ask through
-   * {@link #sourceOf}: any log waits on LOGS, since any log pays a log cost
-   * ({@link Materials}), and oak stands here for all of them.
+   * {@link #sourceOf}: any log waits on LOGS and any wool on WOOL, since any log
+   * pays a log cost and any wool a wool cost ({@link Materials}), and oak and
+   * white stand here for all of theirs. Iron waits on SMELTING: until 2026-09-02
+   * it was absent, read as dug-up, and a village with no forge was offered a
+   * forge that cost the very ingots only a forge can make.
    */
   private static final Map<Item, String> MATERIAL_SOURCE = Map.of(
       Items.OAK_LOG, "LOGS",
@@ -160,12 +163,20 @@ public class UrbanPlanner {
       Items.STONE, "CUT_STONE",
       Items.STONE_BRICKS, "CUT_STONE",
       Items.SANDSTONE, "CUT_STONE",
-      Items.CUT_SANDSTONE, "CUT_STONE");
+      Items.CUT_SANDSTONE, "CUT_STONE",
+      Items.WHITE_WOOL, "WOOL",
+      Items.IRON_INGOT, "SMELTING");
 
   /** The capability a material waits on, or null when it comes out of the ground. */
   @Nullable
   private static String sourceOf(Item item) {
-    return Materials.isLog(item) || Materials.isPlank(item) ? "LOGS" : MATERIAL_SOURCE.get(item);
+    if (Materials.isLog(item) || Materials.isPlank(item)) {
+      return "LOGS";
+    }
+    if (Materials.isWool(item)) {
+      return "WOOL";
+    }
+    return MATERIAL_SOURCE.get(item);
   }
 
   /**

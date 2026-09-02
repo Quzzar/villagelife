@@ -17,7 +17,11 @@ let the model reason a step ahead: a producer's line notes it makes a material o
 need ("provides the oak log that other buildings are built from"), and a save-for goal names
 what it is short of and which building would make it ("still needs 2 oak log (a lumberjack
 would make oak log)"). So the model can see the chain for itself, that a farm needs oak logs
-and oak logs need a lumberjack, and choose the lumberjack. The model picks one and says why; it
+and oak logs need a lumberjack, and choose the lumberjack. The rules know five such chains
+(`UrbanPlanner.MATERIAL_SOURCE`): logs and planks wait on a lumberjack, cut stone on a
+stoneworks, wool of any colour on a butchery, and iron on a forge (the last two taught on
+2026-09-02, after a village with no forge was offered a forge costing the ingots only a forge
+can smelt); everything else comes out of the ground. The model picks one and says why; it
 never sees an illegal, unaffordable, or unreachable option, so it cannot invent a nonsensical
 project, but within that field the choice is entirely its own. The cap that once trimmed the
 list was a crutch for a weak model; richer per-option context, including the dependency chain,
