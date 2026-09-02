@@ -2288,7 +2288,11 @@ public class Village {
       return;
     }
     long day = level.getGameTime() / 24000L;
-    if (this.economySnapshot != null && day == this.lastSnapshotDay) {
+    // Re-capture while the snapshot is empty rather than letting an empty
+    // early capture stick for the whole day: a village whose chests filled
+    // after its first loaded tick becomes an eligible merchant source that same
+    // day, and one with nothing to sell simply keeps trying at no cost.
+    if (this.economySnapshot != null && !this.economySnapshot.isEmpty() && day == this.lastSnapshotDay) {
       return;
     }
     this.economySnapshot = com.quzzar.villagelife.economy.EconomySnapshot.capture(stockTally());

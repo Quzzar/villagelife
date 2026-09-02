@@ -54,8 +54,13 @@ public final class WanderingMerchantSpawner {
   public static void spawnAt(ServerLevel level, BlockPos pos) {
     Village source = pickSourceVillage(level);
     if (source == null) {
+      com.quzzar.villagelife.Villagelife.LOGGER.info(
+          "[wandering-merchant] a trader was due at {}, but no village has a cached, non-empty market"
+              + " economy to send one from; none spawns", pos);
       return;
     }
+    com.quzzar.villagelife.Villagelife.LOGGER.info(
+        "[wandering-merchant] sending a merchant from '{}' to trade at {}", source.getName(), pos);
     EconomySnapshot ledger = source.getEconomySnapshot().copy();
     String villageId = source.getID();
     String villageName = source.getName();
