@@ -40,7 +40,7 @@ public class NightWatchRestockGoal extends Goal {
     // recovery (UnstuckPersonGoal) cannot read a count carried over from
     // before the job - an unhoused sleepless stretch, say - as a villager
     // wedged for days, and teleport a working guard home every night.
-    person.setDaysSinceSleep(0);
+    person.noteSlept();
     person.restockForNightWatch();
   }
 }

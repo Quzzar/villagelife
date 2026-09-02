@@ -495,6 +495,22 @@ public class RealPerson extends Person {
     if (this.callToBedCoolDown > 0) {
       --this.callToBedCoolDown;
     }
+    // Nights are counted here, for every villager, whatever goal held them.
+    // The count used to live in the sleep goal's own tick, so a villager some
+    // stronger goal kept from ever bedding down never accrued a night, and the
+    // last-resort recovery never fired for exactly the wedged villagers it was
+    // written for. A night counts as slept when they lay down in it, or stood
+    // watch through it (noteSlept).
+    if (!this.level().isClientSide) {
+      boolean night = this.level().isNight();
+      if (this.wasNight && !night && !this.sleptTonight) {
+        setDaysSinceSleep(getDaysSinceSleep() + 1);
+      }
+      if (!this.wasNight && night) {
+        this.sleptTonight = false;
+      }
+      this.wasNight = night;
+    }
     // Orphan self-heal (#59): a person pointing at a village that no longer
     // exists, or whose roster dropped them without the goodbye completing (an
     // emigrant whose chunks unloaded mid-walk), quietly becomes a wanderer.
@@ -935,6 +951,53 @@ public class RealPerson extends Person {
   public void tpToHome() {
     this.moveTo(LocationManager.getVillageCenter(this), 0.0F, 0.0F);
     // TODO, or to follow leader if has one
+  }
+
+  // Runtime-only: whether the last tick was night, and whether this night has
+  // been slept (or watched) through. See aiStep.
+  private boolean wasNight;
+  private boolean sleptTonight;
+
+  /** This night counts as rest: the sleeper lay down, or the watch stood it. */
+  public void noteSlept() {
+    setDaysSinceSleep(0);
+    this.sleptTonight = true;
+  }
+
+  /**
+   * The last resort for a villager who could not get home for nights on end:
+   * set them down at the head of their bed, or beside the campfire when they
+   * have no bed, or at the village center when the fire is out. A villager
+   * with no village at all is left where they are; the road is their home.
+   * Logged, because a teleport is exactly the kind of thing that should be
+   * visible in the record when a villager is found somewhere surprising.
+   */
+  public void tpToRest(String why) {
+    Village village = getVillage();
+    if (village == null) {
+      return;
+    }
+    BlockPos bed = LocationManager.getBedLocation(this);
+    BlockPos target;
+    String where;
+    if (!bed.equals(BlockPos.ZERO)) {
+      target = bed.above();
+      where = "their bed";
+    } else {
+      target = village.getGatheringPoint();
+      where = "the campfire";
+      if (target == null || target.equals(BlockPos.ZERO)) {
+        target = LocationManager.getVillageCenter(this);
+        where = "the village center";
+      }
+    }
+    if (target.equals(BlockPos.ZERO)) {
+      return;
+    }
+    this.getNavigation().stop();
+    this.moveTo(target.getX() + 0.5D, target.getY(), target.getZ() + 0.5D, this.getYRot(), this.getXRot());
+    Villagelife.LOGGER.info("[unstuck] {} {}; brought to {} at {}",
+        this.getName().getString(), why, where, target.toShortString());
   }
 
   public Personality getPersonality() {

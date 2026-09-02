@@ -1,9 +1,7 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
 import com.quzzar.villagelife.entities.RealPerson;
-import com.quzzar.villagelife.village.LocationManager;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.ai.goal.Goal;
 
 /**
@@ -25,6 +23,13 @@ import net.minecraft.world.entity.ai.goal.Goal;
  * (Occupation.sleepsAtNight() false) zeroes it nightly in
  * NightWatchRestockGoal instead, so a bedded guard on watch does not read as
  * three days wedged.
+ *
+ * <p>Nights are counted in RealPerson.aiStep at daybreak for every villager,
+ * whatever goal held them, and after three unslept nights the villager is set
+ * down at their bed, or beside the campfire when they have none
+ * (RealPerson.tpToRest). Before this the count lived in the sleep goal and the
+ * recovery required a bed, so a bedless villager, or one a stronger goal kept
+ * from the sleep goal all night, was never counted and never recovered.
  */
 public class UnstuckPersonGoal extends Goal {
 
@@ -38,18 +43,20 @@ public class UnstuckPersonGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        // Read the bed location FRESH, never cached at construction: a villager is
-        // given its bed after its goals are built, and an idle villager handed one
-        // by reconcileBeds without a following reloadState keeps a stale ZERO
-        // forever, so the daysSinceSleep recovery never fires for them. Same trap
-        // SleepAtNightGoal hit (1d4523f).
-        boolean hasBed = !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
-        return hasBed && this.person.getDaysSinceSleep() > MAX_DAYS;
+        // No bed gate any more: a villager with no bed is the one most likely to
+        // be somewhere wrong, and they are set down at the campfire instead. A
+        // villager with no village is on the road, which is where they belong.
+        return this.person.getVillage() != null && this.person.getDaysSinceSleep() > MAX_DAYS;
     }
 
     @Override
     public void start() {
-        person.tpToHome();
+        int nights = person.getDaysSinceSleep();
+        person.tpToRest("had not slept in " + nights + " nights");
+        // The count starts over, so a villager who still cannot rest where they
+        // were set down is brought back again after another three nights rather
+        // than never.
+        person.setDaysSinceSleep(0);
     }
 
 }

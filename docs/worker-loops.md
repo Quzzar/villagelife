@@ -180,6 +180,15 @@ without walking them to bed. The village center's guard slot is intended as the 
 captain**, the founding twin of the barracks captain station above; the rename and any
 captain-specific behavior are not built yet.
 
+**Built, 2026-09-01: a villager who cannot get home is brought home.** Unslept nights are
+counted at daybreak for every villager, whatever goal held them through the night; after three
+the villager is set down at their bed, or beside the campfire when they have none, and the count
+starts again so a villager who still cannot rest is brought back after three more. Three give-ups
+in a row reaching their work, or real harm (suffocation, lava, drowning, the void), still bring
+them to the village center at once. Before this the count lived inside the sleep goal and the
+recovery required a bed, so the wedged villagers it was written for were exactly the ones it
+never reached.
+
 `DRILLMASTER` is cut. A **captain** replaces it: a station in the barracks that a guard occupies,
 giving nearby guards equipment priority and a rally point. It needs no new verbs, and it explains
 why a barracks beats scattered watchtowers.

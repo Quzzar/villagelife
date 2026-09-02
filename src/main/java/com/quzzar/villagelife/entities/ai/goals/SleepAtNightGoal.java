@@ -78,7 +78,7 @@ public class SleepAtNightGoal extends Goal {
         // (Person.isImmobile), so a leftover path would grind in place against
         // the bed all night.
         person.getNavigation().stop();
-        person.setDaysSinceSleep(0);
+        person.noteSlept();
         person.startSleeping(target);
       } else if (!person.getNavigation().isInProgress()) {
         person.getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.5D);
@@ -86,9 +86,8 @@ public class SleepAtNightGoal extends Goal {
     }
 
     if (person.level().isDay()) {
-      if (!person.isSleeping()) {
-        person.setDaysSinceSleep(person.getDaysSinceSleep() + 1);
-      }
+      // An unslept night is counted by the villager's own tick, not here, so
+      // a night this goal never got to run still counts.
       this.stop();
     }
   }
