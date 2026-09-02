@@ -132,6 +132,14 @@ public class VillagelifeCommands {
                                         BlockPos.containing(ctx.getSource().getPosition()))))
                         .then(Commands.literal("wanderers")
                                 .executes(ctx -> reportWanderers(ctx.getSource())))
+                        // By name, never by nearest: unmaking the wrong village is not recoverable.
+                        .then(Commands.literal("delete")
+                                .then(Commands.argument("name", StringArgumentType.greedyString())
+                                        .suggests((ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                VillageManager.get(ctx.getSource().getLevel()).getVillages().values().stream()
+                                                        .map(Village::getName), builder))
+                                        .executes(ctx -> deleteVillage(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "name")))))
                         .then(Commands.literal("capabilities")
                                 .executes(ctx -> reportCapabilities(ctx.getSource(),
                                         BlockPos.containing(ctx.getSource().getPosition())))
@@ -267,6 +275,26 @@ public class VillagelifeCommands {
         }
         source.sendSuccess(() -> Component.literal("'" + leaver.getFullName() + "' is leaving '"
                 + village.getName() + "' for the edge."), true);
+        return 1;
+    }
+
+    /**
+     * Unmakes a village outright: its loaded people are discarded, every block
+     * it placed is cleared, and its record leaves the save. For test villages;
+     * there is no in-fiction way to unmake one, which is why it wants the name.
+     */
+    private static int deleteVillage(CommandSourceStack source, String name) {
+        var villages = VillageManager.get(source.getLevel());
+        Village village = villages.getVillages().values().stream()
+                .filter(v -> v.getName().equalsIgnoreCase(name.trim()))
+                .findFirst().orElse(null);
+        if (village == null) {
+            source.sendFailure(Component.literal("No village named '" + name + "'."));
+            return 0;
+        }
+        Village.Removal removal = villages.removeVillage(source.getLevel(), village);
+        source.sendSuccess(() -> Component.literal("Deleted '" + village.getName() + "': "
+                + removal.people() + " people discarded, " + removal.blocks() + " placed blocks cleared."), true);
         return 1;
     }
 

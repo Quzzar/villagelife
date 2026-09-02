@@ -150,6 +150,17 @@ public class VillageManagerSaveData extends SavedData {
         return villages.get(uuid);
     }
 
+    /**
+     * Unmakes a village: its loaded people, the blocks it placed, and its record
+     * ({@link Village#demolish}). Dev tooling for test villages.
+     */
+    public Village.Removal removeVillage(ServerLevel level, Village village) {
+        Village.Removal removal = village.demolish(level);
+        villages.remove(village.getID());
+        setDirty();
+        return removal;
+    }
+
     /** The village whose town center is closest to the given position, or null if none exist. */
     public Village getNearestVillage(BlockPos pos) {
         Village nearest = null;

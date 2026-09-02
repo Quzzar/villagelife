@@ -698,6 +698,81 @@ public class Village {
     return centre == null ? null : siteMemory.describe(BlockPos.of(centre.getCenterLocation()), time);
   }
 
+  /** What unmaking a village took out of the world, for the command's report. */
+  public record Removal(int people, int blocks) {
+  }
+
+  /** How far past its buildings a village's ground is swept when it is unmade. */
+  private static final int DEMOLISH_MARGIN = 24;
+
+  /**
+   * Unmakes this village in the world: every loaded resident is discarded, and
+   * every block the village placed on its ground (docs/block-ownership.md) is
+   * cleared to air with its mark, containers emptied first so nothing spills.
+   * Residents in unloaded chunks keep a village id that no longer resolves,
+   * which is what makes them wanderers when they next load. The record itself
+   * is dropped by the caller. Dev tooling for test villages: there is no
+   * in-fiction way to unmake a village.
+   */
+  public Removal demolish(ServerLevel level) {
+    int people = 0;
+    for (UUID uuid : new ArrayList<>(getPopulation())) {
+      if (level.getEntity(uuid) instanceof RealPerson person) {
+        person.discard();
+        people++;
+      }
+    }
+
+    int minX = Integer.MAX_VALUE;
+    int maxX = Integer.MIN_VALUE;
+    int minZ = Integer.MAX_VALUE;
+    int maxZ = Integer.MIN_VALUE;
+    int floor = Integer.MAX_VALUE;
+    for (Building building : buildings.values()) {
+      BlockPos centre = BlockPos.of(building.getCenterLocation());
+      int radius = (int) Math.ceil(building.getRadius()) + DEMOLISH_MARGIN;
+      minX = Math.min(minX, centre.getX() - radius);
+      maxX = Math.max(maxX, centre.getX() + radius);
+      minZ = Math.min(minZ, centre.getZ() - radius);
+      maxZ = Math.max(maxZ, centre.getZ() + radius);
+      floor = Math.min(floor, centre.getY());
+    }
+    if (buildings.isEmpty()) {
+      return new Removal(people, 0);
+    }
+    // The sweep reads and writes blocks, so its ground has to be loaded first,
+    // the same way founding loads the camp before levelling it.
+    for (int chunkX = minX >> 4; chunkX <= maxX >> 4; chunkX++) {
+      for (int chunkZ = minZ >> 4; chunkZ <= maxZ >> 4; chunkZ++) {
+        level.getChunk(chunkX, chunkZ);
+      }
+    }
+    com.quzzar.villagelife.savedata.PlacedBlockStore placed =
+        com.quzzar.villagelife.savedata.PlacedBlockStore.get(level);
+    int blocks = 0;
+    BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+    int top = Math.min(level.getMaxBuildHeight() - 1, floor + 64);
+    int bottom = Math.max(level.getMinBuildHeight(), floor - 16);
+    for (int x = minX; x <= maxX; x++) {
+      for (int z = minZ; z <= maxZ; z++) {
+        for (int y = bottom; y <= top; y++) {
+          pos.set(x, y, z);
+          if (!placed.isVillagePlaced(pos)) {
+            continue;
+          }
+          if (level.getBlockEntity(pos) instanceof net.minecraft.world.Container container) {
+            container.clearContent();
+          }
+          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+          placed.clearPlaced(pos);
+          blocks++;
+        }
+      }
+    }
+    Villagelife.LOGGER.info("Village '{}' unmade: {} people discarded, {} placed blocks cleared", name, people, blocks);
+    return new Removal(people, blocks);
+  }
+
   /**
    * The same building at a new level. Deliberately not {@link #addBuilding}:
    * registering it as new would hand out a second set of beds, jobs and
