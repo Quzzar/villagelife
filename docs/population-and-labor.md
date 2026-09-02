@@ -182,10 +182,33 @@ that snaps stragglers to the fire. Unloaded edge chunks quietly skip the cycle. 
 works the same way: a new village spawns nobody — its first residents walk in.
 
 Emigration (**implemented**): while the score sits below the decline threshold, one person
-per check gives up — idle people first, then the employed. Their assignments free exactly
-as death frees them; they walk to the village edge and leave as a **wanderer** — a
-persistent, unaffiliated person in the world. Growing villages recruit these wanderers
-before spawning anyone new, so the same people circulate between settlements.
+per check gives up, idle people first, then the employed. Their assignments free exactly
+as death frees them and they walk to the village edge. At the edge, whatever they were,
+they become a **wanderer**: the title changes there, and they keep the pack and tools they
+walked out with (there is nothing else to pack; houses hold beds, not chests). Then they
+take to the road.
+
+The road (**implemented**): a wanderer sets out straight away from the village they left
+and walks that heading, leg by leg, turning when the ground blocks them (`RoamGoal`).
+Nobody sleeps rough, so the walk goes on through the night, and they still eat from the
+pack and scatter from monsters like anyone else. Once they are a configurable distance
+from where they set out, or have been walking for several travel timeouts without getting
+there, they pass **beyond the horizon**: the whole person is saved into the server-wide
+`WandererPool` (persona, memories, pack, everything) and the entity is discarded. That is
+how "travel the world" works in a world that only exists near players: the visible part is
+the walk away, the rest is bookkeeping. A wanderer who unloads mid-walk simply freezes in
+their chunk and resumes when it loads again; they are not on the road until they cross.
+
+Recruitment (**implemented**): a growing village that rolls an arrival fills it in this
+order, and only the last step conjures anyone: a loaded wanderer within the recruit radius
+(they walk in from wherever they are), then the person longest on the road beyond the
+horizon (restored at the village edge and walking in, stats and memories intact), then a
+new persona. So the same souls circulate between settlements however far apart they stand,
+and a village that collapses seeds the ones that grow. Two caps bound this: the wanderer
+cap on people walking the loaded world (past it a leaver passes beyond the horizon straight
+from the edge) and the pool cap on the road itself (past it the longest-gone is forgotten).
+Orphans self-heal: a person pointing at a village whose roster dropped them becomes a
+wanderer on a slow tick and takes to the road from where they stand.
 
 ## What drives outflow: jobs claim people
 
@@ -243,6 +266,10 @@ The campfire model is the current code. Key locations:
 - Arrival and emigration: `Village` (the campfire loop; arrivals come in through
   `PersonaSpawner`, so every villager has a persona by construction; see
   [personas.md](personas.md)).
+- The road: `RoamGoal` (the walk out), `RealPerson.crossHorizon` (the crossing), and
+  `WandererPool` in `VillageManagerSaveData` (everyone beyond the horizon, one list for the
+  server). `/vldev village emigrate` sends one person out of the nearest village to watch it,
+  and `/vldev village wanderers` lists who is on the road.
 - Attractiveness: `VillageAttractiveness`.
 - Idle pool: derived, never stored (`Village.idlePeople()`: population minus employed
   minus mid-walk travelers). Idle behavior anchors to the `villagelife:campfire` POI.
@@ -265,26 +292,24 @@ All of these belong in config, not constants buried in `Village`:
 | Arrival check interval | How often inflow is evaluated | 100 s |
 | Attractiveness threshold | Score above which people arrive | 50 |
 | Emigration threshold | Score below which people leave | 25 |
+| Wanderer recruit radius | How far a growing village looks for a loaded wanderer | 128 |
+| Wanderer cap | Wanderers walking the loaded world at once | 8 |
+| Wanderer horizon distance | How far a wanderer walks before passing beyond the horizon | 128 |
+| Wanderer pool cap | People the world remembers on the road | 64 |
 | Base beds | Beds the village center itself provides | 4, from its building definition, not config |
 
 ## Open questions (not yet decided)
 
 Earlier entries here are now decided and described above: positive player standing lives
-in per-villager opinion shaped in conversation, never in attractiveness; emigrants
-persist in the world as wanderers; stat-based job matching with threshold-gated swaps
-replaced pure FIFO (FIFO remains the tiebreaker). Villages are also named at founding:
+in per-villager opinion shaped in conversation, never in attractiveness; emigrants become
+wanderers, take to the road, and come back in at whichever village grows next; stat-based
+job matching with threshold-gated swaps replaced pure FIFO (FIFO remains the tiebreaker). Villages are also named at founding:
 the LLM names the settlement from its biome on the low-priority queue. The name is
 requested before the camp is placed and founding waits the moment it takes to land, so
 a village only ever has one name (a word-list name stands only if generation fails
 twice); the name is permanent, with no rename mechanism by decision.
 
-- ~~Whether a wanderer can later join another village~~ — decided and **implemented**:
-  wanderers are a recruitment pool. A growing village that rolls an arrival first looks
-  for a loaded wanderer within a config radius and recruits them (they walk in exactly
-  like a fresh arrival, keeping their stats, memories, and relationships) before any new
-  persona is spawned, so the same souls circulate between villages. A config cap bounds
-  loaded wanderers: past it, an emigrant finishing their walk-out moves on beyond the
-  horizon instead of lingering. Orphans self-heal: a person pointing at a village whose
-  roster dropped them (the old half-departed gap) quietly becomes a wanderer on a slow
-  tick. Wanderer-FOUNDED camps stay deferred until site selection can support them.
-- What wanderers actively do while roaming (today: default idle goals, no destination).
+- Wanderer-FOUNDED camps stay deferred until site selection can support them.
+- Relationships do not travel: a village drops a leaver's pairs from its brain when they go,
+  and the village that takes them in generates fresh ones. Memories and chat history ride on
+  the entity and do travel.

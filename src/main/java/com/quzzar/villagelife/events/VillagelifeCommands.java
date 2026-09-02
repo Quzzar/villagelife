@@ -6,6 +6,8 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageManager;
+import com.quzzar.villagelife.village.WandererPool;
+import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
@@ -112,6 +114,11 @@ public class VillagelifeCommands {
                                         .executes(ctx -> raiseWall(ctx.getSource(),
                                                 BlockPos.containing(ctx.getSource().getPosition()),
                                                 StringArgumentType.getString(ctx, "tier")))))
+                        .then(Commands.literal("emigrate")
+                                .executes(ctx -> forceEmigration(ctx.getSource(),
+                                        BlockPos.containing(ctx.getSource().getPosition()))))
+                        .then(Commands.literal("wanderers")
+                                .executes(ctx -> reportWanderers(ctx.getSource())))
                         .then(Commands.literal("capabilities")
                                 .executes(ctx -> reportCapabilities(ctx.getSource(),
                                         BlockPos.containing(ctx.getSource().getPosition())))
@@ -233,6 +240,39 @@ public class VillagelifeCommands {
      * and the markup between two of them is a curve, so reading the thresholds
      * out of the file tells you less than seeing what they do.
      */
+    /** Sends one person out of the nearest village as if its mood had collapsed: the road, made watchable. */
+    private static int forceEmigration(CommandSourceStack source, BlockPos pos) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        RealPerson leaver = village.forceEmigration();
+        if (leaver == null) {
+            source.sendFailure(Component.literal("'" + village.getName() + "' has nobody loaded who could leave."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal("'" + leaver.getFullName() + "' is leaving '"
+                + village.getName() + "' for the edge."), true);
+        return 1;
+    }
+
+    /** Who is on the road beyond the horizon, longest gone first. */
+    private static int reportWanderers(CommandSourceStack source) {
+        WandererPool road = VillageManager.get(source.getLevel()).getWanderers();
+        if (road.size() == 0) {
+            source.sendSuccess(() -> Component.literal("Nobody is on the road beyond the horizon."), false);
+            return 1;
+        }
+        long now = source.getLevel().getGameTime();
+        StringBuilder report = new StringBuilder("On the road beyond the horizon (" + road.size() + "):");
+        for (WandererPool.Entry entry : road.entries()) {
+            report.append(String.format("%n %s, gone %d min", entry.name(), (now - entry.since()) / 1200L));
+        }
+        source.sendSuccess(() -> Component.literal(report.toString()), false);
+        return 1;
+    }
+
     private static int reportStandingLadder(CommandSourceStack source) {
         StringBuilder ladder = new StringBuilder("What a village does at each standing:");
         for (int standing = 100; standing >= -100; standing -= 10) {

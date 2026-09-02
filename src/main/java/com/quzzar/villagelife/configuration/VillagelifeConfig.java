@@ -70,6 +70,8 @@ public class VillagelifeConfig {
     public static int IdleCapFallback;
     public static int WandererRecruitRadius;
     public static int WandererCap;
+    public static int WandererHorizonDistance;
+    public static int WandererPoolCap;
 
     // --- labor ---
     public static double JobSwapThreshold;
@@ -134,6 +136,8 @@ public class VillagelifeConfig {
         IdleCapFallback = COMMON.IdleCapFallback.get();
         WandererRecruitRadius = COMMON.WandererRecruitRadius.get();
         WandererCap = COMMON.WandererCap.get();
+        WandererHorizonDistance = COMMON.WandererHorizonDistance.get();
+        WandererPoolCap = COMMON.WandererPoolCap.get();
 
         // labor
         JobSwapThreshold = COMMON.JobSwapThreshold.get();
@@ -209,6 +213,8 @@ public class VillagelifeConfig {
         public final ModConfigSpec.IntValue IdleCapFallback;
         public final ModConfigSpec.IntValue WandererRecruitRadius;
         public final ModConfigSpec.IntValue WandererCap;
+        public final ModConfigSpec.IntValue WandererHorizonDistance;
+        public final ModConfigSpec.IntValue WandererPoolCap;
 
         // labor
         public final ModConfigSpec.DoubleValue JobSwapThreshold;
@@ -286,7 +292,9 @@ public class VillagelifeConfig {
             TravelTimeoutSeconds = builder.comment("Seconds a newcomer or emigrant may spend walking before the village snaps them to their destination.").translation(Villagelife.MODID + ".config.TravelTimeoutSeconds").defineInRange("Travel timeout seconds", 90, 10, 3600);
             IdleCapFallback = builder.comment("Campfire idle cap used when no village tier ladder is loaded.").translation(Villagelife.MODID + ".config.IdleCapFallback").defineInRange("Idle cap fallback", 2, 1, 64);
             WandererRecruitRadius = builder.comment("How far (blocks) a growing village looks for an existing wanderer to recruit before spawning a new arrival.").translation(Villagelife.MODID + ".config.WandererRecruitRadius").defineInRange("Wanderer recruit radius", 128, 16, 512);
-            WandererCap = builder.comment("Loaded wanderers the world keeps. Past the cap, an emigrant finishing their walk out moves on beyond the horizon instead of lingering.").translation(Villagelife.MODID + ".config.WandererCap").defineInRange("Wanderer cap", 8, 0, 256);
+            WandererCap = builder.comment("Loaded wanderers the world keeps on foot. Past the cap, a leaver reaching the village edge passes beyond the horizon at once instead of walking there.").translation(Villagelife.MODID + ".config.WandererCap").defineInRange("Wanderer cap", 8, 0, 256);
+            WandererHorizonDistance = builder.comment("How far (blocks) a wanderer walks from where they set out before passing beyond the horizon: out of the loaded world and onto the road every growing village recruits from.").translation(Villagelife.MODID + ".config.WandererHorizonDistance").defineInRange("Wanderer horizon distance", 128, 32, 1024);
+            WandererPoolCap = builder.comment("Most people the world remembers on the road beyond the horizon. Past it the longest-gone is forgotten; 0 forgets everyone the moment they cross.").translation(Villagelife.MODID + ".config.WandererPoolCap").defineInRange("Wanderer pool cap", 64, 0, 1024);
 
             builder.pop();
 

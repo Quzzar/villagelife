@@ -55,6 +55,13 @@ import net.neoforged.neoforge.common.Tags;
  * the mouth until restocked. Nothing here reasons about the void itself: no
  * bridging mode, no walking-and-planking - both were tried, and both ended with
  * cobble littered far outside the mine.
+ *
+ * <p>Every pick re-walks the shaft from the mouth. An open cell costs one block
+ * read, so auditing a thousand of them is nothing, and it is what makes a cell
+ * an interruption skipped, or gravel refilled behind the miner, get dug on the
+ * next pass rather than never. Ore is taken from the shaft's own walls, floor
+ * and ceiling around the miner, the full width of the corridor, and followed
+ * into the rock only through the holes she opened herself.
  */
 public final class MineStep implements BlockWorkStep {
 
@@ -101,11 +108,13 @@ public final class MineStep implements BlockWorkStep {
   private static final int VEIN_CAP = 8;
 
   /**
-   * How far off its own position the miner reaches for vein ore. It steps into the
-   * cells it opens, so the frontier stays close; this only keeps it from lunging at
-   * ore across a gap it has no footing to reach.
+   * Rows of the shaft either side of the miner, and blocks above and below, that
+   * the ore scan covers. The scan runs in the mine's own frame and always spans
+   * the corridor's full width, so ore in the far wall is seen from either side; a
+   * reach measured from the miner's feet made the far wall of a five-wide shaft a
+   * coin flip, and a miner walked past copper and iron she had a pick for.
    */
-  private static final int VEIN_REACH = 2;
+  private static final int VEIN_SCAN = 3;
 
   private BlockPos offset;
   private Block block;
@@ -123,12 +132,6 @@ public final class MineStep implements BlockWorkStep {
    */
   private boolean placeFloor;
 
-  /**
-   * True right after a floor is laid, so the next scan re-evaluates the SAME
-   * cursor cell (now floored, it may still need digging) instead of advancing
-   * past it.
-   */
-  private boolean holdCursor;
 
   // A wall vein under extraction: ore already pulled and awaiting its cobblestone
   // plug (sealed deepest-first, so the miner backs out toward the shaft as it
@@ -148,7 +151,7 @@ public final class MineStep implements BlockWorkStep {
     }
     // A wall vein takes priority over driving the shaft on: pull the exposed ore,
     // then plug the holes with cobblestone, before the descent picks back up.
-    BlockPos veinStand = selectVein(person);
+    BlockPos veinStand = selectVein(person, mouth, rotation(person));
     if (veinStand != null) {
       return veinStand;
     }
@@ -331,7 +334,6 @@ public final class MineStep implements BlockWorkStep {
     Level level = person.level();
     person.getLookControl().setLookAt(floor.getX(), floor.getY(), floor.getZ(), 30.0F, 30.0F);
     if (!level.getBlockState(floor).isAir()) {
-      this.holdCursor = true;
       return; // floored in the meantime (water sealed it, another pass laid it)
     }
     if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
@@ -345,7 +347,7 @@ public final class MineStep implements BlockWorkStep {
         1.0F, person.getRandom().nextFloat() * 0.4F + 0.8F);
     Villagelife.LOGGER.info("[mine] {} floored the shaft at {}",
         person.getName().getString(), floor.toShortString());
-    this.holdCursor = true; // the cell above may still want digging
+    // The next pick re-walks the shaft and meets this cell again, now floored.
   }
 
   /**
@@ -357,7 +359,7 @@ public final class MineStep implements BlockWorkStep {
    * that rarely bites.
    */
   @Nullable
-  private BlockPos selectVein(RealPerson person) {
+  private BlockPos selectVein(RealPerson person, BlockPos mouth, Rotation rotation) {
     this.oreTarget = null;
     this.sealTarget = null;
 
@@ -365,7 +367,7 @@ public final class MineStep implements BlockWorkStep {
     // reach and cobblestone to seal, until the cap. Each pull opens the next, so the
     // vein follows itself without a flood fill.
     if (this.veinTaken < VEIN_CAP && person.hasItem(Items.COBBLESTONE)) {
-      BlockPos ore = nearestReachableOre(person);
+      BlockPos ore = nearestShaftOre(person, mouth, rotation);
       if (ore != null) {
         BlockPos stand = standToMine(person, ore);
         if (stand != null) {
@@ -394,23 +396,27 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * The nearest ore a wall has exposed that the miner can actually work: within
-   * {@link #VEIN_REACH} of where it stands, showing at least one open face (so it is
-   * a wall the shaft has reached, not ore still buried in solid rock), and mineable
-   * with the tool in hand (an iron vein under a stone pick is left, not wasted).
-   * Null when no reachable ore is on show.
+   * The nearest ore on the shaft's own surfaces that the miner can actually
+   * work: in the mine's frame, the corridor's full width plus its walls, the
+   * rows within {@link #VEIN_SCAN} of where she stands and as far up and down,
+   * showing an open face into the shaft, and mineable with the tool in hand (an
+   * iron vein under a stone pick is left, not wasted). Null when nothing is on
+   * show.
    */
   @Nullable
-  private BlockPos nearestReachableOre(RealPerson person) {
+  private BlockPos nearestShaftOre(RealPerson person, BlockPos mouth, Rotation rotation) {
     Level level = person.level();
     BlockPos at = person.blockPosition();
+    BlockPos local = at.subtract(mouth).rotate(inverse(rotation));
     BlockPos best = null;
     double bestDist = Double.MAX_VALUE;
-    for (int dx = -VEIN_REACH; dx <= VEIN_REACH; dx++) {
-      for (int dy = -VEIN_REACH; dy <= VEIN_REACH; dy++) {
-        for (int dz = -VEIN_REACH; dz <= VEIN_REACH; dz++) {
-          BlockPos pos = at.offset(dx, dy, dz);
-          if (!isOre(level, pos) || !exposedToAir(level, pos) || !canHarvest(person, pos)) {
+    for (int lx = -(RADIUS + 1); lx <= RADIUS + 1; lx++) {
+      for (int ly = local.getY() - VEIN_SCAN; ly <= local.getY() + VEIN_SCAN; ly++) {
+        for (int lz = local.getZ() - VEIN_SCAN; lz <= local.getZ() + VEIN_SCAN; lz++) {
+          BlockPos cell = new BlockPos(lx, ly, lz);
+          BlockPos pos = mouth.offset(cell.rotate(rotation));
+          if (!isOre(level, pos) || !opensIntoShaft(level, mouth, rotation, cell)
+              || !canHarvest(person, pos)) {
             continue;
           }
           double dist = pos.distSqr(at);
@@ -424,15 +430,32 @@ public final class MineStep implements BlockWorkStep {
     return best;
   }
 
+  /** The rotation that maps world offsets back into the mine's local frame. */
+  private static Rotation inverse(Rotation rotation) {
+    return switch (rotation) {
+      case CLOCKWISE_90 -> Rotation.COUNTERCLOCKWISE_90;
+      case COUNTERCLOCKWISE_90 -> Rotation.CLOCKWISE_90;
+      default -> rotation;
+    };
+  }
+
   /** Any ore, vanilla or modded: the common {@code c:ores} tag every ore block carries. */
   private boolean isOre(Level level, BlockPos pos) {
     return level.getBlockState(pos).is(Tags.Blocks.ORES);
   }
 
-  /** True when a face of {@code pos} is open, so the miner can see the ore and get at it. */
-  private boolean exposedToAir(Level level, BlockPos pos) {
+  /**
+   * True when the ore (a cell in the mine's frame) shows an open face INTO the
+   * shaft: a neighbour that is air and lies inside the corridor, or is a hole the
+   * miner opened pulling this vein. Ore open only to a cave beyond the wall is
+   * left where it is; walking out to that is a prospector's job, not this one's.
+   */
+  private boolean opensIntoShaft(Level level, BlockPos mouth, Rotation rotation, BlockPos cell) {
     for (Direction d : Direction.values()) {
-      if (level.getBlockState(pos.relative(d)).isAir()) {
+      BlockPos neighbour = cell.relative(d);
+      BlockPos world = mouth.offset(neighbour.rotate(rotation));
+      if ((withinCorridor(neighbour) || this.veinToSeal.contains(world))
+          && level.getBlockState(world).isAir()) {
         return true;
       }
     }
@@ -709,9 +732,9 @@ public final class MineStep implements BlockWorkStep {
     // rotates it into the world by the founding rotation, so it is correct in every
     // orientation. (Leaning -Z, which every prior angled version did, was Aaron's
     // long-standing "mining the wrong way" bug: the ramp ate back under the door.)
-    if (this.offset == null) {
-      this.offset = new BlockPos(-(RADIUS + 1), -1, -(RADIUS - 1));
-    }
+    // Every pick starts over at the mouth: the audit (see the class note).
+    this.offset = new BlockPos(-(RADIUS + 1), -1, -(RADIUS - 1));
+    this.inward = 1;
     this.placeFloor = false;
     int steps = 0;
     BlockPos facePos = null;
@@ -720,19 +743,13 @@ public final class MineStep implements BlockWorkStep {
         resetShaft();
         return false; // nothing solid within reach of the pattern; try again later
       }
-      if (this.holdCursor) {
-        // A floor was just laid under the current cell: re-evaluate it in place
-        // (it may still want digging) rather than sweeping past it.
-        this.holdCursor = false;
-      } else {
-        this.offset = this.offset.offset(1, 0, 0);
-        if (this.offset.getX() >= RADIUS + 1) {
-          this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() + 1);
-        }
-        if (this.offset.getZ() >= RADIUS + 1 + this.inward) {
-          this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, this.inward - 1);
-          this.inward++;
-        }
+      this.offset = this.offset.offset(1, 0, 0);
+      if (this.offset.getX() >= RADIUS + 1) {
+        this.offset = new BlockPos(-RADIUS, this.offset.getY(), this.offset.getZ() + 1);
+      }
+      if (this.offset.getZ() >= RADIUS + 1 + this.inward) {
+        this.offset = new BlockPos(-RADIUS, this.offset.getY() - 1, this.inward - 1);
+        this.inward++;
       }
       facePos = face(mouth, rotation);
       this.block = person.level().getBlockState(facePos).getBlock();
@@ -804,7 +821,6 @@ public final class MineStep implements BlockWorkStep {
     this.breakTime = 0;
     this.lastProgress = -1;
     this.placeFloor = false;
-    this.holdCursor = false;
   }
 
 }

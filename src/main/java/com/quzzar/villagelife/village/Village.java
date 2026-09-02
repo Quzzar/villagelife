@@ -1387,9 +1387,27 @@ public class Village {
     if (wanderer != null) {
       wanderer.setVillage(id);
       wanderer.setOccupation(Occupation.WANDERER);
+      wanderer.endRoaming();
       pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
       Villagelife.LOGGER.info("'{}' the wanderer was drawn to village '{}' and is coming to join",
           wanderer.getFullName(), name);
+      return;
+    }
+
+    // Then the road: someone who passed beyond the horizon from some other
+    // village comes back into the world at this one's edge and walks in, or at
+    // the fire itself when the edge is not loaded. Only with nobody on the road
+    // is anyone conjured (docs/population-and-labor.md).
+    BlockPos edge = edgeSpawnPos();
+    RealPerson returning = VillageManager.get(level).getWanderers().draw(level, edge != null ? edge : fire);
+    if (returning != null) {
+      returning.setVillage(id);
+      returning.setOccupation(Occupation.WANDERER);
+      returning.endRoaming();
+      level.addFreshEntity(returning);
+      pendingArrivals.add(new PendingTraveler(returning.getUUID(), deadline, fire.asLong()));
+      Villagelife.LOGGER.info("'{}' came in off the road to village '{}' and is walking to the fire",
+          returning.getFullName(), name);
       return;
     }
 
@@ -1436,7 +1454,14 @@ public class Village {
     return level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
   }
 
-  private void tryEmigration() {
+  /** Dev command hook: one person leaves as if the mood had collapsed. Who, or null if nobody loaded could. */
+  @Nullable
+  public RealPerson forceEmigration() {
+    return tryEmigration();
+  }
+
+  @Nullable
+  private RealPerson tryEmigration() {
     // Idle people give up on the village first; then the employed abandon their jobs.
     UUID leaver = null;
     for (UUID person : people) {
@@ -1452,7 +1477,7 @@ public class Village {
       }
     }
     if (leaver == null || !(level.getEntity(leaver) instanceof RealPerson person)) {
-      return;
+      return null;
     }
 
     removePerson(leaver); // frees bed and job exactly like a death does
@@ -1465,6 +1490,7 @@ public class Village {
     }
     pendingDepartures.add(new PendingTraveler(leaver, deadline, exit.asLong()));
     Villagelife.LOGGER.info("'{}' is leaving village '{}' (attractiveness collapsed)", person.getFullName(), name);
+    return person;
   }
 
   private boolean isPending(UUID person) {
@@ -1535,15 +1561,27 @@ public class Village {
         person.setTravelTarget(null);
         person.setVillage("");
         person.setVillageName("");
+        // Whatever they were here, out there they are a wanderer: the title
+        // changes at the edge. They keep the pack and tools they walked out
+        // with, and set out straight away from the village they are leaving.
+        person.setOccupation(Occupation.WANDERER);
+        Building center = getTownCenter();
+        double heading = random.nextDouble() * Math.PI * 2;
+        if (center != null) {
+          BlockPos centerPos = BlockPos.of(center.getCenterLocation());
+          heading = Math.atan2(exit.getZ() - centerPos.getZ(), exit.getX() - centerPos.getX());
+        }
+        person.beginRoaming(exit, heading, now);
         person.reloadState();
         iterator.remove();
-        // The world holds only so many wanderers (#59): past the cap, a leaver
-        // walks over the horizon instead of lingering forever.
+        // The world holds only so many wanderers on foot (#59): past the cap, a
+        // leaver passes beyond the horizon from the edge instead of walking there.
         if (loadedWandererCount() > com.quzzar.villagelife.configuration.VillagelifeConfig.WandererCap) {
-          person.discard();
-          Villagelife.LOGGER.info("'{}' left '{}' and moved on beyond the horizon", person.getFullName(), name);
+          Villagelife.LOGGER.info("'{}' left '{}' with too many already on the roads nearby", person.getFullName(), name);
+          person.crossHorizon();
         } else {
-          Villagelife.LOGGER.info("'{}' left '{}' and now wanders the world", person.getFullName(), name);
+          Villagelife.LOGGER.info("'{}' left '{}' and set out {}", person.getFullName(), name,
+              person.roamHeadingName());
         }
       } else {
         person.setTravelTarget(exit);

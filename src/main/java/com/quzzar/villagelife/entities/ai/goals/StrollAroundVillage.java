@@ -35,6 +35,12 @@ public class StrollAroundVillage extends RandomStrollGoal {
         this.person = person;
     }
 
+    /** A wanderer on the road walks it ({@link RoamGoal}); strolling is for people with somewhere to be. */
+    @Override
+    public boolean canUse() {
+        return !person.isRoaming() && super.canUse();
+    }
+
     @Override
     protected Vec3 getPosition() {
         if (person.getOccupation().isIdle()) {

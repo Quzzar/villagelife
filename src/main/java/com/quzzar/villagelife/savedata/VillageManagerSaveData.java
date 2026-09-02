@@ -2,12 +2,14 @@ package com.quzzar.villagelife.savedata;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.mojang.serialization.Codec;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.village.Village;
+import com.quzzar.villagelife.village.WandererPool;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -34,6 +36,9 @@ public class VillageManagerSaveData extends SavedData {
             VillageManagerSaveData::new, VillageManagerSaveData::load, null);
 
     private final Map<String, Village> villages = new HashMap<>();
+
+    /** Everyone on the road beyond the horizon: one list for the whole server (docs/population-and-labor.md). */
+    private final WandererPool wanderers = new WandererPool(this::setDirty);
 
     // Runtime-only: the level this registry belongs to, re-attached on access.
     private ServerLevel level;
@@ -65,6 +70,11 @@ public class VillageManagerSaveData extends SavedData {
         VILLAGES_CODEC.parse(NbtOps.INSTANCE, tag.get("Villages"))
                 .resultOrPartial(error -> Villagelife.LOGGER.error("Failed to load village data: {}", error))
                 .ifPresent(data.villages::putAll);
+        if (tag.contains("Wanderers")) {
+            WandererPool.CODEC.parse(NbtOps.INSTANCE, tag.get("Wanderers"))
+                    .resultOrPartial(error -> Villagelife.LOGGER.error("Failed to load the wanderers beyond the horizon: {}", error))
+                    .ifPresent(data.wanderers::load);
+        }
         return data;
     }
 
@@ -76,6 +86,12 @@ public class VillageManagerSaveData extends SavedData {
                 .orElse(null);
         if (encoded != null) {
             tag.put("Villages", encoded);
+        }
+        Tag road = WandererPool.CODEC.encodeStart(NbtOps.INSTANCE, List.copyOf(wanderers.entries()))
+                .resultOrPartial(error -> Villagelife.LOGGER.error("Failed to save the wanderers beyond the horizon: {}", error))
+                .orElse(null);
+        if (road != null) {
+            tag.put("Wanderers", road);
         }
         return tag;
     }
@@ -153,6 +169,10 @@ public class VillageManagerSaveData extends SavedData {
 
     public Map<String, Village> getVillages() {
         return villages;
+    }
+
+    public WandererPool getWanderers() {
+        return wanderers;
     }
 
 }

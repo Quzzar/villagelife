@@ -217,6 +217,73 @@ public class RealPerson extends Person {
     this.travelTarget = target;
   }
 
+  // The road (docs/population-and-labor.md): where a wanderer set out from,
+  // which way they are walking, and since when. Set at the village edge when
+  // someone leaves (or when an orphan finds they have no village), cleared when
+  // a village takes them in, and saved so a reload continues the same walk.
+  // Walked by RoamGoal; ended by crossHorizon.
+  @Nullable
+  private BlockPos roamOrigin;
+  private double roamHeading;
+  private long roamSince;
+
+  /** Puts the person on the road from {@code origin}, walking the given heading (radians, +x east, +z south). */
+  public void beginRoaming(BlockPos origin, double heading, long now) {
+    this.roamOrigin = origin;
+    this.roamHeading = heading;
+    this.roamSince = now;
+  }
+
+  /** A village has taken them in: the road is behind them. */
+  public void endRoaming() {
+    this.roamOrigin = null;
+  }
+
+  public boolean isRoaming() {
+    return roamOrigin != null;
+  }
+
+  @Nullable
+  public BlockPos getRoamOrigin() {
+    return roamOrigin;
+  }
+
+  public double getRoamHeading() {
+    return roamHeading;
+  }
+
+  public long getRoamSince() {
+    return roamSince;
+  }
+
+  public void turnRoamHeading(double delta) {
+    this.roamHeading = (this.roamHeading + delta) % (Math.PI * 2);
+  }
+
+  /** The compass point the road heading points at, for a log line. */
+  public String roamHeadingName() {
+    String[] points = {"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"};
+    int index = (int) Math.round(roamHeading / (Math.PI / 4));
+    return points[Math.floorMod(index, points.length)];
+  }
+
+  /**
+   * Steps out of the loaded world and onto the road beyond the horizon: the
+   * whole person is remembered in the server's {@link com.quzzar.villagelife.village.WandererPool}
+   * so a growing village anywhere can draw them back in, and the entity is
+   * discarded. Only ever called on a loaded, village-less wanderer, so there is
+   * exactly one copy of them at any moment.
+   */
+  public void crossHorizon() {
+    if (!(level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+      return;
+    }
+    boolean remembered = VillageManager.get(serverLevel).getWanderers().bank(this, serverLevel.getGameTime());
+    Villagelife.LOGGER.info("'{}' passed beyond the horizon heading {}{}", getFullName(), roamHeadingName(),
+        remembered ? " and may yet turn up at another village" : " and is gone for good");
+    discard();
+  }
+
   public RealPerson(EntityType<? extends Person> type, Level world) {
     super(type, world);
   }
@@ -345,6 +412,14 @@ public class RealPerson extends Person {
 
     this.callToBedCoolDown = compound.getInt("CallToBedCooldown");
 
+    if (compound.contains("RoamOrigin")) {
+      this.roamOrigin = BlockPos.of(compound.getLong("RoamOrigin"));
+      this.roamHeading = compound.getDouble("RoamHeading");
+      this.roamSince = compound.getLong("RoamSince");
+    } else {
+      this.roamOrigin = null;
+    }
+
     refreshAngerTime();
 
     refreshDisplayName();
@@ -376,6 +451,11 @@ public class RealPerson extends Person {
 
     compound.putInt("CallToBedCooldown", this.callToBedCoolDown);
 
+    if (roamOrigin != null) {
+      compound.putLong("RoamOrigin", roamOrigin.asLong());
+      compound.putDouble("RoamHeading", roamHeading);
+      compound.putLong("RoamSince", roamSince);
+    }
   }
 
   @Override
@@ -395,8 +475,13 @@ public class RealPerson extends Person {
           || (!village.hasResident(getUUID()) && !village.isTraveler(getUUID()))) {
         setVillage("");
         setVillageName("");
-        Villagelife.LOGGER.debug("[{}] was orphaned from their village and now wanders",
-            this.getName().getString());
+        // No village, no job: a wanderer, and one with nowhere to be, so they
+        // take to the road from right here in whatever direction the dice say.
+        setOccupation(Occupation.WANDERER);
+        beginRoaming(blockPosition(), this.random.nextDouble() * Math.PI * 2, level().getGameTime());
+        reloadState();
+        Villagelife.LOGGER.debug("[{}] was orphaned from their village and set out {}",
+            this.getName().getString(), roamHeadingName());
       }
     }
     super.aiStep();
@@ -1445,6 +1530,11 @@ public class RealPerson extends Person {
         super.start();
       }
     });
+
+    // The road: a wanderer with no village walks their heading until they pass
+    // beyond the horizon. Below fleeing (5) so monsters still scatter them, and
+    // above strolling only because StrollAroundVillage yields while roaming.
+    this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.RoamGoal(this));
 
     // Safe to decide at registration: every occupation change goes through
     // setOccupation + reloadState, which rebuilds all goals.
