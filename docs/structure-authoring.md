@@ -68,3 +68,20 @@ Building in a client with WorldEdit is faster for a human, but the command loop 
 reproducible, reviewable in a script, and available to an agent session with no client
 attached. A build that exists as a list of commands can be regenerated after a design
 change; one that exists only as an `.nbt` cannot.
+
+## The ground layer: leave what you are not building
+
+A structure is seated with one layer on the ground's top block (layer 0, or layer `sink` when
+the definition declares one), and every block recorded in that layer replaces the ground there,
+air included. A template that records air around its floor at that layer therefore digs a
+one-block pit ring into the grass wherever it is placed. Found 2026-09-01 in the bakeries,
+taverns, fisheries and level-1 watchtowers, and taken out of all twenty files: the ground layer
+should hold only what the building actually puts on or in the ground, and cells that are not the
+building's are left absent so the world's own ground stays. The mine is the one deliberate
+exception: its ground-layer air is the shaft mouth. Above the ground layer, air is wanted, it is
+what clears grass, flowers and branches out of the footprint.
+
+Seating is checked offline rather than by eye: a door's lower half should sit one layer above
+the ground layer, beds and work stations likewise. Fisheries and level-1 watchtowers carried an
+extra course below that and now declare `"sink": 1`; taverns and bakeries keep their floor a
+step above the ground on purpose.

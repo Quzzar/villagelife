@@ -33,5 +33,6 @@
   "grants": [
     "MEAT",
     "WATER"
-  ]
+  ],
+  "sink": 1
 }
