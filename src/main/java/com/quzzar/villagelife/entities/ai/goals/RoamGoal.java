@@ -24,11 +24,15 @@ import net.minecraft.world.phys.Vec3;
  * (GroundPathNavigation.createPath), and a point a horizon away almost never
  * is, so aiming at the horizon itself produced a wanderer who stood at the
  * village edge forever. Terrain is met by turning, not by pathing around it: a
- * leg over loaded ground that gains nothing swings the heading. Ground that is
- * not loaded is not terrain, it is the end of the world for now, and the
- * wanderer waits at it rather than turning back. A walk that has not reached
- * the horizon after several travel timeouts is taken as blocked, and the
- * wanderer moves on beyond the horizon from wherever they stand.
+ * leg over loaded ground that gains no ground ALONG THE HEADING swings the
+ * heading. Along the heading, not in any direction: the first live walk to
+ * meet a shoreline milled about an eight-block patch for six minutes, moving
+ * all the while and never forward, until the patience below crossed them from
+ * where they stood. Ground that is not loaded is not terrain, it is the end of
+ * the world for now, and the wanderer waits at it rather than turning back. A
+ * walk that has not reached the horizon after several travel timeouts is taken
+ * as blocked, and the wanderer moves on beyond the horizon from wherever they
+ * stand.
  *
  * <p>Sits below fleeing and fighting, and {@link StrollAroundVillage} yields to
  * it, so a roaming wanderer neither loiters nor walks through monsters. There
@@ -45,9 +49,9 @@ public class RoamGoal extends Goal {
     /** Goal ticks between checks; the selector ticks a running goal every other game tick. */
     private static final int CHECK_EVERY = 10;
 
-    /** Game ticks between stuck samples, and the ground a free walk covers in that time. */
+    /** Game ticks between stuck samples, and the headway a free walk makes along the heading in that time. */
     private static final int STUCK_SAMPLE_TICKS = 100;
-    private static final double STUCK_DISTANCE_SQR = 9.0D;
+    private static final double STUCK_HEADWAY = 4.0D;
 
     /** Travel timeouts a walk gets to reach the horizon before it is taken as blocked. */
     private static final int PATIENCE_TIMEOUTS = 4;
@@ -95,7 +99,7 @@ public class RoamGoal extends Goal {
             return;
         }
         if (now - lastSample >= STUCK_SAMPLE_TICKS) {
-            if (legOnLoadedGround && person.position().distanceToSqr(samplePos) < STUCK_DISTANCE_SQR) {
+            if (legOnLoadedGround && headwaySince(samplePos) < STUCK_HEADWAY) {
                 // Something in the way: swing anywhere from a quarter to a half
                 // turn, either side, and try that way instead.
                 double swing = (Math.PI / 2) + person.getRandom().nextDouble() * (Math.PI / 2);
@@ -127,6 +131,13 @@ public class RoamGoal extends Goal {
         if (legOnLoadedGround) {
             person.getNavigation().moveTo(x, person.getY(), z, SPEED);
         }
+    }
+
+    /** Ground gained along the heading since {@code from}: the walk's projection, so pacing a shore counts as none. */
+    private double headwaySince(Vec3 from) {
+        double dx = person.getX() - from.x;
+        double dz = person.getZ() - from.z;
+        return dx * Math.cos(person.getRoamHeading()) + dz * Math.sin(person.getRoamHeading());
     }
 
     private boolean pastHorizon(long now) {
