@@ -93,8 +93,7 @@ public class VillagelifeCommands {
                         .then(Commands.literal("place")
                                 .then(Commands.argument("building", StringArgumentType.word())
                                         .suggests(BUILDING_NAMES)
-                                        .executes(ctx -> placeBuilding(ctx.getSource(),
-                                                BlockPos.containing(ctx.getSource().getPosition()),
+                                        .executes(ctx -> placeBuilding(ctx.getSource(), null,
                                                 StringArgumentType.getString(ctx, "building")))
                                         .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                                 .executes(ctx -> placeBuilding(ctx.getSource(),
@@ -226,20 +225,36 @@ public class VillagelifeCommands {
         return cost.impossible() ? 0 : Math.max(1, cost.blocksMoved());
     }
 
-    /** Drops a building into the nearest village, for testing what it changes. */
-    private static int placeBuilding(CommandSourceStack source, BlockPos pos, String building) {
-        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+    /**
+     * Drops a building into the nearest village, for testing what it changes.
+     * With a position, the building is forced onto that exact spot and never
+     * refused for want of room; without one, the village runs its own site
+     * search and may report that it has nowhere to put it.
+     */
+    private static int placeBuilding(CommandSourceStack source, @javax.annotation.Nullable BlockPos pos, String building) {
+        BlockPos near = pos != null ? pos : BlockPos.containing(source.getPosition());
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(near);
         if (village == null) {
             source.sendFailure(Component.literal("No villages exist yet."));
             return 0;
         }
-        if (!village.devPlaceBuilding(building)) {
-            source.sendFailure(Component.literal("Could not place '" + building
-                    + "': no such definition, or nowhere to put it."));
+        if (Buildings.getByName(building) == null) {
+            source.sendFailure(Component.literal("No building definition named '" + building + "'."));
             return 0;
         }
-        source.sendSuccess(() -> Component.literal(
-                "Placed " + building + " in '" + village.getName() + "'."), true);
+        boolean placed = pos != null
+                ? village.devPlaceBuildingAt(building, pos)
+                : village.devPlaceBuilding(building);
+        if (!placed) {
+            source.sendFailure(Component.literal(pos != null
+                    ? "Could not stamp '" + building + "' at " + pos.toShortString() + " (empty template?)."
+                    : "'" + village.getName() + "' has nowhere to put a " + building
+                            + " near its centre. Give a position to force it onto a spot you pick."));
+            return 0;
+        }
+        source.sendSuccess(() -> Component.literal(pos != null
+                ? "Placed " + building + " at " + pos.toShortString() + " in '" + village.getName() + "'."
+                : "Placed " + building + " in '" + village.getName() + "'."), true);
         return 1;
     }
 

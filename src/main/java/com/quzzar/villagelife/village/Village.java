@@ -639,22 +639,27 @@ public class Village {
   }
 
   /**
-   * Instantly places a building next to the town centre, for dev testing only:
-   * the planner normally decides what gets built and pays for it. Mirrors the
-   * founding placement path.
+   * Instantly places a building for dev testing only, letting the village pick
+   * the spot: the planner normally decides what gets built and pays for it.
+   * Runs the same site search a village uses for itself, so a placement that
+   * finds no room is refused and recorded like a real project's, which is the
+   * on-demand way to see the room sentence in a briefing (docs/site-selection.md).
+   * To force a building onto a spot you pick instead, give a position:
+   * {@link #devPlaceBuildingAt}.
    */
   public boolean devPlaceBuilding(String buildingName) {
     if (level == null || getTownCenter() == null) {
       return false;
     }
-    InstantBuildStructure struct = new InstantBuildStructure(
-        new Building(buildingName, Rotation.NONE), random, level);
+    InstantBuildStructure struct = devStructure(buildingName);
+    if (struct == null) {
+      return false;
+    }
 
-    // The same site search a village uses for itself, rather than a fixed
-    // offset from the centre. The fixed offset dropped every dev-placed
-    // building on the same spot and ignored the claim grid entirely, so one
-    // landed inside the footprint of a project already under way and was
-    // demolished by it — taking a market's chest, and its treasury, with it.
+    // The site search, not a fixed offset from the centre. A fixed offset
+    // dropped every dev-placed building on the same spot and ignored the claim
+    // grid, so one landed inside the footprint of a project already under way
+    // and was demolished by it, taking a market's chest and its treasury with it.
     LocationValidator.Search search = LocationValidator.findValidLocation(level,
         BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random);
     if (!search.found()) {
@@ -665,10 +670,42 @@ public class Village {
       Villagelife.LOGGER.info("Village '{}' has nowhere to put a {}. {}", name, buildingName, describeRoom());
       return false;
     }
-    BlockPos site = search.site();
+    return seatDevBuilding(struct, search.site());
+  }
 
+  /**
+   * Drops a building onto an exact spot for review or editing, bypassing the
+   * site search: a dev pointing at a place is telling the village to build
+   * there, so this never refuses for want of room. The building still joins
+   * this village, claim grid and all, so it behaves like any other for testing.
+   * The given block is the ground the building seats on; its own sink settles
+   * it from there, the same as a searched placement. Returns false only when no
+   * such definition is loaded or the template is empty.
+   */
+  public boolean devPlaceBuildingAt(String buildingName, BlockPos ground) {
+    if (level == null || getTownCenter() == null) {
+      return false;
+    }
+    InstantBuildStructure struct = devStructure(buildingName);
+    if (struct == null) {
+      return false;
+    }
+    return seatDevBuilding(struct, ground);
+  }
+
+  /** A build-ready structure for a named building, or null when no such definition is loaded. */
+  @Nullable
+  private InstantBuildStructure devStructure(String buildingName) {
+    if (Buildings.getByName(buildingName) == null) {
+      return null;
+    }
+    return new InstantBuildStructure(new Building(buildingName, Rotation.NONE), random, level);
+  }
+
+  /** Seats a dev structure on the given ground with its sink applied, then registers it with the village. */
+  private boolean seatDevBuilding(InstantBuildStructure struct, BlockPos ground) {
     BuildingInfo placedInfo = struct.getBuilding().getInfo();
-    if (!struct.setOriginLocation(site.below(placedInfo == null ? 0 : placedInfo.getSink()), claimGrid)
+    if (!struct.setOriginLocation(ground.below(placedInfo == null ? 0 : placedInfo.getSink()), claimGrid)
         .buildInstantly()) {
       return false;
     }

@@ -87,8 +87,11 @@ is going up can say that nothing 9 by 11 or larger has found ground within about
 of the fire and that the nearest thing to a site was 18 blocks east. The sentence ends with
 the rule, that villagers level ground only lightly and never reshape a hill, and says
 nothing about what to do: building smaller, waiting, or a player levelling the slope by hand
-are the reader's calls. `/vldev village place` records a refusal the same way a real project
-does, which is the on-demand way to see the sentence. That division of labour is deliberate. The village holds the
+are the reader's calls. `/vldev village place` with no position records a refusal the same way
+a real project does, which is the on-demand way to see the sentence; giving it a position
+forces the building onto that exact spot instead, bypassing the search, so authoring a
+schematic in-world is never blocked by the room the planner would refuse. That division of
+labour is deliberate. The village holds the
 surface-not-shape line; a player is free to break it, and a slope they level is found on the
 next search once the refusal expires. The refusal is logged at INFO with the same sentence.
 
