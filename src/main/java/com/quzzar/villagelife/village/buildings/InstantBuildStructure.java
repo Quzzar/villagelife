@@ -106,6 +106,35 @@ public class InstantBuildStructure {
 
     }
 
+    /**
+     * Seats the structure with its origin at {@code origin}, the convention the
+     * planner uses in {@code Village.beginProject}: the ground the site search
+     * scored is where the structure's own bottom corner goes, so a dev placement
+     * lands exactly where a real project would. {@link #setOriginLocation} seats
+     * by centre instead, which founding needs; the two must not be confused.
+     */
+    public InstantBuildStructure seatAtOrigin(BlockPos origin, HashSet<Long> claimGrid){
+
+        BoundingBox bounds = this.template.getBoundingBox(this.settings, BlockPos.ZERO);
+
+        this.building.setOriginLocation(origin.asLong());
+        BlockPos centerOffset = new BlockPos(bounds.getCenter().getX(), 0, bounds.getCenter().getZ());
+        this.building.setCenterLocation(origin.above().offset(centerOffset).asLong());
+        this.building.setRadius(LocationValidator.getBuildingRadius(bounds));
+
+        this.location1 = origin;
+        this.location2 = origin;
+
+        for(int x = bounds.minX(); x <= bounds.maxX(); x++){
+          for(int z = bounds.minZ(); z <= bounds.maxZ(); z++){
+            claimGrid.add(BlockPos.asLong(origin.getX()+x, 0, origin.getZ()+z));
+          }
+        }
+
+        return this;
+
+    }
+
     /** The footprint this structure will occupy, before it is given a place. */
     public BoundingBox getBounds(){
         return this.template.getBoundingBox(this.settings, BlockPos.ZERO);

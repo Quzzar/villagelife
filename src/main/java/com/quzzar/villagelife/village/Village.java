@@ -50,6 +50,8 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 public class Village {
 
@@ -667,25 +669,30 @@ public class Village {
     if (level == null || getTownCenter() == null) {
       return false;
     }
-    InstantBuildStructure struct = devStructure(buildingName);
-    if (struct == null) {
+    if (Buildings.getByName(buildingName) == null) {
       return false;
     }
+    StructureTemplate template = level.getStructureManager().getOrCreate(
+        net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, buildingName));
 
-    // The site search, not a fixed offset from the centre. A fixed offset
-    // dropped every dev-placed building on the same spot and ignored the claim
-    // grid, so one landed inside the footprint of a project already under way
-    // and was demolished by it, taking a market's chest and its treasury with it.
+    // The site search, not a fixed offset from the centre, and it picks the
+    // facing that fits. A fixed offset dropped every dev-placed building on the
+    // same spot and ignored the claim grid, so one landed inside the footprint of
+    // a project already under way and was demolished by it, taking a market's
+    // chest and its treasury with it.
     LocationValidator.Search search = LocationValidator.findValidLocation(level,
-        BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random);
+        BlockPos.of(getTownCenter().getCenterLocation()).below(), template,
+        List.of(Rotation.values()), this, random);
     if (!search.found()) {
       // Remembered exactly as a real project's refusal is, so a dev-placed
       // building that finds no room leaves the village able to say so: that is
       // the on-demand way to see the room sentence in a briefing.
-      siteMemory.noSiteFor(struct.getBounds(), time, search.reach(), search.nearMiss());
+      BoundingBox bounds = template.getBoundingBox(new StructurePlaceSettings(), BlockPos.ZERO);
+      siteMemory.noSiteFor(bounds, time, search.reach(), search.nearMiss());
       Villagelife.LOGGER.info("Village '{}' has nowhere to put a {}. {}", name, buildingName, describeRoom());
       return false;
     }
+    InstantBuildStructure struct = new InstantBuildStructure(new Building(buildingName, search.rotation()), random, level);
     return seatDevBuilding(struct, search.site());
   }
 
@@ -718,10 +725,16 @@ public class Village {
     return new InstantBuildStructure(new Building(buildingName, Rotation.NONE), random, level);
   }
 
-  /** Seats a dev structure on the given ground with its sink applied, then registers it with the village. */
+  /**
+   * Seats a dev structure on the given ground with its sink applied, then
+   * registers it with the village. Seats by origin, the planner's convention, so
+   * a dev placement lands exactly where a real project's would: this is what lets
+   * {@code /vldev village place} preview how the site search actually grows a
+   * village rather than a version shifted half a footprint off.
+   */
   private boolean seatDevBuilding(InstantBuildStructure struct, BlockPos ground) {
     BuildingInfo placedInfo = struct.getBuilding().getInfo();
-    if (!struct.setOriginLocation(ground.below(placedInfo == null ? 0 : placedInfo.getSink()), claimGrid)
+    if (!struct.seatAtOrigin(ground.below(placedInfo == null ? 0 : placedInfo.getSink()), claimGrid)
         .buildInstantly()) {
       return false;
     }
@@ -1184,24 +1197,32 @@ public class Village {
       if (buildingInfo.getUpgradesFrom() != null) {
         return startUpgrade(buildingInfo);
       }
-      Building building = new Building(buildingInfo.getName(), Rotation.values()[random.nextInt(Rotation.values().length)]);
-      StructureInProgress project = new StructureInProgress(building, random);
-      project.attach(level);
-      BoundingBox bounds = project.getStructureTemplate().getBoundingBox(project.getStructurePlaceSettings(),
-          BlockPos.ZERO);
+      // The site search chooses the facing now, trying every rotation and keeping
+      // the one that fits the nearest slot, so the template is loaded here rather
+      // than baked into a project whose rotation was a random roll.
+      StructureTemplate template = level.getStructureManager().getOrCreate(
+          net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, buildingInfo.getName()));
 
       LocationValidator.Search search = LocationValidator.findValidLocation(level,
-          BlockPos.of(getTownCenter().getCenterLocation()).below(), bounds, this, random);
+          BlockPos.of(getTownCenter().getCenterLocation()).below(), template,
+          List.of(Rotation.values()), this, random);
 
       if (!search.found()) {
         // Remember it, or the planner will keep choosing this and failing here
         // for as long as the village stands hemmed in. The search swept the
         // ground before saying so, which makes this worth a line of its own.
+        BoundingBox bounds = template.getBoundingBox(new StructurePlaceSettings(), BlockPos.ZERO);
         siteMemory.noSiteFor(bounds, time, search.reach(), search.nearMiss());
         Villagelife.LOGGER.info("Village '{}' has no site for a {} ({}x{}). {}",
             name, buildingInfo.getName(), bounds.getXSpan(), bounds.getZSpan(), describeRoom());
         return false;
       }
+
+      Building building = new Building(buildingInfo.getName(), search.rotation());
+      StructureInProgress project = new StructureInProgress(building, random);
+      project.attach(level);
+      BoundingBox bounds = project.getStructureTemplate().getBoundingBox(project.getStructurePlaceSettings(),
+          BlockPos.ZERO);
       return beginProject(project, bounds, search.site());
   }
 

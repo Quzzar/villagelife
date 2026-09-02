@@ -27,42 +27,52 @@ nine-elevation loop, so a search reads roughly a ninth of the blocks it used to,
 candidates in unloaded chunks are skipped before any scan rather than being scored as
 impossible one at a time.
 
-The planner now takes ground that needs work: a free site in the ring always wins, and
-otherwise the nearest preparable ground does, cost deciding only among neighbours. Heightmap-first screening and a systematic sweep are
-built (2026-09-01, "Where a village looks" below), and a refused search now leaves the
-village knowing where its room ran out ("What the village knows when it finds nothing").
-Still unbuilt from the sections below: the resumable budgeted search and the site cache.
+The planner takes ground that needs work: the nearest ground the building fits on wins, free
+or preparable, cost deciding only among neighbours. Heightmap-first screening and a
+systematic sweep are built (2026-09-01, "Where a village looks" below), and a refused search
+now leaves the village knowing where its room ran out ("What the village knows when it finds
+nothing"). Still unbuilt from the sections below: the resumable budgeted search and the site
+cache.
 
-**Where a village looks.** Two passes, both in `LocationValidator`. The first draws a
-handful of random candidates from a square ring around the town centre, biased toward the
-fire, and takes the first free one: that randomness is what gives a village its irregular
-spread, and when land is plentiful the search ends here. The ring's outer edge grows with
-the village, one search radius plus another for every four buildings standing, but it never
-shrinks to nothing, and candidates always stand off the centre rather than starting on it.
-Both halves of that rule were learned by breaking them: a radius proportional to the
-building count alone is zero for a young village, so every candidate lands on the town
-centre's own footprint, is skipped as claimed ground, and the village decides there is
-nowhere to build. A candidate that does land on the centre is pushed out along one axis
-only, so a building can sit due north or east of the fire instead of only on the diagonals.
+**Where a village looks.** One nearest-first sweep, in `LocationValidator`. The village once
+threw a handful of random candidates at a square ring and took the first free one, which is
+what put buildings a long way from the fire: open ground far out is free, near ground is
+often claimed or wants a little levelling, so the random roll kept reaching past the village
+for the first empty patch it hit (2026-09-02, Aaron: "it'll just chuck some of these
+buildings really far away"). Now the sweep walks a grid outward from the fire, nearest first,
+and takes the closest ground the building will sit on. A village fills in a tidy ring around
+its centre, and the ring is not drawn but discovered: the sweep steps over ground too steep
+to level and slots too tight to hold the footprint, so it molds itself to whatever terrain
+the village grew in. The sweep reaches 32 blocks past the ring (never beyond 96); the ring's
+outer edge still grows with the village, one search radius plus another for every four
+buildings, and never shrinks to nothing, so a young village with a zero-count radius still
+has somewhere to look. Candidates stand off the centre rather than starting on it.
 
-When the random pass finds nothing free, the second pass sweeps a grid outward from the
-fire, nearest first, to 32 blocks past the ring (never beyond 96). Before any candidate is
-looked at, the heights of the whole search square are read once from the chunk heightmaps
-(`MOTION_BLOCKING_NO_LEAVES`, the real ground under a canopy) into a grid, so every
-candidate's flatness is arithmetic: its plane is the height most of its columns share, and
-ground with more than one column in eight past the per-column budget, or averaging past the
-levelling budget across the rest, is refused without a block scan. A few tall columns are
-let through because a tree reads as a tall column and is cleared, not levelled. Only
-survivors get the volume scan. In the sweep the nearest usable ground wins: the first candidate
-that is free or preparable settles a band, the sweep reads 8 blocks further out, and the
-cheapest in that band is taken, free outright. The first cut took the cheapest ground in the
-whole reach (2026-09-02) and put Wildflower Downs' lumberjack 90 blocks from its fire, 78
-blocks of work there against 211 within 50; a village that sprawls has a wall ring it cannot
-afford and ground it cannot finish grading. The grid's stride is 4, so a site with a few blocks of slack
-around it cannot fall between grid points; a site that fits only exactly can, and a refusal
-means "no site with a little room to spare". Unloaded chunks read as no ground and are never
-loaded by the search: a refusal records how far out the village actually read ground, and
-with nobody near, that is roughly the founding forceload rather than the full sweep.
+Every candidate is tried in each rotation the caller offers (the planner offers all four),
+and the facing that fits the slot is the one kept: a long building turns to fit a gap its
+other facing could not, and among equally free facings the pick is random, which is where a
+village's variety of orientation comes from now that placement no longer scatters. A clear
+gap of `MIN_GAP` blocks is held between a new footprint and everything already claimed, so
+lanes stay walkable and the cluster reads as planned rather than piled; a candidate whose
+footprint, grown by that gap, touches a claim is passed over.
+
+Before any candidate is scored, the heights of the whole search square are read once from the
+chunk heightmaps (`MOTION_BLOCKING_NO_LEAVES`, the real ground under a canopy) into a grid,
+so every candidate's flatness is arithmetic: its plane is the height most of its columns
+share, and ground with more than one column in eight past the per-column budget, or averaging
+past the levelling budget across the rest, is refused without a block scan. A few tall columns
+are let through because a tree reads as a tall column and is cleared, not levelled. Only
+survivors get the volume scan. The nearest usable ground wins: the first candidate that is
+free or preparable settles a band, the sweep reads 8 blocks further out, and the cheapest in
+that band is taken, free outright. Taking the cheapest ground in the whole reach (2026-09-02)
+put Wildflower Downs' lumberjack 90 blocks from its fire, 78 blocks of work there against 211
+within 50; a village that sprawls has a wall ring it cannot afford and ground it cannot finish
+grading. The grid's stride is 2, fine enough to pack the ring in snugly, and a footprint is
+wider than that, so a slot with room to spare cannot fall between grid points; a slot that
+fits only exactly can, and a refusal means "no site with a little room to spare". Unloaded
+chunks read as no ground and are never loaded by the search: a refusal records how far out
+the village actually read ground, and with nobody near, that is roughly the founding
+forceload rather than the full sweep.
 
 A village only searches while its ground is loaded. Nothing can be sited in a chunk nobody
 is near, and asking the brain to choose would spend a model call on an answer no site search
