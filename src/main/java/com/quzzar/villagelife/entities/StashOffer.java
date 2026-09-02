@@ -16,6 +16,12 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.llm.LlmSelection;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.village.PersonalChest;
+import com.quzzar.villagelife.village.Village;
+import com.quzzar.villagelife.village.buildings.BuildingInfo;
+import com.quzzar.villagelife.village.buildings.Buildings;
+import com.quzzar.villagelife.village.buildings.Materials;
+import com.quzzar.villagelife.village.buildings.StructureInProgress;
+import com.quzzar.villagelife.village.buildings.VillageGoal;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -85,7 +91,7 @@ public final class StashOffer {
       return;
     }
     for (Item item : kinds) {
-      options.add("Keep the " + carried.get(item) + " " + plain(item));
+      options.add("Hold back the " + carried.get(item) + " " + plain(item) + " from the village stores");
     }
     String purpose = person.getFullName() + "'s chest at home";
     llm.choose(purpose, situation(person, chest, carried), options).whenComplete((selection, error) -> {
@@ -124,10 +130,48 @@ public final class StashOffer {
     }
     situation.append("It is not a store. The village lives on what its workers bring in each day: the")
         .append(" stores are where everyone draws wood, food, wool and tools, and anything held back at")
-        .append(" home is lost to the village's work. Most nights a worker keeps nothing. Keep a thing only")
+        .append(" home is lost to the village's work. ").append(villageNeed(person.getVillage()))
+        .append(" Most nights a worker keeps nothing. Hold something back only")
         .append(" if it is truly personal, a gift, a memento or a bite of something you fancy, never")
         .append(" supplies or your day's produce. Give your reason in a few words.");
     return situation.toString();
+  }
+
+  /**
+   * What the village is saving for or building and what it is still short of,
+   * as the chat briefing states it (PersonChatContext), so the villager weighs
+   * the wool in their pack against the beds it is waiting to become. Stated
+   * even when there is nothing, since an unmentioned need is a gap the model
+   * fills. The first night on the keepsakes wording (2026-09-02), four of nine
+   * still held back white wool as a "keepsake" while the village was short of
+   * it; the cost was in the pack and never in the question.
+   */
+  private static String villageNeed(@Nullable Village village) {
+    if (village == null) {
+      return "";
+    }
+    Map<Item, Integer> stock = village.stockTally();
+    List<String> needs = new ArrayList<>();
+    StructureInProgress project = village.getCurrentProject();
+    if (project != null && project.isGathering()) {
+      BuildingInfo built = project.getBuilding().getInfo();
+      needs.add(need("building", built, Materials.describeShortfall(stock, built.getMaterialCost())));
+    }
+    String goal = VillageGoal.current(village);
+    BuildingInfo wanted = goal == null ? null : Buildings.getByName(goal);
+    if (wanted != null) {
+      needs.add(need("saving to build", wanted, Materials.describeShortfall(stock, wanted.getMaterialCost())));
+    }
+    if (needs.isEmpty()) {
+      return "The village is not short of anything for a build tonight.";
+    }
+    return String.join(" ", needs);
+  }
+
+  private static String need(String doing, BuildingInfo building, String shortfall) {
+    String label = building.hasWellFormedId() ? building.getCategory().replace('_', ' ') : building.getName();
+    return "The village is " + doing + " a " + label
+        + (shortfall.isEmpty() ? " and has everything it needs for it." : " and is still short " + shortfall + ".");
   }
 
   private static void finish(RealPerson person, List<Item> kinds, Optional<LlmSelection> selection) {

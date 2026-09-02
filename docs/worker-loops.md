@@ -67,7 +67,12 @@ of what they are carrying home to keep, any number or none, rather than hand it 
 stores (`entities/StashOffer`, the third personal decision in [llm-brain.md](llm-brain.md), over
 `LlmService.choose`, the multi-pick sibling of `decide()`). The briefing names the pack and what the
 chest already holds, calls the chest a small one for keepsakes and says what a store is for: the
-village lives on what its workers bring in, and anything held back at home is lost to its work. It
+village lives on what its workers bring in, and anything held back at home is lost to its work, then
+what the village is saving for or building and what it is still short of, in the same words as the
+chat briefing (`Materials.describeShortfall`), and stated even when there is nothing. The options
+name the cost too: "Hold back the 12 white wool from the village stores", not "Keep the 12 white
+wool", because the first night on the keepsakes wording four of nine still held back wool as a
+"keepsake" while the village was short of it. It
 does not say who shares the chest (2026-09-02): introduced as "shared with X and Y" the chest read
 as shared storage, and a whole flock's wool went home night after night as "personal supplies".
 The job's kit (any tool, and what the restock hands out: torches, the bucket, the sponge) is never
@@ -367,8 +372,19 @@ bred a pen that already trapped its people up to twenty-four before the first sl
 the butcher works from six up.) The butcher steps onto the
 drops to gather them, cooks the raw meat from the pack (the cook loop takes what is in hand
 before it fetches), and carries the leather, feathers and wool to a chest once the round is
-done. Villagers still cannot open fence gates; the pen's people leave through the building's
-own door, which the cull keeps clear.
+done.
+
+**Built, 2026-09-02: villagers open fence gates.** Vanilla reads a closed fence gate as a fence,
+so no mob ever plans a route through one. The butchery pen has two gates and a door, and to its
+own butcher it was a yard with one exit: every trip to the storehouse barrel three blocks past the
+fence became a thirty-block walk out through the building and round it, further than his
+pathfinder searches, so he stood at the fence until the loop stood him down. A person's
+navigation now uses vanilla's walking evaluator with one answer corrected (`GatePathNavigation`):
+a closed gate is what a closed wooden door is, a node the route may pass through at the door's
+cost, orthogonally only, and `OpenFenceGateGoal` is the door goal written for gates, since the
+vanilla one tests for the door class and looks a block up for a top half a gate does not have.
+The gate swings away from the opener and closes twenty ticks later whether or not they are
+through, the door's rule, because a pen gate left open is an empty pen by evening.
 
 **Built, 2026-08-31: lumberjacks and guards clear nearby woodland; whole trees, and never the
 village's own.** The lumberjack's planted stand remains its reliable, renewable source of work,

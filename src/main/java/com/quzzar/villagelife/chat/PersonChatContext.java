@@ -340,7 +340,7 @@ public final class PersonChatContext {
         List<ItemStack> recipe = wanted != null ? wanted.getMaterialCost() : List.of();
         if (!recipe.isEmpty()) {
           system.append("To build it the village needs ").append(joinCosts(recipe)).append(". ");
-          String remaining = remainingCosts(recipe, village.stockTally());
+          String remaining = Materials.describeShortfall(village.stockTally(), recipe);
           system.append(remaining.isEmpty()
               ? "Everything needed is gathered; building can begin soon."
               : "Still short " + remaining + ".");
@@ -650,20 +650,6 @@ public final class PersonChatContext {
     List<String> parts = new ArrayList<>();
     for (ItemStack cost : costs) {
       parts.add(cost.getCount() + " " + Materials.describe(cost.getItem()));
-    }
-    return String.join(", ", parts);
-  }
-
-  /**
-   * Only the shortfall against current village stock, e.g. "40 cobblestone";
-   * empty when every material is already gathered. Stock is the same tally the
-   * planner affords against (chests plus what villagers carry), so what a
-   * villager says it still needs matches what the brain is actually waiting on.
-   */
-  private static String remainingCosts(List<ItemStack> costs, Map<Item, Integer> stock) {
-    List<String> parts = new ArrayList<>();
-    for (ItemStack missing : Materials.shortfall(stock, costs)) {
-      parts.add(missing.getCount() + " " + Materials.describe(missing.getItem()));
     }
     return String.join(", ", parts);
   }

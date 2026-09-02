@@ -277,6 +277,20 @@ public final class Materials {
    * A generic kind is spoken as what pays for it, "logs", "planks" or "stone";
    * anything else is its plain name, "iron ingot" for "minecraft:iron_ingot".
    */
+  /**
+   * The shortfall against a stock as a villager would say it, e.g. "40
+   * cobblestone, 3 white wool"; empty when the recipe is covered. The chat
+   * briefing and the bedtime chest question both state what the village is
+   * still short of, and they must agree with what the brain is waiting on.
+   */
+  public static String describeShortfall(Map<Item, Integer> stock, List<ItemStack> recipe) {
+    List<String> parts = new ArrayList<>();
+    for (ItemStack missing : shortfall(stock, recipe)) {
+      parts.add(missing.getCount() + " " + describe(missing.getItem()));
+    }
+    return String.join(", ", parts);
+  }
+
   public static String describe(Item wanted) {
     switch (kindOf(wanted)) {
       case LOGS:
