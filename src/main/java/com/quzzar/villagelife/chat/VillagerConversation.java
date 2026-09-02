@@ -2,6 +2,7 @@ package com.quzzar.villagelife.chat;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -17,27 +18,30 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * A conversation between two VILLAGERS, driven by the same
- * {@link PersonChatDispatcher#converse} pipeline a player uses. Each turn, one
- * villager's reply becomes the line the other answers, so everything the chat
- * system already does per-interlocutor simply happens between the two of them:
- * transcripts and close-of-session summaries on both sides, undertakings
- * opened and advanced with each other, items handed over with {@code give},
- * opinions moved through OpinionService (a resident lands on the relationship
- * pair), and village {@code request}s filed when one talks the other into one.
+ * A conversation between two VILLAGERS, run on the shared {@link Dialogue}
+ * engine and voiced through the same {@link PersonChatDispatcher#converse}
+ * pipeline a player uses. Each turn, one villager's reply becomes the line the
+ * other answers, so everything the chat system already does per-interlocutor
+ * simply happens between the two of them: transcripts and close-of-session
+ * summaries on both sides, undertakings opened and advanced with each other,
+ * items handed over with {@code give}, opinions moved through OpinionService (a
+ * resident lands on the relationship pair), and village {@code request}s filed
+ * when one talks the other into one.
  *
- * <p>The driver's own job is small: alternate the turns, keep both parties
- * standing (the shared chat session, which PauseForConversationGoal reads),
- * speak each line aloud to players in earshot, and stop. It stops when either
- * party takes their leave ({@code "done": true} on the reply, the model's own
- * call, the same flag a player's screen honours), when either party dies or
- * drifts out of range, when a turn takes longer than the session timeout (the
- * background LLM lane is busy; the pair returns to their lives rather than
- * standing frozen), when one answers words with blows, or when the model has
- * nothing to say. There is no budget of lines and no clock on the talk itself
- * (Aaron, 2026-09-02: let them talk until they want to stop, and if they yap,
- * so be it). Every end closes the same way a screen-close does: one summary
- * each, so the talk becomes a memory.
+ * <p>This class's own job is small: the lifecycle around a talk. It keeps both
+ * parties standing (the shared chat session, which PauseForConversationGoal
+ * reads), speaks each line aloud to players in earshot, and, when the engine
+ * says the talk is over, closes it. The {@link Exchange} protocol supplies each
+ * turn; the engine chains them. It stops when either party takes their leave
+ * ({@code "done": true} on the reply, the model's own call, the same flag a
+ * player's screen honours), when either party dies or drifts out of range, when
+ * a turn takes longer than the session timeout (the background LLM lane is busy;
+ * the pair returns to their lives rather than standing frozen), when one answers
+ * words with blows, or when the model has nothing to say. There is no budget of
+ * lines and no clock on the talk itself (Aaron, 2026-09-02: let them talk until
+ * they want to stop, and if they yap, so be it); {@link Exchange#maxTurns()} is
+ * a backstop only, never reached in an ordinary talk. Every end closes the same
+ * way a screen-close does: one summary each, so the talk becomes a memory.
  *
  * <p>Turns ride the background LLM lane (LlmService.submitBackgroundChat), so
  * villager chatter never delays a player's reply or a village decision, and
@@ -65,6 +69,13 @@ public final class VillagerConversation {
    * from crowding out personas and reflection.
    */
   private static final int MAX_ACTIVE = 1;
+
+  /**
+   * A backstop ceiling on turns, so a pair the model never lets finish still
+   * stops one day. A real talk ends long before this on {@code done}, drift, or
+   * the session timeout; there is deliberately no shorter budget of lines.
+   */
+  private static final int SAFETY_TURN_CAP = 400;
 
   /**
    * Minimum quiet time between conversation STARTS, server-wide. The
@@ -158,36 +169,72 @@ public final class VillagerConversation {
 
     Villagelife.LOGGER.info("[villager chat] {} strikes up a conversation with {}",
         initiator.getFullName(), partner.getFullName());
-    takeTurn(initiator, partner, OPENER_CUE, "");
+    Dialogue.run(new Exchange(initiator, partner)).whenComplete((result, error) -> {
+      MinecraftServer server = initiator.getServer();
+      if (server != null) {
+        server.execute(() -> finish(initiator, partner));
+      } else {
+        finish(initiator, partner);
+      }
+    });
     return true;
   }
 
   /**
-   * One turn: {@code speaker} answers {@code message} (the listener's last
-   * line, or the opener cue), the reply is spoken aloud and any give is
-   * executed, then the roles swap. The chain runs on futures, hopping back to
-   * the server thread for everything that touches entities; the shared chat
-   * session is refreshed each completed turn, so a turn the LLM cannot serve
-   * within the session timeout lets both parties walk away on their own.
+   * The two villagers as a {@link Dialogue.Protocol}: turn zero is the initiator
+   * answering the opener cue, and thereafter each voice answers the other's last
+   * line through {@link PersonChatDispatcher#converse}. The talk never resolves
+   * to a value ({@code R} is {@link Void}); it only continues, leaves, or aborts,
+   * and the lifecycle around it is closed by {@link #finish} when the engine is
+   * done. Every turn's world-touching work is hopped to the server thread.
    */
-  private static void takeTurn(RealPerson speaker, RealPerson listener, String message,
-      String historyLine) {
-    try {
-      PersonChatDispatcher
+  private static final class Exchange implements Dialogue.Protocol<Void> {
+
+    private final RealPerson initiator;
+    private final RealPerson partner;
+
+    private Exchange(RealPerson initiator, RealPerson partner) {
+      this.initiator = initiator;
+      this.partner = partner;
+    }
+
+    @Override
+    public int voices() {
+      return 2;
+    }
+
+    @Override
+    public int maxTurns() {
+      return SAFETY_TURN_CAP;
+    }
+
+    @Override
+    public CompletableFuture<Dialogue.Turn<Void>> takeTurn(int speakerIndex, Dialogue.Transcript transcript,
+        boolean lastChance) {
+      RealPerson speaker = speakerIndex % 2 == 0 ? initiator : partner;
+      RealPerson listener = speaker == initiator ? partner : initiator;
+      String message = transcript.isEmpty() ? OPENER_CUE : transcript.lastLine();
+      String historyLine = transcript.isEmpty() ? "" : transcript.lastLine();
+
+      CompletableFuture<Dialogue.Turn<Void>> turn = new CompletableFuture<>();
+      MinecraftServer server = speaker.getServer();
+      if (server == null) {
+        turn.complete(Dialogue.Turn.abort());
+        return turn;
+      }
+      // converse reads world and entity state synchronously before it hands off
+      // to the LLM lane, so it is called on the server thread, not from the
+      // engine's off-thread continuation; the reply's effects then hop back.
+      server.execute(() -> PersonChatDispatcher
           .converse(speaker, listener.getFullName(), listener.getUUID(), message, historyLine, true)
-          .whenComplete((reply, error) -> {
-            MinecraftServer server = speaker.getServer();
-            if (server == null) {
-              finish(speaker, listener);
-              return;
-            }
-            server.execute(() -> {
+          .whenComplete((reply, error) -> server.execute(() -> {
+            try {
               if (error != null || reply == null || PersonChatDispatcher.isFallback(speaker, reply.say())) {
-                finish(speaker, listener);
+                turn.complete(Dialogue.Turn.abort());
                 return;
               }
               if (!stillTogether(speaker, listener)) {
-                finish(speaker, listener);
+                turn.complete(Dialogue.Turn.abort());
                 return;
               }
               speak(speaker, reply.say());
@@ -198,7 +245,7 @@ public final class VillagerConversation {
               // villager may make with a player, made about a neighbour.
               if (reply.fight()) {
                 speaker.pickFightWith(listener);
-                finish(speaker, listener);
+                turn.complete(Dialogue.Turn.abort());
                 return;
               }
               // The speaker takes their leave: their own call, made in the
@@ -206,20 +253,19 @@ public final class VillagerConversation {
               if (reply.done()) {
                 Villagelife.LOGGER.info("[villager chat] {} takes their leave of {}",
                     speaker.getFullName(), listener.getFullName());
-                finish(speaker, listener);
+                turn.complete(Dialogue.Turn.leave(reply.say()));
                 return;
               }
               PersonChatDispatcher.markTalking(speaker, listener.getUUID());
               PersonChatDispatcher.markTalking(listener, speaker.getUUID());
-              takeTurn(listener, speaker, reply.say(), reply.say());
-            });
-          });
-    } catch (RuntimeException e) {
-      // Logged, not rethrown: a throw here would land in the goal tick and
-      // take the server down for a line of gossip.
-      finish(speaker, listener);
-      Villagelife.LOGGER.warn("[villager chat] turn failed between {} and {}",
-          speaker.getFullName(), listener.getFullName(), e);
+              turn.complete(Dialogue.Turn.spoke(reply.say()));
+            } catch (RuntimeException e) {
+              Villagelife.LOGGER.warn("[villager chat] turn failed between {} and {}",
+                  speaker.getFullName(), listener.getFullName(), e);
+              turn.complete(Dialogue.Turn.abort());
+            }
+          })));
+      return turn;
     }
   }
 
@@ -227,8 +273,8 @@ public final class VillagerConversation {
    * Whether the pair is still in this conversation with each other: both
    * alive, neither past their bedtime, both sessions pointing at one another
    * (which is also where the session timeout is felt), and still within
-   * talking range. Panic, combat,
-   * or a death mid-talk fails this and the conversation ends cleanly.
+   * talking range. Panic, combat, or a death mid-talk fails this and the
+   * conversation ends cleanly.
    */
   private static boolean stillTogether(RealPerson a, RealPerson b) {
     return a.isAlive() && b.isAlive()
@@ -238,6 +284,13 @@ public final class VillagerConversation {
         && a.distanceToSqr(b) <= TALK_RANGE * TALK_RANGE;
   }
 
+  /**
+   * Night has fallen on a villager who sleeps at night: their bed outranks the
+   * talk, so the pair parts and {@link #finish} folds it into memory the same
+   * as any other end. A guard never reaches bedtime and will talk till dawn; a
+   * chat that ran past dusk used to freeze a sleeper in place all night, since
+   * PauseForConversationGoal outranks SleepAtNightGoal.
+   */
   private static boolean pastBedtime(RealPerson person) {
     return person.level().isNight() && person.getOccupation().sleepsAtNight();
   }
@@ -273,9 +326,10 @@ public final class VillagerConversation {
   /**
    * Speaks a line aloud: players within earshot see it briefly above the
    * speaker's head, keeping ambient villager talk in the world instead of
-   * filling the player's chat transcript.
+   * filling the player's chat transcript. Shared by every conversation a
+   * village overhears, this one and the brain-convened deliberations alike.
    */
-  private static void speak(RealPerson speaker, String line) {
+  public static void speak(RealPerson speaker, String line) {
     if (!(speaker.level() instanceof ServerLevel level)) {
       return;
     }
@@ -296,5 +350,4 @@ public final class VillagerConversation {
   public static void speakTest(RealPerson speaker, String raw) {
     speak(speaker, VillagerText.clean(raw));
   }
-
 }

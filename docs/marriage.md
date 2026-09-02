@@ -14,7 +14,8 @@ pairwise bonds ([relationships.md](relationships.md)), the brain's `decide` call
 a strong, mutual bond
    → each villager files a proposal naming the other        (MarriageProposals)
    → the brain is asked to bless the pair that named each other   (LlmService.decide)
-   → both become MARRIED, take one hyphenated surname, the pair edge is flagged married
+   → the blessed couple settle their married name themselves      (MarriageNaming, on Dialogue)
+   → both become MARRIED and take the name they chose (or a hyphenation), the pair edge is flagged married
    → the village names a couple's cottage as its saved-for goal   (VillageGoal)
    → on the cottage's completion both are moved into its two beds  (Village.houseCouple)
    → their shared chest follows for free                          (PersonalChest)
@@ -58,9 +59,9 @@ absent model just leaves the pair betrothed for next pass; nothing is forced.
 
 A wedding (`MarriageService.wed`):
 
-- sets both villagers to `MARRIED` and gives them **one hyphenated family name**
-  (`Ada Hollic` + `Bren Vane` become the `Hollic-Vane` household). The surname
-  order is fixed by UUID so the two agree on it from either side.
+- sets both villagers to `MARRIED` and gives them **one household name**, the one
+  the couple chose for themselves (see "The couple names itself" below), or a
+  hyphenation when their talk settled nothing.
 - flags the `RelationshipPair` between them **married**, which is the single source
   of truth for who is wed to whom, and stops the pair from ever being proposed
   again.
@@ -69,6 +70,29 @@ A wedding (`MarriageService.wed`):
 eligibility check reads; the pair edge is the fact. The spouse is derived from the
 edge wherever it is needed (a villager's chat briefing tells them who they are
 married to), never stored twice.
+
+## The couple names itself
+
+The married name is not a rule's to pick; it is the couple's. Once the brain has
+blessed the marriage, it convenes the two betrothed and they settle the name
+themselves, in a group chat run on the shared conversation engine
+(`MarriageNaming`, on `Dialogue`; see [conversations.md](conversations.md)). This
+is the "just ask the villager" pattern applied to a decision that is genuinely
+theirs: they talk it over as themselves, in the first person and overheard by any
+player nearby, and the way to end the talk is a valid choice.
+
+The choice is constrained to what a marriage can sensibly make of two names: keep
+one, take the other, or join them hyphenated in either order (`Ada Hollic` and
+`Bren Vane` may become the `Hollic`, `Vane`, `Hollic-Vane`, or `Vane-Hollic`
+household). The model is shown those exact options and its answer is validated
+against them, so no invented surname can slip through.
+
+The decision stays pending (`Village.marriageDecisionPending`) across the whole
+talk, so no other marriage in the village starts while it runs. When the talk
+lands no valid name (a quiet model, or a pair who never agree), the wedding falls
+back to the hyphenation the two derive by UUID order, so the couple's voice is
+honoured when they use it and a marriage is never blocked when they do not. This
+is the same graceful-deferral contract every LLM path in the mod keeps.
 
 ## Housing queues, it does not preempt
 

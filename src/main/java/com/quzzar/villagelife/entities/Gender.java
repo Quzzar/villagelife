@@ -25,6 +25,16 @@ public enum Gender {
         }
     }
 
+    /** How a villager's own gender is stated to them: the predicate after "You are" (a plain self-description, not a label). */
+    public String describe(){
+        switch(this){
+            case MALE: return "a man";
+            case FEMALE: return "a woman";
+            case NONBINARY: return "nonbinary";
+            default: return "";
+        }
+    }
+
     public static Gender generateGender(){
         double d = new Random().nextDouble();
         if(d > Gender.MALE.getChance()) {

@@ -24,10 +24,12 @@ by villager talk for free.
    (`OpinionService.opinionOf`, ties random), walks over, and hands off.
 2. **Drive.** `VillagerConversation.tryStart` marks both parties as in
    conversation (the same session store a player screen uses, so
-   `PauseForConversationGoal` holds both still, facing each other) and runs
-   the turn loop: the initiator opens off a greeting cue, then each reply
-   becomes the line the other answers, via
-   `PersonChatDispatcher.converse(..., background=true)`.
+   `PauseForConversationGoal` holds both still, facing each other) and hands
+   the turn loop to the shared conversation engine (`Dialogue.run`, see
+   [conversations.md](conversations.md)). Its `Exchange` protocol supplies each
+   turn: the initiator opens off a greeting cue, then each reply becomes the line
+   the other answers, via `PersonChatDispatcher.converse(..., background=true)`.
+   This class keeps the lifecycle around the loop; the loop itself is the engine's.
 3. **Overhear.** Each spoken line is shown to players within earshot
    (16 blocks) as a short-lived speech bubble above the speaker. A new line
    replaces the previous one, and disappears after six seconds, so ambient
@@ -87,8 +89,14 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
 
 ## Code map
 
-- `chat/VillagerConversation.java`: the driver. Turn alternation, session
-  marking, earshot broadcast, capacity and cooldown, close-with-summaries.
+- `chat/VillagerConversation.java`: the lifecycle around a talk. Session
+  marking, earshot broadcast, capacity and cooldown, close-with-summaries, and
+  the `Exchange` protocol that supplies each turn. The turn loop itself is the
+  shared engine's.
+- `chat/Dialogue.java`: the shared conversation engine
+  ([conversations.md](conversations.md)). Cycles the voices, grows the
+  transcript, caps the rounds, and ends on leave, resolution, or abort. Villager
+  talk, the quartermaster's shelving, and a couple's naming all run on it.
 - `entities/ai/goals/SeekConversationGoal.java`: the approach. Partner
   choice by fondness, the walk, the handoff.
 - `chat/PersonChatDispatcher.java`: `converse(..., background)`, the shared

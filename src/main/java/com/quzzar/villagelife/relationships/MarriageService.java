@@ -154,19 +154,55 @@ public final class MarriageService {
             return;
           }
           level.getServer().execute(() -> {
-            village.setMarriageDecisionPending(false);
             if (error != null) {
+              village.setMarriageDecisionPending(false);
               Villagelife.LOGGER.error("[marriage] '{}' could not decide a marriage", village.getName(), error);
               return;
             }
             if (result != null && result.isPresent() && result.get().choiceIndex() == 0) {
-              wed(village, level, idA, idB, result.get().reason());
-            } else if (result != null && result.isPresent()) {
-              Villagelife.LOGGER.info("[marriage] '{}' set aside a marriage for now: {}",
-                  village.getName(), result.get().reason());
+              // Blessed: the couple now settle their married name themselves,
+              // then are wed with it. The decision stays pending across that
+              // talk, so no other marriage in this village starts while it runs.
+              chooseNameAndWed(village, level, idA, idB, result.get().reason());
+            } else {
+              village.setMarriageDecisionPending(false);
+              if (result != null && result.isPresent()) {
+                Villagelife.LOGGER.info("[marriage] '{}' set aside a marriage for now: {}",
+                    village.getName(), result.get().reason());
+              }
             }
           });
         });
+  }
+
+  /**
+   * A blessed pair settle the family name their household will take, then are
+   * wed with it. The couple's own conversation chooses the name ({@link
+   * MarriageNaming}: the brain convenes them, they talk it out, and conclude
+   * with a valid choice); whenever that talk reaches no valid name the wedding
+   * falls back to the hyphenation the two agree on by UUID order, so a marriage
+   * is never blocked by a quiet model. The decision is held pending across the
+   * whole talk, and cleared once the pair are wed or the attempt is abandoned.
+   */
+  private static void chooseNameAndWed(Village village, ServerLevel level, UUID idA, UUID idB, String blessing) {
+    RealPerson a = village.getPerson(level, idA);
+    RealPerson b = village.getPerson(level, idB);
+    if (a == null || b == null
+        || a.getMarriageStatus() != MarriageStatus.SINGLE
+        || b.getMarriageStatus() != MarriageStatus.SINGLE) {
+      village.setMarriageDecisionPending(false);
+      return;
+    }
+    MarriageNaming.chooseSurname(a, b).whenComplete((chosen, error) -> {
+      if (level.getServer() == null) {
+        return;
+      }
+      level.getServer().execute(() -> {
+        village.setMarriageDecisionPending(false);
+        String surname = error == null && chosen != null && chosen.isPresent() ? chosen.get() : null;
+        wed(village, level, idA, idB, surname, blessing);
+      });
+    });
   }
 
   /** The first pair, in canonical order, who have each proposed the other and are both still single here. */
@@ -215,12 +251,14 @@ public final class MarriageService {
   }
 
   /**
-   * Weds two villagers: both become {@link MarriageStatus#MARRIED}, the
-   * {@link RelationshipPair} between them is flagged married so it is never
-   * proposed again, and their standing proposals are cleared. Guards that
-   * neither wed someone else while the decision was in flight.
+   * Weds two villagers: both become {@link MarriageStatus#MARRIED} and take the
+   * one household name they chose ({@code chosenSurname}), or the hyphenation
+   * fallback when their naming talk settled nothing. The {@link RelationshipPair}
+   * between them is flagged married so it is never proposed again, and their
+   * standing proposals are cleared. Guards that neither wed someone else while
+   * the decision, and then the naming talk, were in flight.
    */
-  private static void wed(Village village, ServerLevel level, UUID idA, UUID idB, String reason) {
+  private static void wed(Village village, ServerLevel level, UUID idA, UUID idB, String chosenSurname, String reason) {
     RealPerson a = village.getPerson(level, idA);
     RealPerson b = village.getPerson(level, idB);
     if (a == null || b == null
@@ -228,15 +266,27 @@ public final class MarriageService {
         || b.getMarriageStatus() != MarriageStatus.SINGLE) {
       return;
     }
-    a.marry(b);
+    String surname = chosenSurname != null && !chosenSurname.isBlank() ? chosenSurname : hyphenate(a, b);
+    a.marry(b, surname);
     RelationshipPair pair = village.getRelationship(idA, idB);
     village.putRelationship(pair != null
         ? pair.withMarried(true)
         : RelationshipPair.create(idA, idB, STRONG_BOND, 0, 0, false, "", true));
     MarriageProposals.clearInvolving(village, idA);
     MarriageProposals.clearInvolving(village, idB);
-    Villagelife.LOGGER.info("[marriage] '{}' and '{}' are wed in '{}': {}",
-        a.getFullName(), b.getFullName(), village.getName(), reason);
+    Villagelife.LOGGER.info("[marriage] '{}' and '{}' are wed in '{}' as the {} household: {}",
+        a.getFullName(), b.getFullName(), village.getName(), surname, reason);
+  }
+
+  /**
+   * The married surname the couple falls back to when their own naming talk
+   * settles nothing: their two family names, hyphenated in UUID order so both
+   * sides derive the same name from either end.
+   */
+  private static String hyphenate(RealPerson a, RealPerson b) {
+    RealPerson first = a.getUUID().compareTo(b.getUUID()) <= 0 ? a : b;
+    RealPerson second = first == a ? b : a;
+    return first.getLastName() + "-" + second.getLastName();
   }
 
   // --- Housing -------------------------------------------------------------

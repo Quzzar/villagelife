@@ -17,6 +17,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.chat.Dialogue;
 import com.quzzar.villagelife.chat.VillagerText;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.llm.LlmService;
@@ -156,75 +157,111 @@ public final class QuartermasterPlanner {
         quartermaster.getFullName(), quartermaster.getVillageName());
     Villagelife.LOGGER.info("[quartermaster] {} sits down to shelve {} slots across {} item types",
         context.who(), totalSlots, items.size());
-    return converge(context, 0, List.of(), List.of());
+    return Dialogue.run(new Shelving(context));
   }
 
   /**
-   * One round of the dialogue, then recursion until the grouping holds or the
-   * rounds run out. {@code prior} is the last proposal that parsed at all, so a
-   * correcting turn always sees a real attempt rather than a blank.
+   * The dialogue as a {@link Dialogue.Protocol}: the quartermaster and the brain
+   * take alternate turns proposing and correcting a partition, and the first
+   * that holds resolves the talk. The specialized work (parse, validate, lay
+   * out) is the same as ever; this only expresses the round loop as a
+   * conversation, so a reply is a turn and a settled plan is its resolution.
+   *
+   * <p>{@code prior} is the last proposal that parsed at all, carried across
+   * turns so a correcting round always sees a real attempt rather than a blank;
+   * {@code round} is tracked here because the opening prompt differs from the
+   * correcting one. The last permitted turn ({@code lastChance}) never sends the
+   * groups back again: it lays out whatever grouping stands, by count, or aborts
+   * only when no readable grouping was ever given.
    */
-  private static CompletableFuture<Optional<Outcome>> converge(Context context, int round,
-      List<RawCategory> prior, List<String> priorErrors) {
-    boolean brainSpeaks = round % 2 == 1;
-    String system = brainSpeaks
-        ? "You are the shared good sense of " + context.village()
-            + ", working with your quartermaster " + context.who() + " to shelve the storehouse."
-        : "You are " + context.who() + ", quartermaster of " + context.village()
-            + ". You keep the storehouse and decide which slots hold what.";
-    String user = round == 0 ? openingPrompt(context)
-        : fixPrompt(context, render(prior, context.items()), priorErrors);
+  private static final class Shelving implements Dialogue.Protocol<Outcome> {
 
-    String purpose = context.who() + " shelves the storehouse, round " + round;
-    return LlmService.get().submitPersona(purpose, system, user, PLAN_MAX_TOKENS, TEMPERATURE).thenCompose(reply -> {
-      String raw = reply.orElse("");
-      List<RawCategory> proposal = parseCategories(raw, context.items().size());
-      List<String> errors = validate(proposal, context.items().size(), context.totalSlots());
-      Villagelife.LOGGER.info("[quartermaster] {} round {} ({}): {} groups, {}",
-          context.who(), round + 1, brainSpeaks ? "brain" : "quartermaster", proposal.size(),
-          errors.isEmpty() ? "valid" : errors.size() + " problem(s): " + String.join("; ", errors));
+    private final Context context;
+    private List<RawCategory> prior = List.of();
+    private List<String> priorErrors = List.of();
+    private int round = 0;
 
-      if (errors.isEmpty() && !proposal.isEmpty()) {
-        Villagelife.LOGGER.info("[quartermaster] {} settled a shelving plan in {} round(s)",
-            context.who(), round + 1);
-        return CompletableFuture.completedFuture(Optional.of(build(context, proposal, raw)));
-      }
-      if (!proposal.isEmpty() && groupingHolds(proposal, context.items().size())) {
-        // The grouping is complete; only the slot sums are off. That part is
-        // arithmetic, and arithmetic does not get more rounds.
-        Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
-            + "the slot sums did not add up, so the shelves are laid out by count",
-            context.who(), round + 1);
-        return CompletableFuture.completedFuture(Optional.of(layoutByCount(context, proposal, raw)));
-      }
-      // The next turn corrects a real attempt: a reply that gave nothing, or
-      // that gave up the sorting and merged everything into one group, is set
-      // aside and the earlier grouping goes back to the table with its problems.
-      List<RawCategory> latest = proposal;
-      List<String> latestErrors = errors;
-      if (proposal.isEmpty()
-          || (collapsed(proposal, context.items().size()) && !collapsed(prior, context.items().size())
-              && !prior.isEmpty())) {
-        latest = prior;
-        latestErrors = new ArrayList<>(priorErrors);
-        if (!proposal.isEmpty()) {
-          latestErrors.add("the last correction merged everything into one group, which is not a plan;"
-              + " go back to the groups above and fix them");
+    private Shelving(Context context) {
+      this.context = context;
+    }
+
+    @Override
+    public int voices() {
+      return 2;
+    }
+
+    @Override
+    public int maxTurns() {
+      return MAX_ROUNDS;
+    }
+
+    @Override
+    public CompletableFuture<Dialogue.Turn<Outcome>> takeTurn(int speaker, Dialogue.Transcript transcript,
+        boolean lastChance) {
+      int currentRound = round;
+      boolean brainSpeaks = speaker == 1;
+      String system = brainSpeaks
+          ? "You are the shared good sense of " + context.village()
+              + ", working with your quartermaster " + context.who() + " to shelve the storehouse."
+          : "You are " + context.who() + ", quartermaster of " + context.village()
+              + ". You keep the storehouse and decide which slots hold what.";
+      String user = currentRound == 0 ? openingPrompt(context)
+          : fixPrompt(context, render(prior, context.items()), priorErrors);
+
+      String purpose = context.who() + " shelves the storehouse, round " + currentRound;
+      return LlmService.get().submitPersona(purpose, system, user, PLAN_MAX_TOKENS, TEMPERATURE).thenApply(reply -> {
+        String raw = reply.orElse("");
+        List<RawCategory> proposal = parseCategories(raw, context.items().size());
+        List<String> errors = validate(proposal, context.items().size(), context.totalSlots());
+        Villagelife.LOGGER.info("[quartermaster] {} round {} ({}): {} groups, {}",
+            context.who(), currentRound + 1, brainSpeaks ? "brain" : "quartermaster", proposal.size(),
+            errors.isEmpty() ? "valid" : errors.size() + " problem(s): " + String.join("; ", errors));
+
+        if (errors.isEmpty() && !proposal.isEmpty()) {
+          Villagelife.LOGGER.info("[quartermaster] {} settled a shelving plan in {} round(s)",
+              context.who(), currentRound + 1);
+          return Dialogue.Turn.<Outcome>resolved(build(context, proposal, raw));
         }
-      }
-      if (round + 1 >= MAX_ROUNDS) {
-        if (latest.isEmpty()) {
-          Villagelife.LOGGER.info("[quartermaster] {} never gave a readable grouping in {} rounds",
+        if (!proposal.isEmpty() && groupingHolds(proposal, context.items().size())) {
+          // The grouping is complete; only the slot sums are off. That part is
+          // arithmetic, and arithmetic does not get more rounds.
+          Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
+              + "the slot sums did not add up, so the shelves are laid out by count",
+              context.who(), currentRound + 1);
+          return Dialogue.Turn.<Outcome>resolved(layoutByCount(context, proposal, raw));
+        }
+        // The next turn corrects a real attempt: a reply that gave nothing, or
+        // that gave up the sorting and merged everything into one group, is set
+        // aside and the earlier grouping goes back to the table with its problems.
+        List<RawCategory> latest = proposal;
+        List<String> latestErrors = errors;
+        if (proposal.isEmpty()
+            || (collapsed(proposal, context.items().size()) && !collapsed(prior, context.items().size())
+                && !prior.isEmpty())) {
+          latest = prior;
+          latestErrors = new ArrayList<>(priorErrors);
+          if (!proposal.isEmpty()) {
+            latestErrors.add("the last correction merged everything into one group, which is not a plan;"
+                + " go back to the groups above and fix them");
+          }
+        }
+        if (lastChance) {
+          if (latest.isEmpty()) {
+            Villagelife.LOGGER.info("[quartermaster] {} never gave a readable grouping in {} rounds",
+                context.who(), MAX_ROUNDS);
+            return Dialogue.Turn.<Outcome>abort();
+          }
+          Villagelife.LOGGER.info("[quartermaster] {} could not finish the grouping in {} rounds; "
+              + "keeping the groups given and laying the shelves out by count",
               context.who(), MAX_ROUNDS);
-          return CompletableFuture.completedFuture(Optional.empty());
+          return Dialogue.Turn.<Outcome>resolved(layoutByCount(context, latest, raw));
         }
-        Villagelife.LOGGER.info("[quartermaster] {} could not finish the grouping in {} rounds; "
-            + "keeping the groups given and laying the shelves out by count",
-            context.who(), MAX_ROUNDS);
-        return CompletableFuture.completedFuture(Optional.of(layoutByCount(context, latest, raw)));
-      }
-      return converge(context, round + 1, latest, latestErrors);
-    });
+        prior = latest;
+        priorErrors = latestErrors;
+        round = currentRound + 1;
+        return Dialogue.Turn.<Outcome>spoke("");
+      });
+    }
   }
 
   /** A plan with too few groups for the kinds on the shelves: valid arithmetic, no sorting. */

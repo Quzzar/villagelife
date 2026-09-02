@@ -316,14 +316,19 @@ public final class PersonChatContext {
         .append(", a villager in a village simulation. You are the ").append(occupation)
         .append(" of ").append(villageName).append(".\n");
 
+    // Gender leads the self-description and is always stated: a villager knows
+    // their own, and it is stated as a plain fact about themselves, not a label.
+    // The persona blurb (which the persona writer already wrote from this same
+    // gender) follows when one has been generated.
     PersonaData persona = person.getData(VillagelifeAttachments.PERSONA.get());
+    system.append("About you: You are ").append(person.getGender().describe()).append('.');
     if (!persona.isEmpty()) {
-      system.append("About you: ").append(persona.blurb());
+      system.append(' ').append(persona.blurb());
       if (!persona.quirk().isBlank()) {
         system.append(" Quirk: ").append(persona.quirk());
       }
-      system.append('\n');
     }
+    system.append('\n');
 
     if (village != null) {
       system.append("Your village: ").append(villageName).append(", a ")
