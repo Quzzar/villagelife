@@ -1565,8 +1565,9 @@ public class Village {
         person.setVillage("");
         person.setVillageName("");
         // Whatever they were here, out there they are a wanderer: the title
-        // changes at the edge. They keep the pack and tools they walked out
-        // with, and set out straight away from the village they are leaving.
+        // changes at the edge, the job's kit stays behind, the pack goes with
+        // them, and they set out straight away from the village they are leaving.
+        person.leaveKitBehind();
         person.setOccupation(Occupation.WANDERER);
         Building center = getTownCenter();
         double heading = random.nextDouble() * Math.PI * 2;

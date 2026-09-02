@@ -250,6 +250,22 @@ public class RealPerson extends Person {
     this.roamSince = now;
   }
 
+  /**
+   * The job's kit stays with the village: whatever the post put in their hands
+   * and on their back (the builder's table, the guard's axe and rations, the
+   * armour) is cleared at the edge, so nobody walks off into the distance
+   * holding a crafting table (Aaron, 2026-09-01). The pack is theirs and goes
+   * with them. Conjured kit vanishes rather than returning to stores, the same
+   * way it never drops on death.
+   */
+  public void leaveKitBehind() {
+    for (EquipmentSlot slot : EquipmentSlot.values()) {
+      if (slot.getType() != EquipmentSlot.Type.ANIMAL_ARMOR) {
+        setItemSlot(slot, ItemStack.EMPTY);
+      }
+    }
+  }
+
   /** A village has taken them in: the road is behind them. */
   public void endRoaming() {
     this.roamOrigin = null;

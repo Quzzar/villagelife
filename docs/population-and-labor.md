@@ -184,9 +184,9 @@ works the same way: a new village spawns nobody — its first residents walk in.
 Emigration (**implemented**): while the score sits below the decline threshold, one person
 per check gives up, idle people first, then the employed. Their assignments free exactly
 as death frees them and they walk to the village edge. At the edge, whatever they were,
-they become a **wanderer**: the title changes there, and they keep the pack and tools they
-walked out with (there is nothing else to pack: whatever they kept in a chest of their own stays with the house, for whoever moves in next). Then they
-take to the road.
+they become a **wanderer**: the title changes there, the job's kit (hands and armour) stays
+with the village, and they keep their pack (there is nothing else to pack; houses hold
+beds, not chests). Then they take to the road.
 
 The road (**implemented**): a wanderer sets out straight away from the village they left
 and walks that heading, leg by leg, turning when the ground blocks them (`RoamGoal`).
