@@ -80,7 +80,7 @@ public final class PersonPathNavigation extends GroundPathNavigation {
   @Override
   public void tick() {
     super.tick();
-    if (this.path == null || this.isDone() || !this.mob.onClimbable()) {
+    if (this.path == null || this.isDone()) {
       return;
     }
     Vec3 next = this.path.getNextEntityPos(this.mob);
@@ -89,10 +89,20 @@ public final class PersonPathNavigation extends GroundPathNavigation {
     if (dx * dx + dz * dz > SAME_COLUMN_SQR) {
       return; // leaving the ladder sideways is the move control's ordinary walk
     }
-    // Same column: hold the walk still and let the rungs do it. Pointed at
-    // the feet, the move control asks for no stride at all.
+    boolean onLadder = this.mob.onClimbable();
+    if (!onLadder && !isClimbable(this.level.getBlockState(this.path.getNextNodePos()))) {
+      return;
+    }
+    // A rung straight above or below: hold the walk still and let the ladder
+    // do it. Pointed at the feet, the move control asks for no stride at all,
+    // which matters more than it looks. The first cut held only while on the
+    // ladder, and a person hovering in the air cell just over the top rung
+    // was not: the move control strode them into the shaft wall, vanilla read
+    // the wall-press as "climb up" the moment they dipped into the rung, and
+    // they bobbed at the ladder's top for good. Held from here, they simply
+    // fall into the shaft and slide.
     this.mob.getMoveControl().setWantedPosition(this.mob.getX(), this.mob.getY(), this.mob.getZ(), 0.0D);
-    if (next.y > this.mob.getY() + 0.05D) {
+    if (onLadder && next.y > this.mob.getY() + 0.05D) {
       Vec3 motion = this.mob.getDeltaMovement();
       this.mob.setDeltaMovement(motion.x, CLIMB_SPEED, motion.z);
     }
@@ -110,9 +120,15 @@ public final class PersonPathNavigation extends GroundPathNavigation {
     public Node getStart() {
       // Mid-climb the feet are off the ground, and vanilla would start the
       // route from the floor under the ladder: a person re-planning halfway up
-      // would be walked back down to begin again.
+      // would be walked back down to begin again. The cell just over the top
+      // rung counts too: that is where a person stands for a tick between the
+      // landing and the ladder.
+      BlockPos feet = this.mob.blockPosition();
       if (this.mob.onClimbable()) {
-        return this.getStartNode(this.mob.blockPosition());
+        return this.getStartNode(feet);
+      }
+      if (!this.mob.onGround() && isClimbable(this.currentContext.getBlockState(feet.below()))) {
+        return this.getStartNode(feet.below());
       }
       return super.getStart();
     }
