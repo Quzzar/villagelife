@@ -380,8 +380,31 @@ public class LocationValidator {
       if (nearMiss != null && reading.offPlane() >= nearMiss.blocksOffPlane()) {
         return;
       }
+      // The corner check lets a footprint straddle the village's own ground, and
+      // the heightmap reads that ground as flat, so a footprint half on the plat
+      // and half up a bank ranked as the nearest thing to a site (seen live at
+      // Brindlemark: "6 blocks south-west of the fire"). Claimed ground is never
+      // a near miss; it is not the village's to level. The scan would have said
+      // so, but a screened candidate never reaches the scan, so ask here, per
+      // column, only for the few candidates that would take the title.
+      if (overlapsClaim(candidate)) {
+        return;
+      }
       BlockPos middle = candidate.offset((bounds.minX() + bounds.maxX()) / 2, 0, (bounds.minZ() + bounds.maxZ()) / 2);
       nearMiss = new SiteMemory.NearMiss(middle, reading.offPlane(), reason);
+    }
+
+    private boolean overlapsClaim(BlockPos candidate) {
+      BlockPos.MutableBlockPos probe = new BlockPos.MutableBlockPos();
+      for (int x = bounds.minX(); x <= bounds.maxX(); x++) {
+        for (int z = bounds.minZ(); z <= bounds.maxZ(); z++) {
+          probe.set(candidate.getX() + x, candidate.getY(), candidate.getZ() + z);
+          if (village.hasClaimed(probe)) {
+            return true;
+          }
+        }
+      }
+      return false;
     }
 
     Search result(int ringRadius, int sweepRadius) {
