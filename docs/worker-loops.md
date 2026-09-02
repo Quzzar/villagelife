@@ -65,8 +65,14 @@ workplaces get one, are in [building-spec.md](building-spec.md)). What goes in i
 bedtime, in character: a villager with a chest of their own is asked once a night which kinds
 of what they are carrying home to keep, any number or none, rather than hand it all back to the
 stores (`entities/StashOffer`, the third personal decision in [llm-brain.md](llm-brain.md), over
-`LlmService.choose`, the multi-pick sibling of `decide()`). The briefing names the pack, what the
-chest already holds and who shares it; silence keeps nothing, so a mute model costs the village
+`LlmService.choose`, the multi-pick sibling of `decide()`). The briefing names the pack and what the
+chest already holds, calls the chest a small one for keepsakes and says what a store is for: the
+village lives on what its workers bring in, and anything held back at home is lost to its work. It
+does not say who shares the chest (2026-09-02): introduced as "shared with X and Y" the chest read
+as shared storage, and a whole flock's wool went home night after night as "personal supplies".
+The job's kit (any tool, and what the restock hands out: torches, the bucket, the sponge) is never
+on the list at all, since the miner once kept theirs and the shaft flooded while the bucket sat
+in a barrel at home. Silence keeps nothing, so a mute model costs the village
 no goods. Kept items stay in the pack, the bedtime stow skips them, and `StashAtHomeGoal` walks
 them home and sets them down in the chest by hand ahead of sleep, so nothing teleports here
 either. The camp circle's chest works the same way for the four who sleep there. A chest that cannot be

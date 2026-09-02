@@ -20,16 +20,31 @@ import com.quzzar.villagelife.village.PersonalChest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.Container;
+import net.minecraft.world.item.BucketItem;
+import net.minecraft.world.item.FishingRodItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ProjectileWeaponItem;
+import net.minecraft.world.item.ShearsItem;
+import net.minecraft.world.item.TieredItem;
 
 /**
  * Puts one bedtime question to a villager who has a chest of their own: of
  * what they are carrying home tonight, what would they rather keep than hand
  * back to the village stores? The rules lay out the facts, what is in the
- * pack, what the chest already holds and who shares it, and one option per
- * kind of item carried; the model keeps any number of them, or none, in
- * character, over the multi-pick sibling of decide() (docs/llm-brain.md).
+ * pack and what the chest already holds, and one option per kind of item
+ * carried; the model keeps any number of them, or none, in character, over
+ * the multi-pick sibling of decide() (docs/llm-brain.md).
+ *
+ * <p>The chest is for keepsakes, and the briefing says so: the village runs on
+ * what its workers bring in, so the question is what is truly personal, not
+ * what to store. Two things learned live (2026-09-02): a chest introduced as
+ * "shared with X and Y" read as shared storage, and a whole flock's wool went
+ * home night after night as "personal supplies"; and a 3B model asked what to
+ * keep "for yourself" heard an invitation. The job's kit is never on the list
+ * at all, since the miner once kept the bucket and the torches the restock had
+ * just handed over, and the shaft flooded while they sat in a barrel at home.
  *
  * <p>Silence keeps nothing. The rules' own choice is what always happened,
  * the whole pack back to the stores, so a mute or absent model costs the
@@ -58,8 +73,17 @@ public final class StashOffer {
       person.settleStash(Set.of());
       return;
     }
-    List<Item> kinds = new ArrayList<>(carried.keySet());
+    List<Item> kinds = new ArrayList<>();
     List<String> options = new ArrayList<>();
+    for (Item item : carried.keySet()) {
+      if (!isKit(item)) {
+        kinds.add(item);
+      }
+    }
+    if (kinds.isEmpty()) {
+      person.settleStash(Set.of());
+      return;
+    }
     for (Item item : kinds) {
       options.add("Keep the " + carried.get(item) + " " + plain(item));
     }
@@ -73,17 +97,24 @@ public final class StashOffer {
     });
   }
 
+  /**
+   * The job's kit: any tool, and what the bedtime restock hands out (torches,
+   * the bucket, the sponge). It was the village's when the day began and is
+   * not the villager's to keep, so it is never offered.
+   */
+  private static boolean isKit(Item item) {
+    return item instanceof TieredItem || item instanceof BucketItem || item instanceof ShearsItem
+        || item instanceof FishingRodItem || item instanceof ProjectileWeaponItem
+        || item == Items.TORCH || item == Items.SPONGE;
+  }
+
   /** The facts the model decides on, kept to a few lines so a small model reads all of them. */
   private static String situation(RealPerson person, BlockPos chest, Map<Item, Integer> carried) {
     List<String> pack = new ArrayList<>();
     carried.forEach((item, count) -> pack.add(count + " " + plain(item)));
     StringBuilder situation = new StringBuilder(CraftOffer.identityLead(person))
         .append("You are turning in for the night carrying ").append(String.join(", ", pack))
-        .append(". Your home has a chest of your own");
-    List<String> housemates = PersonalChest.housemateNames(person);
-    if (!housemates.isEmpty()) {
-      situation.append(", shared with ").append(String.join(" and ", housemates));
-    }
+        .append(". Your home has a small chest for keepsakes");
     Container container = PersonalChest.container(person, chest);
     if (container == null) {
       situation.append("; you cannot recall exactly what is in it. ");
@@ -91,9 +122,11 @@ public final class StashOffer {
       String holds = PersonalChest.summarize(container);
       situation.append(holds.isEmpty() ? "; it is empty. " : "; it holds " + holds + ". ");
     }
-    situation.append("Whatever you put there is yours, not the village's: no worker takes from it and the")
-        .append(" quartermaster leaves it alone. Decide which of these, if any, to keep for yourself;")
-        .append(" everything else goes back to the village stores tonight. Give your reason in a few words.");
+    situation.append("It is not a store. The village lives on what its workers bring in each day: the")
+        .append(" stores are where everyone draws wood, food, wool and tools, and anything held back at")
+        .append(" home is lost to the village's work. Most nights a worker keeps nothing. Keep a thing only")
+        .append(" if it is truly personal, a gift, a memento or a bite of something you fancy, never")
+        .append(" supplies or your day's produce. Give your reason in a few words.");
     return situation.toString();
   }
 
