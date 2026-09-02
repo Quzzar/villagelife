@@ -532,17 +532,17 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`, `desert`
 
 The desert variant is a covered cistern, because open water evaporates and a desert village that digs an open well is a village that has not lived in a desert.
 
-All five wells declare `"sink": 1` and keep their pool in the base layer (2026-09-01). A
-building is normally seated with its structure's layer 0 on the ground's top block, which put
-the well's rim a block above the ground; with a sink of one the base course is buried and the
-trapdoor rim lies flush with the ground. `sink` is a general definition key: the ground is
+All five wells keep their pool in the base layer (2026-09-01), seated like any other building
+with the structure's layer 0 on the ground's top block: the pool at ground level, the trapdoor
+rim one above it. (They were briefly seated a layer lower through the `sink` definition key,
+which Aaron judged one too low in the world; the key stays as a general option, the ground is
 still prepared and claimed at the surface, and only the structure is seated that many layers
-lower. The pool moved down a layer because of how water behaves: it flows into any
+lower.) The pool moved down a layer because of how water behaves: it flows into any
 waterloggable block it can reach, and an open trapdoor or a fence post does not seal its
 faces, so a pool level with a trapdoor-and-fence rim always soaks the rim and then leaks out
 through the corner posts wherever the ground beside them is lower, which is what the first
 village-built well did. In the base layer the water is walled in by cobblestone and earth on
-every side, the rim stays dry, and the surface sits one block below the rim like a real shaft.
+every side, the rim stays dry, and the surface sits at ground level a block below the rim.
 Two general guards came with it: the builder places every liquid-bearing block of a structure
 last, and both placement paths run with waterlogging ignored, so neither a pond beside the site
 nor a structure's own spill turns its blocks into sources. A building's blocks are placed as
