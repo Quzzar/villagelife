@@ -1085,10 +1085,12 @@ public class RealPerson extends Person {
     switch (getOccupation()) {
       case GUARD:
         // An axe doubles as a serviceable weapon and the guard's occasional
-        // woodland tool. Both it and the rations stay basic until the village
-        // can make better; armour waits on the leather chain.
+        // woodland tool. It stays basic until the village can make better;
+        // armour waits on the leather chain. No rations on taking the post:
+        // food is never conjured. The first bedtime restock draws apples from
+        // the village stores, and a village with none logs the shortage rather
+        // than inventing a meal.
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
-        this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.APPLE, 16));
         break;
       case LUMBERJACK:
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
