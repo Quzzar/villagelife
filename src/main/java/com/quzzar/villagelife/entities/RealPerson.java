@@ -1235,8 +1235,12 @@ public class RealPerson extends Person {
       // away a third of the guard's rare picks between choosing a tree and
       // reaching it, and the log showed the choice with neither a fell nor a
       // miss after it.
+      //
+      // One roll in four every ten seconds: a fresh camp's guard is its only
+      // axe until the lodge stands, and at one in twenty a tree fell every
+      // fifteen minutes if the dice were kind (Aaron, 2026-09-01: too rare).
       this.goalSelector.addGoal(5, new WorkLoopGoal<>(this,
-          new ChopStep(12, 0.05F, 200)));
+          new ChopStep(12, 0.25F, 200)));
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
     if (getOccupation() == Occupation.MINER) {
@@ -1268,10 +1272,11 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new ChopStep()));
       // The planted stand above is the reliable job. This lower-priority pass
-      // also clears nearby woodland, more often and farther out than a guard;
-      // level with strolling for the reason given at the guard's.
+      // also clears nearby woodland, about three times as often and farther out
+      // than a guard (a roll of two in five every five seconds, twenty blocks
+      // out); level with strolling for the reason given at the guard's.
       this.goalSelector.addGoal(5, new WorkLoopGoal<>(this,
-          new ChopStep(12, 0.25F, 100)));
+          new ChopStep(20, 0.4F, 100)));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),
