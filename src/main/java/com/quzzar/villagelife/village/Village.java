@@ -652,12 +652,17 @@ public class Village {
     // building on the same spot and ignored the claim grid entirely, so one
     // landed inside the footprint of a project already under way and was
     // demolished by it — taking a market's chest, and its treasury, with it.
-    BlockPos site = LocationValidator.findValidLocation(level,
-        BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random).site();
-    if (site == null) {
-      Villagelife.LOGGER.info("Village '{}' has nowhere to put a {}", name, buildingName);
+    LocationValidator.Search search = LocationValidator.findValidLocation(level,
+        BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random);
+    if (!search.found()) {
+      // Remembered exactly as a real project's refusal is, so a dev-placed
+      // building that finds no room leaves the village able to say so: that is
+      // the on-demand way to see the room sentence in a briefing.
+      siteMemory.noSiteFor(struct.getBounds(), time, search.reach(), search.nearMiss());
+      Villagelife.LOGGER.info("Village '{}' has nowhere to put a {}. {}", name, buildingName, describeRoom());
       return false;
     }
+    BlockPos site = search.site();
 
     BuildingInfo placedInfo = struct.getBuilding().getInfo();
     if (!struct.setOriginLocation(site.below(placedInfo == null ? 0 : placedInfo.getSink()), claimGrid)
