@@ -2,7 +2,6 @@ package com.quzzar.villagelife.entities.ai.goals;
 
 import java.util.EnumSet;
 
-import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.entities.RealPerson;
 
 import net.minecraft.core.BlockPos;
@@ -10,29 +9,33 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * The road out. A wanderer with no village walks the heading they set out on,
- * leg by leg, until they are far enough from where they started to pass beyond
- * the horizon ({@link RealPerson#crossHorizon}): out of the loaded world and
- * into the pool every growing village recruits from
- * (docs/population-and-labor.md). That is how "travel the world" works in a
- * world that only exists near players: the visible part is the walk away, the
- * rest is bookkeeping.
+ * The road. A roaming wanderer, someone with no village who left one or was
+ * orphaned from it, walks a heading every day: a fresh one chosen at each
+ * dawn, aimless by design (Aaron, 2026-09-02: "every day give them a
+ * direction, and they'll just wander in that given direction that day"). The
+ * foraging steps outrank this walk, so game and timber met on the way are a
+ * stop, and the walk resumes from wherever the stop ended
+ * (docs/population-and-labor.md, "The road").
  *
  * <p>The walk is one leg at a time, each aimed a follow-range step along the
  * heading from where the wanderer stands. Legs are short on purpose: the
  * ground navigator refuses outright any target whose chunk is not loaded
- * (GroundPathNavigation.createPath), and a point a horizon away almost never
- * is, so aiming at the horizon itself produced a wanderer who stood at the
- * village edge forever. Terrain is met by turning, not by pathing around it: a
- * leg over loaded ground that gains no ground ALONG THE HEADING swings the
- * heading. Along the heading, not in any direction: the first live walk to
- * meet a shoreline milled about an eight-block patch for six minutes, moving
- * all the while and never forward, until the patience below crossed them from
- * where they stood. Ground that is not loaded is not terrain, it is the end of
- * the world for now, and the wanderer waits at it rather than turning back. A
- * walk that has not reached the horizon after several travel timeouts is taken
- * as blocked, and the wanderer moves on beyond the horizon from wherever they
- * stand.
+ * (GroundPathNavigation.createPath), so aiming far along the heading produced
+ * a wanderer who stood at the village edge forever. Terrain is met by turning,
+ * not by pathing around it: a leg over loaded ground that gains no ground
+ * ALONG THE HEADING swings the heading. Along the heading, not in any
+ * direction: the first live walk to meet a shoreline milled about an
+ * eight-block patch for six minutes, moving all the while and never forward.
+ * Ground that is not loaded is not terrain, it is the end of the world for
+ * now, and the wanderer waits at it rather than turning back.
+ *
+ * <p>Nobody vanishes for walking. A wanderer who walks out of the ticking
+ * world freezes where they stand, like every other entity, and resumes when it
+ * comes back. Two earlier designs crossed them into the WandererPool, at a
+ * fixed distance and then at the edge of the loaded world, and both put the
+ * crossing where a player could watch a wanderer blink out, or never saw the
+ * walk at all as chunks came and went (Aaron). The pool is fed only at the
+ * village edge now, by leavers past the wanderer cap (Village.tickTravelers).
  *
  * <p>Sits below fleeing and fighting, and {@link StrollAroundVillage} yields to
  * it, so a roaming wanderer neither loiters nor walks through monsters. There
@@ -53,9 +56,6 @@ public class RoamGoal extends Goal {
     private static final int STUCK_SAMPLE_TICKS = 100;
     private static final double STUCK_HEADWAY = 4.0D;
 
-    /** Travel timeouts a walk gets to reach the horizon before it is taken as blocked. */
-    private static final int PATIENCE_TIMEOUTS = 4;
-
     private final RealPerson person;
 
     private int ticks;
@@ -72,7 +72,7 @@ public class RoamGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return person.isRoaming() && person.getVillage() == null && person.getTravelTarget() == null;
+        return person.isRoamingWanderer() && person.getTravelTarget() == null;
     }
 
     @Override
@@ -83,8 +83,11 @@ public class RoamGoal extends Goal {
     @Override
     public void start() {
         ticks = 0;
-        lastSample = person.level().getGameTime();
-        samplePos = person.position();
+        resample();
+        person.turnWithTheDay();
+        // A leaver who walked out with logs in the pack, or a wanderer back on
+        // the road after a stop, checks their empty hand before setting off.
+        person.toolUpFromPack();
         aim();
     }
 
@@ -93,11 +96,13 @@ public class RoamGoal extends Goal {
         if (++ticks % CHECK_EVERY != 0) {
             return;
         }
-        long now = person.level().getGameTime();
-        if (pastHorizon(now)) {
-            person.crossHorizon();
+        if (person.turnWithTheDay()) {
+            // A new day, a new heading: yesterday's stuck sample says nothing about it.
+            resample();
+            aim();
             return;
         }
+        long now = person.level().getGameTime();
         if (now - lastSample >= STUCK_SAMPLE_TICKS) {
             if (legOnLoadedGround && headwaySince(samplePos) < STUCK_HEADWAY) {
                 // Something in the way: swing anywhere from a quarter to a half
@@ -105,8 +110,7 @@ public class RoamGoal extends Goal {
                 double swing = (Math.PI / 2) + person.getRandom().nextDouble() * (Math.PI / 2);
                 person.turnRoamHeading(person.getRandom().nextBoolean() ? swing : -swing);
             }
-            lastSample = now;
-            samplePos = person.position();
+            resample();
             aim();
         } else if (person.getNavigation().isDone()) {
             aim();
@@ -116,6 +120,11 @@ public class RoamGoal extends Goal {
     @Override
     public void stop() {
         person.getNavigation().stop();
+    }
+
+    private void resample() {
+        lastSample = person.level().getGameTime();
+        samplePos = person.position();
     }
 
     /**
@@ -138,20 +147,5 @@ public class RoamGoal extends Goal {
         double dx = person.getX() - from.x;
         double dz = person.getZ() - from.z;
         return dx * Math.cos(person.getRoamHeading()) + dz * Math.sin(person.getRoamHeading());
-    }
-
-    private boolean pastHorizon(long now) {
-        BlockPos origin = person.getRoamOrigin();
-        if (origin == null) {
-            return false;
-        }
-        double dx = person.getX() - origin.getX();
-        double dz = person.getZ() - origin.getZ();
-        double horizon = VillagelifeConfig.WandererHorizonDistance;
-        if (dx * dx + dz * dz >= horizon * horizon) {
-            return true;
-        }
-        long patience = VillagelifeConfig.TravelTimeoutSeconds * 20L * PATIENCE_TIMEOUTS;
-        return now - person.getRoamSince() >= patience;
     }
 }

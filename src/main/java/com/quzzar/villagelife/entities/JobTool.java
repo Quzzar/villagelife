@@ -3,6 +3,7 @@ package com.quzzar.villagelife.entities;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -121,6 +122,70 @@ public enum JobTool {
       return;
     }
     person.setItemSlot(EquipmentSlot.MAINHAND, made);
+  }
+
+  /**
+   * The same tool out of a roaming wanderer's own pack and nothing else: no
+   * chest, no village, the same recipes and the same best-tier-first order as
+   * {@link #replace}. Planks in the pack pay for a wooden head or a bow's
+   * planks first, then logs stand in at the recipes' rate of four with the
+   * rounding lost, which is how a felled tree becomes an axe on the road
+   * (docs/population-and-labor.md). EMPTY when the pack has the makings of no
+   * tier at all; nothing is conjured.
+   */
+  public static ItemStack makeFromPack(RealPerson person, JobTool tool) {
+    for (Item candidate : tool.candidatesBestFirst()) {
+      List<Item> head = headMaterialsOf(candidate);
+      boolean woodenHead = !head.isEmpty()
+          && head.stream().allMatch(item -> new ItemStack(item).is(ItemTags.PLANKS));
+      int headPieces = woodenHead ? 0 : tool.head;
+      int planks = tool.planks + (woodenHead ? tool.head : 0);
+      int planksShort = Math.max(0, planks - packHolds(person, stack -> stack.is(ItemTags.PLANKS)));
+      int logs = Math.ceilDiv(planksShort, PLANKS_PER_LOG);
+      if (packHolds(person, stack -> head.contains(stack.getItem())) < headPieces
+          || packHolds(person, stack -> stack.is(ItemTags.LOGS)) < logs) {
+        continue;
+      }
+      List<ItemStack> spent = new ArrayList<>();
+      spendFromPack(person, stack -> head.contains(stack.getItem()), headPieces, spent);
+      spendFromPack(person, stack -> stack.is(ItemTags.PLANKS), planks - planksShort, spent);
+      spendFromPack(person, stack -> stack.is(ItemTags.LOGS), logs, spent);
+      Villagelife.LOGGER.info("'{}' made a {} from {} on the road", person.getFullName(), plain(candidate),
+          describe(spent));
+      return new ItemStack(candidate);
+    }
+    return ItemStack.EMPTY;
+  }
+
+  /** How many items in the pack pass the test. */
+  private static int packHolds(RealPerson person, Predicate<ItemStack> which) {
+    int count = 0;
+    for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
+      ItemStack stack = person.personMainInv.getItem(slot);
+      if (!stack.isEmpty() && which.test(stack)) {
+        count += stack.getCount();
+      }
+    }
+    return count;
+  }
+
+  /** Takes {@code count} items passing the test out of the pack, recording what went. */
+  private static void spendFromPack(RealPerson person, Predicate<ItemStack> which, int count,
+      List<ItemStack> spent) {
+    int left = count;
+    for (int slot = 0; slot < person.personMainInv.getContainerSize() && left > 0; slot++) {
+      ItemStack stack = person.personMainInv.getItem(slot);
+      if (stack.isEmpty() || !which.test(stack)) {
+        continue;
+      }
+      ItemStack taken = stack.split(Math.min(left, stack.getCount()));
+      left -= taken.getCount();
+      spent.add(taken);
+      if (stack.isEmpty()) {
+        person.personMainInv.setItem(slot, ItemStack.EMPTY);
+      }
+    }
+    person.personMainInv.setChanged();
   }
 
   /**

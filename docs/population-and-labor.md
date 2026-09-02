@@ -194,20 +194,33 @@ nobody to mood, whatever the score reads, so a founding camp of four is never em
 own first hungry morning. `/vldev village emigrate` ignores the floor, so the road can still be
 watched from a small village.
 
-The road (**implemented**): a wanderer sets out straight away from the village they left
-and walks that heading, leg by leg, turning when the ground blocks them (`RoamGoal`).
-Nobody sleeps rough, so the walk goes on through the night, and they still eat from the
-pack and scatter from monsters like anyone else. Once they are a configurable distance
-from where they set out, or have been walking for several travel timeouts without getting
-there, they pass **beyond the horizon**: the whole person is saved into the server-wide
-`WandererPool` (persona, memories, pack, everything) and the entity is discarded. That is
-how "travel the world" works in a world that only exists near players: the visible part is
-the walk away, the rest is bookkeeping. A wanderer who unloads mid-walk simply freezes in
-their chunk and resumes when it loads again; they are not on the road until they cross.
+The road (**implemented**, reshaped 2026-09-02): at the edge a leaver becomes a **roaming
+wanderer**, a real person with no village (`RealPerson.isRoamingWanderer`), and stays one
+until a village takes them in. They walk a heading every day: the day they leave, straight
+away from the village; every dawn after, a fresh one, aimless by design, leg by leg and
+turning when the ground blocks them (`RoamGoal`). Nobody sleeps rough, so the walk goes on
+through the night, and they still eat from the pack and scatter from monsters like anyone
+else. They live off the land as they go, at the work loops' priority so a find outranks the
+walk: game met within a dozen blocks is taken with whatever is in hand while the pack holds
+fewer than four bites (`ForageHuntStep`, the hunter's own rule that farmed stock is never
+game), a tree by the road is brought down whole, bare-handed and slowly or quicker with an
+axe, while the pack holds fewer than four logs (`ForageChopStep`, the shared `TreeFelling`,
+so nothing anyone placed comes down), and a wanderer with an empty hand and a log makes
+themselves a wooden axe out of it, three planks with a log standing in at the recipes' rate,
+through the same recipe path and best-tier-first order a village's bedtime tool-making uses
+(`JobTool.makeFromPack`). Nothing is conjured on the road: the axe comes out of felled logs,
+the meat out of the animal, and the drops are pocketed standing over it. Nobody vanishes for
+walking, either: a wanderer who walks out of the ticking world freezes where they stand,
+like every other entity, and resumes when it comes back. Two earlier designs crossed them
+into the pool below at a fixed distance, then at the edge of the loaded world, and both put
+the crossing where a player could watch a wanderer blink out, or never saw the walk at all as
+chunks came and went (Aaron, 2026-09-02). **Beyond the horizon** is now only what happens at
+the village edge past the wanderer cap: the whole person is saved into the server-wide
+`WandererPool` (persona, memories, pack, everything) and the entity is discarded.
 
 Recruitment (**implemented**): a growing village that rolls an arrival fills it in this
 order, and only the last step conjures anyone: a loaded wanderer within the recruit radius
-(they walk in from wherever they are), then the person longest on the road beyond the
+(they walk in from wherever they are, pack, axe and all), then the person longest on the road beyond the
 horizon (restored at the village edge and walking in, stats and memories intact), then a
 new persona. So the same souls circulate between settlements however far apart they stand,
 and a village that collapses seeds the ones that grow. Two caps bound this: the wanderer
@@ -285,10 +298,11 @@ The campfire model is the current code. Key locations:
 - Arrival and emigration: `Village` (the campfire loop; arrivals come in through
   `PersonaSpawner`, so every villager has a persona by construction; see
   [personas.md](personas.md)).
-- The road: `RoamGoal` (the walk out), `RealPerson.crossHorizon` (the crossing), and
-  `WandererPool` in `VillageManagerSaveData` (everyone beyond the horizon, one list for the
-  server). `/vldev village emigrate` sends one person out of the nearest village to watch it,
-  and `/vldev village wanderers` lists who is on the road.
+- The road: `RoamGoal` (the daily walk), `ForageHuntStep` and `ForageChopStep` (living off
+  the land), `JobTool.makeFromPack` (the road's axe), `RealPerson.crossHorizon` (the crossing
+  at the edge past the cap), and `WandererPool` in `VillageManagerSaveData` (everyone beyond
+  the horizon, one list for the server). `/vldev village emigrate` sends one person out of the
+  nearest village to watch it, and `/vldev village wanderers` lists who is beyond the horizon.
 - Attractiveness: `VillageAttractiveness`.
 - Idle pool: derived, never stored (`Village.idlePeople()`: population minus employed
   minus mid-walk travelers). Idle behavior anchors to the `villagelife:campfire` POI.
@@ -314,7 +328,6 @@ All of these belong in config, not constants buried in `Village`:
 | Minimum village population | People a village keeps whatever its mood; emigration stops here | 4 |
 | Wanderer recruit radius | How far a growing village looks for a loaded wanderer | 128 |
 | Wanderer cap | Wanderers walking the loaded world at once | 8 |
-| Wanderer horizon distance | How far a wanderer walks before passing beyond the horizon | 128 |
 | Wanderer pool cap | People the world remembers on the road | 64 |
 | Base beds | Beds the village center itself provides | 4, from its building definition, not config |
 

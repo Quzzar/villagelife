@@ -1679,7 +1679,7 @@ public class Village {
           BlockPos centerPos = BlockPos.of(center.getCenterLocation());
           heading = Math.atan2(exit.getZ() - centerPos.getZ(), exit.getX() - centerPos.getX());
         }
-        person.beginRoaming(exit, heading, now);
+        person.beginRoaming(exit, heading);
         person.reloadState();
         iterator.remove();
         // The world holds only so many wanderers on foot (#59): past the cap, a

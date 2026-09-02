@@ -242,20 +242,67 @@ public class RealPerson extends Person {
   }
 
   // The road (docs/population-and-labor.md): where a wanderer set out from,
-  // which way they are walking, and since when. Set at the village edge when
-  // someone leaves (or when an orphan finds they have no village), cleared when
-  // a village takes them in, and saved so a reload continues the same walk.
-  // Walked by RoamGoal; ended by crossHorizon.
+  // which way they are walking today, and which day chose that heading. Set at
+  // the village edge when someone leaves (or when an orphan finds they have no
+  // village), cleared when a village takes them in, and saved so a reload
+  // continues the same walk. Walked by RoamGoal, which turns it with each dawn.
   @Nullable
   private BlockPos roamOrigin;
   private double roamHeading;
-  private long roamSince;
+  private long roamDay;
 
-  /** Puts the person on the road from {@code origin}, walking the given heading (radians, +x east, +z south). */
-  public void beginRoaming(BlockPos origin, double heading, long now) {
+  /** Puts the person on the road from {@code origin}, walking the given heading (radians, +x east, +z south) for the rest of today. */
+  public void beginRoaming(BlockPos origin, double heading) {
     this.roamOrigin = origin;
     this.roamHeading = heading;
-    this.roamSince = now;
+    this.roamDay = today();
+  }
+
+  /**
+   * A roaming wanderer: on the road with no village to go back to. An idle
+   * villager is titled Wanderer too, but belongs at a campfire; this is the
+   * one who lives off the land (docs/population-and-labor.md, "The road").
+   */
+  public boolean isRoamingWanderer() {
+    return isRoaming() && getVillage() == null;
+  }
+
+  /**
+   * Each new day on the road picks a fresh heading, aimless by design (Aaron,
+   * 2026-09-02): the day's wandering follows it and the next dawn turns it
+   * again. The day the road began keeps the heading it began with. True when
+   * a heading was just chosen.
+   */
+  public boolean turnWithTheDay() {
+    long today = today();
+    if (today == this.roamDay) {
+      return false;
+    }
+    this.roamDay = today;
+    this.roamHeading = this.random.nextDouble() * Math.PI * 2;
+    Villagelife.LOGGER.info("[road] '{}' wanders {} today", getFullName(), roamHeadingName());
+    return true;
+  }
+
+  /** The world's day count by its clock: a new day begins at dawn, whatever the clock was set to. */
+  private long today() {
+    return Math.floorDiv(level().getDayTime(), 24000L);
+  }
+
+  /**
+   * A wanderer with an empty hand and the makings of a tool in the pack makes
+   * one: an axe, which fells and fights alike, out of a log at the recipes'
+   * rate ({@link JobTool#makeFromPack}). Nothing is conjured on the road; a
+   * pack with no wood in it leaves the hand empty.
+   */
+  public void toolUpFromPack() {
+    if (!getMainHandItem().isEmpty()) {
+      return;
+    }
+    ItemStack made = JobTool.makeFromPack(this, JobTool.AXE);
+    if (!made.isEmpty()) {
+      setItemSlot(EquipmentSlot.MAINHAND, made);
+    }
   }
 
   /**
@@ -290,10 +337,6 @@ public class RealPerson extends Person {
 
   public double getRoamHeading() {
     return roamHeading;
-  }
-
-  public long getRoamSince() {
-    return roamSince;
   }
 
   public void turnRoamHeading(double delta) {
@@ -453,7 +496,7 @@ public class RealPerson extends Person {
     if (compound.contains("RoamOrigin")) {
       this.roamOrigin = BlockPos.of(compound.getLong("RoamOrigin"));
       this.roamHeading = compound.getDouble("RoamHeading");
-      this.roamSince = compound.getLong("RoamSince");
+      this.roamDay = compound.getLong("RoamDay");
     } else {
       this.roamOrigin = null;
     }
@@ -492,7 +535,7 @@ public class RealPerson extends Person {
     if (roamOrigin != null) {
       compound.putLong("RoamOrigin", roamOrigin.asLong());
       compound.putDouble("RoamHeading", roamHeading);
-      compound.putLong("RoamSince", roamSince);
+      compound.putLong("RoamDay", roamDay);
     }
   }
 
@@ -532,7 +575,7 @@ public class RealPerson extends Person {
         // No village, no job: a wanderer, and one with nowhere to be, so they
         // take to the road from right here in whatever direction the dice say.
         setOccupation(Occupation.WANDERER);
-        beginRoaming(blockPosition(), this.random.nextDouble() * Math.PI * 2, level().getGameTime());
+        beginRoaming(blockPosition(), this.random.nextDouble() * Math.PI * 2);
         reloadState();
         Villagelife.LOGGER.debug("[{}] was orphaned from their village and set out {}",
             this.getName().getString(), roamHeadingName());
@@ -1923,9 +1966,16 @@ public class RealPerson extends Person {
     // (PersonPathNavigation): opened on the bump, closed a second later.
     this.goalSelector.addGoal(3, new com.quzzar.villagelife.entities.ai.goals.OpenFenceGateGoal(this));
 
-    // The road: a wanderer with no village walks their heading until they pass
-    // beyond the horizon. Below fleeing (5) so monsters still scatter them, and
-    // above strolling only because StrollAroundVillage yields while roaming.
+    // The road: a roaming wanderer lives off the land (each step's select says
+    // whether this villager is one) at the work loops' priority, so game and
+    // timber met on the way outrank the walk, and walks their day's heading
+    // the rest of the time. The walk sits below fleeing (5) so monsters still
+    // scatter them, and above strolling only because StrollAroundVillage
+    // yields while roaming.
+    this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
+        new com.quzzar.villagelife.entities.ai.goals.work.ForageHuntStep()));
+    this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
+        new com.quzzar.villagelife.entities.ai.goals.work.ForageChopStep()));
     this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.RoamGoal(this));
 
     // Safe to decide at registration: every occupation change goes through
