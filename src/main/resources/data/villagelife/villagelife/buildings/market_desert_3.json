@@ -47,11 +47,11 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 24
+      "count": 48
     },
     {
-      "item": "minecraft:sandstone",
-      "count": 72
+      "item": "minecraft:cobblestone",
+      "count": 42
     },
     {
       "item": "minecraft:white_wool",

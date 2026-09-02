@@ -43,19 +43,14 @@ final class PackLogistics {
   private PackLogistics() {
   }
 
-  /** How many the worker already carries that pay toward this item. */
+  /** How many the worker already carries that pay toward this item, kind for kind. */
   static int carried(RealPerson person, Item item) {
     return Materials.held(person.personMainInv, item);
   }
 
-  /** Whether the pack is still short of any of these, counts and all. */
+  /** Whether the pack is still short of any of these, the recipe settled as a whole. */
   static boolean packShort(RealPerson person, List<ItemStack> wanted) {
-    for (ItemStack want : wanted) {
-      if (carried(person, want.getItem()) < want.getCount()) {
-        return true;
-      }
-    }
-    return false;
+    return !Materials.shortfall(person.personMainInv, wanted).isEmpty();
   }
 
   /**
@@ -65,9 +60,8 @@ final class PackLogistics {
   @Nullable
   static BlockPos chestHolding(RealPerson person, Village village, List<ItemStack> wanted) {
     return nearestChest(person, village, chest -> {
-      for (ItemStack want : wanted) {
-        int need = want.getCount() - carried(person, want.getItem());
-        if (need > 0 && Materials.held(chest, want.getItem()) > 0) {
+      for (ItemStack need : Materials.shortfall(person.personMainInv, wanted)) {
+        if (Materials.heldToward(chest, need.getItem()) > 0) {
           return true;
         }
       }
@@ -102,12 +96,8 @@ final class PackLogistics {
    */
   static int pullWanted(RealPerson person, Container chest, List<ItemStack> wanted, String role) {
     int pulledTotal = 0;
-    for (ItemStack want : wanted) {
-      int need = want.getCount() - carried(person, want.getItem());
-      if (need <= 0) {
-        continue;
-      }
-      List<ItemStack> pulled = Materials.take(chest, want.getItem(), need);
+    for (ItemStack need : Materials.shortfall(person.personMainInv, wanted)) {
+      List<ItemStack> pulled = Materials.takeToward(chest, need.getItem(), need.getCount());
       if (!pulled.isEmpty()) {
         Utils.insertItems(person.personMainInv, pulled, person);
         pulledTotal += pulled.stream().mapToInt(ItemStack::getCount).sum();

@@ -134,7 +134,8 @@ These are two separate questions and the spec keeps them separate.
 
 **Cost is a recipe.** A flat list of items and counts, exactly the `cost` array the datapack
 already uses. Nothing abstract, no points, no derived unit. The recipes below are the plains
-variant of each building.
+variant of each building, and since 2026-09-01 every other variant's as well: a building costs
+the same whatever family it is built in.
 
 **Every building is now priced.** The recipes in the tables below are the original
 sketch; what actually ships is derived from each structure's own block count, and
@@ -145,26 +146,32 @@ unbuildable:
   cobblestone, sand, sandstone and iron; the lumberjack yields logs and oak
   planks; the mason turns cobblestone into stone and stone brick. **Nothing
   produces glass, wool, or non-oak planks**, so a recipe naming them can never be
-  paid however honestly it describes the building. A recipe's "oak log" is paid
-  by any log (`village/buildings/Materials.java`): the guard's woodland chop
-  yields whatever wood grows around the camp, and a mangrove-swamp camp with a
-  store full of mangrove was otherwise stuck on its first house for good.
+  paid however honestly it describes the building. **Wood is wood and stone is
+  stone** (`village/buildings/Materials.java`): a recipe's "oak log" is paid by any
+  log, its "oak planks" by any plank, and its "cobblestone" by any cobblestone,
+  cobbled deepslate or sandstone, whatever the guard felled or the miner dug. A
+  mangrove-swamp camp with a store full of mangrove was otherwise stuck on its
+  first house for good. Logs also pay for planks, four to a log, with nobody
+  sawing; planks never pay for logs. Because one recipe can ask for both, the
+  recipe is settled as a whole, log lines first, so a log is never counted twice.
 - **Never price a building in what it alone produces.** The lumberjack is the only
   source of planks, so it costs cobblestone and nothing else: a village that has
   only founded, and so has only a miner, must be able to build it. The stoneworks
   likewise costs cobblestone in *every* variant, including the snowy and desert
   ones built from the very blocks it exists to make.
-- **Price the size once, then split it by biome.** A wood-poor village pays mostly
-  in stone and pays no more overall. A level-1 house costs 47 units in plains,
-  taiga and savanna, 48 in snowy and desert — the same building, different
-  materials, never an easier one.
+- **One recipe per building, whatever its family.** Every variant of a category
+  and level costs exactly what its plains variant costs, in generic wood and
+  stone, so a desert or snowy village pays no differently and no recipe waits on a
+  material only its own family produces. The loader warns when a datapack breaks
+  this, because the planner and the builder both take the price of a building to
+  be the price of its category.
 
 Which gives the bootstrap order a village actually follows: found (centre, mine,
 storehouse, free) → miner digs cobblestone → **lumberjack**, in cobblestone alone
 → logs and planks → everything timber → **stoneworks**, in cobblestone → stone
-brick and worked sandstone → the snowy and desert variants. Desert is the one
-exception that needs no mason: a desert mine cuts straight through sand and
-sandstone.
+brick for the few buildings priced in it. A desert mine cuts through sand and
+sandstone before it reaches stone, and sandstone pays a stone cost like any
+cobblestone, so a desert camp bootstraps on the same schedule.
 
 **Upgrading costs more than sprawling**, by construction. Two level-1 houses come
 to 94 units for two beds where one level-2 costs 120; four level-1s cost 188
@@ -175,41 +182,31 @@ where a level-3 costs 253. Building wide stays the cheaper move, which is what
 any number in this file. Whether a site can take those dimensions, and what it would cost to clear
 one that nearly can, is [site-selection.md](site-selection.md).
 
-### Variants substitute materials, not counts
+### Variants are a look, not a recipe
 
-**A variant is a recipe, not an identity** (decided on
-[#50](https://github.com/Quzzar/villagelife/issues/50)). There is no village style, no biome
-lookup, and no separate variant system. Every variant of a category is simply another way to
-build the same thing out of different materials, and the village builds whichever one it can
-currently afford. That is the whole rule.
+**A variant is a family's shape of the same building** (decided 2026-09-01, superseding
+[#50](https://github.com/Quzzar/villagelife/issues/50), which had made variants competing
+recipes). Every variant of a category and level costs the same recipe, the plains one, in
+generic wood and stone. Which variant a village raises is settled once, at founding, by the
+biome it stands in ([buildings.md](buildings.md), "Regional variants and biomes"), and kept
+for its life, so a village reads as one place. The planner never chooses between variants: it
+sees one building per category, the village's own family or plains where that family has no
+such building, and the same recipe whichever it is.
 
-Which means it is already implemented: variants are ordinary candidates in the planner's
-option list, filtered by the same affordability check as everything else. A village with
-timber builds the timber blacksmith; the same village a week later, rich in stone and short
-of wood, builds the stone one next door. Nothing tracks or enforces consistency, and a
-village does not have a single look — it has a history of what it could afford at the time,
-which is a better reason for a building to be what it is.
+Two things follow:
 
-Two things follow, both by not doing anything:
+- **A wood-poor village is not rescued by a stone variant.** It is rescued by the market and
+  by "wood is wood": the guard's woodland chop pays a log cost with any wood, and logs pay a
+  plank cost without a saw. A desert camp mines sandstone, and sandstone is stone.
+- **The named specials stay variants.** A watermill or an igloo is a family's shape for its
+  category, priced like the category. If a site cannot host one, that is site selection's
+  business, not the variant system's.
 
-- **No fallback table is needed.** A category whose variants are all unaffordable is simply
-  not built yet, exactly like any other unaffordable building.
-- **The named specials are not a special case.** A watermill is a variant with a recipe. If
-  a site cannot host one, that is site selection's business, not the variant system's.
-
-A desert cottage needs the same quantity of building as a plains cottage. What changes is what it
-is made of:
-
-| Family | Wood becomes | Stone becomes |
-| --- | --- | --- |
-| `plains` | oak log and planks | cobblestone |
-| `taiga` | spruce log and planks | cobblestone and stone |
-| `snowy` | spruce planks | snow block, packed ice, stone |
-| `desert` | sandstone (wood by trade, or a recipe that does not need it) | terracotta |
-| `savanna` | acacia log and planks | cobblestone |
-| `igloo` | snow block and packed ice throughout, and **roughly half the quantity** | none |
-| `stilt` | oak log and planks, more of it | cobblestone, less of it |
-| `marsh` | oak and dark oak | cobblestone |
+What does still change with the family is what the building is made of, because the
+structure file does: spruce in a taiga house, sandstone in a desert one. That is the template's
+business, not the recipe's. Making the built blocks follow the wood actually paid, so a plains
+village given spruce raises spruce houses, is a separate piece of work that this rule leaves
+room for.
 
 The upgrade to level 2 is priced at 1.5x the level-1 recipe, and level 3 at 3x. That means
 upgrading always costs more than putting up a second level-1 building of the same category, which

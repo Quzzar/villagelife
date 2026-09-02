@@ -58,11 +58,11 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 14
+      "count": 32
     },
     {
-      "item": "minecraft:stone_bricks",
-      "count": 82
+      "item": "minecraft:cobblestone",
+      "count": 44
     }
   ]
 }

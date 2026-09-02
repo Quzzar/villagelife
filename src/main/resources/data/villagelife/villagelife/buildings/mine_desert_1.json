@@ -28,11 +28,11 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 2
+      "count": 8
     },
     {
-      "item": "minecraft:sandstone",
-      "count": 20
+      "item": "minecraft:cobblestone",
+      "count": 10
     }
   ],
   "grants": [

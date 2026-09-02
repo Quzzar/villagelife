@@ -36,11 +36,11 @@
   ],
   "cost": [
     {
-      "item": "minecraft:cut_sandstone",
+      "item": "minecraft:stone_bricks",
       "count": 1800
     },
     {
-      "item": "minecraft:acacia_log",
+      "item": "minecraft:oak_log",
       "count": 133
     },
     {

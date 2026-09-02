@@ -10,6 +10,7 @@ import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureGallery;
+import com.quzzar.villagelife.village.buildings.VillageStyle;
 
 import net.minecraft.commands.CommandSourceStack;
 
@@ -38,14 +39,30 @@ public class VillagelifeCommands {
                         .then(com.quzzar.villagelife.llm.LlmEvents.loadBranch())
                         .then(Commands.literal("create-village")
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
-                                        .executes(ctx -> {
-                                            ServerLevel level = ctx.getSource().getLevel();
-                                            BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
-                                            VillageManager.get(level).registerVillage(level, pos);
-                                            ctx.getSource().sendSuccess(
-                                                    () -> Component.literal("Village created at " + pos.toShortString()), true);
-                                            return 1;
-                                        }))));
+                                        .executes(ctx -> createVillage(ctx.getSource(),
+                                                BlockPosArgument.getLoadedBlockPos(ctx, "pos"), null))
+                                        // The style normally follows the biome; naming one here overrides it.
+                                        .then(Commands.argument("style", StringArgumentType.word())
+                                                .suggests((ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(VillageStyle.values()).map(VillageStyle::id), builder))
+                                                .executes(ctx -> {
+                                                    String wanted = StringArgumentType.getString(ctx, "style");
+                                                    VillageStyle style = VillageStyle.parse(wanted);
+                                                    if (style == null) {
+                                                        ctx.getSource().sendFailure(Component.literal("No such style: " + wanted));
+                                                        return 0;
+                                                    }
+                                                    return createVillage(ctx.getSource(),
+                                                            BlockPosArgument.getLoadedBlockPos(ctx, "pos"), style);
+                                                })))));
+    }
+
+    private static int createVillage(CommandSourceStack source, BlockPos pos, @javax.annotation.Nullable VillageStyle style) {
+        ServerLevel level = source.getLevel();
+        VillageManager.get(level).registerVillage(level, pos, style);
+        source.sendSuccess(() -> Component.literal("Village created at " + pos.toShortString()
+                + (style == null ? "" : " in the " + style.id() + " style")), true);
+        return 1;
     }
 
     /**

@@ -47,11 +47,11 @@
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 33
+      "count": 48
     },
     {
-      "item": "minecraft:stone_bricks",
-      "count": 60
+      "item": "minecraft:cobblestone",
+      "count": 42
     },
     {
       "item": "minecraft:white_wool",

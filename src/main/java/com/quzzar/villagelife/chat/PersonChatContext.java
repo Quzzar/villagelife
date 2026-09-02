@@ -623,11 +623,8 @@ public final class PersonChatContext {
    */
   private static String remainingCosts(List<ItemStack> costs, Map<Item, Integer> stock) {
     List<String> parts = new ArrayList<>();
-    for (ItemStack cost : costs) {
-      int missing = cost.getCount() - Materials.counted(stock, cost.getItem());
-      if (missing > 0) {
-        parts.add(missing + " " + Materials.describe(cost.getItem()));
-      }
+    for (ItemStack missing : Materials.shortfall(stock, costs)) {
+      parts.add(missing.getCount() + " " + Materials.describe(missing.getItem()));
     }
     return String.join(", ", parts);
   }

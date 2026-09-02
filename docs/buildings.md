@@ -309,6 +309,20 @@ The starting variant families, applied to the categories worth varying:
 | `desert` | desert, badlands | flat roofs, sandstone, shaded courtyards |
 | `savanna` | savanna, jungle edge | wide eaves, acacia, raised floors |
 
+**Built, 2026-09-01: a village picks its family once, at founding, and keeps it.** The family
+is read from the biome the camp stands in through the conventional biome tags rather than
+vanilla ids (`village/buildings/VillageStyle.java`): `c:is_desert`, `c:is_badlands` and
+`c:is_sandy` found a desert camp, `c:is_snowy` and `c:is_icy` a snowy one, `c:is_savanna` and
+`c:is_jungle` a savanna one, `c:is_taiga`, coniferous woods and `c:is_mountain` a taiga one,
+and everything else plains. Modded biomes carry those tags, so a modded desert sorts itself
+without this mod knowing its name. The family is stored on the village, and every building it
+raises afterwards is that family's variant, falling back to plains where a category has no
+other; an upgrade follows the variant already standing. The planner therefore offers the brain
+one option per category, never five look-alike lodges to choose among. Recipes do not vary by
+family at all ([building-spec.md](building-spec.md)): the variant decides the look, nothing
+else. `/villagelife create-village <pos> [family]` founds in a named family instead of the
+biome's.
+
 How a village survives where it is:
 
 | Biome | Food | Wood | Stone | Variant family | Verdict |

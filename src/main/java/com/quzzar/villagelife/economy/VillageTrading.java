@@ -225,14 +225,8 @@ public final class VillageTrading {
     if (info == null) {
       return null;
     }
-    Map<Item, Integer> stock = village.stockTally();
-    for (ItemStack cost : info.getMaterialCost()) {
-      int short_ = cost.getCount() - Materials.counted(stock, cost.getItem());
-      if (short_ > 0) {
-        return new ItemStack(cost.getItem(), short_);
-      }
-    }
-    return null;
+    List<ItemStack> missing = Materials.shortfall(village.stockTally(), info.getMaterialCost());
+    return missing.isEmpty() ? null : missing.get(0);
   }
 
   /** Moves the goods and the money, in an order that cannot half-complete. */

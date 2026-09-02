@@ -31,6 +31,7 @@ import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.WallProject;
 import com.quzzar.villagelife.village.buildings.WallTier;
 import com.quzzar.villagelife.village.buildings.UrbanPlanner;
+import com.quzzar.villagelife.village.buildings.VillageStyle;
 import com.quzzar.villagelife.persona.PersonaSpawner;
 import com.quzzar.villagelife.village.tiers.VillageTier;
 import com.quzzar.villagelife.village.tiers.VillageTiers;
@@ -200,6 +201,9 @@ public class Village {
   // population, never a gate.
   private String tierId = VillageTiers.DEFAULT_TIER_ID;
 
+  /** Where the founding style lives: in the brain's strategy tag, beside the goal and the shelving plan. */
+  private static final String STYLE_KEY = "style";
+
   public Village(String name) {
     this(UUID.randomUUID().toString(), name);
   }
@@ -232,6 +236,20 @@ public class Village {
     return level;
   }
 
+  /**
+   * The regional family this village builds in, fixed at founding from the
+   * biome (docs/buildings.md). Villages saved before styles existed read as
+   * plains, which is what they were built in.
+   */
+  public VillageStyle getStyle() {
+    return VillageStyle.fromId(brain.getStrategy().getString(STYLE_KEY));
+  }
+
+  /** Sets the style once, before founding places the first building. */
+  public void setStyle(VillageStyle style) {
+    brain.getStrategy().putString(STYLE_KEY, style.id());
+  }
+
   public void initNew(BlockPos centerLoc) {
     if (this.townCenterUUID != null || this.buildings.size() > 0) {
       return;
@@ -241,9 +259,9 @@ public class Village {
       return;
     }
 
-    BuildingInfo centerInfo = Buildings.getByName(Buildings.VILLAGE_CENTER_NAME);
+    BuildingInfo centerInfo = Buildings.resolve(Buildings.VILLAGE_CENTER_CATEGORY, 1, getStyle());
     if (centerInfo == null) {
-      Villagelife.LOGGER.error("No building definition '{}' is loaded; cannot found a village", Buildings.VILLAGE_CENTER_NAME);
+      Villagelife.LOGGER.error("No village center is loaded for the {} style or for plains; cannot found a village", getStyle().id());
       return;
     }
 
@@ -306,9 +324,9 @@ public class Village {
     boolean flankAlongX = centreBounds.getXSpan() <= centreBounds.getZSpan();
     int centreHalfShort = (flankAlongX ? centreBounds.getXSpan() : centreBounds.getZSpan()) / 2;
     InstantBuildStructure mineStruct = planFlankingCompanion(
-        Buildings.FOUNDING_MINE_NAME, fire, platCenter, flankAlongX, +1, centreHalfShort, FOUNDING_FLANK_GAP);
+        Buildings.FOUNDING_MINE_CATEGORY, fire, platCenter, flankAlongX, +1, centreHalfShort, FOUNDING_FLANK_GAP);
     InstantBuildStructure storeStruct = planFlankingCompanion(
-        Buildings.FOUNDING_STOREHOUSE_NAME, fire, platCenter, flankAlongX, -1, centreHalfShort, FOUNDING_FLANK_GAP);
+        Buildings.FOUNDING_STOREHOUSE_CATEGORY, fire, platCenter, flankAlongX, -1, centreHalfShort, FOUNDING_FLANK_GAP);
 
     // Level only the ground the three buildings actually stand on, plus a small
     // margin - not a generous strip. Founding used to flatten a ~71-wide field for
@@ -328,7 +346,7 @@ public class Village {
     // it only reads impossible when a plat column reports unloaded, which the
     // levelling then works on anyway (the block ops load on demand where the
     // stricter isLoaded check does not).
-    Villagelife.LOGGER.info("Founding '{}' on a {}x{} plat at {}: {}", name,
+    Villagelife.LOGGER.info("Founding '{}' in the {} style on a {}x{} plat at {}: {}", name, getStyle().id(),
         plat.getXSpan(), plat.getZSpan(), platCenter.toShortString(),
         cost.impossible() ? "settling rough or unassessed ground (" + cost.reason() + ")" : cost.describe());
 
@@ -377,8 +395,8 @@ public class Village {
   /** The widest of the founding buildings, so the plat is deep enough for all three. */
   private int maxFoundingSpan(int centerSpan) {
     int span = centerSpan;
-    for (String name : new String[] { Buildings.FOUNDING_MINE_NAME, Buildings.FOUNDING_STOREHOUSE_NAME }) {
-      BuildingInfo info = Buildings.getByName(name);
+    for (String category : new String[] { Buildings.FOUNDING_MINE_CATEGORY, Buildings.FOUNDING_STOREHOUSE_CATEGORY }) {
+      BuildingInfo info = Buildings.resolve(category, 1, getStyle());
       if (info != null) {
         span = Math.max(span, templateSpan(info));
       }
@@ -419,11 +437,11 @@ public class Village {
    * two sides. Null when the definition is not loaded, so the camp founds without it.
    */
   @javax.annotation.Nullable
-  private InstantBuildStructure planFlankingCompanion(String name, BlockPos fire, BlockPos platCenter,
+  private InstantBuildStructure planFlankingCompanion(String category, BlockPos fire, BlockPos platCenter,
       boolean flankAlongX, int side, int centreHalfShort, int gap) {
-    BuildingInfo info = Buildings.getByName(name);
+    BuildingInfo info = Buildings.resolve(category, 1, getStyle());
     if (info == null) {
-      Villagelife.LOGGER.warn("Founding set building '{}' is not loaded; the camp founds without it", name);
+      Villagelife.LOGGER.warn("No {} is loaded for the {} style or for plains; the camp founds without it", category, getStyle().id());
       return null;
     }
     // Turn each companion so its DOOR faces the campfire. The mine's front is local

@@ -89,6 +89,15 @@ public class VillageManagerSaveData extends SavedData {
     }
 
     public void registerVillage(ServerLevelAccessor levelAccess, BlockPos location) {
+        registerVillage(levelAccess, location, null);
+    }
+
+    /**
+     * Founds a village at the site in the given style, or, with none given, in
+     * the style the biome there calls for ({@link com.quzzar.villagelife.village.buildings.VillageStyle#fromBiome}).
+     */
+    public void registerVillage(ServerLevelAccessor levelAccess, BlockPos location,
+            @javax.annotation.Nullable com.quzzar.villagelife.village.buildings.VillageStyle style) {
         // One name for life (#60): the LLM name is requested BEFORE the camp is
         // placed, and founding runs when it lands moments later, so the village
         // never carries a provisional name. The wait opens a short window in
@@ -103,6 +112,8 @@ public class VillageManagerSaveData extends SavedData {
         com.quzzar.villagelife.village.VillageNamer.requestFoundingName(serverLevel, location, name -> {
             pendingFoundings.remove(site);
             Village village = new Village(name);
+            village.setStyle(style != null ? style
+                    : com.quzzar.villagelife.village.buildings.VillageStyle.fromBiome(serverLevel.getBiome(location)));
             village.attach(serverLevel);
             villages.put(village.getID(), village);
             village.initNew(location);

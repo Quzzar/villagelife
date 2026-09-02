@@ -51,7 +51,7 @@ public class UrbanPlanner {
   private static boolean isFoundingOnly(BuildingInfo info) {
     return info.hasWellFormedId()
         ? "village_center".equals(info.getCategory())
-        : info.getName().equals(Buildings.VILLAGE_CENTER_NAME);
+        : info.getName().startsWith(Buildings.VILLAGE_CENTER_CATEGORY);
   }
 
   /** A candidate building and the plain-language facts that describe it. */
@@ -154,7 +154,7 @@ public class UrbanPlanner {
   /** The capability a material waits on, or null when it comes out of the ground. */
   @Nullable
   private static String sourceOf(Item item) {
-    return Materials.isLog(item) ? "LOGS" : MATERIAL_SOURCE.get(item);
+    return Materials.isLog(item) || Materials.isPlank(item) ? "LOGS" : MATERIAL_SOURCE.get(item);
   }
 
   /**
@@ -171,7 +171,7 @@ public class UrbanPlanner {
       }
       // Some already in store counts: whoever put it there can get more, and a
       // village part-way to a goal should be allowed to finish it.
-      if (Materials.counted(stock, cost.getItem()) > 0) {
+      if (Materials.countedToward(stock, cost.getItem()) > 0) {
         continue;
       }
       return false;
@@ -188,7 +188,7 @@ public class UrbanPlanner {
   private static List<Candidate> outOfReach(Village village, Map<Item, Integer> stock) {
     List<Candidate> unaffordable = new ArrayList<>();
     String stalled = VillageGoal.stalled(village, village.getVillageTime());
-    for (BuildingInfo info : Buildings.allBuildings().values()) {
+    for (BuildingInfo info : Buildings.catalogue(village.getStyle())) {
       if (isFoundingOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
         continue;
       }
@@ -353,7 +353,7 @@ public class UrbanPlanner {
    */
   private static List<Candidate> affordableBuilds(Village village, Map<Item, Integer> stock) {
     List<Candidate> candidates = new ArrayList<>();
-    for (BuildingInfo info : Buildings.allBuildings().values()) {
+    for (BuildingInfo info : Buildings.catalogue(village.getStyle())) {
       if (isFoundingOnly(info)) {
         continue;
       }
@@ -484,13 +484,10 @@ public class UrbanPlanner {
   private static String shortfall(Village village, BuildingInfo info, Map<Item, Integer> stock) {
     List<String> parts = new ArrayList<>();
     String chain = "";
-    for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
-      int missing = cost.getCount() - Materials.counted(stock, cost.getItem());
-      if (missing > 0) {
-        parts.add(missing + " " + Materials.describe(cost.getItem()));
-        if (chain.isEmpty()) {
-          chain = producerHint(village, cost.getItem());
-        }
+    for (ItemStack missing : Materials.shortfall(stock, BuildingUpgrade.effectiveCost(village, info))) {
+      parts.add(missing.getCount() + " " + Materials.describe(missing.getItem()));
+      if (chain.isEmpty()) {
+        chain = producerHint(village, missing.getItem());
       }
     }
     return parts.isEmpty() ? "" : ", still needs " + String.join(", ", parts) + chain;
@@ -542,20 +539,14 @@ public class UrbanPlanner {
   /**
    * Whether the village can pay for this, answered from a tally taken once for
    * the whole decision rather than by re-reading storage per material (#65).
-   * Each cost is checked independently, as it always was: a definition listing
-   * the same item twice is a datapack quirk, not something to change here
-   * under cover of a performance fix.
+   * The recipe is settled as a whole by {@link Materials#covers}, so logs the
+   * log lines leave over may stand in for planks.
    */
   private static boolean hasMaterialsToConstruct(Village village, Map<Item, Integer> stock, BuildingInfo build){
     // Effective cost: the delta for an upgrade, the whole recipe for a fresh
     // build, so an upgrade becomes affordable as soon as its ADDITIONS are in
     // store rather than a second building's worth.
-    for(ItemStack itemCost : BuildingUpgrade.effectiveCost(village, build)){
-      if(Materials.counted(stock, itemCost.getItem()) < itemCost.getCount()){
-        return false;
-      }
-    }
-    return true;
+    return Materials.covers(stock, BuildingUpgrade.effectiveCost(village, build));
   }
 
   /**
@@ -565,14 +556,13 @@ public class UrbanPlanner {
    */
   public static ItemStack firstUnaffordableMaterial(Village village){
     Map<Item, Integer> stock = village.stockTally();
-    for(BuildingInfo build : Buildings.allBuildings().values()){
+    for (BuildingInfo build : Buildings.catalogue(village.getStyle())) {
       if (isFoundingOnly(build) || build.getUpgradesFrom() != null) {
         continue;
       }
-      for(ItemStack itemCost : build.getMaterialCost()){
-        if(Materials.counted(stock, itemCost.getItem()) < itemCost.getCount()){
-          return itemCost;
-        }
+      List<ItemStack> missing = Materials.shortfall(stock, build.getMaterialCost());
+      if (!missing.isEmpty()) {
+        return missing.get(0);
       }
     }
     return null;

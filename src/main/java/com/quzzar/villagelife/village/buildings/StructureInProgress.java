@@ -207,14 +207,10 @@ public class StructureInProgress {
         if (this.progress != BuildProgress.GATHERING) {
             return false;
         }
-        for (net.minecraft.world.item.ItemStack cost : recipe) {
-            if (Materials.held(pack, cost.getItem()) < cost.getCount()) {
-                return false; // the recipe is not all here yet
-            }
+        if (!Materials.covers(Materials.tally(pack), recipe)) {
+            return false; // the recipe is not all here yet
         }
-        for (net.minecraft.world.item.ItemStack cost : recipe) {
-            Materials.take(pack, cost.getItem(), cost.getCount());
-        }
+        Materials.spend(pack, recipe);
         this.progress = remainingPrepWork() > 0
                 ? BuildProgress.PREPARING
                 : BuildProgress.NOT_STARTED;
