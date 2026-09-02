@@ -1217,7 +1217,7 @@ public class Village {
       // Chests come and go — broken, built over, replaced by an upgrade — and
       // the village should not keep sending people to the ones that went.
       long tp = VillageProfile.start();
-      this.brain.pruneMissingContainers(level, PersonalChest.allChests(this));
+      this.brain.pruneMissingContainers(level);
       VillageProfile.end("prune containers", tp);
 
     }

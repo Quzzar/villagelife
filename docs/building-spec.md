@@ -290,9 +290,7 @@ The consequences that follow, and which the implementation owes:
   2026-09-01): a new village's storage is the storehouse's two barrels. A workplace with a
   single chest that is first a workplace, the level-1 blacksmith and the level-2 watchtower,
   keeps that chest shared, and the upper blacksmith's two chests both sit in the workshop, well
-  away from the bed, so it has none either. A chest that leaves the pool for this rule in an
-  existing world hands what it holds back to the stores first, since workers filled it as
-  village storage. When a home is rebuilt for an upgrade its chest is emptied into village storage with
+  away from the bed, so it has none either. When a home is rebuilt for an upgrade its chest is emptied into village storage with
   the rest, since the alternative is the residents' things on the floor of a building site; and
   a leaver's chest stays with the house, for whoever moves in next.
 - **A fetch can fail even when the pool says yes** — the chest holding it is unloaded, or

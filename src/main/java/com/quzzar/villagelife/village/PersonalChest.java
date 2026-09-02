@@ -32,9 +32,7 @@ import net.minecraft.world.item.ItemStack;
  *
  * <p>Nothing here is stored. A person's chest is derived from their bed
  * assignment and the building definition every time it is asked for, so a
- * definition edit or a rebuild is picked up without a save migration, and a
- * chest that was registered as village storage before homes had their own is
- * released by the village's container prune.
+ * definition edit or a rebuild is picked up as it happens.
  */
 public final class PersonalChest {
 
