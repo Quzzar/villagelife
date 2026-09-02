@@ -88,7 +88,7 @@ public final class UiPreview {
         if ("reveal".equalsIgnoreCase(MODE) && ticks == REVEAL_FIRE_TICK && !revealFired) {
             revealFired = true;
             PersonChatScreen.onReply(0, "Aye, and the north road's been thick with bandits "
-                    + "since the frost broke, so mind yourself past the old mill.");
+                    + "since the frost broke, so mind yourself past the old mill.", false);
         }
         if (++ticks < SETTLE_TICKS) {
             return;

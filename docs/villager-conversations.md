@@ -32,7 +32,8 @@ by villager talk for free.
    (16 blocks) as a short-lived speech bubble above the speaker. A new line
    replaces the previous one, and disappears after six seconds, so ambient
    talk stays in the world instead of filling the player's chat transcript.
-4. **Close.** After 4 or 6 lines (always ending on an answer), or on any
+4. **Close.** When either side takes their leave (`"done": true` on the
+   reply, the model's own call; see "Taking leave" below), or on any
    failure, both sides summarize the session into their memory of the other,
    exactly as a screen-close does. Next conversation on a later day starts
    fresh from that memory (`ChatHistoryData.staleFor`, shared with
@@ -111,6 +112,28 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
 - `llm/LlmService.java`: `submitBackgroundChat`, the background lane.
 - `entities/ai/goals/PauseForConversationGoal.java`: faces players and
   villager partners alike.
+
+## Taking leave (2026-09-02)
+
+A villager ends a conversation when they mean to, not when a counter says so. The reply may
+carry `"done": true` alongside `say`, `give`, `opinion` and `fight`; the rules tell the
+villager what it means (you have said what you have to say, the farewell goes in `say` on that
+same reply, most replies are not the last one) and the model decides. There is no budget of
+lines and no clock on the talk: the first version closed every villager-to-villager talk after
+four or six lines, and Aaron called a line budget dumb, let them talk until they want to stop,
+and if they go on a tangent and yap, so be it.
+
+Honoured for a player and for a fellow villager alike. With a player, the reply packet carries
+the flag, the screen shows the farewell, and ten seconds later it closes itself
+(`PersonChatScreen`), which sends the ordinary close packet, so the session is summarized into
+memory exactly as if the player had closed it; a further reply without the flag in that window
+cancels the close, and the player may always reopen. Between villagers the driver finishes the
+talk on the spot, with the same summaries. The other ends still stand, all of them safety rather
+than budget: the per-turn session timeout (a busy lane), drifting out of range, death, a fight
+picked, or a reply the model could not give. One consequence to know about: conversations run
+one at a time server-wide (`MAX_ACTIVE`), so a long talk holds the village's gossip lane for as
+long as it lasts. The log lines are `takes their leave of` under `[chat]` for a player and
+`[villager chat]` for a villager.
 
 ## Fights picked in conversation (2026-09-02)
 

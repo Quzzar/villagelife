@@ -198,7 +198,7 @@ public final class PersonChatDispatcher {
         Villagelife.LOGGER.warn("Chat with {} failed for {}", person.getFullName(),
             player.getGameProfile().getName(), error);
         PacketDistributor.sendToPlayer(player,
-            new PersonChatReplyPacket(person.getId(), "..."));
+            new PersonChatReplyPacket(person.getId(), "...", false));
         return;
       }
       if (reply.give() != null && person.isAlive()) {
@@ -209,7 +209,13 @@ public final class PersonChatDispatcher {
       if (reply.fight() && person.isAlive()) {
         person.pickFightWith(player);
       }
-      PacketDistributor.sendToPlayer(player, new PersonChatReplyPacket(person.getId(), reply.say()));
+      // The villager's own leave-taking: the screen shows the farewell and
+      // closes itself a little later, which closes the session the usual way.
+      if (reply.done()) {
+        Villagelife.LOGGER.info("[chat] {} takes their leave of {}", person.getFullName(),
+            player.getGameProfile().getName());
+      }
+      PacketDistributor.sendToPlayer(player, new PersonChatReplyPacket(person.getId(), reply.say(), reply.done()));
     }));
   }
 
@@ -286,6 +292,7 @@ public final class PersonChatDispatcher {
           JsonObject undertaking = null;
           JsonObject request = null;
           boolean fight = false;
+          boolean done = false;
           if (result.isPresent()) {
             Reply parsed = parseReply(result.get());
             if (parsed != null) {
@@ -296,6 +303,7 @@ public final class PersonChatDispatcher {
               undertaking = parsed.undertaking();
               request = parsed.request();
               fight = parsed.fight();
+              done = parsed.done();
             }
           }
           if (say == null || say.isBlank()) {
@@ -306,11 +314,12 @@ public final class PersonChatDispatcher {
             undertaking = null; // a fallback line committed to nothing; record nothing
             request = null;
             fight = false;
+            done = false;
           }
           say = VillagerText.clean(say);
           finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, giveCount, opinion, undertaking,
               request, fight, System.currentTimeMillis() - askedAtMs);
-          return new Reply(say, give, giveCount, opinion, undertaking, request, fight);
+          return new Reply(say, give, giveCount, opinion, undertaking, request, fight, done);
         });
   }
 
@@ -598,10 +607,12 @@ public final class PersonChatDispatcher {
    * A parsed reply. {@code undertaking} carries the raw {@code "undertaking"}
    * object when the model emitted one (null otherwise); it is applied as a
    * side effect in {@link #finalizeExchange}, not by the caller, which only
-   * reads {@code say}/{@code give}.
+   * reads {@code say}/{@code give}. {@code done} is the villager taking their
+   * leave: the model's own call to end the talk, honoured by the player's
+   * screen and the villager-to-villager driver alike.
    */
   public record Reply(String say, String give, int giveCount, int opinionDelta, JsonObject undertaking,
-      JsonObject request, boolean fight) {
+      JsonObject request, boolean fight, boolean done) {
   }
 
   /** Largest single-call opinion step the model may take. */
@@ -622,6 +633,7 @@ public final class PersonChatDispatcher {
   private static final Pattern GIVE_COUNT_PATTERN = Pattern.compile("\"give_count\"\\s*:\\s*(\\d+)");
   private static final Pattern OPINION_PATTERN = Pattern.compile("\"opinion\"\\s*:\\s*(-?\\d+)");
   private static final Pattern FIGHT_PATTERN = Pattern.compile("\"fight\"\\s*:\\s*true");
+  private static final Pattern DONE_PATTERN = Pattern.compile("\"done\"\\s*:\\s*true");
 
   /** Strict-then-regex, the parsing discipline used everywhere in llm-land. */
   private static Reply parseReply(String raw) {
@@ -661,7 +673,15 @@ public final class PersonChatDispatcher {
               } catch (Exception ignored) {
               }
             }
-            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking, request, fight);
+            boolean done = false;
+            if (node.has("done") && node.get("done").isJsonPrimitive()) {
+              try {
+                done = node.get("done").getAsBoolean();
+              } catch (Exception ignored) {
+              }
+            }
+            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking, request, fight,
+                done);
           }
         } catch (Exception ignored) {
           // fall through to the regex pass
@@ -680,7 +700,7 @@ public final class PersonChatDispatcher {
           give.find() ? give.group(1) : null,
           giveCount.find() ? Math.max(1, Integer.parseInt(giveCount.group(1))) : 1,
           opinion.find() ? clampStep(Integer.parseInt(opinion.group(1))) : 0,
-          null, null, FIGHT_PATTERN.matcher(raw).find());
+          null, null, FIGHT_PATTERN.matcher(raw).find(), DONE_PATTERN.matcher(raw).find());
     }
     return null;
   }

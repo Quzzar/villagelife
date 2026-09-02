@@ -28,25 +28,22 @@ import net.minecraft.server.level.ServerPlayer;
  *
  * <p>The driver's own job is small: alternate the turns, keep both parties
  * standing (the shared chat session, which PauseForConversationGoal reads),
- * speak each line aloud to players in earshot, and stop. It stops when the
- * line budget runs out, when either party dies or drifts out of range, when a
- * turn takes longer than the session timeout (the background LLM lane is busy;
- * the pair returns to their lives rather than standing frozen), or when the
- * model has nothing to say. Every end closes the same way a screen-close does:
- * one summary each, so the talk becomes a memory.
+ * speak each line aloud to players in earshot, and stop. It stops when either
+ * party takes their leave ({@code "done": true} on the reply, the model's own
+ * call, the same flag a player's screen honours), when either party dies or
+ * drifts out of range, when a turn takes longer than the session timeout (the
+ * background LLM lane is busy; the pair returns to their lives rather than
+ * standing frozen), when one answers words with blows, or when the model has
+ * nothing to say. There is no budget of lines and no clock on the talk itself
+ * (Aaron, 2026-09-02: let them talk until they want to stop, and if they yap,
+ * so be it). Every end closes the same way a screen-close does: one summary
+ * each, so the talk becomes a memory.
  *
  * <p>Turns ride the background LLM lane (LlmService.submitBackgroundChat), so
  * villager chatter never delays a player's reply or a village decision, and
  * {@link #MAX_ACTIVE} bounds how much of that lane gossip may occupy at once.
  */
 public final class VillagerConversation {
-
-  /**
-   * Spoken lines in one conversation: the opener plus alternating replies.
-   * Always even, so the conversation ends on an answer, not a question left
-   * hanging. Two lengths so talks do not all feel metronome-identical.
-   */
-  private static final int MIN_LINES = 4;
 
   /** How close two villagers stand to talk; drifting past it ends the talk. */
   private static final double TALK_RANGE = 6.0D;
@@ -159,10 +156,9 @@ public final class VillagerConversation {
     PersonChatDispatcher.markTalking(partner, initiator.getUUID());
     lastStartMs = System.currentTimeMillis();
 
-    int lines = MIN_LINES + 2 * initiator.getRandom().nextInt(2);
-    Villagelife.LOGGER.info("[villager chat] {} strikes up a conversation with {} ({} lines at most)",
-        initiator.getFullName(), partner.getFullName(), lines);
-    takeTurn(initiator, partner, OPENER_CUE, "", lines);
+    Villagelife.LOGGER.info("[villager chat] {} strikes up a conversation with {}",
+        initiator.getFullName(), partner.getFullName());
+    takeTurn(initiator, partner, OPENER_CUE, "");
     return true;
   }
 
@@ -175,7 +171,7 @@ public final class VillagerConversation {
    * within the session timeout lets both parties walk away on their own.
    */
   private static void takeTurn(RealPerson speaker, RealPerson listener, String message,
-      String historyLine, int linesLeft) {
+      String historyLine) {
     try {
       PersonChatDispatcher
           .converse(speaker, listener.getFullName(), listener.getUUID(), message, historyLine, true)
@@ -205,13 +201,17 @@ public final class VillagerConversation {
                 finish(speaker, listener);
                 return;
               }
-              if (linesLeft <= 1) {
+              // The speaker takes their leave: their own call, made in the
+              // reply, and the farewell has just been spoken.
+              if (reply.done()) {
+                Villagelife.LOGGER.info("[villager chat] {} takes their leave of {}",
+                    speaker.getFullName(), listener.getFullName());
                 finish(speaker, listener);
                 return;
               }
               PersonChatDispatcher.markTalking(speaker, listener.getUUID());
               PersonChatDispatcher.markTalking(listener, speaker.getUUID());
-              takeTurn(listener, speaker, reply.say(), reply.say(), linesLeft - 1);
+              takeTurn(listener, speaker, reply.say(), reply.say());
             });
           });
     } catch (RuntimeException e) {

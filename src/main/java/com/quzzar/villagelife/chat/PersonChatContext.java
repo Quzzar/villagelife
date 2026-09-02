@@ -66,16 +66,19 @@ public final class PersonChatContext {
       + "Add \"fight\": true ONLY when you have decided to come to blows with this person over what they have "
       + "just said or done. A fight is real: you strike them until one of you goes down or they run, with your "
       + "weapon if you carry one and your fists if not, and everyone remembers it. Most replies have no "
-      + "\"fight\" at all. ";
+      + "\"fight\" at all. "
+      + "Add \"done\": true when you have said what you have to say and mean to end the talk: a goodbye, "
+      + "a turn back to your work, nothing more to add. Put the farewell itself in \"say\" on that same "
+      + "reply. Most replies are not the last one, so most have no \"done\" at all. ";
 
   private static final String RULES = RULES_BODY
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
       + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"give_count\": <how many>, \"opinion\": <number>, "
-      + "\"fight\": true}.";
+      + "\"fight\": true, \"done\": true}.";
 
   private static final String SHAPE_UNDERTAKING =
-      "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", \"fight\", or "
-      + "\"undertaking\" only when it applies.";
+      "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", \"fight\", "
+      + "\"done\", or \"undertaking\" only when it applies.";
 
   /**
    * The undertaking clause is split by the state the SERVER already knows, and
@@ -253,7 +256,7 @@ public final class PersonChatContext {
       + "does. But if you genuinely agree it should, you may put the idea to the village's judgement: "
       + "\"request\": {\"subject\": \"<what to build, a word or two>\", \"reason\": \"<why, a few words>\"}. "
       + "Add it only when you truly back the idea; if you do not, simply answer in character with no request. "
-      + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding \"give\", \"opinion\", or \"request\" "
+      + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding \"give\", \"opinion\", \"done\", or \"request\" "
       + "only when it applies.";
 
   /** Teaches the request field, and (second) that most urgings are declined, not forwarded. */

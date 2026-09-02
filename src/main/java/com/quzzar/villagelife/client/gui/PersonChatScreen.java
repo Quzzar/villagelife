@@ -295,6 +295,15 @@ public class PersonChatScreen
   private long awaitingSinceMs;
   private static final long AWAIT_RELEASE_MS = 30_000;
 
+  /**
+   * How long the villager's farewell stays on screen before the screen closes
+   * itself: long enough to read, short enough that the talk is plainly over.
+   */
+  private static final long LEAVE_CLOSE_MS = 10_000;
+
+  /** When the screen closes itself after the villager took their leave; 0 while they have not. */
+  private long closeAtMs;
+
   // The newest reply is revealed a character at a time, like the villager is
   // saying it, rather than appearing whole. Only a FRESH reply reveals; history
   // reloaded from the server shows at once. -1 when nothing is revealing.
@@ -354,7 +363,7 @@ public class PersonChatScreen
     }
   }
 
-  public static void onReply(int entityId, String text) {
+  public static void onReply(int entityId, String text, boolean done) {
     if (Minecraft.getInstance().screen instanceof PersonChatScreen screen && screen.entityId == entityId) {
       // Start revealing this line as it is added: its index is the current size.
       screen.revealingLine = screen.lines.size();
@@ -362,6 +371,10 @@ public class PersonChatScreen
       screen.lines.add(new ChatLine(screen.headerName, text, false));
       screen.chatScrollUp = 0;
       screen.awaitingReply = false;
+      // The villager took their leave: the farewell shows, then the screen closes
+      // itself, which closes the session the ordinary way (removed()). A later
+      // reply that is not a farewell cancels it: they had more to say after all.
+      screen.closeAtMs = done ? System.currentTimeMillis() + LEAVE_CLOSE_MS : 0;
     }
   }
 
@@ -720,7 +733,8 @@ public class PersonChatScreen
 
     lastPlayerHealth = playerHealth;
     lastPersonHealth = personHealth;
-    if (playerHurt || personHurt || personGone) {
+    boolean leaveTaken = closeAtMs != 0 && System.currentTimeMillis() >= closeAtMs;
+    if (playerHurt || personHurt || personGone || leaveTaken) {
       onClose();
     }
   }
