@@ -63,6 +63,18 @@ public final class VillagerConversation {
   private static final long COOLDOWN_MS = 5 * 60 * 1000;
 
   /**
+   * Quiet time before the SAME two villagers may talk again, beyond the
+   * per-villager cooldown each already serves. A guard that walked over to its
+   * best-liked neighbour and talked will, on its next free moment, pick that
+   * same neighbour again; without a floor between one PAIR's talks they fixate
+   * on each other and stand about (Aaron, 2026-09-02). The per-villager
+   * cooldown above is longer, so this only bites once a guard's own watch
+   * (GuardPatrolGoal) has it chatting seldom enough that it would otherwise
+   * re-pick the same partner.
+   */
+  private static final long PAIR_COOLDOWN_MS = 3 * 60 * 1000;
+
+  /**
    * Conversations running at once, server-wide. One at a time keeps each
    * turn's wait on the shared background lane short (a slow turn ends the
    * talk, see the session timeout), and keeps an evening of village gossip
@@ -100,6 +112,16 @@ public final class VillagerConversation {
 
   /** When each villager last finished a conversation, for the cooldown. */
   private static final Map<UUID, Long> LAST_ENDED = new ConcurrentHashMap<>();
+
+  /** When each PAIR last finished a conversation, keyed order-independently, for the pair cooldown. */
+  private static final Map<String, Long> PAIR_LAST_ENDED = new ConcurrentHashMap<>();
+
+  /** An order-independent key for a pair, so (a,b) and (b,a) are one entry. */
+  private static String pairKey(RealPerson a, RealPerson b) {
+    UUID x = a.getUUID();
+    UUID y = b.getUUID();
+    return x.compareTo(y) <= 0 ? x + "|" + y : y + "|" + x;
+  }
 
   private VillagerConversation() {
   }
@@ -150,6 +172,11 @@ public final class VillagerConversation {
       return false;
     }
     if (PersonChatDispatcher.isConversing(initiator) || PersonChatDispatcher.isConversing(partner)) {
+      return false;
+    }
+    // These two talked recently: let them find someone else rather than fixate.
+    if (!force && System.currentTimeMillis()
+        - PAIR_LAST_ENDED.getOrDefault(pairKey(initiator, partner), 0L) < PAIR_COOLDOWN_MS) {
       return false;
     }
     if (ACTIVE.incrementAndGet() > MAX_ACTIVE) {
@@ -306,6 +333,7 @@ public final class VillagerConversation {
     long now = System.currentTimeMillis();
     LAST_ENDED.put(a.getUUID(), now);
     LAST_ENDED.put(b.getUUID(), now);
+    PAIR_LAST_ENDED.put(pairKey(a, b), now);
     PersonChatDispatcher.markClosed(a.getId(), b.getUUID());
     PersonChatDispatcher.markClosed(b.getId(), a.getUUID());
     if (a.getServer() != null) {

@@ -2019,8 +2019,20 @@ public class RealPerson extends Person {
       // One roll in four every ten seconds: a fresh camp's guard is its only
       // axe until the lodge stands, and at one in twenty a tree fell every
       // fifteen minutes if the dice were kind (Aaron, 2026-09-01: too rare).
+      //
       this.goalSelector.addGoal(5, new WorkLoopGoal<>(this,
           new ChopStep(12, 0.25F, 200)));
+      // The loose watch is the guard's real default, sitting at the visiting
+      // priority but AFTER the chop and ahead of the chat: the founding chop
+      // above still wins the flag whenever a tree is near (it is a fresh camp's
+      // only wood, docs/economy.md), and otherwise the guard walks the village
+      // keeping an eye on it rather than loitering in conversation. Without it a
+      // work-less guard fell to seeking chats, fixed on its best-liked
+      // neighbour, and parked on a worker it kept pulling off the job (Aaron,
+      // 2026-09-02: the miner and guard just standing together). A chat fits the
+      // pauses between the watch's legs.
+      this.goalSelector.addGoal(5,
+          new com.quzzar.villagelife.entities.ai.goals.GuardPatrolGoal(this));
       this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
     }
     if (getOccupation() == Occupation.MINER) {
