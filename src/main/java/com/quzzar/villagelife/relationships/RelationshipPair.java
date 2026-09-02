@@ -14,9 +14,14 @@ import net.minecraft.util.Mth;
  * other are roughly aligned BY SHAPE - one generation produces the whole
  * pair. The pair is stored once under a canonical unordered key; only
  * non-neutral pairs are persisted at all (absence means neutral).
+ *
+ * <p>{@code married} is the one edge a strong bond can become: two villagers
+ * the brain has wed (docs/marriage.md). It is a property OF the pair, not of
+ * either person's lean, so it survives drift rebuilding the pair every cycle
+ * and it reads the same from both sides. A married pair is never re-proposed.
  */
 public record RelationshipPair(UUID personA, UUID personB, int value, int leanA, int leanB,
-        boolean asymmetric, String flavor) {
+        boolean asymmetric, String flavor, boolean married) {
 
     /** Leans stay small unless the model deliberately marks the pair asymmetric. */
     public static final int LEAN_LIMIT = 15;
@@ -31,7 +36,8 @@ public record RelationshipPair(UUID personA, UUID personB, int value, int leanA,
             Codec.INT.optionalFieldOf("lean_a", 0).forGetter(RelationshipPair::leanA),
             Codec.INT.optionalFieldOf("lean_b", 0).forGetter(RelationshipPair::leanB),
             Codec.BOOL.optionalFieldOf("asymmetric", false).forGetter(RelationshipPair::asymmetric),
-            Codec.STRING.optionalFieldOf("flavor", "").forGetter(RelationshipPair::flavor)
+            Codec.STRING.optionalFieldOf("flavor", "").forGetter(RelationshipPair::flavor),
+            Codec.BOOL.optionalFieldOf("married", false).forGetter(RelationshipPair::married)
     ).apply(inst, RelationshipPair::new));
 
     /** Canonical storage key for an unordered pair. */
@@ -57,15 +63,31 @@ public record RelationshipPair(UUID personA, UUID personB, int value, int leanA,
         return Mth.clamp(value + lean, -100, 100);
     }
 
-    /** Builds a pair with leans clamped per the asymmetry rule and canonical ordering. */
+    /** Whether either person of a strong bond has wed the other. */
+    public boolean isMarried() {
+        return married;
+    }
+
+    /** The same pair, married or not; marriage is symmetric, so nothing else moves. */
+    public RelationshipPair withMarried(boolean nowMarried) {
+        return new RelationshipPair(personA, personB, value, leanA, leanB, asymmetric, flavor, nowMarried);
+    }
+
+    /** A fresh, unmarried pair with leans clamped per the asymmetry rule and canonical ordering. */
     public static RelationshipPair create(UUID a, UUID b, int value, int leanA, int leanB,
             boolean asymmetric, String flavor) {
+        return create(a, b, value, leanA, leanB, asymmetric, flavor, false);
+    }
+
+    /** Builds a pair with leans clamped per the asymmetry rule and canonical ordering. */
+    public static RelationshipPair create(UUID a, UUID b, int value, int leanA, int leanB,
+            boolean asymmetric, String flavor, boolean married) {
         int limit = asymmetric ? ASYMMETRIC_LEAN_LIMIT : LEAN_LIMIT;
         if (a.compareTo(b) > 0) {
             UUID swapId = a; a = b; b = swapId;
             int swapLean = leanA; leanA = leanB; leanB = swapLean;
         }
         return new RelationshipPair(a, b, Mth.clamp(value, -100, 100),
-                Mth.clamp(leanA, -limit, limit), Mth.clamp(leanB, -limit, limit), asymmetric, flavor);
+                Mth.clamp(leanA, -limit, limit), Mth.clamp(leanB, -limit, limit), asymmetric, flavor, married);
     }
 }

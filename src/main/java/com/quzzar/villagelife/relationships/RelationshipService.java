@@ -261,7 +261,7 @@ public final class RelationshipService {
         }
         Villagelife.LOGGER.debug("Dropped a one-sided flavour line: \"{}\"", flavor);
         return new RelationshipPair(pair.personA(), pair.personB(), pair.value(),
-                pair.leanA(), pair.leanB(), pair.asymmetric(), "");
+                pair.leanA(), pair.leanB(), pair.asymmetric(), "", pair.married());
     }
 
     private static boolean mentionsAnyPartOf(String flavor, String fullName) {

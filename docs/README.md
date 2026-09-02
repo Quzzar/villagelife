@@ -16,6 +16,9 @@ in it, and update it in the same change that moves what it describes.
   and self-set goals. Design only so far; grows out of PersonalLogData's flat issue log.
 - [relationships.md](relationships.md): pairwise villager opinions. The one-pair-one-object
   model that keeps opinions roughly shared, the newcomer integration pass, and the code map.
+- [marriage.md](marriage.md): two villagers who have grown close ask the brain to wed them,
+  and it decides. The emergent proposal, the brain's blessing, the hyphenated surname, and the
+  couple's cottage the village saves for and moves them into.
 - [ui-preview.md](ui-preview.md): how to photograph a client screen without playing the
   game. Required reading before changing anything under `client/gui/`, because every
   version of the villager screen written without looking at it was wrong.

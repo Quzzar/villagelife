@@ -1,0 +1,24 @@
+{
+  "structure": "couple_cottage_plains_1",
+  "category": "couple_cottage",
+  "variant": "plains",
+  "beds": [
+    [3, 1, 6],
+    [3, 1, 7]
+  ],
+  "work_stations": [],
+  "containers": [],
+  "personal_containers": [
+    [6, 1, 4]
+  ],
+  "cost": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 32
+    },
+    {
+      "item": "minecraft:cobblestone",
+      "count": 24
+    }
+  ]
+}

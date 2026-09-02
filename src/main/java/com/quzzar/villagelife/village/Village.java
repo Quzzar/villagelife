@@ -150,6 +150,9 @@ public class Village {
   // True while the brain is deciding who takes an open post; keeps one job
   // decision in flight (JobClaiming), the same discipline as the project one.
   private transient boolean jobDecisionPending;
+  // True while the brain is deciding whether to wed two villagers; keeps one
+  // marriage decision in flight (MarriageService), the same discipline again.
+  private transient boolean marriageDecisionPending;
   // What the village can do, derived from its buildings (#55). Never persisted:
   // recomputed on building change and on the slow tick, because supply-gated
   // grants depend on what the chests hold right now.
@@ -676,6 +679,12 @@ public class Village {
   protected void addBuilding(Building building) {
     this.buildings.put(building.getUUID(), building);
     this.brain.processNewBuilding(building, unassignedBeds, unassignedJobs);
+    // A couple's cottage moves the newlyweds it was raised for into its beds
+    // (docs/marriage.md); a no-op for every other building.
+    if (level != null) {
+      com.quzzar.villagelife.relationships.MarriageService.onHomeBuilt(
+          this, level, building.getUUID(), building.getInfo());
+    }
     fellTreesOver(building);
     this.capabilities = null;
     // Raising something changes what will fit next, so what the village had
@@ -1371,6 +1380,16 @@ public class Village {
       VillageProfile.end("relationship drift", t);
     }
 
+    // Two villagers who have grown close asking the brain to wed them, and a
+    // home named for a couple that has none (docs/marriage.md). Phase-staggered
+    // like the build decision because the verdict is an LLM call.
+    int marriageInterval = com.quzzar.villagelife.relationships.MarriageService.MARRIAGE_INTERVAL_SECONDS;
+    if ((time + Math.floorMod(id.hashCode(), marriageInterval)) % marriageInterval == 0) {
+      long t = VillageProfile.start();
+      com.quzzar.villagelife.relationships.MarriageService.tick(this, level);
+      VillageProfile.end("marriage", t);
+    }
+
     // Every 100 seconds, phase-staggered per village like the attractiveness
     // recompute, so many villages don't all classify on the same tick.
     if ((time + Math.floorMod(id.hashCode(), 100)) % 100 == 0) {
@@ -1728,6 +1747,47 @@ public class Village {
     return this.brain.relationshipsOf(person);
   }
 
+  /** Every pair the brain has wed, for the marriage housing pass (docs/marriage.md). */
+  public List<RelationshipPair> marriedPairs() {
+    return this.brain.marriedPairs();
+  }
+
+  /**
+   * Moves a married couple into a building's beds, freeing whatever beds they
+   * held (docs/marriage.md). Each spouse takes a distinct free bed in the
+   * building; a bed they already sit in there is left alone. The village's
+   * personal-chest rules do the rest, since a home's chest is shared by whoever
+   * sleeps in it. Called as the couple's cottage is added.
+   */
+  public void houseCouple(UUID a, UUID b, UUID buildingUUID) {
+    assignToBuilding(a, buildingUUID);
+    assignToBuilding(b, buildingUUID);
+  }
+
+  /** Gives one villager a free bed in the given building, releasing the bed they held elsewhere. */
+  private void assignToBuilding(UUID personUUID, UUID buildingUUID) {
+    BedAssignment held = bedAssignments.get(personUUID);
+    if (held != null && held.getBuildingUUID().equals(buildingUUID)) {
+      return;
+    }
+    BedAssignment target = null;
+    for (BedAssignment free : unassignedBeds) {
+      if (free.getBuildingUUID().equals(buildingUUID)) {
+        target = free;
+        break;
+      }
+    }
+    if (target == null) {
+      return;
+    }
+    if (held != null) {
+      unassignedBeds.add(held.setPersonUUID(null));
+      bedAssignments.remove(personUUID);
+    }
+    unassignedBeds.remove(target);
+    bedAssignments.put(personUUID, target.setPersonUUID(personUUID));
+  }
+
   // --- #38 (stat-based placement and swaps) interface ---
 
   /** Snapshot of every booked assignment, for the swap pass. */
@@ -1767,6 +1827,15 @@ public class Village {
 
   public void setJobDecisionPending(boolean pending) {
     this.jobDecisionPending = pending;
+  }
+
+  /** True while a brain verdict on a proposed marriage is in flight (MarriageService). */
+  public boolean isMarriageDecisionPending() {
+    return marriageDecisionPending;
+  }
+
+  public void setMarriageDecisionPending(boolean pending) {
+    this.marriageDecisionPending = pending;
   }
 
   /** Beds nobody sleeps in yet. Returned live: reconciliation adds to it. */

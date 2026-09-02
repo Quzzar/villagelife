@@ -682,6 +682,28 @@ public class RealPerson extends Person {
     this.entityData.set(MARRIAGE_STATUS, marriageStatus.name());
   }
 
+  /**
+   * Weds this villager to another (docs/marriage.md): both become
+   * {@link MarriageStatus#MARRIED} and both take one hyphenated family name. The
+   * surname order is fixed by UUID so the two agree on it from either side, and
+   * marriage is symmetric, so one call settles both people. Who is married to
+   * whom is the pair edge's to hold ({@code RelationshipPair.married}); this
+   * writes only the person-level projection. The caller ({@code MarriageService})
+   * owns the guard that neither is already wed and flags the edge married.
+   */
+  public void marry(RealPerson spouse) {
+    RealPerson first = getUUID().compareTo(spouse.getUUID()) <= 0 ? this : spouse;
+    RealPerson second = first == this ? spouse : this;
+    String surname = first.getLastName() + "-" + second.getLastName();
+
+    this.setLastName(surname);
+    spouse.setLastName(surname);
+    this.setMarriageStatus(MarriageStatus.MARRIED);
+    spouse.setMarriageStatus(MarriageStatus.MARRIED);
+    this.refreshDisplayName();
+    spouse.refreshDisplayName();
+  }
+
   protected void setGender(Gender gender) {
     this.entityData.set(GENDER, gender.name());
   }

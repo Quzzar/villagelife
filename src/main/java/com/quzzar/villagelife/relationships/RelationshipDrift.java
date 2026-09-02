@@ -171,7 +171,8 @@ public final class RelationshipDrift {
         || (pair != null && pair.asymmetric());
 
     RelationshipPair updated = RelationshipPair.create(viewer, subject, value,
-        updatedLean, otherLean, asymmetric, pair != null ? pair.flavor() : "");
+        updatedLean, otherLean, asymmetric, pair != null ? pair.flavor() : "",
+        pair != null && pair.married());
     village.putRelationship(updated);
     Villagelife.LOGGER.debug("Relationship shift in '{}': {} toward {} by {} ({})",
         village.getName(), viewer, subject, delta, reason);
@@ -184,7 +185,8 @@ public final class RelationshipDrift {
     RelationshipPair updated = RelationshipPair.create(first, second, value,
         firstIsA ? leanA : leanB, firstIsA ? leanB : leanA,
         existing != null && existing.asymmetric(),
-        existing != null ? existing.flavor() : "");
+        existing != null ? existing.flavor() : "",
+        existing != null && existing.married());
     village.putRelationship(updated);
   }
 

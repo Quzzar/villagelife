@@ -34,6 +34,13 @@ public class Buildings {
   public static final String VILLAGE_CENTER_CATEGORY = "village_center";
   public static final String FOUNDING_MINE_CATEGORY = "mine";
   public static final String FOUNDING_STOREHOUSE_CATEGORY = "storehouse";
+  /**
+   * The home a village raises for a married couple (docs/marriage.md). Unlike
+   * every other category it is never chosen spontaneously by the brain: it is
+   * offered only as the saved-for goal a marriage sets, so the planner filters
+   * it out of the options it deliberates over.
+   */
+  public static final String COUPLE_COTTAGE_CATEGORY = "couple_cottage";
 
   private static volatile Map<String, BuildingInfo> registry = Map.of();
 

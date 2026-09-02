@@ -5,15 +5,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.mojang.authlib.GameProfile;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.compat.AccessoryCompat;
+import com.quzzar.villagelife.entities.MarriageStatus;
 import com.quzzar.villagelife.entities.PersonalLogData;
 import com.quzzar.villagelife.entities.UndertakingData;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmService.FewShotExample;
+import com.quzzar.villagelife.relationships.RelationshipPair;
 import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.Occupation;
@@ -27,6 +30,7 @@ import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -408,6 +412,10 @@ public final class PersonChatContext {
     // holds when it is in sight, and that they have none when they have none,
     // so the model neither invents a hoard nor forgets it has one.
     system.append(homeChestLine(person)).append('\n');
+    String spouse = spouseLine(person);
+    if (!spouse.isEmpty()) {
+      system.append(spouse).append('\n');
+    }
 
     system.append("It is now ").append(PersonalLogData.formatDay(person.level().getDayTime())).append(".\n");
     // Villagers reckon the year from the world's age (the Days in Year config),
@@ -622,6 +630,33 @@ public final class PersonChatContext {
     String holds = PersonalChest.summarize(container);
     return line.append(holds.isEmpty() ? "; it is empty." : "; it holds " + holds + ", at home, not on you.")
         .toString();
+  }
+
+  /**
+   * Whether this villager is married and to whom (docs/marriage.md). Who is
+   * married to whom is the pair edge's to hold, so the spouse is read from the
+   * married relationship rather than a second field; an empty line for a single
+   * villager, and a named spouse only when they are a fellow resident in sight.
+   */
+  private static String spouseLine(RealPerson person) {
+    if (person.getMarriageStatus() != MarriageStatus.MARRIED) {
+      return "";
+    }
+    Village village = person.getVillage();
+    if (village == null || !(person.level() instanceof ServerLevel level)) {
+      return "You are married.";
+    }
+    for (RelationshipPair pair : village.relationshipsOf(person.getUUID())) {
+      if (!pair.married()) {
+        continue;
+      }
+      UUID spouseId = pair.other(person.getUUID());
+      RealPerson spouse = village.getPerson(level, spouseId);
+      if (spouse != null) {
+        return "You are married to " + spouse.getFullName() + ".";
+      }
+    }
+    return "You are married.";
   }
 
   /** What a villager holds, by its plain name: "stone axe" for "minecraft:stone_axe". */

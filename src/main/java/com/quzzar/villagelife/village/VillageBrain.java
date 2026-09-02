@@ -529,6 +529,15 @@ public class VillageBrain {
     return result;
   }
 
-
+  /** Every pair that has been wed (docs/marriage.md). */
+  public List<RelationshipPair> marriedPairs() {
+    List<RelationshipPair> result = new ArrayList<>();
+    for (RelationshipPair pair : relationships.values()) {
+      if (pair.married()) {
+        result.add(pair);
+      }
+    }
+    return result;
+  }
 
 }

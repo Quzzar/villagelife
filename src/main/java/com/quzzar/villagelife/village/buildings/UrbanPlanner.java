@@ -65,8 +65,31 @@ public class UrbanPlanner {
         : info.getName().startsWith(Buildings.VILLAGE_CENTER_CATEGORY);
   }
 
+  /**
+   * A couple's cottage is never deliberated over: it is raised only as the
+   * saved-for goal a marriage sets (docs/marriage.md), so it is filtered out of
+   * both the affordable options and the reachable goals the brain is shown. A
+   * village should not decide to build one for no one; it builds one because two
+   * of its people wed. The goal short-circuit in {@link #chooseNextProject}
+   * still builds it once named, which is the only way it is ever built.
+   */
+  private static boolean isMarriageOnly(BuildingInfo info) {
+    return info.hasWellFormedId() && Buildings.COUPLE_COTTAGE_CATEGORY.equals(info.getCategory());
+  }
+
   /** A candidate building and the plain-language facts that describe it. */
   public record Candidate(BuildingInfo info, String description) {}
+
+  /**
+   * What a village is short of to build the given thing right now, in the
+   * model's own terms, or empty when it can already afford it. Public so the
+   * marriage housing goal can be named with a real shortfall, which is what lets
+   * the goal machinery tell a home it is slowly saving toward from one its
+   * economy can never reach (docs/marriage.md).
+   */
+  public static String shortfallFor(Village village, BuildingInfo info) {
+    return shortfall(village, info, village.stockTally());
+  }
 
   /**
    * Chooses the next project asynchronously: every affordable build and every
@@ -211,7 +234,7 @@ public class UrbanPlanner {
     List<Candidate> unaffordable = new ArrayList<>();
     String stalled = VillageGoal.stalled(village, village.getVillageTime());
     for (BuildingInfo info : Buildings.catalogue(village.getStyle())) {
-      if (isFoundingOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
+      if (isFoundingOnly(info) || isMarriageOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
         continue;
       }
       // Sitting out after a goal lifetime in which nothing came in for it.
@@ -427,7 +450,7 @@ public class UrbanPlanner {
   private static List<Candidate> affordableBuilds(Village village, Map<Item, Integer> stock) {
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.catalogue(village.getStyle())) {
-      if (isFoundingOnly(info)) {
+      if (isFoundingOnly(info) || isMarriageOnly(info)) {
         continue;
       }
       if (!hasMaterialsToConstruct(village, stock, info)) {

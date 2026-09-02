@@ -51,6 +51,11 @@ Chat briefings include "People in your life": the person's 3 strongest pairs by
 conversation map). Future consumers (AI goals reacting to fondness, gift preferences)
 read `opinionOf`.
 
+A strong, mutual bond can also become a **marriage** ([marriage.md](marriage.md)): two
+single villagers this fond of each other each propose, the brain weds them, and the pair
+gains a `married` flag that is the record of who is married to whom. Drift preserves the
+flag when it rebuilds the pair.
+
 ## What generation may and may not do
 
 Tightened after the audit on [#21](https://github.com/Quzzar/villagelife/issues/21), which
