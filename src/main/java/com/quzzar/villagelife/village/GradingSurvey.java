@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
@@ -88,6 +89,17 @@ public final class GradingSurvey {
   /** Most clearable cover the reading skips on its way down to the ground under it. */
   private static final int COVER_DEPTH = 4;
 
+  /**
+   * Diffusion passes that relax a worn path toward a straight ramp between the
+   * fixed ground it runs between. More passes carry the ramp further along a
+   * long path; a path longer than this smooths locally rather than end to end,
+   * which is enough to read as a graded route.
+   */
+  private static final int PATH_SMOOTH_PASSES = 32;
+
+  /** The four cardinal neighbours, for the path diffusion. */
+  private static final int[][] NEIGHBOURS = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
+
   private static final int NO_GROUND = Integer.MIN_VALUE;
 
   /** An envelope value no source reaches. */
@@ -110,6 +122,8 @@ public final class GradingSurvey {
   private final int depth;
   private final int[] height;
   private final boolean[] fixed;
+  /** Columns whose top is a worn path, given a gentler grade than the rest. */
+  private final boolean[] path;
   private final int[] target;
 
   private GradingSurvey(int minX, int minZ, int width, int depth) {
@@ -119,6 +133,7 @@ public final class GradingSurvey {
     this.depth = depth;
     this.height = new int[width * depth];
     this.fixed = new boolean[width * depth];
+    this.path = new boolean[width * depth];
     this.target = new int[width * depth];
   }
 
@@ -226,6 +241,7 @@ public final class GradingSurvey {
           height[i] = NO_GROUND; // void, a tall tree, water, or somebody's structure
         } else if (top.is(GRADEABLE)) {
           height[i] = y;
+          path[i] = top.is(Blocks.DIRT_PATH);
         } else if (top.is(FIRM_GROUND)) {
           height[i] = y; // rock: ground, but the shape of the land
           fixed[i] = true;
@@ -286,6 +302,108 @@ public final class GradingSurvey {
       // nothing, and the middle of the soft envelope stands.
       target[i] = floor <= ceiling[i] ? Math.max(floor, Math.min(ceiling[i], middle)) : middle;
     }
+    smoothPaths();
+  }
+
+  /**
+   * Overrides the target of every worn-path column with a gentler grade than the
+   * rest of the ground gets: an established route should climb evenly rather than
+   * trace the ≤1-step surface every other column is aimed at. Each path column
+   * relaxes toward the average of the path and the fixed ground it touches (a
+   * building's plane, natural rock), so a path between two buildings settles
+   * toward a straight ramp between them. Free, still-uneven ground beside the
+   * path is deliberately left out of the average, or a bumpy shoulder would pull
+   * the path back into its bumps.
+   *
+   * Two rules keep it honest. Every column is held within the levelling budget of
+   * where it stands now ({@link SitePreparation#MAX_COLUMN_DELTA}), so the path
+   * smooths the surface and never sinks a trench; the per-original-height record
+   * in {@code GradedColumnStore} enforces the same against the true start when the
+   * work runs. And a final pass keeps no path column more than one block above a
+   * path neighbour, lowering peaks only so it always settles, so the way the
+   * builder grades stays one a villager can walk.
+   */
+  private void smoothPaths() {
+    boolean any = false;
+    for (boolean isPath : path) {
+      if (isPath) {
+        any = true;
+        break;
+      }
+    }
+    if (!any) {
+      return; // no worn path: the grading is exactly as it was
+    }
+
+    int n = height.length;
+    int delta = SitePreparation.MAX_COLUMN_DELTA;
+    // The banks the path relaxes toward hold still at their own height; only the
+    // path itself moves. A fixed column stands at its plane, a path column starts
+    // where it stands and drifts toward its neighbours.
+    int[] smooth = height.clone();
+    for (int pass = 0; pass < PATH_SMOOTH_PASSES; pass++) {
+      int[] next = smooth.clone();
+      for (int i = 0; i < n; i++) {
+        if (!path[i]) {
+          continue;
+        }
+        int x = i % width;
+        int z = i / width;
+        int sum = 0;
+        int count = 0;
+        for (int[] step : NEIGHBOURS) {
+          int j = neighbour(x, z, step);
+          if (j < 0 || height[j] == NO_GROUND || !(path[j] || fixed[j]) || !connected(i, j)) {
+            continue;
+          }
+          sum += smooth[j];
+          count++;
+        }
+        if (count == 0) {
+          continue;
+        }
+        int aimed = Math.floorDiv(sum + count / 2, count);
+        next[i] = Math.max(height[i] - delta, Math.min(height[i] + delta, aimed));
+      }
+      smooth = next;
+    }
+
+    // No path column stands more than one step above a path neighbour, so the
+    // graded way is always walkable. Lowering only, which always converges.
+    boolean changed = true;
+    for (int guard = 0; guard <= width + depth && changed; guard++) {
+      changed = false;
+      for (int i = 0; i < n; i++) {
+        if (!path[i]) {
+          continue;
+        }
+        int x = i % width;
+        int z = i / width;
+        for (int[] step : NEIGHBOURS) {
+          int j = neighbour(x, z, step);
+          if (j >= 0 && path[j] && connected(i, j) && smooth[i] > smooth[j] + 1) {
+            smooth[i] = smooth[j] + 1;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    for (int i = 0; i < n; i++) {
+      if (path[i] && height[i] != NO_GROUND) {
+        target[i] = smooth[i];
+      }
+    }
+  }
+
+  /** The grid index of a cardinal neighbour, or -1 off the edge. */
+  private int neighbour(int x, int z, int[] step) {
+    int nx = x + step[0];
+    int nz = z + step[1];
+    if (nx < 0 || nz < 0 || nx >= width || nz >= depth) {
+      return -1;
+    }
+    return nz * width + nx;
   }
 
   /**
