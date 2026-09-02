@@ -532,6 +532,16 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`, `desert`
 
 The desert variant is a covered cistern, because open water evaporates and a desert village that digs an open well is a village that has not lived in a desert.
 
+All five wells declare `"sink": 1` (2026-09-01): a building is normally seated with its
+structure's layer 0 on the ground's top block, which put a well's water and trapdoor rim a
+block above the ground and let the pool, set down before its rim in the builder's
+block-by-block build, spread over the grass and waterlog every trapdoor placed into the
+spill, so the rim leaked and seeded source blocks outside it. With a sink of one the base
+course is buried, the water and rim lie flush with the ground, and the pool is walled in by
+earth while it is being placed. `sink` is a general definition key: the ground is still
+prepared and claimed at the surface, and only the structure is seated that many layers lower.
+The builder also now places every liquid-bearing block of any structure last.
+
 #### `storehouse`  (founding building)
 
 Worker: **none**  ·  Phase 1  ·  Variants: `plains`

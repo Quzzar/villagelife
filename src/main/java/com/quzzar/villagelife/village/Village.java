@@ -656,7 +656,9 @@ public class Village {
       return false;
     }
 
-    if (!struct.setOriginLocation(site, claimGrid).buildInstantly()) {
+    BuildingInfo placedInfo = struct.getBuilding().getInfo();
+    if (!struct.setOriginLocation(site.below(placedInfo == null ? 0 : placedInfo.getSink()), claimGrid)
+        .buildInstantly()) {
       return false;
     }
     addBuilding(struct.getBuilding());
@@ -1123,6 +1125,12 @@ public class Village {
     Building standing = buildings.get(project.getBuilding().getUUID());
     BoundingBox occupied = standing == null ? null
         : com.quzzar.villagelife.village.buildings.BuildingUpgrade.footprintOf(level, standing);
+    // An upgrade is handed the standing building's origin, which for a sunk
+    // building is below the ground; the ground itself is what gets prepared,
+    // and the new template is seated by its own sink from there.
+    if (standing != null && standing.getInfo() != null) {
+      projectLocation = projectLocation.above(standing.getInfo().getSink());
+    }
     var prep = com.quzzar.villagelife.village.buildings.SitePreparation
         .planWork(level, this, projectLocation, bounds, occupied);
     if (!prep.possible()) {
@@ -1138,7 +1146,7 @@ public class Village {
     // carries the recipe home and has it consumed at commit (StructureInProgress
     // .commitFromBuilder), so the materials leave the village through a pack
     // rather than vanishing from a chest the instant a site is chosen.
-    currentProject = project.setOriginLocation(projectLocation);
+    currentProject = project.setOriginLocation(projectLocation.below(buildingInfo.getSink()));
     gatheringChecks = 0;
 
     if (!prep.isEmpty()) {

@@ -109,8 +109,9 @@ public final class BuildingUpgrade {
     if (standing == null || wanted == null) {
       return false;
     }
+    int sink = from.getInfo() == null ? 0 : from.getInfo().getSink();
     SitePreparation.SiteCost cost = SitePreparation.score(level, village,
-        BlockPos.of(from.getOriginLocation()), wanted, standing);
+        BlockPos.of(from.getOriginLocation()).above(sink), wanted, standing);
     return !cost.impossible();
   }
 

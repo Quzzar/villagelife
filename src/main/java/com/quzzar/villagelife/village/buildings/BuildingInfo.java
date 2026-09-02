@@ -45,13 +45,14 @@ public class BuildingInfo {
           java.util.Optional.ofNullable(info.gatheringPoint).map(BlockPos::of)),
       Codec.STRING.optionalFieldOf("category").forGetter(info -> java.util.Optional.ofNullable(info.explicitCategory)),
       Codec.STRING.optionalFieldOf("variant").forGetter(info -> java.util.Optional.ofNullable(info.explicitVariant)),
-      Codec.STRING.optionalFieldOf("upgrades_from").forGetter(info -> java.util.Optional.ofNullable(info.upgradesFrom))
+      Codec.STRING.optionalFieldOf("upgrades_from").forGetter(info -> java.util.Optional.ofNullable(info.upgradesFrom)),
+      Codec.INT.optionalFieldOf("sink", 0).forGetter(BuildingInfo::getSink)
   ).apply(inst, BuildingInfo::fromCodec));
 
   private static BuildingInfo fromCodec(String structure, List<BlockPos> beds, List<WorkStation> workStations,
       List<BlockPos> containers, List<ItemCost> costs, List<String> grants, List<Grant> conditionalGrants,
       java.util.Optional<BlockPos> gatheringPoint, java.util.Optional<String> category,
-      java.util.Optional<String> variant, java.util.Optional<String> upgradesFrom) {
+      java.util.Optional<String> variant, java.util.Optional<String> upgradesFrom, int sink) {
     BuildingInfo info = new BuildingInfo(structure);
     beds.forEach(pos -> info.addBedLocation(pos.getX(), pos.getY(), pos.getZ()));
     workStations.forEach(station -> info.addWorkLocation(
@@ -64,6 +65,7 @@ public class BuildingInfo {
     info.explicitCategory = category.orElse(null);
     info.explicitVariant = variant.orElse(null);
     info.upgradesFrom = upgradesFrom.orElse(null);
+    info.sink = sink;
     return info;
   }
 
@@ -85,6 +87,7 @@ public class BuildingInfo {
   private String explicitVariant;
   // The id this building replaces in place; required for every level above 1.
   private String upgradesFrom;
+  private int sink;
 
   public BuildingInfo(String path) {
 
@@ -150,6 +153,17 @@ public class BuildingInfo {
 
   /** The id this building upgrades from in place, or null for a level-1 building. */
   @javax.annotation.Nullable
+  /**
+   * How many of the structure's bottom layers sit below the ground plane. A
+   * building is seated with its layer 0 on the ground's top block; a well
+   * declares one so its water and rim lie flush with the ground and its base
+   * course is buried, which is also what keeps the pool walled in by earth
+   * while the builder fills it.
+   */
+  public int getSink() {
+    return sink;
+  }
+
   public String getUpgradesFrom() {
     return upgradesFrom;
   }

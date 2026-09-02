@@ -12,5 +12,6 @@
   ],
   "grants": [
     "WATER"
-  ]
+  ],
+  "sink": 1
 }

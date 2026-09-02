@@ -207,7 +207,10 @@ public final class GradingSurvey {
           // A building's ground is its plane, whatever the roof above it reads.
           Building owner = buildingOver(buildings, worldX, worldZ);
           if (owner != null) {
-            height[i] = BlockPos.of(owner.getOriginLocation()).getY();
+            // A sunk building's origin is below its ground; the plane is what
+            // the surrounding ground is graded to.
+            int sink = owner.getInfo() == null ? 0 : owner.getInfo().getSink();
+            height[i] = BlockPos.of(owner.getOriginLocation()).getY() + sink;
             continue;
           }
         }

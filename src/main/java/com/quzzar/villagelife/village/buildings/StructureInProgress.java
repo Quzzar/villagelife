@@ -312,7 +312,8 @@ public class StructureInProgress {
                 StructurePlaceSettings settings = getStructurePlaceSettings();
                 temp_palettesValue = template.palettes;
                 temp_list = settings.getRandomPalette(temp_palettesValue, BlockPos.of(location1)).blocks();
-                temp_structBlockInfoList = StructureTemplate.processBlockInfos(level, BlockPos.of(location1), BlockPos.of(location2), settings, temp_list, template);
+                temp_structBlockInfoList = liquidsLast(StructureTemplate.processBlockInfos(level,
+                        BlockPos.of(location1), BlockPos.of(location2), settings, temp_list, template));
             }
 
         }
@@ -404,6 +405,27 @@ public class StructureInProgress {
                 return false;
             }
         }
+    }
+
+    /**
+     * The build order with every block that carries a liquid moved to the end.
+     * A block-by-block build that set a well's water down before its rim let the
+     * pool spread over the ground, and each trapdoor and fence then placed into
+     * that spill was waterlogged by the keep-liquids rule and became a source of
+     * its own: the well leaked from its rim, and left source blocks around it.
+     * Placed last, a liquid only ever meets the blocks that were meant to hold it.
+     * The order is a stable partition, so a saved build index still means the
+     * same block after a restart.
+     */
+    private static List<StructureTemplate.StructureBlockInfo> liquidsLast(
+            List<StructureTemplate.StructureBlockInfo> infos) {
+        List<StructureTemplate.StructureBlockInfo> ordered = new java.util.ArrayList<>(infos.size());
+        List<StructureTemplate.StructureBlockInfo> liquids = new java.util.ArrayList<>();
+        for (StructureTemplate.StructureBlockInfo info : infos) {
+            (info.state().getFluidState().isEmpty() ? ordered : liquids).add(info);
+        }
+        ordered.addAll(liquids);
+        return ordered;
     }
 
     private void progressMiddlePhase(StructureTemplate.StructureBlockInfo structBlockInfo) {
