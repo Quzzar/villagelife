@@ -16,6 +16,7 @@ import com.quzzar.villagelife.village.GradingSurvey;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
 
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,6 +26,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.Container;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -35,6 +37,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
 /**
@@ -95,6 +98,14 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
   /** Ticks between readings of the ground while nothing is being graded. */
   private static final int SCAN_TICKS = 100;
+
+  /**
+   * How long a column the builder could not get to is left alone. On steep
+   * ground the nearest uneven column is sometimes a ledge no path reaches;
+   * without this the loop gives up on it, stands down, and then picks the
+   * very same column again as the nearest, forever.
+   */
+  private static final int SHUN_TICKS = 2400;
 
   private enum Kind {
     CUT, FILL, FETCH_EARTH, SHELVE_SPOIL
@@ -172,6 +183,9 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
   private final ShortageWatch dry = new ShortageWatch();
 
+  /** Columns given up on, keyed like {@link GradedColumnStore}, to the tick they may be tried again. */
+  private final Long2IntOpenHashMap shunnedUntil = new Long2IntOpenHashMap();
+
   /** Whether the last reading that planned work the builder could not do has been logged. */
   private boolean idleReported;
 
@@ -217,6 +231,12 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   public void released(RealPerson person, Job job) {
     if (job.kind == Kind.CUT) {
       person.level().destroyBlockProgress(person.getId(), job.pos, -1);
+    }
+    // Let go of a column before it was finished: could not be reached, or
+    // something interrupted. Either way the next pick should not walk straight
+    // back to it.
+    if (job.column != null && !job.column.done()) {
+      this.shunnedUntil.put(BlockPos.asLong(job.column.x, 0, job.column.z), person.tickCount + SHUN_TICKS);
     }
   }
 
@@ -300,6 +320,9 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     job.plan.removeIf(Planned::done);
     job.plan.sort(Comparator.comparingLong(column -> column.distSqr(from)));
     for (Planned column : job.plan) {
+      if (shunned(person, column)) {
+        continue;
+      }
       if (column.wantsCut()) {
         BlockPos top = column.top();
         if (packFull || job.passedOver.contains(top.asLong())
@@ -337,6 +360,20 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       }
     }
     return false;
+  }
+
+  /** Whether this column was given up on recently; forgets it once the time has passed. */
+  private boolean shunned(RealPerson person, Planned column) {
+    long key = BlockPos.asLong(column.x, 0, column.z);
+    int until = this.shunnedUntil.getOrDefault(key, Integer.MIN_VALUE);
+    if (until == Integer.MIN_VALUE) {
+      return false;
+    }
+    if (person.tickCount >= until) {
+      this.shunnedUntil.remove(key);
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -380,7 +417,13 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     return true;
   }
 
-  /** Whether a block of fill may be set here: loose cover over solid ground, and nobody standing in it. */
+  /**
+   * Whether a block of fill may be set here: loose cover over solid ground, and
+   * nobody standing in it. The vanilla obstruction test counts only players and
+   * vehicles as bodies, so a villager's own body is checked for directly. This
+   * was learned live: the builder filled a gully from inside it, around and
+   * then over himself, and was found encased in dirt at the bottom.
+   */
   private static boolean mayFill(ServerLevel level, BlockPos spot) {
     if (!looseCover(level, spot) || !level.getFluidState(spot).isEmpty()) {
       return false;
@@ -389,7 +432,23 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     if (below.isAir() || !below.getFluidState().isEmpty()) {
       return false;
     }
-    return level.isUnobstructed(Blocks.DIRT.defaultBlockState(), spot, CollisionContext.empty());
+    return level.isUnobstructed(Blocks.DIRT.defaultBlockState(), spot, CollisionContext.empty())
+        && level.getEntitiesOfClass(LivingEntity.class, new AABB(spot)).isEmpty();
+  }
+
+  /**
+   * Whether digging out the block under the builder's own feet would leave
+   * them in a hole they cannot climb out of: every cardinal neighbour a wall
+   * two high. A villager jumps one block, so one such neighbour open is enough.
+   */
+  private static boolean wouldTrap(ServerLevel level, BlockPos top) {
+    for (Direction side : Direction.Plane.HORIZONTAL) {
+      BlockPos wall = top.relative(side).above();
+      if (level.getBlockState(wall).getCollisionShape(level, wall).isEmpty()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -413,9 +472,9 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   /** One block dug out over a dig's worth of ticks, its drops and its cover into the pack. */
   private boolean cut(RealPerson person, ServerLevel level, Job job) {
     BlockPos top = job.pos;
-    if (!mayCut(level, top)) {
-      job.passedOver.add(top.asLong());
-      return true; // changed under them; on to the next
+    if (!mayCut(level, top) || (top.equals(person.getOnPos()) && wouldTrap(level, top))) {
+      job.passedOver.add(top.asLong()); // changed under them, or would dig them into a pit
+      return true;
     }
     job.ticks++;
     int progress = job.ticks * 10 / DIG_TICKS;
@@ -468,7 +527,10 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
    */
   private boolean fill(RealPerson person, ServerLevel level, Job job) {
     BlockPos spot = job.pos;
-    if (!mayFill(level, spot)) {
+    // Never fill from below: a builder standing lower than the spot is raising
+    // a wall beside their own head, which is how a gully became a tomb. They
+    // fill from level ground or above, and climb out to reach the rest.
+    if (!mayFill(level, spot) || person.blockPosition().getY() < spot.getY()) {
       job.passedOver.add(spot.asLong());
       return true;
     }
