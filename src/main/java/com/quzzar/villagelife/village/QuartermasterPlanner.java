@@ -43,9 +43,10 @@ import net.minecraft.world.level.Level;
  * which a small model gets wrong; the validator is what makes that safe, since a
  * plan that loses or double-books a slot can never be applied. What the rounds
  * are for is the grouping: which goods belong together, and under what name,
- * is the model's call. Once every item sits in a group (a repeat stays with the
- * first group to name it), a partition whose slot sums still do not add up is
- * not sent back again; the shelves are laid out from those groups by count
+ * is the model's call. Once the grouping holds (every item in some group, no
+ * group empty, no number that is not an item; a repeat stays with the first
+ * group to name it), a partition whose slot sums still do not add up is not
+ * sent back again; the shelves are laid out from those groups by count
  * instead ({@link #layoutByCount}), because arithmetic is bookkeeping, not a
  * decision, and Llama-3.2-3B failed it six rounds running on a real 81-slot
  * storehouse (2026-09-01). Out of rounds with the grouping still incomplete,
@@ -58,6 +59,12 @@ import net.minecraft.world.level.Level;
  * ("logs", "c:ores"...): the groupings the game already knows, put in front of
  * the model as facts. What to make of them, which shelves to keep and what to
  * call them, stays the model's call; nothing here sorts by tab or tag itself.
+ *
+ * <p>Two number spaces share one reply, the goods' numbers and the slots', and
+ * Llama-3.2-3B once filled a group's items with slot numbers 1 to 27 and the
+ * next with 28 to 81; with sixteen goods that passed as "every item placed".
+ * So a group with no items, or a number that is not an item, is an error the
+ * model hears about, never a plan.
  *
  * <p>Replies are read one group object at a time rather than as one JSON
  * document, because a small model drops a bracket or tucks the note inside the
@@ -173,7 +180,7 @@ public final class QuartermasterPlanner {
             context.who(), round + 1);
         return CompletableFuture.completedFuture(Optional.of(build(context, proposal, raw)));
       }
-      if (!proposal.isEmpty() && everyItemPlaced(proposal, context.items().size())) {
+      if (!proposal.isEmpty() && groupingHolds(proposal, context.items().size())) {
         // The grouping is complete; only the slot sums are off. That part is
         // arithmetic, and arithmetic does not get more rounds.
         Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
@@ -197,14 +204,25 @@ public final class QuartermasterPlanner {
     });
   }
 
-  /** Whether every numbered item sits in some group: the grouping is done, whatever the slots or repeats say. */
-  private static boolean everyItemPlaced(List<RawCategory> groups, int itemCount) {
+  /**
+   * Whether the grouping is done, whatever the slots say: every numbered item
+   * sits in some group, every group holds at least one, and no number is
+   * something other than an item. Repeats are allowed; the first group to name
+   * an item keeps it.
+   */
+  private static boolean groupingHolds(List<RawCategory> groups, int itemCount) {
     boolean[] seen = new boolean[itemCount + 1];
     for (RawCategory group : groups) {
+      boolean holdsOne = false;
       for (int number : group.itemNumbers()) {
-        if (number >= 1 && number <= itemCount) {
-          seen[number] = true;
+        if (number < 1 || number > itemCount) {
+          return false;
         }
+        seen[number] = true;
+        holdsOne = true;
+      }
+      if (!holdsOne) {
+        return false;
       }
     }
     for (int number = 1; number <= itemCount; number++) {
@@ -292,7 +310,8 @@ public final class QuartermasterPlanner {
   // ---- prompts ----
 
   private static String openingPrompt(Context context) {
-    return "Our storehouse " + context.layout() + " It holds these goods, each with the count on hand, "
+    return "Our storehouse " + context.layout() + " It holds these goods, numbered 1 to "
+        + context.items().size() + ", each with the count on hand, "
         + "the kind of thing it is, and the tags the game files it under:\n" + context.numbered()
         + "\nAssign every slot to exactly one group, and every item to exactly one group. "
         + "A group keeps its items in its slots. Reply with ONLY JSON:\n" + formatExample()
@@ -305,7 +324,8 @@ public final class QuartermasterPlanner {
     for (String error : errors) {
       problems.append("- ").append(error).append('\n');
     }
-    return "Our storehouse " + context.layout() + " It holds these goods:\n" + context.numbered()
+    return "Our storehouse " + context.layout() + " It holds these goods, numbered 1 to "
+        + context.items().size() + ":\n" + context.numbered()
         + "\nThe plan so far:\n" + priorRender
         + "\nIt is not valid yet:\n" + problems
         + "Fix it and reply with ONLY the corrected JSON, same format:\n" + formatExample()
@@ -420,7 +440,8 @@ public final class QuartermasterPlanner {
   /**
    * Every way the partition falls short, as plain sentences the model can act on:
    * out-of-range or unreadable slot ranges, slots claimed twice, slots left
-   * uncovered, and items placed twice or not at all. Empty means valid.
+   * uncovered, groups with no items, numbers that are not items, and items
+   * placed twice or not at all. Empty means valid.
    */
   private static List<String> validate(List<RawCategory> groups, int itemCount, int totalSlots) {
     List<String> errors = new ArrayList<>();
@@ -445,15 +466,26 @@ public final class QuartermasterPlanner {
           slotOwner[slot] = g + 1;
         }
       }
+      List<Integer> notItems = new ArrayList<>();
+      int held = 0;
       for (int number : group.itemNumbers()) {
         if (number < 1 || number > itemCount) {
+          notItems.add(number);
           continue;
         }
+        held++;
         if (itemOwner[number] != 0) {
           errors.add("item " + number + " is placed in two groups");
         } else {
           itemOwner[number] = g + 1;
         }
+      }
+      if (!notItems.isEmpty()) {
+        errors.add("group \"" + group.name() + "\" lists numbers that are not items: " + listOf(notItems)
+            + "; the goods are numbered 1 to " + itemCount + ", slots are a separate list");
+      }
+      if (held == 0) {
+        errors.add("group \"" + group.name() + "\" has no items in it");
       }
     }
 

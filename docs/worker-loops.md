@@ -576,9 +576,10 @@ slot arithmetic itself; a deterministic validator then checks the
 partition (every slot covered once, no gaps, no overlaps, every item placed) and, when it does
 not hold, hands the errors back. The quartermaster and the village brain alternate turns
 correcting it, up to six rounds. The first partition that validates wins. The rounds are for
-the grouping, though, not the sums: once every item sits in a group (a repeat stays with the
-first group to name it), a partition whose slot numbers still overlap or leave gaps is not
-sent back again; the shelves are laid
+the grouping, though, not the sums: once the grouping holds (every item in some group, no
+group empty, no number that is not an item; a repeat stays with the first group to name it),
+a partition whose slot numbers still overlap or leave gaps is not sent back again; the
+shelves are laid
 out from those groups by count (each group a contiguous run sized to the stacks it holds, the
 spare slots shared out in proportion), because arithmetic is bookkeeping, not a decision, and
 Llama-3.2-3B got it wrong six rounds running on a real 81-slot storehouse. Out of rounds with
@@ -588,7 +589,10 @@ with no plan, and then the shelves keep the order they had, never a corrupted on
 lessons from Llama-3.2-3B shaped the wire format: replies are read one group object at a time,
 because a dropped bracket or a note tucked inside the array used to throw away whole rounds,
 and the reply shape is described in words rather than shown as a worked example, because the
-example's groups came back copied into the plan verbatim. Membership
+example's groups came back copied into the plan verbatim. A third: the goods' numbers and
+the slots' numbers share one reply, and the model once filled a group's items with slot
+numbers, which with sixteen goods passed as "every item placed"; an empty group, or a number
+that is not an item, is now an error it hears about, never a plan. Membership
 is a frozen item-id map (the model placed each item by hand), so tidy-time resolution is an
 exact lookup, and an item the plan never saw spills to a free slot and waits for the next
 re-plan.
