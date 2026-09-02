@@ -393,15 +393,18 @@ stop the shaft only when the miner has no bucket. The bucket is a tool, never fi
 consumed; bedrock and wrong-tool still stop it outright. When the shaft opens into a cave the miner
 does not stand down at the mouth: it completes the shaft's missing floor, one cobblestone (from its
 own mined stock) under each ramp cell that opens into void, laid standing on the floor already
-there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget, and
-the stores refill it: a miner whose pack holds no cobblestone makes a fetch trip for thirty-two
-before the loop runs again (`FetchStep`, the herder's wheat shape, 2026-09-02), and one out of
-cobblestone at the cave's edge with the stores empty too logs it and stands down, so a cavern too
-large for the village's stone ends the shaft, not one too large for a pack. (The sweep used to skip
-the hole when the pack was empty and aim at a face across the void that nothing could stand at,
-then fall back to the mouth as the target and dig that face from the doorstep; a floorless cell is
-now the work whatever the pack holds, and no footing means no pick.) Torches are hung the way a
-player hangs them: at head height on the shaft wall,
+there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget, and the
+bedtime restock refills it: the miner carries the day's cobblestone from bed, topped up to
+thirty-two from the stores alongside the torches and the bucket (`RealPerson.goToBed`), rather than
+a fetch trip mid-shaft. Ember Hill showed why it must be bedtime, not a trip: the founding
+storehouse there was a barrel the mine shaft could not walk to at all, so a physical fetch stranded
+the miner at the mouth while the bedtime pull, which reaches village stores abstractly like the
+torches do, made his tools without trouble. A miner who spends the pack out at a cave's edge with
+the stores empty too logs it and stands down, so a cavern too large for the village's stone ends the
+shaft, not one too large for a pack. (The sweep used to skip the hole when the pack was empty and
+aim at a face across the void that nothing could stand at, then fall back to the mouth as the target
+and dig that face from the doorstep; a floorless cell is now the work whatever the pack holds, and
+no footing means no pick.) Torches are hung the way a player hangs them: at head height on the shaft wall,
 wherever the sweep finds an open cell on the ramp's edge reading dim (about every twelve blocks of
 ramp), and only once the shaft is deep enough to be dark. Lighting is sweep work like flooring and
 bailing, not a side effect of breaking a block (2026-09-02): the sweep walks the shaft from the
