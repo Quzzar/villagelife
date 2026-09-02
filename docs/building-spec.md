@@ -153,16 +153,20 @@ unbuildable:
 
 - **Only name what a worker puts into storage.** The miner (stone pickaxe) yields
   cobblestone, sand, sandstone and iron; the lumberjack yields logs and oak
-  planks; the mason turns cobblestone into stone and stone brick. **Nothing
-  produces glass, wool, or non-oak planks**, so a recipe naming them can never be
-  paid however honestly it describes the building. **Wood is wood and stone is
-  stone** (`village/buildings/Materials.java`): a recipe's "oak log" is paid by any
-  log, its "oak planks" by any plank, and its "cobblestone" by any cobblestone,
-  cobbled deepslate or sandstone, whatever the guard felled or the miner dug. A
-  mangrove-swamp camp with a store full of mangrove was otherwise stuck on its
-  first house for good. Logs also pay for planks, four to a log, with nobody
-  sawing; planks never pay for logs. Because one recipe can ask for both, the
-  recipe is settled as a whole, log lines first, so a log is never counted twice.
+  planks; the mason turns cobblestone into stone and stone brick; the herder
+  shears wool; the forge smelts iron. **Nothing produces glass, dyed wool, or
+  non-oak planks**, so a recipe naming them can never be paid however honestly it
+  describes the building: the church's 66 glass panes and the market's red wool
+  came off on 2026-09-02 for exactly that reason. **Wood is wood, stone is stone
+  and wool is wool** (`village/buildings/Materials.java`): a recipe's "oak log" is
+  paid by any log, its "oak planks" by any plank, its "cobblestone" by any
+  cobblestone, cobbled deepslate or sandstone, whatever the guard felled or the
+  miner dug, and its "white wool" by wool of any colour, whatever the flock
+  happened to be. A mangrove-swamp camp with a store full of mangrove was
+  otherwise stuck on its first house for good. Logs also pay for planks, four to a
+  log, with nobody sawing; planks never pay for logs. Because one recipe can ask
+  for both, the recipe is settled as a whole, log lines first, so a log is never
+  counted twice.
 - **Never price a building in what it alone produces.** The lumberjack is the only
   source of planks, so it costs cobblestone and nothing else: a village that has
   only founded, and so has only a miner, must be able to build it. The stoneworks
@@ -616,9 +620,14 @@ Worker: **MERCHANT**  ·  Phase 2  ·  Variants: `plains`, `desert`
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | market stall | 7x7 | 16 oak log, 24 oak planks, 24 cobblestone, 4 glass, 2 wool | a trading screen: the player buys and sells with the village, in emeralds |
-| 2 (upgrade) | market | 11x11 | 24 oak log, 36 oak planks, 36 cobblestone, 6 glass, 4 wool, 4 iron ingot | the village spends its own emeralds on what the biome cannot make |
-| 3 (upgrade) | trade hall | 15x15 | 48 oak log, 68 oak planks, 72 cobblestone, 12 glass, 8 wool, 12 iron ingot | better rates, wider stock |
+| 1 | market stall | 7x7 | 16 oak log, 14 cobblestone | a trading screen: the player buys and sells with the village, in emeralds |
+| 2 (upgrade) | market | 11x11 | 32 oak log, 28 cobblestone, 12 wool | the village spends its own emeralds on what the biome cannot make |
+| 3 (upgrade) | trade hall | 15x15 | 48 oak log, 42 cobblestone, 18 wool, 4 iron ingot | better rates, wider stock |
+
+Recipes as shipped (decided 2026-09-02): the stall costs wood and stone only, the market adds
+wool of any colour, and the trade hall adds a little iron a forge can smelt. The red wool every
+level used to ask for came off, since nothing in the village dyes anything, and so did the
+stall's iron, which no village without a forge could ever have raised.
 
 The village's trade organ, and the *legitimate* alternative to taking from its chests. Needs a staffed MERCHANT like any other workplace; without a market there is no trade at all, for the player or the village. Levels grant capabilities rather than numbers: L1 access, L2 initiative (trading unattended), L3 better rates. The treasury is physical emeralds in this building's chest, and a village founds broke. Full design in [economy.md](economy.md).
 
@@ -642,9 +651,12 @@ Worker: **CLERIC**  ·  Phase 2  ·  Variants: `plains`, `taiga`, `desert`
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | shrine | 7x7 | 16 oak log, 28 oak planks, 28 cobblestone, 4 glass, 4 wool | HEALING basic |
-| 2 (upgrade) | church | 15x15 | 28 oak log, 40 oak planks, 40 cobblestone, 8 glass, 4 wool, 16 glass | HEALING, ENCHANTING (requires library_1), raises ATTRACTIVENESS |
-| 3 (upgrade) | cathedral | 21x21 | 52 oak log, 80 oak planks, 84 cobblestone, 16 glass, 8 wool, 32 stained glass, 2 diamond | raises ATTRACTIVENESS strongly |
+| 1 | shrine | 7x7 | 16 oak log, 28 oak planks, 28 cobblestone, 4 wool | HEALING basic |
+| 2 (upgrade) | church | 15x15 | 28 oak log, 40 oak planks, 40 cobblestone, 4 wool | HEALING, ENCHANTING (requires library_1), raises ATTRACTIVENESS |
+| 3 (upgrade) | cathedral | 21x21 | 52 oak log, 80 oak planks, 84 cobblestone, 8 wool, 2 diamond | raises ATTRACTIVENESS strongly |
+
+No glass at any level (decided 2026-09-02): nothing in the village makes it, and the shipped
+`church_*_1` recipe (1800 stone bricks, 133 logs) lost its 66 panes the same day.
 
 The clearest two-building capability in the catalog: ENCHANTING needs church L2 AND library L1, and neither grants it alone.
 

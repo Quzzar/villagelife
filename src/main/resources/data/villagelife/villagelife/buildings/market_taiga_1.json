@@ -25,18 +25,6 @@
     {
       "item": "minecraft:cobblestone",
       "count": 14
-    },
-    {
-      "item": "minecraft:white_wool",
-      "count": 6
-    },
-    {
-      "item": "minecraft:red_wool",
-      "count": 8
-    },
-    {
-      "item": "minecraft:iron_ingot",
-      "count": 2
     }
   ],
   "grants": [

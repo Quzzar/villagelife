@@ -1,6 +1,7 @@
 package com.quzzar.villagelife.village.buildings;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,10 +18,12 @@ import net.neoforged.neoforge.common.Tags;
  *
  * A recipe names one item per line, but the village pays in kind. Three kinds
  * of material are generic: a log cost is met by any log, a plank cost by any
- * plank, and a stone cost by any cobblestone, cobbled deepslate or sandstone,
- * whatever the guard felled or the miner dug. Wood is wood and stone is stone
- * (decided 2026-09-01), so a camp in a mangrove swamp or over a desert mine
- * builds from what it actually has. Every other material is exact.
+ * plank, a stone cost by any cobblestone, cobbled deepslate or sandstone,
+ * whatever the guard felled or the miner dug, and a wool cost by wool of any
+ * colour, whatever the herder sheared. Wood is wood and stone is stone (decided
+ * 2026-09-01) and wool is wool (2026-09-02), so a camp in a mangrove swamp, over
+ * a desert mine or beside a flock of black sheep builds from what it actually
+ * has. Every other material is exact.
  *
  * Logs also pay for planks, {@link #PLANKS_PER_LOG} to a log, with nobody
  * sawing: a recipe that asks for planks is satisfied by the logs its log lines
@@ -40,7 +43,7 @@ public final class Materials {
   public static final int PLANKS_PER_LOG = 4;
 
   /** The generic kinds a cost line can be paid from; EXACT lines want that item alone. */
-  public enum Kind { LOGS, PLANKS, STONE, EXACT }
+  public enum Kind { LOGS, PLANKS, STONE, WOOL, EXACT }
 
   private Materials() {
   }
@@ -55,6 +58,9 @@ public final class Materials {
     }
     if (holder.is(Tags.Items.COBBLESTONES) || holder.is(Tags.Items.SANDSTONE_BLOCKS)) {
       return Kind.STONE;
+    }
+    if (holder.is(ItemTags.WOOL)) {
+      return Kind.WOOL;
     }
     return Kind.EXACT;
   }
@@ -72,6 +78,11 @@ public final class Materials {
   /** Whether the item is stone as a mine yields it: cobblestone, cobbled deepslate, sandstone. */
   public static boolean isStone(Item item) {
     return kindOf(item) == Kind.STONE;
+  }
+
+  /** Whether the item is wool of any colour, as the herder shears it. */
+  public static boolean isWool(Item item) {
+    return kindOf(item) == Kind.WOOL;
   }
 
   /** Whether an item in hand pays toward a cost that names another, kind for kind. */
@@ -149,13 +160,17 @@ public final class Materials {
    * The lines of a recipe the stock cannot cover, each with what is still
    * missing. Settled in the one order that never counts a log twice: log lines
    * claim logs first, plank lines take planks and then the logs left over at
-   * four to one, and stone and exact lines take their own kind. Empty when the
-   * recipe is affordable.
+   * four to one, and stone, wool and exact lines take their own kind. Empty
+   * when the recipe is affordable.
    */
   public static List<ItemStack> shortfall(Map<Item, Integer> stock, List<ItemStack> recipe) {
     int logs = kindTotal(stock, Kind.LOGS);
     int planks = kindTotal(stock, Kind.PLANKS);
-    int stone = kindTotal(stock, Kind.STONE);
+    // The kinds paid from a shared pool, any item of the kind: what is left of
+    // each as the recipe's lines draw on it.
+    Map<Kind, Integer> pooled = new EnumMap<>(Kind.class);
+    pooled.put(Kind.STONE, kindTotal(stock, Kind.STONE));
+    pooled.put(Kind.WOOL, kindTotal(stock, Kind.WOOL));
     Map<Item, Integer> exact = new HashMap<>(stock);
     List<ItemStack> missing = new ArrayList<>();
     for (ItemStack cost : recipe) {
@@ -185,13 +200,14 @@ public final class Materials {
         continue;
       }
       int have;
-      if (kind == Kind.STONE) {
-        have = Math.min(cost.getCount(), stone);
-        stone -= have;
-      } else {
+      if (kind == Kind.EXACT) {
         int in = exact.getOrDefault(cost.getItem(), 0);
         have = Math.min(cost.getCount(), in);
         exact.put(cost.getItem(), in - have);
+      } else {
+        int pool = pooled.get(kind);
+        have = Math.min(cost.getCount(), pool);
+        pooled.put(kind, pool - have);
       }
       addMissing(missing, cost, cost.getCount() - have);
     }
@@ -299,6 +315,8 @@ public final class Materials {
         return "planks";
       case STONE:
         return "stone";
+      case WOOL:
+        return "wool";
       default:
         return wanted.toString().replace("minecraft:", "").replace('_', ' ');
     }
