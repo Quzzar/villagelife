@@ -39,6 +39,13 @@ public class StashAtHomeGoal extends Goal {
   private static final int GIVE_UP_TICKS = 1800;
   /** Consecutive paths that stop short of the chest before it counts as unreachable. */
   private static final int UNREACHABLE_PATHS = 3;
+  /**
+   * Squared distance within which a path that stops short means no route
+   * exists. Farther out the pathfinder has simply run out of range (a
+   * villager's FOLLOW_RANGE is 20 blocks) and hands back the nearest leg,
+   * which is still the way to walk.
+   */
+  private static final double NEAR_SQR = 16 * 16;
   /** Close enough to reach into the chest, squared. */
   private static final double REACH_SQR = 6.25;
 
@@ -110,16 +117,19 @@ public class StashAtHomeGoal extends Goal {
   /**
    * One leg of the walk. The pathfinder hands back the closest route it can
    * find even when the chest is out of reach, so a path that stops short is
-   * counted: a few in a row mean no route exists (a chest up a ladder), and
-   * the trip is given up rather than walked to the foot of the ladder all
-   * night.
+   * counted once the chest is within pathfinding range: a few in a row mean
+   * no route exists (a chest up a ladder), and the trip is given up rather
+   * than walked to the foot of the ladder all night. From farther away a
+   * short path is only the pathfinder's range, so it is walked, not counted;
+   * the next leg starts closer, and the range catches up with the chest.
    */
   private void walk() {
     Path path = person.getNavigation().createPath(this.chest, 1);
-    if (path == null || !path.canReach()) {
-      this.shortPaths++;
-    } else {
+    boolean near = person.blockPosition().distSqr(this.chest) <= NEAR_SQR;
+    if (path != null && path.canReach()) {
       this.shortPaths = 0;
+    } else if (near) {
+      this.shortPaths++;
     }
     if (path != null) {
       person.getNavigation().moveTo(path, 0.5D);
