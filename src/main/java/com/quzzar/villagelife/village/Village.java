@@ -361,12 +361,15 @@ public class Village {
       }
     }
 
+    // The storehouse goes up first: the camp circle's chest is the campers' own,
+    // not village storage, so the logs of any tree felled over the circle or the
+    // mine need the barrels standing to have somewhere to go.
+    buildFoundingCompanion(storeStruct);
     centerStruct.buildInstantly();
     this.townCenterUUID = centerBuilding.getUUID();
     addBuilding(centerBuilding);
     placeCampfireIfMissing();
     buildFoundingCompanion(mineStruct);
-    buildFoundingCompanion(storeStruct);
 
     // No founding crew is spawned directly: personas are generated before any
     // spawn (persona map #4), so the first villagers arrive through the
