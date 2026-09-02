@@ -554,22 +554,21 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`, `desert`
 
 The desert variant is a covered cistern, because open water evaporates and a desert village that digs an open well is a village that has not lived in a desert.
 
-All five wells keep their pool in the base layer and stand ON the ground (2026-09-01): the
-definitions declare `"sink": -1`, so the base course, now a solid ring of the variant's stone
-with the pool inside it, sits on top of the ground's top block, and the trapdoor rim one above
+All five wells stand ON the ground with the pool at rim level, as authored (2026-09-01). The
+definitions declare `"sink": -1`, so the base course, a solid ring of the variant's stone,
+sits on top of the ground's top block, with the water and its trapdoor-and-fence rim one above
 that. (`sink` seats a structure that many layers below the ground plane; a negative value
-raises it. Wells were tried at 1 and 0 first and Aaron judged both a block too low in the
-world. The ground is still prepared and claimed at the surface whatever the sink.) The pool
-moved down a layer because of how water behaves: it flows into any
-waterloggable block it can reach, and an open trapdoor or a fence post does not seal its
-faces, so a pool level with a trapdoor-and-fence rim always soaks the rim and then leaks out
-through the corner posts wherever the ground beside them is lower, which is what the first
-village-built well did. In the base layer the water is walled in by cobblestone and earth on
-every side, the rim stays dry, and the surface sits a block below the rim inside the ring.
-Two general guards came with it: the builder places every liquid-bearing block of a structure
-last, and both placement paths run with waterlogging ignored, so neither a pond beside the site
-nor a structure's own spill turns its blocks into sources. A building's blocks are placed as
-authored; a block set into water replaces it.
+raises it. The well was tried at 1 and 0 first and Aaron judged both a block too low in the
+world. The ground is still prepared and claimed at the surface whatever the sink.) The well
+used to leak from its rim for two reasons, both fixed for every building: the builder's
+block-by-block build set the water down before the rim, so the pool spread over the ground and
+every trapdoor placed into that spill was waterlogged and became a source; and placement ran
+with vanilla's keep-liquids rule, which let a pond beside a site soak into one rim block and
+then round the whole ring. Now the builder places every liquid-bearing block of a structure
+last, and both placement paths ignore waterlogging, so a block set into water replaces it. A
+rim placed before its water stays dry: verified on a bare platform, rim first and water last,
+not one trapdoor or fence waterlogged. The pool was briefly moved a layer down into the base
+on a wrong reading of the flow rules; Aaron restored the authored layout.
 
 #### `storehouse`  (founding building)
 
