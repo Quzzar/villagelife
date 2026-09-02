@@ -549,7 +549,12 @@ loop.
 
 The plan is built by a conversation, not by rules. The storehouse's slots are numbered across
 its chests, and the model is asked to assign every slot to one category and every item to one
-category. It does the slot arithmetic itself; a deterministic validator then checks the
+category. Each good is listed with its count, the creative-inventory tab it sits in (Building
+Blocks, Ingredients, Food & Drinks...) and its item tags (logs, c:ores...): the groupings the
+game already knows, handed over as facts for the model to use or ignore, since a small model
+guessing from the name alone shelved the list in thirds by list order. Which shelves to keep
+and what to call them stays the model's call; nothing sorts by tab or tag itself. It does the
+slot arithmetic itself; a deterministic validator then checks the
 partition (every slot covered once, no gaps, no overlaps, every item placed) and, when it does
 not hold, hands the errors back. The quartermaster and the village brain alternate turns
 correcting it, up to six rounds. The first partition that validates wins. The rounds are for

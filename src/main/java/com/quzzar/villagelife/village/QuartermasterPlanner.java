@@ -1,6 +1,8 @@
 package com.quzzar.villagelife.village;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,8 +22,13 @@ import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.llm.LlmService;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.Container;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 /**
  * Builds a village's {@link ShelvingPlan} by talking it out. The quartermaster
@@ -46,6 +53,12 @@ import net.minecraft.world.item.Item;
  * named on an "Odds and ends" shelf. Only a run that never parsed a single
  * group ends with no plan.
  *
+ * <p>Each good is listed with its count, the creative-inventory tab it sits in
+ * ("Building Blocks", "Ingredients", "Food & Drinks"...) and its item tags
+ * ("logs", "c:ores"...): the groupings the game already knows, put in front of
+ * the model as facts. What to make of them, which shelves to keep and what to
+ * call them, stays the model's call; nothing here sorts by tab or tag itself.
+ *
  * <p>Replies are read one group object at a time rather than as one JSON
  * document, because a small model drops a bracket or tucks the note inside the
  * array often enough that a strict parse threw away whole rounds of usable
@@ -64,6 +77,9 @@ public final class QuartermasterPlanner {
 
   /** How many offending slots or items an error message lists before trailing off. */
   private static final int MAX_LISTED = 12;
+
+  /** Tags shown per item, shortest first (the short ones are the general ones: "logs" before "logs_that_burn"). */
+  private static final int MAX_TAGS_SHOWN = 8;
 
   /** Enough for forty goods in a dozen groups; a reply that runs on past this is listing numbers, not planning. */
   private static final int PLAN_MAX_TOKENS = 400;
@@ -120,8 +136,8 @@ public final class QuartermasterPlanner {
     }
 
     Context context = new Context(quartermaster, items, snapshot, totalSlots,
-        numberedList(items, snapshot), layout(containers), quartermaster.getFullName(),
-        quartermaster.getVillageName());
+        numberedList(items, snapshot, tabsOf(quartermaster, items)), layout(containers),
+        quartermaster.getFullName(), quartermaster.getVillageName());
     Villagelife.LOGGER.info("[quartermaster] {} sits down to shelve {} slots across {} item types",
         context.who(), totalSlots, items.size());
     return converge(context, 0, List.of(), List.of());
@@ -276,7 +292,8 @@ public final class QuartermasterPlanner {
   // ---- prompts ----
 
   private static String openingPrompt(Context context) {
-    return "Our storehouse " + context.layout() + " It holds these goods:\n" + context.numbered()
+    return "Our storehouse " + context.layout() + " It holds these goods, each with the count on hand, "
+        + "the kind of thing it is, and the tags the game files it under:\n" + context.numbered()
         + "\nAssign every slot to exactly one group, and every item to exactly one group. "
         + "A group keeps its items in its slots. Reply with ONLY JSON:\n" + formatExample()
         + "\nCover every slot from 1 to " + context.totalSlots()
@@ -321,14 +338,62 @@ public final class QuartermasterPlanner {
     return out.toString();
   }
 
-  private static String numberedList(List<Item> items, Map<Item, Integer> counts) {
+  private static String numberedList(List<Item> items, Map<Item, Integer> counts, Map<Item, String> tabs) {
     StringBuilder out = new StringBuilder();
     for (int i = 0; i < items.size(); i++) {
       Item item = items.get(i);
       out.append(i + 1).append(". ").append(displayName(item))
-          .append(" (x").append(counts.getOrDefault(item, 0)).append(")\n");
+          .append(" (x").append(counts.getOrDefault(item, 0)).append(')');
+      String tab = tabs.get(item);
+      if (tab != null) {
+        out.append(", kind ").append(tab);
+      }
+      List<String> tags = tagsOf(item);
+      if (!tags.isEmpty()) {
+        out.append(", tags ").append(String.join(", ", tags));
+      }
+      out.append('\n');
     }
     return out.toString();
+  }
+
+  /**
+   * Each listed item's creative-inventory tab, by its display name, built from
+   * the world's enabled features so it matches what a player would see. An item
+   * in several tabs keeps the first in registry order (Building Blocks before
+   * Ingredients); an item in none gets no entry.
+   */
+  private static Map<Item, String> tabsOf(RealPerson quartermaster, List<Item> items) {
+    Map<Item, String> out = new HashMap<>();
+    Level level = quartermaster.level();
+    CreativeModeTabs.tryRebuildTabContents(level.enabledFeatures(), false, level.registryAccess());
+    for (CreativeModeTab tab : BuiltInRegistries.CREATIVE_MODE_TAB) {
+      if (tab.getType() != CreativeModeTab.Type.CATEGORY) {
+        continue;
+      }
+      String name = tab.getDisplayName().getString();
+      for (ItemStack stack : tab.getDisplayItems()) {
+        if (items.contains(stack.getItem())) {
+          out.putIfAbsent(stack.getItem(), name);
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The item's tags as short names, the vanilla namespace dropped and any other
+   * kept ("logs", "c:ores"), shortest first and capped, since the short ones
+   * are the general ones and a forty-tag list would drown the rest of the line.
+   */
+  private static List<String> tagsOf(Item item) {
+    List<String> names = new ArrayList<>();
+    BuiltInRegistries.ITEM.wrapAsHolder(item).tags().forEach((TagKey<Item> tag) -> {
+      String namespace = tag.location().getNamespace();
+      names.add(namespace.equals("minecraft") ? tag.location().getPath() : tag.location().toString());
+    });
+    names.sort(Comparator.comparingInt(String::length).thenComparing(Comparator.naturalOrder()));
+    return names.size() > MAX_TAGS_SHOWN ? new ArrayList<>(names.subList(0, MAX_TAGS_SHOWN)) : names;
   }
 
   private static String render(List<RawCategory> groups, List<Item> items) {
