@@ -62,8 +62,13 @@ public class InstantBuildStructure {
 
         this.template = levelAccess.getLevel().getStructureManager()
                 .getOrCreate(ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, building.getInfo().getPath()));
+        // A building's blocks are placed as authored: with keep-liquids on, the
+        // vanilla tail lets any world water beside the footprint soak into every
+        // waterloggable block, and each soaked block feeds the next, so a well set
+        // down beside a pond came up with its whole rim waterlogged and leaking.
         this.settings = new StructurePlaceSettings()
                 .setRotation(this.rotation)
+                .setLiquidSettings(net.minecraft.world.level.levelgen.structure.templatesystem.LiquidSettings.IGNORE_WATERLOGGING)
                 .setRandom(net.minecraft.util.RandomSource.create(this.random.nextLong()));
 
         this.magicInt = 2;

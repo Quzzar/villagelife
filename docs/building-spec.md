@@ -532,15 +532,21 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`, `desert`
 
 The desert variant is a covered cistern, because open water evaporates and a desert village that digs an open well is a village that has not lived in a desert.
 
-All five wells declare `"sink": 1` (2026-09-01): a building is normally seated with its
-structure's layer 0 on the ground's top block, which put a well's water and trapdoor rim a
-block above the ground and let the pool, set down before its rim in the builder's
-block-by-block build, spread over the grass and waterlog every trapdoor placed into the
-spill, so the rim leaked and seeded source blocks outside it. With a sink of one the base
-course is buried, the water and rim lie flush with the ground, and the pool is walled in by
-earth while it is being placed. `sink` is a general definition key: the ground is still
-prepared and claimed at the surface, and only the structure is seated that many layers lower.
-The builder also now places every liquid-bearing block of any structure last.
+All five wells declare `"sink": 1` and keep their pool in the base layer (2026-09-01). A
+building is normally seated with its structure's layer 0 on the ground's top block, which put
+the well's rim a block above the ground; with a sink of one the base course is buried and the
+trapdoor rim lies flush with the ground. `sink` is a general definition key: the ground is
+still prepared and claimed at the surface, and only the structure is seated that many layers
+lower. The pool moved down a layer because of how water behaves: it flows into any
+waterloggable block it can reach, and an open trapdoor or a fence post does not seal its
+faces, so a pool level with a trapdoor-and-fence rim always soaks the rim and then leaks out
+through the corner posts wherever the ground beside them is lower, which is what the first
+village-built well did. In the base layer the water is walled in by cobblestone and earth on
+every side, the rim stays dry, and the surface sits one block below the rim like a real shaft.
+Two general guards came with it: the builder places every liquid-bearing block of a structure
+last, and both placement paths run with waterlogging ignored, so neither a pond beside the site
+nor a structure's own spill turns its blocks into sources. A building's blocks are placed as
+authored; a block set into water replaces it.
 
 #### `storehouse`  (founding building)
 

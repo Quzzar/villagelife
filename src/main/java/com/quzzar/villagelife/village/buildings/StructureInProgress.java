@@ -135,8 +135,12 @@ public class StructureInProgress {
     }
 
     public StructurePlaceSettings getStructurePlaceSettings(){
+        // Keep-liquids off, as the instant path has it: a block placed into water
+        // replaces it rather than becoming waterlogged, so neither a pond beside the
+        // site nor the structure's own spill can turn a well's rim into sources.
         return new StructurePlaceSettings()
             .setRotation(this.rotation)
+            .setLiquidSettings(net.minecraft.world.level.levelgen.structure.templatesystem.LiquidSettings.IGNORE_WATERLOGGING)
             .setRandom(net.minecraft.util.RandomSource.create(this.random.nextLong()));
     }
 
