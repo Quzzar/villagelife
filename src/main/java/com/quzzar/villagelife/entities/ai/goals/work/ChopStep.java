@@ -313,6 +313,14 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
         }
       }
     }
+    // Once per scan that rolled to fell: what the box held. A guard that picks
+    // nothing for an hour is either surrounded by nothing fellable or by trunks
+    // nobody can stand beside, and only this line tells the two apart.
+    int trees = new java.util.HashSet<>(baseOf.values()).size();
+    int cuttable = (int) standOf.values().stream().filter(java.util.Objects::nonNull).count();
+    Villagelife.LOGGER.debug("[chop] {} ({}) scanned the woodland round {}: {} tree(s), {} with ground to cut from{}",
+        person.getName().getString(), person.getOccupation(), around.toShortString(), trees, cuttable,
+        found == null ? "" : ", chose the one at " + found.log().toShortString());
     return found;
   }
 
