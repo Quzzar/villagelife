@@ -260,7 +260,7 @@ A workplace building finishing construction registers its work stations as open
 
 Guards and any future military work the same way: recruiting consumes an idle person.
 Equipment is not consumed at recruitment beyond that bare kit; better gear is drawn from the
-village's own stores at bedtime, and a lost tool is made from cobblestone and sticks, never
+village's own stores at bedtime, and a lost tool is made from cobblestone alone, never
 conjured.
 An empty campfire means no recruiting, which is the natural brake on
 militarizing a starving village.

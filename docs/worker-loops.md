@@ -68,10 +68,11 @@ guard's bedtime pass refilled an empty hand with a new axe; a guard gave their a
 conversation and had another five seconds later. Villagers may still give their tools away, that
 is their business. A hand bare at bedtime is filled the way a player would fill it
 (`entities/JobTool`): the best tool of the job's kind the stores can spare, else one made from what
-the stores hold (cobblestone and sticks for a stone tool, sticks and string for a bow, sticks split
-from planks and planks from a log with the spare planks put back), else the shortage is logged and
-the worker turns out bare-handed, which their chat briefing shows. Watch for `made a stone pickaxe
-from ...` and `has no stone axe and the stores hold nothing to make one from`.
+the stores hold (three cobblestone for an axe or pickaxe, two for a hoe, three string for a bow;
+sticks are waived, "a pickaxe is just three cobblestone", the way the saw is waived between logs
+and planks), else the shortage is logged and the worker turns out bare-handed, which their chat
+briefing shows. Watch for `made a stone pickaxe from ...` and `has no stone axe and the stores hold
+nothing to make one from`.
 
 ### A chest of their own
 
@@ -511,7 +512,7 @@ from a building. So a wild tree overhanging a roof drops its own wood and spares
 
 The guard carries a stone axe rather than a stone sword, keeping the apple ration in the other
 hand, and upgrades through the village's axe supply at bedtime; an axe given away or lost is
-replaced from that supply or made from cobblestone and sticks, never conjured (`JobTool`).
+replaced from that supply or made from three cobblestone, never conjured (`JobTool`).
 
 ## When there is nothing to work on
 
