@@ -79,6 +79,8 @@ import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SplashPotionItem;
+import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.item.enchantment.EnchantmentEffectComponents;
@@ -439,10 +441,16 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     }
   }
 
+  /**
+   * A bite heals by Aaron's rule: the food's nutrition as hearts, plus a
+   * quarter of its saturation as hearts. Health is in half-hearts, so hearts
+   * double. An apple (4 nutrition, 2.4 saturation) heals 4.6 hearts; cooked
+   * beef (8, 12.8) heals 11.2, a full bar and more.
+   */
   public ItemStack eatFood(Level world, ItemStack stack) {
     FoodProperties food = stack.getFoodProperties(this);
     if (food != null) {
-      this.heal(food.nutrition() * 2);
+      this.heal(food.nutrition() * 2.0F + food.saturation() / 2.0F);
     }
     ItemStack result = super.eat(world, stack);
     world.playSound(null, this.getX(), this.getY(), this.getZ(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 0.5F,
@@ -689,6 +697,28 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       default:
         break;
     }
+  }
+
+  /** Something a villager can eat or drink to heal: food, or a potion that is not thrown. */
+  public static boolean isMeal(ItemStack stack) {
+    return !stack.isEmpty()
+        && (stack.getUseAnimation() == UseAnim.EAT
+            || (stack.getUseAnimation() == UseAnim.DRINK && !(stack.getItem() instanceof SplashPotionItem)));
+  }
+
+  /** The pack slot holding the first meal, or -1 when the pack has none. */
+  public int mealSlotInPack() {
+    for (int slot = 0; slot < this.personMainInv.getContainerSize(); slot++) {
+      if (isMeal(this.personMainInv.getItem(slot))) {
+        return slot;
+      }
+    }
+    return -1;
+  }
+
+  /** Whether there is anything to eat, in the off hand or in the pack. */
+  public boolean hasMeal() {
+    return isMeal(this.getOffhandItem()) || mealSlotInPack() >= 0;
   }
 
   public void addItems(List<ItemStack> items) {

@@ -216,6 +216,23 @@ never reached.
 giving nearby guards equipment priority and a rally point. It needs no new verbs, and it explains
 why a barracks beats scattered watchtowers.
 
+### Eating to heal
+
+Built 2026-09-02. There is no hunger; eating is how a hurt villager heals faster than the slow
+two health every ten seconds everyone gets. Below a third of their health, with nothing to
+fight, a villager takes a bite a second until they are back over the line
+(`PersonEatFoodGoal`). A bite heals by Aaron's rule: the food's nutrition as hearts plus a
+quarter of its saturation as hearts, so an apple heals about four and a half hearts and cooked
+beef more than a full bar (`Person.eatFood`). A meal is anything edible in the off hand or the
+pack: only guards are issued rations (sixteen apples at the bedtime restock), but a fisher
+carries cod and a farmer carrots, and food from the pack is brought to the off hand for the
+meal, since that is the hand the animation and the use-item logic read; whatever the hand held
+goes into the pack and stays there. A hurt villager with nothing to eat goes and gets some
+(`FetchFoodWhenHurtGoal`): the nearest chest holding a meal, in the village stores or their own
+chest at home, whichever is closer, a few bites' worth into the pack, and the eating goal takes
+over. Fighters break off before they eat (`SetRunningToEatGoal`), and nobody eats while a
+hostile mob nearby is taking aim at a villager.
+
 ## The builder builds, and between builds it makes the village walkable
 
 The BUILDER has two duties, not one. The first is construction: preparing a site, then

@@ -17,7 +17,7 @@ public class SetRunningToEatGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return !guard.isRunningToEat() && guard.getHealth() < guard.getMaxHealth() / 3 && PersonEatFoodGoal.isConsumable(guard.getOffhandItem()) && !guard.isEating() && guard.getTarget() != null;
+        return !guard.isRunningToEat() && guard.getHealth() < guard.getMaxHealth() / 3 && guard.hasMeal() && !guard.isEating() && guard.getTarget() != null;
     }
 
     @Override

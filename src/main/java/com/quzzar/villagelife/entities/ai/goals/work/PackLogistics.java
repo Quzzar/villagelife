@@ -148,9 +148,30 @@ public final class PackLogistics {
     return moved;
   }
 
+  /**
+   * The nearest village container holding any stack the test accepts: the
+   * shape a hurt villager needs, "anything I can eat", where the kind does
+   * not matter.
+   */
+  @Nullable
+  public static BlockPos chestWhere(RealPerson person, Village village,
+      java.util.function.Predicate<ItemStack> test) {
+    return nearestChest(person, village, chest -> holdsAny(chest, test));
+  }
+
+  /** Whether any stack in the container passes the test. */
+  public static boolean holdsAny(Container chest, java.util.function.Predicate<ItemStack> test) {
+    for (int slot = 0; slot < chest.getContainerSize(); slot++) {
+      if (test.test(chest.getItem(slot))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** The chest at this position, or null when it is gone or not loaded. */
   @Nullable
-  static Container containerAt(RealPerson person, BlockPos pos) {
+  public static Container containerAt(RealPerson person, BlockPos pos) {
     return person.level().getBlockEntity(pos) instanceof Container chest ? chest : null;
   }
 

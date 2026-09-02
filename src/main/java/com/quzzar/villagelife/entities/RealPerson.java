@@ -1495,6 +1495,9 @@ public class RealPerson extends Person {
 
     this.goalSelector.addGoal(0, new FloatGoal(this));
     this.goalSelector.addGoal(0, new PersonEatFoodGoal(this));
+    // A hurt villager with nothing to eat goes and gets some, from the stores
+    // or their own chest, before any work; the eating goal takes over on arrival.
+    this.goalSelector.addGoal(1, new com.quzzar.villagelife.entities.ai.goals.FetchFoodWhenHurtGoal(this));
     this.goalSelector.addGoal(1, new com.quzzar.villagelife.entities.ai.goals.VillageTravelGoal(this));
     this.goalSelector.addGoal(3, new com.quzzar.villagelife.entities.ai.goals.PauseForConversationGoal(this));
 
