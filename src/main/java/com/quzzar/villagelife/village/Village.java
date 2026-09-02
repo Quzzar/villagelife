@@ -1419,7 +1419,15 @@ public class Village {
     VillageAttractiveness report = getAttractiveness();
     switch (report.status()) {
       case GROWING -> tryArrival(report);
-      case DECLINING -> tryEmigration();
+      case DECLINING -> {
+        // A village never empties itself. Below the floor the unhappy stay
+        // put, however low the score reads: leaving is for a village with
+        // people to spare (Aaron, 2026-09-02, after Ember Hill lost all four
+        // of its founders in one morning).
+        if (people.size() > com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation) {
+          tryEmigration();
+        }
+      }
       case HOLDING -> { }
     }
   }
@@ -1549,7 +1557,11 @@ public class Village {
     return level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
   }
 
-  /** Dev command hook: one person leaves as if the mood had collapsed. Who, or null if nobody loaded could. */
+  /**
+   * Dev command hook: one person leaves as if the mood had collapsed, floor or
+   * no floor, so the road can be watched from a small village. Who, or null if
+   * nobody loaded could.
+   */
   @Nullable
   public RealPerson forceEmigration() {
     return tryEmigration();

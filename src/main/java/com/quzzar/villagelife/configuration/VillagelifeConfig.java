@@ -64,6 +64,7 @@ public class VillagelifeConfig {
 
     // --- population ---
     public static int PopulationCheckIntervalSeconds;
+    public static int MinimumVillagePopulation;
     public static int ShortageEventCooldownSeconds;
     public static int ArrivalEdgeMinDistance;
     public static int TravelTimeoutSeconds;
@@ -130,6 +131,7 @@ public class VillagelifeConfig {
 
         // population
         PopulationCheckIntervalSeconds = COMMON.PopulationCheckIntervalSeconds.get();
+        MinimumVillagePopulation = COMMON.MinimumVillagePopulation.get();
         ShortageEventCooldownSeconds = COMMON.ShortageEventCooldownSeconds.get();
         ArrivalEdgeMinDistance = COMMON.ArrivalEdgeMinDistance.get();
         TravelTimeoutSeconds = COMMON.TravelTimeoutSeconds.get();
@@ -207,6 +209,7 @@ public class VillagelifeConfig {
 
         // population
         public final ModConfigSpec.IntValue PopulationCheckIntervalSeconds;
+        public final ModConfigSpec.IntValue MinimumVillagePopulation;
         public final ModConfigSpec.IntValue ShortageEventCooldownSeconds;
         public final ModConfigSpec.IntValue ArrivalEdgeMinDistance;
         public final ModConfigSpec.IntValue TravelTimeoutSeconds;
@@ -287,6 +290,7 @@ public class VillagelifeConfig {
             builder.comment("Population: the campfire arrival and emigration loop, and its timings.").push("population");
 
             PopulationCheckIntervalSeconds = builder.comment("Seconds between a village's arrival/emigration checks (phase-staggered per village).").translation(Villagelife.MODID + ".config.PopulationCheckIntervalSeconds").defineInRange("Population check interval seconds", 100, 5, 86400);
+            MinimumVillagePopulation = builder.comment("People a village keeps whatever its mood: emigration never takes the roster below this.").translation(Villagelife.MODID + ".config.MinimumVillagePopulation").defineInRange("Minimum village population", 4, 0, 64);
             ShortageEventCooldownSeconds = builder.comment("Minimum seconds between resource-shortage events logged by a village's planner.").translation(Villagelife.MODID + ".config.ShortageEventCooldownSeconds").defineInRange("Shortage event cooldown seconds", 600, 10, 86400);
             ArrivalEdgeMinDistance = builder.comment("Minimum distance from the village center at which newcomers appear (grows with building spread).").translation(Villagelife.MODID + ".config.ArrivalEdgeMinDistance").defineInRange("Arrival edge min distance", 32, 8, 256);
             TravelTimeoutSeconds = builder.comment("Seconds a newcomer or emigrant may spend walking before the village snaps them to their destination.").translation(Villagelife.MODID + ".config.TravelTimeoutSeconds").defineInRange("Travel timeout seconds", 90, 10, 3600);

@@ -80,8 +80,10 @@ villages), inspectable in-game via `/vldev village attractiveness [pos]`.
 
 - **Above the grow threshold (50)**: new people periodically arrive. The further above, the
   more frequent the arrivals.
-- **Below the decline threshold (25)**: people leave — idle campfire people first, then
-  employed people abandon their jobs and go. Between the thresholds, population holds.
+- **Below the decline threshold (25)**: people leave, idle campfire people first, then
+  employed people abandon their jobs and go, but never past the **population floor** (4,
+  `Minimum village population`): a village never empties itself, and below the floor the
+  unhappy stay put however low the score reads. Between the thresholds, population holds.
 
 The decided v1 formula — every number a config tunable in `villagelife-common.toml`,
 clamped to 0-100:
@@ -187,7 +189,10 @@ as death frees them and they walk to the village edge. At the edge, whatever the
 they become a **wanderer**: the title changes there, the job's kit (hands and armour) stays
 with the village, and they keep their pack. There is nothing else to pack: whatever they kept
 in a chest of their own stays with the house, for whoever moves in next. Then they take to
-the road.
+the road. The population floor applies here and nowhere else: a village at or below it loses
+nobody to mood, whatever the score reads, so a founding camp of four is never emptied by its
+own first hungry morning. `/vldev village emigrate` ignores the floor, so the road can still be
+watched from a small village.
 
 The road (**implemented**): a wanderer sets out straight away from the village they left
 and walks that heading, leg by leg, turning when the ground blocks them (`RoamGoal`).
@@ -306,6 +311,7 @@ All of these belong in config, not constants buried in `Village`:
 | Arrival check interval | How often inflow is evaluated | 100 s |
 | Attractiveness threshold | Score above which people arrive | 50 |
 | Emigration threshold | Score below which people leave | 25 |
+| Minimum village population | People a village keeps whatever its mood; emigration stops here | 4 |
 | Wanderer recruit radius | How far a growing village looks for a loaded wanderer | 128 |
 | Wanderer cap | Wanderers walking the loaded world at once | 8 |
 | Wanderer horizon distance | How far a wanderer walks before passing beyond the horizon | 128 |
