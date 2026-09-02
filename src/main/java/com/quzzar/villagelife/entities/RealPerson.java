@@ -59,6 +59,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.HarvestStep;
 import com.quzzar.villagelife.entities.ai.goals.work.TillStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HaulStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CraftStep;
+import com.quzzar.villagelife.entities.ai.goals.work.CullStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BlacksmithStep;
 import com.quzzar.villagelife.entities.ai.goals.work.MineStep;
 import com.quzzar.villagelife.entities.ai.goals.work.BuildStep;
@@ -1618,6 +1619,11 @@ public class RealPerson extends Person {
       // Raw meat off the pasture, lodge and fishery is cooked into keeping food
       // (docs/buildings.md: MEAT -> butchery). One recipe per meat the village can bring in.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      // The pen is thinned by the butcher, not the herder: a kind the herder has
+      // bred to the cap is slaughtered down to what the pen keeps, and its hide
+      // carried to the chest (CullStep). Above the cooking, so the cull comes
+      // first and the meat it leaves in the pack is what gets cooked.
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new CullStep()));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.BEEF, 4), new ItemStack(Items.COOKED_BEEF, 4),
           6, SoundEvents.FURNACE_FIRE_CRACKLE)));

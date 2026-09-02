@@ -195,7 +195,7 @@ is the whole biome story.
 | Category | Worker | Output | Wants | Levels | Phase |
 | --- | --- | --- | --- | --- | --- |
 | `farm` | FARMER | `GRAIN`, vegetables | tillable land, water | 3 | 1 |
-| `butchery` pen | HERDER | `CLOTH` (wool), herd breeding | its own fenced stock | with `butchery` | 2 |
+| `butchery` pen | HERDER | `CLOTH` (wool), herd breeding up to twelve a kind | its own fenced stock | with `butchery` | 2 |
 | `hunting_lodge` | HUNTER | `MEAT`, `LEATHER` | trees, wildlife | 2 | 1 |
 | `fishery` | FISHER | `MEAT` (fish) | adjacent water | 2 | 1 |
 | `mushroom_cellar` | FARMER | `FOOD` (low yield) | darkness, any biome | 2 | 2 |
@@ -211,7 +211,7 @@ actually moves attractiveness.
 | --- | --- | --- | --- | --- |
 | `mill` | MILLER | `GRAIN` to flour | 2 | 2 |
 | `bakery` | BAKER | flour to `BREAD` | 3 | 2 |
-| `butchery` | BUTCHER | raw `MEAT` to cooked, preserved | 2 | 2 |
+| `butchery` | BUTCHER | a kind bred to twelve slaughtered down to six; raw `MEAT` to cooked, preserved | 2 | 2 |
 | `brewery` | BREWER | `GRAIN`, honey to `ALE` | 2 | 3 |
 
 `mill` is the clearest case of variants doing real work: a **windmill** (open, windy biomes)

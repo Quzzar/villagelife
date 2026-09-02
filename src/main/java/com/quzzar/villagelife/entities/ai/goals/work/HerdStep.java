@@ -10,25 +10,24 @@ import com.quzzar.villagelife.village.LocationManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.Chicken;
-import net.minecraft.world.entity.animal.Cow;
-import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.AABB;
 
 /**
  * The herder's round on the pasture: shear grown sheep for wool (the CLOTH
  * grant) and put grown stock in the mood to breed, so the pasture "breeds and is
  * genuinely productive" (docs/worker-loops.md) instead of being hunted to
- * nothing. Non-lethal on purpose -- taking meat and leather off the herd is the
- * hunter's job; keeping it alive and multiplying is this one's. Wool falls where
- * the shear happens and is gathered like any dropped item.
+ * nothing. Non-lethal on purpose -- taking meat and hide off the herd is the
+ * butcher's job ({@link CullStep}); keeping it alive and multiplying is this
+ * one's. Wool falls where the shear happens and is gathered like any dropped
+ * item.
  *
  * Only farm stock is tended, and grain is only ever spent on an animal that has
- * a breeding partner of its own kind on the ground: a lone animal, an odd one
- * out, or a stray wolf is left alone rather than fed wheat it can do nothing
- * with.
+ * a breeding partner of its own kind on the ground and whose kind is still
+ * under the pen's breeding cap ({@link FarmedStock#BREED_CAP}): a lone animal,
+ * an odd one out, a stray wolf, or a kind the pen already has enough of is
+ * left alone rather than fed wheat the village gets nothing for. The cap is
+ * what stopped a fed pen from breeding until nobody could move in it.
  *
  * <b>The wheat rides in the herder's pack</b>, carried out from a chest by the
  * {@link FetchStep} ahead of this loop (docs/worker-loops.md, "Nothing
@@ -36,9 +35,6 @@ import net.minecraft.world.phys.AABB;
  * grain conjured across the village.
  */
 public final class HerdStep implements WorkStep<Animal> {
-
-  /** How far around the pasture the herder tends stock. */
-  private static final double PASTURE_RADIUS = 12.0D;
 
   @Override
   @Nullable
@@ -49,7 +45,7 @@ public final class HerdStep implements WorkStep<Animal> {
     }
     Animal best = null;
     double nearest = Double.MAX_VALUE;
-    for (Animal animal : person.level().getEntitiesOfClass(Animal.class, ground(pasture))) {
+    for (Animal animal : person.level().getEntitiesOfClass(Animal.class, FarmedStock.pasture(pasture))) {
       if (!animal.isAlive() || !needsTending(person, animal)) {
         continue;
       }
@@ -112,16 +108,19 @@ public final class HerdStep implements WorkStep<Animal> {
   }
 
   private boolean needsTending(RealPerson person, Animal animal) {
-    if (!isStock(animal) || animal.isBaby()) {
+    if (!FarmedStock.isStock(animal) || animal.isBaby()) {
       return false;
     }
     if (animal instanceof Sheep sheep && sheep.readyForShearing()) {
       return true;
     }
     // A grown animal is worth walking to only when there is grain to spend AND a
-    // partner of its own kind to spend it on -- otherwise the wheat is wasted on
-    // an animal that cannot breed.
-    return animal.canFallInLove() && hasGrain(person)
+    // partner of its own kind to spend it on AND room in the pen for the young
+    // -- otherwise the wheat is wasted on an animal that cannot breed, or on a
+    // calf the butcher would take the moment it grew.
+    BlockPos pasture = LocationManager.getJobLocation(person);
+    return pasture != BlockPos.ZERO && animal.canFallInLove() && hasGrain(person)
+        && !FarmedStock.atBreedCap(person.level(), pasture, animal)
         && hasBreedingPartner(person, animal);
   }
 
@@ -130,21 +129,12 @@ public final class HerdStep implements WorkStep<Animal> {
     if (pasture == BlockPos.ZERO) {
       return false;
     }
-    for (Animal other : person.level().getEntitiesOfClass(Animal.class, ground(pasture))) {
+    for (Animal other : person.level().getEntitiesOfClass(Animal.class, FarmedStock.pasture(pasture))) {
       if (other != animal && other.getClass() == animal.getClass() && other.canFallInLove()) {
         return true;
       }
     }
     return false;
-  }
-
-  private static AABB ground(BlockPos pasture) {
-    return new AABB(pasture).inflate(PASTURE_RADIUS, 4.0D, PASTURE_RADIUS);
-  }
-
-  private static boolean isStock(Animal animal) {
-    return animal instanceof Cow || animal instanceof Pig
-        || animal instanceof Sheep || animal instanceof Chicken;
   }
 
   /** Wheat in the herder's own pack; the fetch trip keeps it stocked. */

@@ -347,6 +347,20 @@ inside a hunting ground is safe, and a wild cow the herder adopts stops being qu
 also fight now: the occupation weighs into both combat checks, so they defend themselves and
 take on nearby monsters with the same bow, where before a hunter fled like a baker.
 
+**Built, 2026-09-02: the pen has a size, and the butcher keeps it.** Nobody used to thin a
+butchery's pen: the herder is non-lethal by design and the hunter ignores farmed stock, so a
+butchery with wheat in store bred until the animals stood wall to wall and the herder and
+butcher, whose stations are both inside the fence, could not reach the door. The herd is now
+two numbers (`FarmedStock`): the herder breeds a kind up to twelve, counting the young, and
+once a kind has grown to that many the BUTCHER slaughters it down to six, nearest grown
+animal first, one blow each so nothing bolts wounded through a crowd (`CullStep`). A kind
+between the two numbers is left alone, so the pen swells and is thinned in cycles, and
+everything above the six the village keeps is meat and hide. The butcher steps onto the
+drops to gather them, cooks the raw meat from the pack (the cook loop takes what is in hand
+before it fetches), and carries the leather, feathers and wool to a chest once the round is
+done. Villagers still cannot open fence gates; the pen's people leave through the building's
+own door, which the cull keeps clear.
+
 **Built, 2026-08-31: lumberjacks and guards clear nearby woodland; whole trees, and never the
 village's own.** The lumberjack's planted stand remains its reliable, renewable source of work,
 but an idle lumberjack also ranges out to fell natural trees, and a quiet guard does the same

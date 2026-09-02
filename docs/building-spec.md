@@ -672,7 +672,9 @@ where the tanner cultivates a herd that stays put.
 Wool still matters as the bottleneck on beds, and the pen is what produces it: the shipped
 butchery structures carry their starting cows and sheep in the template, and a HERDER
 station beside the pen keeps the herd sheared, fed, and marked as farmed stock the hunter
-will not touch (docs/worker-loops.md).
+will not touch (docs/worker-loops.md). The pen has a size: the herder breeds each kind up to
+twelve and the BUTCHER slaughters a kind that has reached it down to six, so the yard is never
+packed solid and everything above six is meat and hide.
 
 #### `hunting_lodge`
 

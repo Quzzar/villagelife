@@ -119,11 +119,20 @@ public final class PackLogistics {
    * trip. Returns how many items moved.
    */
   public static int depositCarried(RealPerson person, Container chest, Item item, String role) {
+    return depositMatching(person, chest, stack -> stack.is(item), role);
+  }
+
+  /**
+   * The same set-down for whatever passes the test rather than one item: a
+   * butcher shelving the hide, feathers and fleece of a cull in one visit.
+   */
+  public static int depositMatching(RealPerson person, Container chest,
+      java.util.function.Predicate<ItemStack> keep, String role) {
     Container pack = person.personMainInv;
     int moved = 0;
     for (int slot = 0; slot < pack.getContainerSize(); slot++) {
       ItemStack stack = pack.getItem(slot);
-      if (stack.isEmpty() || !stack.is(item)) {
+      if (stack.isEmpty() || !keep.test(stack)) {
         continue;
       }
       int before = stack.getCount();

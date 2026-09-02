@@ -10,10 +10,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.Chicken;
-import net.minecraft.world.entity.animal.Cow;
-import net.minecraft.world.entity.animal.Pig;
-import net.minecraft.world.entity.animal.Sheep;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -179,8 +175,6 @@ public final class HuntStep implements WorkStep<Animal> {
   private static boolean isGame(Animal animal) {
     // The village's own stock is not game, however identical the species: the
     // farmed mark is written at the pen and read here (FarmedStock).
-    return (animal instanceof Cow || animal instanceof Pig
-        || animal instanceof Sheep || animal instanceof Chicken)
-        && !FarmedStock.isFarmed(animal);
+    return FarmedStock.isStock(animal) && !FarmedStock.isFarmed(animal);
   }
 }
