@@ -1217,7 +1217,7 @@ public class Village {
       // Chests come and go — broken, built over, replaced by an upgrade — and
       // the village should not keep sending people to the ones that went.
       long tp = VillageProfile.start();
-      this.brain.pruneMissingContainers(level);
+      this.brain.pruneMissingContainers(level, PersonalChest.allChests(this));
       VillageProfile.end("prune containers", tp);
 
     }
@@ -1869,9 +1869,15 @@ public class Village {
     return this.brain.getNearestContainer(location, excluding);
   }
 
-  /** Every container this village counts as its own, for anyone asking whose it is. */
+  /**
+   * Every container this village counts as its own, for anyone asking whose it
+   * is: the shared stores and the homes' own chests alike, since taking from
+   * either is theft.
+   */
   public java.util.Set<BlockPos> getVillageContainerPositions() {
-    return this.brain.containerPositions();
+    java.util.Set<BlockPos> positions = this.brain.containerPositions();
+    positions.addAll(PersonalChest.allChests(this));
+    return positions;
   }
 
   public ItemStack gatherItemStackFromVillage(ItemStack itemStack) {

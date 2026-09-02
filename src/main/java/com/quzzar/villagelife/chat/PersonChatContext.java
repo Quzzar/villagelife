@@ -17,6 +17,7 @@ import com.quzzar.villagelife.llm.LlmService.FewShotExample;
 import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
 import com.quzzar.villagelife.village.Occupation;
+import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
@@ -25,6 +26,8 @@ import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -385,6 +388,10 @@ public final class PersonChatContext {
     }
     String pockets = pocketsSummary(person);
     system.append("Your pockets: ").append(pockets.isEmpty() ? "empty" : pockets).append(".\n");
+    // Their own chest at home, stated on the same rule as the pockets: what it
+    // holds when it is in sight, and that they have none when they have none,
+    // so the model neither invents a hoard nor forgets it has one.
+    system.append(homeChestLine(person)).append('\n');
 
     system.append("It is now ").append(PersonalLogData.formatDay(person.level().getDayTime())).append(".\n");
     // Villagers reckon the year from the world's age (the Days in Year config),
@@ -575,6 +582,30 @@ public final class PersonChatContext {
     List<String> parts = new ArrayList<>();
     counts.forEach((name, count) -> parts.add(count + " " + name));
     return String.join(", ", parts);
+  }
+
+  /**
+   * The villager's own chest at home (PersonalChest): who shares it and what it
+   * holds. Contents are read only when the chest's chunk is resident; a
+   * villager far from home cannot recall, rather than paging the chunk in.
+   */
+  private static String homeChestLine(RealPerson person) {
+    BlockPos chest = PersonalChest.of(person);
+    if (chest == null) {
+      return "You have no chest of your own; whatever you set down goes to the village stores.";
+    }
+    StringBuilder line = new StringBuilder("You have a chest of your own at home");
+    List<String> housemates = PersonalChest.housemateNames(person);
+    if (!housemates.isEmpty()) {
+      line.append(", shared with ").append(String.join(" and ", housemates));
+    }
+    Container container = PersonalChest.container(person, chest);
+    if (container == null) {
+      return line.append("; you cannot recall exactly what is in it right now.").toString();
+    }
+    String holds = PersonalChest.summarize(container);
+    return line.append(holds.isEmpty() ? "; it is empty." : "; it holds " + holds + ", at home, not on you.")
+        .toString();
   }
 
   /** What a villager holds, by its plain name: "stone axe" for "minecraft:stone_axe". */

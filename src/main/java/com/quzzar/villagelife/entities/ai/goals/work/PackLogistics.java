@@ -34,8 +34,11 @@ import net.minecraft.world.item.ItemStack;
  * from the worker's own inventory, so a half-loaded pack asks only for the
  * rest. What counts toward a wanted item is {@link Materials}' rule: a log
  * cost is met by any log.
+ *
+ * Public for the one carry that is not a work loop: a villager setting their
+ * own things down at home (StashAtHomeGoal) shelves them the same way.
  */
-final class PackLogistics {
+public final class PackLogistics {
 
   /** Dead container positions to step past before giving up on a search. */
   private static final int MAX_STALE_CHESTS = 12;
@@ -115,7 +118,7 @@ final class PackLogistics {
    * dropping nothing: whatever does not fit stays in the pack for the next
    * trip. Returns how many items moved.
    */
-  static int depositCarried(RealPerson person, Container chest, Item item, String role) {
+  public static int depositCarried(RealPerson person, Container chest, Item item, String role) {
     Container pack = person.personMainInv;
     int moved = 0;
     for (int slot = 0; slot < pack.getContainerSize(); slot++) {

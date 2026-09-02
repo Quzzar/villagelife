@@ -38,6 +38,8 @@ public class BuildingInfo {
       BlockPos.CODEC.listOf().optionalFieldOf("beds", List.of()).forGetter(BuildingInfo::bedPositions),
       WorkStation.CODEC.listOf().optionalFieldOf("work_stations", List.of()).forGetter(BuildingInfo::workStations),
       BlockPos.CODEC.listOf().optionalFieldOf("containers", List.of()).forGetter(BuildingInfo::containerPositions),
+      BlockPos.CODEC.listOf().optionalFieldOf("personal_containers", List.of())
+          .forGetter(BuildingInfo::personalContainerPositions),
       ItemCost.CODEC.listOf().optionalFieldOf("cost", List.of()).forGetter(BuildingInfo::itemCosts),
       Codec.STRING.listOf().optionalFieldOf("grants", List.of()).forGetter(BuildingInfo::getGrants),
       Grant.CODEC.listOf().optionalFieldOf("grants_if", List.of()).forGetter(BuildingInfo::getConditionalGrants),
@@ -50,14 +52,16 @@ public class BuildingInfo {
   ).apply(inst, BuildingInfo::fromCodec));
 
   private static BuildingInfo fromCodec(String structure, List<BlockPos> beds, List<WorkStation> workStations,
-      List<BlockPos> containers, List<ItemCost> costs, List<String> grants, List<Grant> conditionalGrants,
-      java.util.Optional<BlockPos> gatheringPoint, java.util.Optional<String> category,
-      java.util.Optional<String> variant, java.util.Optional<String> upgradesFrom, int sink) {
+      List<BlockPos> containers, List<BlockPos> personalContainers, List<ItemCost> costs, List<String> grants,
+      List<Grant> conditionalGrants, java.util.Optional<BlockPos> gatheringPoint,
+      java.util.Optional<String> category, java.util.Optional<String> variant,
+      java.util.Optional<String> upgradesFrom, int sink) {
     BuildingInfo info = new BuildingInfo(structure);
     beds.forEach(pos -> info.addBedLocation(pos.getX(), pos.getY(), pos.getZ()));
     workStations.forEach(station -> info.addWorkLocation(
         station.pos().getX(), station.pos().getY(), station.pos().getZ(), station.occupation()));
     containers.forEach(pos -> info.addContainerLocation(pos.getX(), pos.getY(), pos.getZ()));
+    personalContainers.forEach(pos -> info.addPersonalContainerLocation(pos.getX(), pos.getY(), pos.getZ()));
     info.setMaterialCost(costs.stream().map(cost -> new ItemStack(cost.item(), cost.count())).toList());
     info.grants = List.copyOf(grants);
     info.conditionalGrants = List.copyOf(conditionalGrants);
@@ -74,6 +78,8 @@ public class BuildingInfo {
   // Insertion-ordered: JobAssignment station indexes rely on a stable iteration order.
   private LinkedHashMap<Long, Occupation> workLocs;
   private ArrayList<Long> containerLocs;
+  // Chests that belong to the people who sleep here, never to the village (PersonalChest).
+  private ArrayList<Long> personalContainerLocs;
 
   private List<ItemStack> materialCost;
   /** Capabilities this building always grants, as datapack strings (#55). */
@@ -95,6 +101,7 @@ public class BuildingInfo {
     this.bedLocs = new ArrayList<>();
     this.workLocs = new LinkedHashMap<>();
     this.containerLocs = new ArrayList<>();
+    this.personalContainerLocs = new ArrayList<>();
     this.materialCost = new ArrayList<>();
 
   }
@@ -191,6 +198,15 @@ public class BuildingInfo {
     if (getLevel() >= 2 && upgradesFrom == null) {
       return "level " + getLevel() + " building has no upgrades_from (levels are never built from scratch)";
     }
+    for (Long personal : personalContainerLocs) {
+      if (containerLocs.contains(personal)) {
+        return "container " + BlockPos.of(personal).toShortString()
+            + " is listed as both village storage and a personal chest";
+      }
+    }
+    if (!personalContainerLocs.isEmpty() && bedLocs.isEmpty()) {
+      return "a personal chest is declared but nobody sleeps here (no beds)";
+    }
     return null;
   }
 
@@ -202,8 +218,21 @@ public class BuildingInfo {
     return workLocs;
   }
 
+  /**
+   * Village storage: every chest here that any worker may fetch from or fill.
+   * A home's own chest is not among them ({@link #getPersonalContainerLocations}).
+   */
   public ArrayList<Long> getContainerLocations() {
     return containerLocs;
+  }
+
+  /**
+   * The chests that belong to whoever sleeps in this building rather than to
+   * the village: a house's chest, or the bedside chest of a workplace with a
+   * live-in bed. Never registered as village storage (PersonalChest).
+   */
+  public ArrayList<Long> getPersonalContainerLocations() {
+    return personalContainerLocs;
   }
 
   public BuildingInfo addBedLocation(int x, int y, int z) {
@@ -218,6 +247,11 @@ public class BuildingInfo {
 
   public BuildingInfo addContainerLocation(int x, int y, int z) {
     containerLocs.add(BlockPos.asLong(x, y, z));
+    return this;
+  }
+
+  public BuildingInfo addPersonalContainerLocation(int x, int y, int z) {
+    personalContainerLocs.add(BlockPos.asLong(x, y, z));
     return this;
   }
 
@@ -254,6 +288,10 @@ public class BuildingInfo {
 
   private List<BlockPos> containerPositions() {
     return containerLocs.stream().map(BlockPos::of).toList();
+  }
+
+  private List<BlockPos> personalContainerPositions() {
+    return personalContainerLocs.stream().map(BlockPos::of).toList();
   }
 
   private List<ItemCost> itemCosts() {

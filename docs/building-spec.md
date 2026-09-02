@@ -277,6 +277,19 @@ The consequences that follow, and which the implementation owes:
 - **The storehouse is capacity, not a special inventory.** Every building's chest counts
   toward the same pool; a storehouse is simply the building whose job is holding a lot. It
   stays in the founding set because a camp needs somewhere to put things.
+- **A home's own chest is not in the pool** (built 2026-09-01). A definition may list a
+  container under `personal_containers` instead of `containers`: every house does, and so does
+  the bedside chest of a workplace with a live-in bed and more than one chest (the church, the
+  lumberjack hut, the level-1 watchtower). It belongs to whoever sleeps there, shared between
+  them. It is never registered as village storage, so no fetch reads it, no deposit fills it,
+  the planner does not count it as a store, and the quartermaster's sweep never sees it
+  (`village/PersonalChest`). What goes in is what its residents choose to keep at bedtime
+  ([worker-loops.md](worker-loops.md), "A chest of their own"). A workplace with a single chest,
+  the camp circle and the level-1 blacksmith among them, keeps that one chest shared, and the
+  upper blacksmith's two chests both sit in the workshop, well away from the bed, so it has none
+  either. When a home is rebuilt for an upgrade its chest is emptied into village storage with
+  the rest, since the alternative is the residents' things on the floor of a building site; and
+  a leaver's chest stays with the house, for whoever moves in next.
 - **A fetch can fail even when the pool says yes** — the chest holding it is unloaded, or
   unreachable. That emits the ordinary shortage event and a personal-log entry, and the
   worker gives up rather than spinning.
@@ -285,9 +298,12 @@ The consequences that follow, and which the implementation owes:
   a village decide to build another storehouse.
 
 **Who may take from a chest.** Any villager, for a real need: there is no ownership between
-residents. The player may freely PUT items into any village container, which is a gift and
-nothing else. The player TAKING items, or breaking a chest, is **theft, but only if a
-villager sees it happen**: awake, within about sixteen blocks, with line of sight. An
+residents over the village's stores. A home's own chest is the one exception: only the people
+who sleep there put things in it, and no worker's fetch ever reads it. The player may freely
+PUT items into any village container, which is a gift and nothing else. The player TAKING
+items, or breaking a chest, is **theft, but only if a villager sees it happen**: awake, within
+about sixteen blocks, with line of sight. A home's chest counts as a village container here:
+robbing someone's house is theft the same as robbing the storehouse. An
 unwitnessed theft genuinely costs nothing, because nobody knows. A witnessed one is
 recorded by the witness as a fact, and how much they hold it against you is their own
 judgement on reflection; it reaches the rest of the village only as gossip through the
@@ -520,6 +536,12 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert
 | 3 (upgrade) | longhouse | 15x15 | 40 oak log, 60 oak planks, 64 cobblestone, 12 glass, 8 wool | BEDS 7 |
 
 The housing cap, the most numerous building in any village, and where regional identity actually reads. Gets more variants than anything else for exactly that reason. `igloo` is a cheap snowy-only L1; `stilt` is the wetland answer.
+
+Every house level also has one chest, listed as `personal_containers`: the residents' own, not
+the village's (see "A home's own chest" under
+[A building grants permission, not product](#a-building-grants-permission-not-product)). The
+grants column names beds alone because beds are what a house gives the village; the chest is
+what it gives the people who live in it.
 
 #### `well`
 

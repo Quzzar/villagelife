@@ -32,8 +32,8 @@ commands. This is the loop the current `village_center_plains_1` was built with.
    The id in the building JSON's `structure` field, the file name, and the `.nbt` name are
    all the same string, so a definition and its structure can never drift apart.
 5. **Write the definition** JSON beside it, with positions RELATIVE to the structure
-   origin (the corner you passed as `from`). Beds, work stations, containers, and the
-   gathering point are all origin offsets.
+   origin (the corner you passed as `from`). Beds, work stations, containers, personal containers (a home's own chest, the rule in
+   [building-spec.md](building-spec.md)), and the gathering point are all origin offsets.
 6. **Look at it**: `/vldev village gallery <pos>` places every loaded definition on labelled
    plinths. `/reload` picks up JSON edits without a restart; a new `.nbt` needs a restart.
 7. **Verify the palette**, always, before shipping. The decompressed NBT contains every

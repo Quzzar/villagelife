@@ -56,6 +56,24 @@ does not send villagers walking in the dark; and **village-scale acts** (site-pr
 fill, market trades) are the village acting as an institution rather than any one worker, and
 carry no fetch trip to skip.
 
+### A chest of their own
+
+Built 2026-09-01. A house's chest is not village storage: a building definition lists it under
+`personal_containers`, it never joins the village's container list, and it belongs to whoever
+sleeps in that building, shared between them (`village/PersonalChest`; the rule, and which
+workplaces get one, are in [building-spec.md](building-spec.md)). What goes in is decided at
+bedtime, in character: a villager with a chest of their own is asked once a night, over
+`decide()`, whether to keep one kind of what they are carrying home rather than hand it all back
+to the stores (`entities/StashOffer`, the third personal decision in
+[llm-brain.md](llm-brain.md)). The briefing names the pack, what the chest already holds and who
+shares it; silence keeps nothing, so a mute model costs the village no goods. A kept item stays
+in the pack, the bedtime stow skips it, and `StashAtHomeGoal` walks it home and sets it down in
+the chest by hand ahead of sleep, so nothing teleports here either. A chest that cannot be
+reached, is gone, or is full gives the trip up, and the next stow returns the goods as before.
+The chat briefing tells a villager what their chest holds (when its chunk is in sight) and who
+they share it with, so they can speak to it. Watch for `keeps the ... for their chest at home`
+and `put N ... away in their chest at home` in the log.
+
 ## Three verbs
 
 A job is an **ordered array** of three verbs, any length, any order.

@@ -16,6 +16,7 @@ import com.google.gson.JsonParser;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.networking.OpenPersonChatPacket;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageManager;
@@ -203,6 +204,20 @@ public class RealPerson extends Person {
 
   // Same guard for the farmer's bedtime bone-grind offer.
   private transient long bonemealOfferDay = -1;
+
+  // Same guard for the bedtime question of what to keep in the chest at home.
+  private transient long stashOfferDay = -1;
+
+  // True from that question going out until its answer lands (StashOffer). The
+  // pack is held whole meanwhile: stowing it would empty the pockets the brain
+  // is still deciding over.
+  private transient boolean stashPending;
+
+  // What the villager chose to keep tonight. It stays in the pack, skipped by
+  // the stow, until StashAtHomeGoal sets it down in their own chest; null when
+  // nothing is being kept.
+  @Nullable
+  private transient Item keepingForHome;
 
   // Village-directed walk target (arriving at the campfire / leaving the
   // village); driven by Village.tickTravelers, executed by VillageTravelGoal.
@@ -584,7 +599,58 @@ public class RealPerson extends Person {
       this.getNavigation().moveTo(headingToLoc.getX(), headingToLoc.getY(), headingToLoc.getZ(), speed);
     }
 
+    if (this.stashPending) {
+      return; // the brain has the pack's contents; settleStash stows once it answers
+    }
+    if (maybeOfferStash()) {
+      return;
+    }
     stowPackAndRestock();
+  }
+
+  /**
+   * Once a night, a villager with a chest of their own is asked what, if
+   * anything, they would rather keep than return to the stores (StashOffer).
+   * True when the question went out: the stow then waits for the answer.
+   */
+  private boolean maybeOfferStash() {
+    long day = this.level().getDayTime() / 24000L;
+    // Night only: a daytime panic runs goToBed too, and that is no time to be
+    // asked what to keep.
+    if (this.stashOfferDay == day || !this.level().isNight() || this.personMainInv.isEmpty()) {
+      return false;
+    }
+    BlockPos chest = PersonalChest.of(this);
+    if (chest == null) {
+      return false;
+    }
+    this.stashOfferDay = day;
+    this.stashPending = true;
+    StashOffer.offer(this, chest);
+    return true;
+  }
+
+  /**
+   * The bedtime chest question answered, or given up on: note what to keep, if
+   * anything, then the rest of the pack goes to the stores as it always did.
+   */
+  void settleStash(@Nullable Item keep) {
+    this.stashPending = false;
+    this.keepingForHome = keep != null && this.personMainInv.countItem(keep) > 0 ? keep : null;
+    if (this.getVillage() != null) {
+      stowPackAndRestock();
+    }
+  }
+
+  /** What this villager is carrying home for their own chest tonight, or null. */
+  @Nullable
+  public Item keepingForHome() {
+    return this.keepingForHome;
+  }
+
+  /** The kept item is put away, or the trip was given up: nothing is held back any more. */
+  public void doneKeeping() {
+    this.keepingForHome = null;
   }
 
   /**
@@ -611,9 +677,15 @@ public class RealPerson extends Person {
       depositToLoc = null;
     }
 
-    // Put items in main inventory away
+    // Put items in main inventory away, all but what tonight's chest question
+    // held back: that stays in the pack for the walk home (StashAtHomeGoal).
     List<ItemStack> items = this.clearMainInventory();
+    List<ItemStack> kept = new ArrayList<>();
     for (ItemStack item : items) {
+      if (this.keepingForHome != null && item.is(this.keepingForHome)) {
+        kept.add(item);
+        continue;
+      }
       boolean addedItem = this.getVillage().placeItemStackIntoVillage(item, this, depositToLoc);
       if (!addedItem) {
         // Storage is full and the item stays in the pack rather than dropping on
@@ -624,8 +696,7 @@ public class RealPerson extends Person {
         this.getVillage().setStorageStrained(true);
       }
     }
-
-    //
+    this.addItems(kept);
 
     // Grab replacement gear if not holding any
     if (getOccupation() == Occupation.GUARD) {
@@ -1539,6 +1610,9 @@ public class RealPerson extends Person {
     // Safe to decide at registration: every occupation change goes through
     // setOccupation + reloadState, which rebuilds all goals.
     if (getOccupation().sleepsAtNight()) {
+      // Ahead of sleep: what the bedtime chest question held back is set down
+      // at home first, and only then does the bed take over.
+      this.goalSelector.addGoal(5, new com.quzzar.villagelife.entities.ai.goals.StashAtHomeGoal(this));
       this.goalSelector.addGoal(6, new SleepAtNightGoal(this));
     } else {
       // The watch stands all night. They keep their bed (the JobClaiming

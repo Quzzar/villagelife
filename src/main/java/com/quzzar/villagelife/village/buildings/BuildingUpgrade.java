@@ -135,6 +135,10 @@ public final class BuildingUpgrade {
       sources.add(BlockPos.of(from.getOriginLocation())
           .offset(BlockPos.of(offset).rotate(from.getRotation())));
     }
+    // The residents' own chest goes out with the rest: the rebuild replaces its
+    // block, and the alternative is their things on the floor of a building
+    // site. They come back as village stores, not as theirs (docs/building-spec.md).
+    sources.addAll(com.quzzar.villagelife.village.PersonalChest.chests(from));
     for (BlockPos source : sources) {
       if (!(level.getBlockEntity(source) instanceof Container container)) {
         continue;

@@ -19,14 +19,16 @@
   ],
   "containers": [
     [
-      2,
-      11,
-      3
-    ],
-    [
       4,
       2,
       2
+    ]
+  ],
+  "personal_containers": [
+    [
+      2,
+      11,
+      3
     ]
   ],
   "cost": [

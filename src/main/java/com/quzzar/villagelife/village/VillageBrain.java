@@ -376,10 +376,20 @@ public class VillageBrain {
    * Only positions in loaded chunks are judged. A container in a chunk nobody
    * is near is not missing, it is merely out of sight, and pruning it would
    * delete real storage the moment a village went quiet.
+   *
+   * Also releases any position a building now declares as a home's own chest
+   * ({@code homeChests}, from PersonalChest): worlds from before homes had
+   * chests of their own registered every house chest as village storage.
    */
-  public void pruneMissingContainers(ServerLevelAccessor levelAccess) {
+  public void pruneMissingContainers(ServerLevelAccessor levelAccess, java.util.Set<BlockPos> homeChests) {
     containerLocs.removeIf(longLoc -> {
       BlockPos pos = BlockPos.of(longLoc);
+      if (homeChests.contains(pos)) {
+        foodLedger.remove(longLoc);
+        Villagelife.LOGGER.info("Releasing the chest at {} from village storage: it is a home's own",
+            pos.toShortString());
+        return true;
+      }
       if (!levelAccess.getLevel().hasChunkAt(pos)) {
         return false;
       }

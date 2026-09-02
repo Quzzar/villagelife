@@ -185,7 +185,7 @@ Emigration (**implemented**): while the score sits below the decline threshold, 
 per check gives up, idle people first, then the employed. Their assignments free exactly
 as death frees them and they walk to the village edge. At the edge, whatever they were,
 they become a **wanderer**: the title changes there, and they keep the pack and tools they
-walked out with (there is nothing else to pack; houses hold beds, not chests). Then they
+walked out with (there is nothing else to pack: whatever they kept in a chest of their own stays with the house, for whoever moves in next). Then they
 take to the road.
 
 The road (**implemented**): a wanderer sets out straight away from the village they left
