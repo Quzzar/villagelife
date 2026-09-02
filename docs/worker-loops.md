@@ -227,10 +227,11 @@ always building it, and a village with nothing to build is tidying itself. It al
 paths are the visible sign of a village that has caught up with its own plans.
 
 **Built, 2026-09-02: a village can have three builders, and they divide the duties.** The town
-centre registers three BUILDER posts at founding. Posts are filled each trade once before any
-trade is doubled (`JobClaiming.nextOpening`), so a four-bed camp still staffs its guard, miner
-and quartermaster before a second builder, and the extra builders arrive with the beds that
-houses bring. A builder's rank is the order of its post in the definition
+centre registers three BUILDER posts at founding, but the second opens only at six people and
+the third at twelve (`Village.PEOPLE_PER_BUILDER`; a locked post is not open, and the planner
+does not count it as a job nobody has taken), and posts are filled each trade once before any
+trade is doubled (`JobClaiming.nextOpening`). So a camp's first hires are its guard, miner and
+quartermaster, never three builders, and the extra builders come as the village grows. A builder's rank is the order of its post in the definition
 (`Village.builderRank`): the lead (rank 0) builds, gathers and raises the wall, then grades and
 wears paths between builds, exactly as a lone builder always did; the second (rank 1) wears
 paths first and helps build only when there is no path to wear; the third (rank 2) grades

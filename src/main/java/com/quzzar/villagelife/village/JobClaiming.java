@@ -1,5 +1,7 @@
 package com.quzzar.villagelife.village;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -273,6 +275,9 @@ public final class JobClaiming {
     }
     while (!village.getUnassignedJobs().isEmpty()) {
       JobAssignment job = nextOpening(village);
+      if (job == null) {
+        return; // only builder posts the village has not grown into remain
+      }
       if (!isStationValid(village, job)) {
         // Stale opening from a redefined building: drop it, never fill it.
         village.getUnassignedJobs().remove(job);
@@ -294,22 +299,31 @@ public final class JobClaiming {
   }
 
   /**
-   * The next post to fill: the first open one for a trade nobody in the village
-   * holds yet, else simply the first. Posts are otherwise filled in registration
+   * The next post to fill, or null when only posts the village has not grown
+   * into remain: the first open post for a trade nobody in the village holds
+   * yet, else simply the first. Posts are otherwise filled in registration
    * order, and the town centre registers three BUILDER posts at founding
-   * (docs/worker-loops.md), which would have made the first three campers
-   * builders and left the mine and the storehouse unstaffed: a camp with no
-   * miner never gets its stone. Every trade is staffed once before any is
-   * doubled.
+   * (docs/worker-loops.md). The second and third open with population
+   * ({@link Village#isPostUnlocked}), and every trade is staffed once before
+   * any is doubled, so a camp's first hires are its miner and quartermaster
+   * and never three builders: a camp with no miner never gets its stone.
    */
+  @Nullable
   private static JobAssignment nextOpening(Village village) {
     List<JobAssignment> open = village.getUnassignedJobs();
+    JobAssignment first = null;
     for (JobAssignment job : open) {
+      if (!village.isPostUnlocked(job)) {
+        continue;
+      }
       if (!village.hasWorkerOf(job.getOccupation())) {
         return job;
       }
+      if (first == null) {
+        first = job;
+      }
     }
-    return open.get(0);
+    return first;
   }
 
   /**

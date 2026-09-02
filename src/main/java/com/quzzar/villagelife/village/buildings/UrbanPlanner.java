@@ -270,7 +270,9 @@ public class UrbanPlanner {
     int population = village.getPopulation().size();
     int beds = village.getTotalBeds();
     int idle = village.idlePeople().size();
-    int openJobs = village.getUnassignedJobs().size();
+    // Posts the village may fill now; a builder post it has not grown into is
+    // not a job nobody has taken.
+    int openJobs = village.claimableJobs().size();
     VillageAttractiveness report = village.getAttractiveness();
 
     StringBuilder situation = new StringBuilder();

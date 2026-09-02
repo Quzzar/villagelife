@@ -1784,6 +1784,29 @@ public class Village {
   }
 
   /**
+   * People per builder post. A camp's first hires must not be three builders
+   * (Aaron, 2026-09-02): the town centre carries three builder posts, but the
+   * second opens only once the village has this many people and the third at
+   * twice that. A post the village has not grown into is not open.
+   */
+  public static final int PEOPLE_PER_BUILDER = 6;
+
+  /** How many of the town centre's builder posts the village has grown into. */
+  public int builderPostsUnlocked() {
+    return 1 + getPopulation().size() / PEOPLE_PER_BUILDER;
+  }
+
+  /** Whether an open post may be claimed yet: any but a builder post beyond the population's. */
+  public boolean isPostUnlocked(JobAssignment job) {
+    return job.getOccupation() != Occupation.BUILDER || builderRankOf(job) < builderPostsUnlocked();
+  }
+
+  /** The open posts the village may fill now, which is what a briefing should count. */
+  public List<JobAssignment> claimableJobs() {
+    return unassignedJobs.stream().filter(this::isPostUnlocked).toList();
+  }
+
+  /**
    * A builder's place among the village's builders, by the order of the
    * builder posts in their workplace's definition: 0 is the construction lead,
    * 1 wears the paths, 2 grades the ground (docs/worker-loops.md). Anyone
@@ -1794,6 +1817,11 @@ public class Village {
     if (job == null || job.getOccupation() != Occupation.BUILDER) {
       return 0;
     }
+    return builderRankOf(job);
+  }
+
+  /** A builder post's place among its building's builder posts, in definition order. */
+  private int builderRankOf(JobAssignment job) {
     Building workplace = buildings.get(job.getBuildingUUID());
     if (workplace == null) {
       return 0;

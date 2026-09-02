@@ -220,7 +220,9 @@ A workplace building finishing construction registers its work stations as open
 - Open posts are filled each trade once before any trade is doubled: the first open post for
   an occupation nobody holds goes first, else the first in registration order
   (`JobClaiming.nextOpening`). The town centre registers three builder posts at founding
-  (worker-loops.md), and without this rule the first three campers would all be builders.
+  (worker-loops.md), but the second and third open only with population, one more per six
+  people (`Village.PEOPLE_PER_BUILDER`); a locked post is not claimable and is not counted as
+  open. Without both rules a camp's first hires would be three builders.
 - An open job claims a **housed** idle person from the campfire pool automatically (the
   employment-requires-housing rule above; a bedless camper is not claimable). Aptitude is a
   weighted sum over the genetics stat block, with per-occupation weights as datapack JSON
