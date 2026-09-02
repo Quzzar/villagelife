@@ -204,9 +204,8 @@ public final class PersonChatDispatcher {
       if (reply.give() != null && person.isAlive()) {
         executeGive(person, player, reply.give(), reply.giveCount());
       }
-      // Words answered with blows: the villager's own decision, honoured only
-      // for a player. A villager who says it to another villager is left to
-      // their words; that is a fight the village would have to referee.
+      // Words answered with blows: the villager's own decision. The villager
+      // path does the same in VillagerConversation.
       if (reply.fight() && person.isAlive()) {
         person.pickFightWith(player);
       }

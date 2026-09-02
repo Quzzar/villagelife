@@ -1414,23 +1414,38 @@ public class RealPerson extends Person {
   private long quarrelUntil;
 
   /**
-   * Comes to blows with a player over what they said: the villager's own
-   * decision, made in conversation ("fight" in the reply,
-   * docs/villager-conversations.md). A fighter draws what they carry; anyone
-   * else uses their fists. A quarrel is short and never saved: a minute of it,
-   * then the villager lets it go unless the player gives fresh cause. Unlike a
-   * grudge it needs no low opinion first; the words were enough.
+   * Comes to blows with whoever they were talking to, player or villager, over
+   * what was said: the villager's own decision, made in conversation ("fight"
+   * in the reply, docs/villager-conversations.md). A fighter draws what they
+   * carry; anyone else uses their fists. A quarrel is short and never saved: a
+   * minute of it, then the villager lets it go unless given fresh cause. Unlike
+   * a grudge it needs no low opinion first; the words were enough. A villager
+   * struck by someone who picked a quarrel with them answers in kind
+   * ({@link #hurt}), so a fight takes two for its whole minute.
    */
-  public void pickFightWith(Player player) {
-    quarrelTarget = player.getUUID();
+  public void pickFightWith(LivingEntity other) {
+    quarrelTarget = other.getUUID();
     quarrelUntil = level().getGameTime() + QUARREL_TICKS;
-    setTarget(player);
-    Villagelife.LOGGER.info("'{}' picks a fight with {}", getFullName(), player.getGameProfile().getName());
+    setTarget(other);
+    Villagelife.LOGGER.info("'{}' picks a fight with {}", getFullName(), other.getName().getString());
   }
 
-  /** Whether this villager is in a quarrel they picked with this player. */
-  public boolean isQuarrellingWith(Player player) {
-    return quarrelTarget != null && quarrelTarget.equals(player.getUUID()) && level().getGameTime() < quarrelUntil;
+  /** Whether this villager is in a quarrel they picked with this one. */
+  public boolean isQuarrellingWith(LivingEntity other) {
+    return quarrelTarget != null && quarrelTarget.equals(other.getUUID()) && level().getGameTime() < quarrelUntil;
+  }
+
+  @Override
+  public boolean hurt(DamageSource source, float amount) {
+    boolean hurt = super.hurt(source, amount);
+    // Blows from a villager who picked a quarrel with this one are answered in
+    // kind: a fight takes two, and a farmer punched by a farmer punches back
+    // rather than standing there or running for bed.
+    if (hurt && source.getEntity() instanceof RealPerson attacker && attacker.isQuarrellingWith(this)
+        && !isQuarrellingWith(attacker)) {
+      pickFightWith(attacker);
+    }
+    return hurt;
   }
 
   /** Whether this villager is in a quarrel they picked with anyone. */
@@ -1519,23 +1534,27 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(2, new PersonMeleeGoal(this, 0.8D, true) {
         @Override
         public boolean canUse() {
-          return RealPerson.this.getTarget() instanceof Player player && isQuarrellingWith(player) && super.canUse();
+          LivingEntity target = RealPerson.this.getTarget();
+          return target != null && isQuarrellingWith(target) && super.canUse();
         }
 
         @Override
         public boolean canContinueToUse() {
-          return RealPerson.this.getTarget() instanceof Player player && isQuarrellingWith(player)
-              && super.canContinueToUse();
+          LivingEntity target = RealPerson.this.getTarget();
+          return target != null && isQuarrellingWith(target) && super.canContinueToUse();
         }
       });
 
     }
 
     // A quarrel picked in conversation is answered by anyone, armed or not, for
-    // as long as it lasts (pickFightWith). Above the grudge and the village's
-    // verdict: this one the villager chose.
+    // as long as it lasts (pickFightWith), against a player or a fellow
+    // villager alike. Above the grudge and the village's verdict: this one the
+    // villager chose.
     this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
         (target) -> target instanceof Player player && isQuarrellingWith(player)));
+    this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, RealPerson.class, 10, true, false,
+        (target) -> target instanceof RealPerson other && isQuarrellingWith(other)));
 
     if (willInitiateCombat()) {// Actively seeks out combat
 

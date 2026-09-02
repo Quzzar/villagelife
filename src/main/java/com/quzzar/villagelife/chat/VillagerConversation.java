@@ -198,6 +198,13 @@ public final class VillagerConversation {
               if (reply.give() != null) {
                 PersonChatDispatcher.executeGive(speaker, listener, reply.give(), reply.giveCount());
               }
+              // Words answered with blows end the talk: the same decision a
+              // villager may make with a player, made about a neighbour.
+              if (reply.fight()) {
+                speaker.pickFightWith(listener);
+                finish(speaker, listener);
+                return;
+              }
               if (linesLeft <= 1) {
                 finish(speaker, listener);
                 return;

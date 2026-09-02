@@ -118,8 +118,9 @@ and a player go through exactly the same call. Only the storage differs: feeling
 resident live as that person's private lean on the pair, feelings about a player live on
 the villager. The `"opinion"` field a villager may return mid-conversation is the same tool,
 invoked while talking instead of while thinking. A villager may also answer words with blows:
-`"fight": true` in the reply picks a minute-long quarrel with the player
-(villager-conversations.md), the villager's own decision rather than a threshold of opinion.
+`"fight": true` in the reply picks a minute-long quarrel with whoever they were talking to,
+player or villager (villager-conversations.md), the villager's own decision rather than a
+threshold of opinion.
 Grudges and the standing tiers remain what the numbers do on their own.
 
 If the model is unavailable or answers unusably, the entries are marked considered and the
