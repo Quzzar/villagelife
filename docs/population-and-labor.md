@@ -268,6 +268,19 @@ A workplace building finishing construction registers its work stations as open
   game days) prevents churn. The swap pass stays **purely rule-based**: reorganization is a
   mechanical aptitude optimization, and only the initial claim of a contested post is
   handed to the model.
+- **Reprioritizing to a shortage** (`LaborPlanner`). Claiming and the swap pass both work
+  from the idle pool; neither ever takes a settled worker off a job the village can spare and
+  moves them to one it cannot. So a village that raised a farm but never grew a farmer starves
+  beside it, and the starving is itself what stops it drawing the newcomer who would farm: a
+  deadlock it cannot break from inside. On a slow tick, then, a village that is **short of
+  food** (stored food below the per-capita target that `VillageAttractiveness` reads) with a
+  **food post open** (farmer, fisher, or hunter), its building standing, and **no one idle**
+  to take it, asks the brain who to move onto the field, or whether to leave the crew be. The
+  facts are laid out and the model chooses, the same way it picks a build; competence is not
+  consulted here, because need, not aptitude, is the point. Only loaded workers can be moved
+  (a reassignment rebuilds their goals in the world), one decision is in flight per village
+  (`Village.laborDecisionPending`), and a brain that leaves the crew as it is sits the
+  question out a while before it is asked again.
 - The person walks from the campfire to the workplace, takes on the `Occupation` of the
   station, and holds it until the job stops existing. Taking the job is the one moment a
   bare starting kit appears from nothing, and only into a bare hand: a stone axe, pickaxe or

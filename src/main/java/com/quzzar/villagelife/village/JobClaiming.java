@@ -489,7 +489,7 @@ public final class JobClaiming {
    * moment a tool appears from nothing, and only into a bare hand
    * ({@link RealPerson#issueStartingKit}).
    */
-  private static void startJob(Village village, RealPerson person, JobAssignment job) {
+  static void startJob(Village village, RealPerson person, JobAssignment job) {
     person.setOccupation(job.getOccupation());
     person.issueStartingKit();
     Building workplace = village.getBuilding(job.getBuildingUUID());

@@ -153,6 +153,9 @@ public class Village {
   // True while the brain is deciding whether to wed two villagers; keeps one
   // marriage decision in flight (MarriageService), the same discipline again.
   private transient boolean marriageDecisionPending;
+  // True while the brain is deciding who to move onto a hungry village's empty
+  // field; keeps one such decision in flight (LaborPlanner), the same again.
+  private transient boolean laborDecisionPending;
   // What the village can do, derived from its buildings (#55). Never persisted:
   // recomputed on building change and on the slow tick, because supply-gated
   // grants depend on what the chests hold right now.
@@ -1427,6 +1430,15 @@ public class Village {
       VillageProfile.end("marriage", t);
     }
 
+    // A hungry village with an empty field and no one spare asks the brain to
+    // move a worker onto it, phase-staggered like the build decision because
+    // the verdict is an LLM call (docs/population-and-labor.md).
+    if ((time + Math.floorMod(id.hashCode(), LaborPlanner.LABOR_INTERVAL_SECONDS)) % LaborPlanner.LABOR_INTERVAL_SECONDS == 0) {
+      long t = VillageProfile.start();
+      LaborPlanner.tick(this, level);
+      VillageProfile.end("labor", t);
+    }
+
     // Every 100 seconds, phase-staggered per village like the attractiveness
     // recompute, so many villages don't all classify on the same tick.
     if ((time + Math.floorMod(id.hashCode(), 100)) % 100 == 0) {
@@ -1873,6 +1885,15 @@ public class Village {
 
   public void setMarriageDecisionPending(boolean pending) {
     this.marriageDecisionPending = pending;
+  }
+
+  /** True while a brain verdict on moving a worker to a hungry village's field is in flight (LaborPlanner). */
+  public boolean isLaborDecisionPending() {
+    return laborDecisionPending;
+  }
+
+  public void setLaborDecisionPending(boolean pending) {
+    this.laborDecisionPending = pending;
   }
 
   /** Beds nobody sleeps in yet. Returned live: reconciliation adds to it. */
