@@ -224,10 +224,16 @@ public final class MineStep implements BlockWorkStep {
     return stand;
   }
 
-  /** The walkway cell at the cursor column's floor, the footing lining work stands on. */
+  /**
+   * The walkway cell at the CENTRE of the cursor column's floor, the one footing all
+   * of that column's lining is sealed from. Centre, not the cursor's own x, so a wall
+   * on the left and a wall on the right are both placed from one spot instead of the
+   * miner shuffling edge to edge; placement is a setBlock, so the middle reaches
+   * either side fine. The seal is only ever picked when this cell is standable (see
+   * locateNext), so the stand is never null here.
+   */
   private BlockPos columnFloor(BlockPos mouth, Rotation rotation) {
-    return mouth.offset(new BlockPos(this.offset.getX(), -(this.offset.getZ() + 2), this.offset.getZ())
-        .rotate(rotation));
+    return mouth.offset(new BlockPos(0, -(this.offset.getZ() + 2), this.offset.getZ()).rotate(rotation));
   }
 
   @Override
@@ -993,7 +999,12 @@ public final class MineStep implements BlockWorkStep {
       // side of an open corridor cell, or the ceiling above one, standing open into
       // the cavern. Sealed the same way as the floor, one cobblestone from the
       // walkway, so a shaft crosses a cave as an enclosed passage, not a bare catwalk.
-      if (this.block == Blocks.AIR && onRamp(this.offset)) {
+      // Only sealed once the column has a walkway at its CENTRE to stand on: without
+      // that footing the lining seal would return a null stand and reset the whole
+      // shaft (Aaron's "shouldn't be that fragile", 2026-09-02), so instead the sweep
+      // floors and digs this column first and comes back to its lining a pass later.
+      if (this.block == Blocks.AIR && onRamp(this.offset)
+          && standable(person.level(), columnFloor(mouth, rotation))) {
         BlockPos lining = openLining(person.level(), mouth, rotation, facePos, this.offset);
         if (lining != null) {
           this.sealCell = lining;
@@ -1021,9 +1032,12 @@ public final class MineStep implements BlockWorkStep {
   }
 
   private boolean impassable(RealPerson person) {
-    return this.block == Blocks.WATER || this.block == Blocks.LAVA || this.block == Blocks.BEDROCK
-        || (this.block.defaultBlockState().requiresCorrectToolForDrops()
-            && !person.getMainHandItem().isCorrectToolForDrops(this.block.defaultBlockState()));
+    // Only what genuinely cannot be dug stops the shaft: liquid with no bucket, and
+    // bedrock. The wrong tool does NOT: a miner who gave his pickaxe away, or never
+    // had the right one, breaks the face by hand instead of standing idle, slower
+    // and dropping nothing until he is re-equipped, but working. Standing still
+    // because a block wants a better tool was Aaron's "why would he stop" (2026-09-02).
+    return this.block == Blocks.WATER || this.block == Blocks.LAVA || this.block == Blocks.BEDROCK;
   }
 
   private void logObstacle(RealPerson person) {
@@ -1031,8 +1045,6 @@ public final class MineStep implements BlockWorkStep {
       person.logIssue("lava is blocking my mine - I could seal it off if I had a bucket", Optional.empty());
     } else if (this.block == Blocks.WATER) {
       person.logIssue("water keeps flooding my mine - a bucket would let me seal it", Optional.empty());
-    } else if (this.block != Blocks.BEDROCK) {
-      person.logIssue("the stone in my mine is too hard for my tool", Optional.empty());
     }
   }
 
