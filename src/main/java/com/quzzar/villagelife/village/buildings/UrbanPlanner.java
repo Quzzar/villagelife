@@ -77,6 +77,37 @@ public class UrbanPlanner {
     return info.hasWellFormedId() && Buildings.COUPLE_COTTAGE_CATEGORY.equals(info.getCategory());
   }
 
+  /**
+   * A building that would add the village nothing it lacks, and so is not offered
+   * (Ember Hill built six wells, 2026-09-02). A second farm, house, mine or
+   * storehouse always earns its place, another field, more beds, another seam, more
+   * shelves, so anything that brings a bed, a job, or a store is never redundant.
+   * What is left is a building whose whole worth is the capabilities it grants, and
+   * a well is the case in point: it grants WATER, and WATER is a yes-or-no the
+   * village either has or has not. Once one well stands, a second grants nothing,
+   * so a building whose every grant is already provided and which adds no bed, job,
+   * or store is kept off the table. The first well, when the village has no water,
+   * grants WATER and is offered as normal; only the redundant ones are dropped.
+   */
+  private static boolean isRedundant(Village village, BuildingInfo info) {
+    if (!info.getBedLocations().isEmpty()
+        || !info.getWorkLocations().isEmpty()
+        || !info.getContainerLocations().isEmpty()
+        || !info.getConditionalGrants().isEmpty()) {
+      return false;
+    }
+    List<String> grants = info.getGrants();
+    if (grants.isEmpty()) {
+      return false;
+    }
+    for (String grant : grants) {
+      if (!village.canDo(grant)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /** A candidate building and the plain-language facts that describe it. */
   public record Candidate(BuildingInfo info, String description) {}
 
@@ -234,7 +265,8 @@ public class UrbanPlanner {
     List<Candidate> unaffordable = new ArrayList<>();
     String stalled = VillageGoal.stalled(village, village.getVillageTime());
     for (BuildingInfo info : Buildings.catalogue(village.getStyle())) {
-      if (isFoundingOnly(info) || isMarriageOnly(info) || hasMaterialsToConstruct(village, stock, info)) {
+      if (isFoundingOnly(info) || isMarriageOnly(info) || isRedundant(village, info)
+          || hasMaterialsToConstruct(village, stock, info)) {
         continue;
       }
       // Sitting out after a goal lifetime in which nothing came in for it.
@@ -350,6 +382,7 @@ public class UrbanPlanner {
     if (!producesFood(village)) {
       situation.append("No building grows or gathers food yet. ");
     }
+    appendWoodShortage(village, situation);
     appendRequests(village, situation);
     appendWorkplaceTrouble(village, situation);
     // A stalled goal is stated as a fact, so the brain knows why a building it
@@ -378,6 +411,24 @@ public class UrbanPlanner {
     return village.getBuildings().stream().anyMatch(building -> building.getInfo() != null
         && (building.getInfo().getGrants().contains("GRAIN")
             || building.getInfo().getGrants().contains("MEAT")));
+  }
+
+  /**
+   * The keystone a small model most often reasons past: a village with no way to
+   * make logs of its own, in a catalogue where nearly everything it can build
+   * needs logs, is stuck until it raises a lumberjack, which is paid for in stone
+   * alone. The per-option shortfalls already note "a lumberjack would make logs";
+   * this states the whole problem and its one answer as a fact in the situation,
+   * so the decision does not rest on the model assembling it from a dozen separate
+   * hints. Silent once a wood source stands, or where no lumberjack is defined.
+   */
+  private static void appendWoodShortage(Village village, StringBuilder situation) {
+    if (village.canDo("LOGS") || Buildings.resolve("lumberjack", 1, village.getStyle()) == null) {
+      return;
+    }
+    situation.append("You have no way to make logs of your own, and nearly everything you could "
+        + "build needs logs. A lumberjack turns stone into logs, so raising one is the way out of "
+        + "this shortage. ");
   }
 
   /**
@@ -450,7 +501,7 @@ public class UrbanPlanner {
   private static List<Candidate> affordableBuilds(Village village, Map<Item, Integer> stock) {
     List<Candidate> candidates = new ArrayList<>();
     for (BuildingInfo info : Buildings.catalogue(village.getStyle())) {
-      if (isFoundingOnly(info) || isMarriageOnly(info)) {
+      if (isFoundingOnly(info) || isMarriageOnly(info) || isRedundant(village, info)) {
         continue;
       }
       if (!hasMaterialsToConstruct(village, stock, info)) {

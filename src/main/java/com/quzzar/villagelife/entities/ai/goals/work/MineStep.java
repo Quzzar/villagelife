@@ -322,10 +322,20 @@ public final class MineStep implements BlockWorkStep {
     return 1;
   }
 
-  /** Close, so the miner stands at the face they are working, deep in the shaft. */
+  /**
+   * Near, not touching. The miner works the face from a foothold that is close
+   * but need not be the one cell against it: when the shaft breaks into a cave,
+   * the cell right beside the floorless edge is out over the void, unreachable,
+   * and demanding he stand exactly there stalls him a stride short of work he
+   * could plainly reach from the ramp behind (Ember Hill, 2026-09-02). Placing a
+   * cobblestone or breaking a face is done at the block, computed from the cursor,
+   * not from where his feet are, so a slightly looser arrival only lets him bridge
+   * the edge from the nearest solid footing instead of giving up. Still close
+   * enough that he is in the shaft at the face, never digging from the doorstep.
+   */
   @Override
   public double reachSqr(RealPerson person) {
-    return 6.0D;
+    return 12.0D;
   }
 
   private int breakTicks() {
