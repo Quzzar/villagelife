@@ -6,6 +6,7 @@ import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Whether walking is actually getting a villager anywhere, and what to do when
@@ -35,6 +36,14 @@ public final class ApproachWatch {
   /** Give-ups in a row before the villager is stranded rather than unlucky. */
   private static final int STRANDED_AFTER = 3;
 
+  /**
+   * Squared per-tick move that counts as still walking. At the work speed a
+   * villager covers about a sixth of a block a tick, so this sits well above a
+   * standing villager's jitter and well below a stride: a body pressed to a
+   * spot reads zero, a body on the move reads far more.
+   */
+  private static final double MOVING_SQR = 0.0025D;
+
   private final RealPerson person;
   private final String work;
 
@@ -42,6 +51,9 @@ public final class ApproachWatch {
   private int ticksWithoutProgress;
   private int standDownUntil;
   private int consecutiveGiveUps;
+
+  /** Where they stood last tick, to tell a body still walking from a stuck one. */
+  private Vec3 lastPos;
 
   /**
    * @param work what this worker is failing to reach, in their own words, for
@@ -61,6 +73,7 @@ public final class ApproachWatch {
   public void begin() {
     closestApproachSqr = Double.MAX_VALUE;
     ticksWithoutProgress = 0;
+    lastPos = null;
   }
 
   /** Call on arrival: getting there clears the record of failed attempts. */
@@ -75,9 +88,24 @@ public final class ApproachWatch {
    * release the movement flag, and a goal that keeps walking has not.
    */
   public boolean giveUp(BlockPos target) {
+    // Two ways to be making headway, and either clears the stall. Getting
+    // nearer the target is the plain one. But straight-line distance is the
+    // wrong test for a route that detours: a miner climbing out of the shaft to
+    // fetch cobblestone walks UP to the mouth, away from the storehouse, before
+    // heading over (the ramp waypoints, village/buildings/MineShaft), and
+    // measured on distance to the storehouse that read as no progress at all
+    // and stood the trip down a third of the way out. So a body simply still on
+    // the move is not stuck either; only one pressed to a spot, going nowhere,
+    // is, and that is what the tick clock now counts.
     double distanceSqr = person.blockPosition().distSqr(target);
-    if (distanceSqr < closestApproachSqr - 0.5D) {
-      closestApproachSqr = distanceSqr;
+    Vec3 now = person.position();
+    boolean closer = distanceSqr < closestApproachSqr - 0.5D;
+    boolean moving = lastPos != null && now.distanceToSqr(lastPos) > MOVING_SQR;
+    lastPos = now;
+    if (closer || moving) {
+      if (closer) {
+        closestApproachSqr = distanceSqr;
+      }
       ticksWithoutProgress = 0;
       return false;
     }
