@@ -1,12 +1,21 @@
 {
-  "structure": "mine_desert_1",
+  "structure": "mine_snowy_2",
   "category": "mine",
-  "variant": "desert",
+  "variant": "snowy",
+  "upgrades_from": "mine_snowy_1",
   "beds": [],
   "work_stations": [
     {
       "pos": [
         3,
+        0,
+        3
+      ],
+      "occupation": "MINER"
+    },
+    {
+      "pos": [
+        9,
         0,
         3
       ],
@@ -18,16 +27,21 @@
       1,
       1,
       0
+    ],
+    [
+      7,
+      1,
+      0
     ]
   ],
   "cost": [
     {
       "item": "minecraft:oak_log",
-      "count": 8
+      "count": 16
     },
     {
       "item": "minecraft:cobblestone",
-      "count": 10
+      "count": 20
     }
   ],
   "grants": [

@@ -43,12 +43,17 @@ public class UrbanPlanner {
   private static final String WAIT_OPTION = "nothing yet: keep what we have and wait";
 
   /**
-   * A village center is placed once, at founding, and never chosen again. The
-   * check is by CATEGORY, not by id: there is a center variant per biome, and
+   * A village center is placed once, at founding, and never built fresh again.
+   * The check is by CATEGORY, not by id: there is a center variant per biome, and
    * matching only the default id let a village decide to build itself a second
-   * town hall in a different architectural style.
+   * town hall in a different architectural style. An UPGRADE of the center is
+   * not a second center: it replaces the one standing, on the same terms as any
+   * other upgrade, so a level above 1 is left in.
    */
   private static boolean isFoundingOnly(BuildingInfo info) {
+    if (info.getUpgradesFrom() != null) {
+      return false;
+    }
     return info.hasWellFormedId()
         ? "village_center".equals(info.getCategory())
         : info.getName().startsWith(Buildings.VILLAGE_CENTER_CATEGORY);

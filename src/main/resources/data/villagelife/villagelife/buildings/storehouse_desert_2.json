@@ -1,6 +1,6 @@
 {
   "structure": "storehouse_desert_2",
-  "upgrades_from": "storehouse_plains_1",
+  "upgrades_from": "storehouse_desert_1",
   "work_stations": [
     {
       "pos": [

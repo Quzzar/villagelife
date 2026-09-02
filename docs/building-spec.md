@@ -4,15 +4,16 @@
 this document count the full map of the possible, not the shipping set — see
 [The cut](#the-cut) for which categories stand and why the rest went.
 
-**Proposed, not yet decided. 69 of 224 structures exist.** Reality check before reading:
+**Proposed, not yet decided. 74 of 224 structures exist.** Reality check before reading:
 of the eleven "minimum playable" files, eight exist. `house` ships in all five variants at
 levels 1 to 3 (1, 2 and 4 beds), so a village is no longer capped at the center's own beds,
-and `farm` ships in all five variants at all three levels. `mine` ships at level 1 in all five variants, so the
-founding set above is buildable for the first time. `stoneworks` ships at level 1 in all five variants,
+and `farm` ships in all five variants at all three levels. `mine` ships at levels 1 and 2 in all five variants (level 2
+derived from level 1 by script, see below), so the founding set above is buildable and the
+mine is the first founding building that upgrades. `stoneworks` ships at level 1 in all five variants,
 with a real MASON occupation behind it, and `tannery` likewise with TANNER. `hunting_lodge` ships likewise with HUNTER, and
 `fishery` with FISHER. **All eleven minimum-playable buildings now exist.** Still
-missing: levels 2 and 3 of `mine`, `stoneworks`, `tannery`, `hunting_lodge` and
-`fishery`.
+missing: level 3 of `mine`, and levels 2 and 3 of `stoneworks`, `tannery`,
+`hunting_lodge` and `fishery`.
 
 **One occupation exists only as a name in these tables**: HERDER is not in the
 Occupation enum, and a definition naming one fails the codec
@@ -26,6 +27,13 @@ heightmap), so nothing in a file can sit below ground: the footprint below is du
 runtime. `mine_*_1` is therefore a headframe over an open mouth, and its MINER station
 sits in the middle of that mouth so `WorkInMineGoal` deepens the hole rather than
 undermining the apron. The 7x7 footprint in the table is the headframe, not the mine.
+`mine_*_2` (2026-09-02) is that headframe grown toward local +X into a 13x7 pavilion over
+TWO mouths, stations at [3,0,3] and [9,0,3]. An upgrade keeps the origin corner, and the
+shaft ramps toward local +Z from its mouth (`MineStep`), so a second mouth behind the first
+would have run one ramp a block over the other; six blocks to the side leaves one block of
+rock between two five-wide ramps. It is not authored by hand: `tools/structure/mine-level-2.py`
+derives all five families from their level-1 files, so re-run it after touching any of them
+([structure-authoring.md](structure-authoring.md)).
 
 **No house or farm has a `cost` yet**, so nothing gates building one. The recipes, and the
 sprawl-versus-upgrade pricing the section below argues about, are still unset.
@@ -528,6 +536,14 @@ Worker: **BUILDER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `des
 
 Founding building, placed free. Four beds, one chest, a campfire and a bell outside, and a single BUILDER station. That is the entire camp. The four beds are the whole starting housing cap, so a camp supports four people until it builds a house. The chest is the campers' own (`personal_containers`), shared by the four who sleep there, not village storage: the camp keeps its goods in the storehouse.
 
+**No level-2 centre exists yet: no definition and no structure.** That is the whole reason no
+village on the shared server has ever upgraded its centre (checked against Wildflower Downs'
+logs, 2026-09-02). The planner used to add a second reason, filtering the entire
+`village_center` category as founding-only, which would have hidden a level-2 centre even
+once one shipped; it now filters only a fresh level-1 centre, so a `village_center_<family>_2`
+with `upgrades_from` is offered like any other upgrade. When one is authored it should keep
+its `gathering_point` at the level-1's local offset, or the campfire moves with the upgrade.
+
 #### `house`
 
 Worker: **none**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `desert`, `savanna`, `igloo`, `stilt`
@@ -584,6 +600,15 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`
 | 3 (upgrade) | warehouse | 15x15 | 28 oak log, 44 oak planks, 48 cobblestone, 8 glass, 6 wool | 20 containers |
 
 Founding building, placed free. Two barrels: the whole of a new village's inventory, since the camp circle's chest belongs to the campers. Absorbed the granary: both were always the same chests read by the same code, so one category covers both.
+
+**What ships is not the table above.** The founding storehouse is a 5x7 tent with three
+barrels, its level 2 a 19x15 warehouse with six, its level 3 19x17 with eleven. The tent is
+seated two blocks off the centre wall at founding, and the level-2 footprint has never fit
+around it in any village on the shared server (46 refusals logged for Wildflower Downs alone),
+so no storehouse has ever upgraded: a smaller level 2, or a founding plat that leaves the tent
+room, is the open fix. Until 2026-09-02 every family's level 2 also named `storehouse_plains_1`
+as what it upgrades from, written when every village founded with the plains tent; a village
+now founds in its own family's tent, so each level 2 upgrades from its own.
 
 #### `market`
 
@@ -793,10 +818,17 @@ Worker: **MINER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `deser
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
 | 1 | mine shaft | 7x7 | 16 oak log, 20 oak planks, 24 cobblestone, 4 glass, 2 wool | ORES: coal and iron. FUEL |
-| 2 (upgrade) | mine | 11x11 | 20 oak log, 32 oak planks, 36 cobblestone, 6 glass, 4 wool, 4 iron ingot | ORES: gold, redstone, lapis |
+| 2 (upgrade) | twin headframe (ships) | 13x7 | 16 oak log, 20 cobblestone | a second MINER station and shaft, a second chest; ORES and FUEL as level 1 |
 | 3 (upgrade) | deep mine | 15x15 | 44 oak log, 64 oak planks, 68 cobblestone, 12 glass, 8 wool, 12 iron ingot | ORES: diamond |
 
 Founding building, placed free, and the only job a new camp has besides its builder. Two upgrades for one capability: DIAMOND at L3 is what makes blacksmith L3 mean anything, and the pairing is deliberate. The deepest mine and the greatest forge are a village's endgame together.
+
+Level 2 shipped as scale, not capability. Nothing in the code gates which ore a pick brings
+up (a miner pulls whatever `c:ores` block her tool can harvest), so an ORES grant naming gold
+or lapis would have been a label with no reader. Because an upgrade is paid as the difference
+between the two recipes (`BuildingUpgrade.effectiveCost`), it costs exactly what a second
+level-1 mine costs, 8 logs and 10 cobblestone: a second shaft on the same ground rather than
+on a second site. The level-3 row stays a sketch.
 
 ### Craft
 

@@ -28,6 +28,7 @@ themselves — they only transform files you point them at.
 | `validate.py` | Flag blocks that would drop on placement — bed and door halves, wall torches, gravity-affected stacks, carpet on nothing |
 | `navcheck.py` | Score how walkable a finished structure is for a villager |
 | `roof.py` | Fix roof-stair facing |
+| `mine-level-2.py` | Derive the level-2 mine, in every family, from the shipped level-1 files |
 
 Each script's `__main__` is an example driver; point the glob at your own
 structure directory. Run them from this directory so their imports resolve.
