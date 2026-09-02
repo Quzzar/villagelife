@@ -224,9 +224,9 @@ fight, a villager takes a bite a second until they are back over the line
 (`PersonEatFoodGoal`). A bite heals by Aaron's rule: the food's nutrition as hearts plus a
 quarter of its saturation as hearts, so an apple heals about four and a half hearts and cooked
 beef more than a full bar (`Person.eatFood`). A meal is anything edible in the off hand or the
-pack: only guards are issued rations (up to sixteen apples drawn from the village stores at the
-bedtime restock, never conjured: a village with none logs the shortage and the guard goes
-without), but a fisher
+pack: only guards are issued rations (topped up to six bites at the bedtime restock from the
+village's own food, best first by what a bite heals, never conjured: a village with no food
+logs the shortage and the guard goes without), but a fisher
 carries cod and a farmer carrots, and food from the pack is brought to the off hand for the
 meal, since that is the hand the animation and the use-item logic read; whatever the hand held
 goes into the pack and stays there. A hurt villager with nothing to eat goes and gets some

@@ -721,6 +721,18 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     return isMeal(this.getOffhandItem()) || mealSlotInPack() >= 0;
   }
 
+  /** How many bites are carried, off hand and pack together. */
+  public int mealsCarried() {
+    int count = isMeal(this.getOffhandItem()) ? this.getOffhandItem().getCount() : 0;
+    for (int slot = 0; slot < this.personMainInv.getContainerSize(); slot++) {
+      ItemStack stack = this.personMainInv.getItem(slot);
+      if (isMeal(stack)) {
+        count += stack.getCount();
+      }
+    }
+    return count;
+  }
+
   public void addItems(List<ItemStack> items) {
     Utils.insertItems(this.personMainInv, items, this);
   }

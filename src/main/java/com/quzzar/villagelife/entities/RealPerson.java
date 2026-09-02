@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -110,12 +111,14 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 
 public class RealPerson extends Person {
@@ -182,6 +185,9 @@ public class RealPerson extends Person {
 
   /** Torches the miner's bedtime restock tops the pack up to; MineStep spends them lighting the shaft. */
   private static final int TORCH_PACK_TARGET = 16;
+
+  // Bites a guard carries on watch: rations are topped up to this, best food first.
+  private static final int RATION_TARGET = 6;
 
   /**
    * Torches one lump of coal or charcoal presses into at bedtime. Sticks are
@@ -772,20 +778,7 @@ public class RealPerson extends Person {
         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
       }
 
-      // Restock rations: apples for now, until a farm lets the village bake bread.
-      if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
-
-        ItemStack rations = gatherForWork(new ItemStack(Items.APPLE, 16), depositToLoc);
-        if (rations.getCount() >= 1) {
-          this.setItemSlot(EquipmentSlot.OFFHAND, rations);
-        } else {
-          // A guard starting the night watch with no rations is a shortage
-          // worth remembering.
-          this.getVillage().logEvent(
-              new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(Items.APPLE, 16));
-        }
-
-      }
+      restockRations(depositToLoc);
 
     } else {
 
@@ -889,6 +882,58 @@ public class RealPerson extends Person {
           getFullName(), taken, want.getItem().getDescription().getString().toLowerCase(java.util.Locale.ROOT));
     }
     return want.copyWithCount(taken);
+  }
+
+  /**
+   * Tops the guard's rations up to {@link #RATION_TARGET} bites from the
+   * village's own food, best first: what heals most per bite (the rule in
+   * {@link Person#eatFood}) is taken before what heals less, and when the best
+   * runs short the next kind follows, so a village that has bread and apples
+   * sends its guard out with the bread. The off hand carries the first kind
+   * taken; any further kind rides in the pack, where a bite is found just the
+   * same. Nothing is conjured: a village with no food at all logs the shortage
+   * and the guard stands watch hungry.
+   */
+  private void restockRations(BlockPos depositToLoc) {
+    int wanted = RATION_TARGET - this.mealsCarried();
+    if (wanted <= 0) {
+      return;
+    }
+    List<Map.Entry<Item, Integer>> larder = new ArrayList<>();
+    for (Map.Entry<Item, Integer> entry : this.getVillage().stockTally().entrySet()) {
+      if (entry.getValue() > 0 && Person.isMeal(new ItemStack(entry.getKey()))) {
+        larder.add(entry);
+      }
+    }
+    larder.sort(Comparator.comparingDouble((Map.Entry<Item, Integer> entry) -> healPerBite(entry.getKey())).reversed());
+    for (Map.Entry<Item, Integer> entry : larder) {
+      if (wanted <= 0) {
+        break;
+      }
+      ItemStack taken = gatherForWork(new ItemStack(entry.getKey(), Math.min(wanted, entry.getValue())), depositToLoc);
+      if (taken.isEmpty()) {
+        continue; // the tally was a moment stale; the next kind may still be there
+      }
+      wanted -= taken.getCount();
+      if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
+        this.setItemSlot(EquipmentSlot.OFFHAND, taken);
+      } else {
+        this.addItems(List.of(taken));
+      }
+    }
+    if (this.mealsCarried() == 0) {
+      // A guard starting the night watch with nothing to eat is a shortage
+      // worth remembering. The event records an item, and nothing reads which;
+      // bread stands for "a meal".
+      this.getVillage().logEvent(
+          new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(Items.BREAD, wanted));
+    }
+  }
+
+  /** What one bite of this heals, by {@link Person#eatFood}'s rule; nothing for a drink with no food value. */
+  private float healPerBite(Item item) {
+    FoodProperties food = new ItemStack(item).getFoodProperties(this);
+    return food == null ? 0.0F : food.nutrition() * 2.0F + food.saturation() / 2.0F;
   }
 
   /**
