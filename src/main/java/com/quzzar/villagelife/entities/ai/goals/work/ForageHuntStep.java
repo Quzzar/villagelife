@@ -77,9 +77,16 @@ public final class ForageHuntStep implements WorkStep<Animal> {
       }
       person.getLookControl().setLookAt(target, 30.0F, 30.0F);
       person.doHurtTarget(target);
+      if (!target.isAlive()) {
+        Villagelife.LOGGER.info("[road] '{}' brought down a {}", person.getFullName(),
+            target.getName().getString().toLowerCase(Locale.ROOT));
+      }
       return true;
     }
     // Down. Its drops lie where it fell, and the wanderer is standing over it.
+    // Usually the ordinary pickup has them already (a villager picks up what
+    // touches them, the way any mob with CanPickUpLoot does); this is for
+    // whatever bounced out of reach of that.
     List<ItemStack> taken = new ArrayList<>();
     for (ItemEntity drop : person.level().getEntitiesOfClass(ItemEntity.class,
         target.getBoundingBox().inflate(GATHER_RADIUS))) {
@@ -91,8 +98,7 @@ public final class ForageHuntStep implements WorkStep<Animal> {
     }
     if (!taken.isEmpty()) {
       person.addItems(taken);
-      Villagelife.LOGGER.info("[road] '{}' took {} from a {}", person.getFullName(), describe(taken),
-          target.getName().getString().toLowerCase(Locale.ROOT));
+      Villagelife.LOGGER.info("[road] '{}' picked up {} off the ground", person.getFullName(), describe(taken));
     }
     return false;
   }
