@@ -53,8 +53,13 @@ public class StashAtHomeGoal extends Goal {
   private static final int STALL_TICKS = 400;
   /** Closer by this much (blocks) counts as headway. */
   private static final double HEADWAY = 0.5D;
-  /** Close enough to reach into the chest, or to count as standing on the doorstep, squared. */
-  private static final double REACH_SQR = 6.25;
+  /**
+   * Close enough to reach into the chest, or to count as standing on the
+   * doorstep, squared: three blocks. A chest on a loft is reached from the
+   * floor a block below it, and the nearest standing spot to one such chest
+   * measured 2.7 blocks from its middle, a hand short of the old 2.5.
+   */
+  private static final double REACH_SQR = 9.0D;
 
   private final RealPerson person;
   private BlockPos chest;
