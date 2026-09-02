@@ -345,9 +345,10 @@ public final class QuartermasterPlanner {
   }
 
   /**
-   * The storehouse as one numbered slot space, chest by chest, with how much of
-   * each chest is in use today. The model divides the slots however it likes;
-   * a group that spans two chests is as valid as one that does not.
+   * The storehouse as one numbered slot space, chest by chest. What sits where
+   * today is not mentioned: the tidy re-lays every chest to the plan anyway.
+   * The model divides the slots however it likes; a group that spans two
+   * chests is as valid as one that does not.
    */
   private static String layout(List<Container> containers) {
     int total = Storehouse.totalSlots(containers);
@@ -355,18 +356,10 @@ public final class QuartermasterPlanner {
         + " slots in total, numbered 1 to " + total + " (");
     int at = 1;
     for (int c = 0; c < containers.size(); c++) {
-      Container chest = containers.get(c);
-      int size = chest.getContainerSize();
-      int used = 0;
-      for (int slot = 0; slot < size; slot++) {
-        if (!chest.getItem(slot).isEmpty()) {
-          used++;
-        }
-      }
-      out.append("chest ").append(c + 1).append(" is slots ").append(at).append(" to ").append(at + size - 1)
-          .append(used == 0 ? ", empty" : ", " + used + " in use");
+      int size = containers.get(c).getContainerSize();
+      out.append("chest ").append(c + 1).append(" is slots ").append(at).append(" to ").append(at + size - 1);
       at += size;
-      out.append(c == containers.size() - 1 ? ")." : "; ");
+      out.append(c == containers.size() - 1 ? ")." : ", ");
     }
     return out.toString();
   }
