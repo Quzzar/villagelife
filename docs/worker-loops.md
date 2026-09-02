@@ -319,7 +319,10 @@ currently stand, not a fixed post, so as a guard patrols or a lumberjack roams t
 trees ringing the village rather than only those at one spot. Both reach twelve blocks: the
 guard's chop is a fresh camp's only wood until it can afford a lodge, and at six blocks a
 camp's guard found no tree at all and the village sat on its first lodge goal for four hours.
-The lumberjack scans more often and accepts the work more readily; combat goals outrank the
+The lumberjack scans more often and accepts the work more readily (twenty blocks and a
+two-in-five roll every five seconds, against the guard's twelve blocks and one in four every ten
+seconds; the guard's roll was one in twenty until 2026-09-01, which left a fresh camp waiting a
+quarter of an hour per tree for the lodge it could not yet afford); combat goals outrank the
 guard's chopping.
 
 **Reach is measured from the eyes, not the feet (2026-09-01).** A tree is cut from beside its
