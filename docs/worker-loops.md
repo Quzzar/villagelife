@@ -364,7 +364,11 @@ roasts on the fire via `CampfireBlockEntity.placeFood`, and the step owns the ti
 cooked food is lifted straight into storage rather than dropped on the ground when the block's
 own cook tick would finish it. What counts as cookable is read from the vanilla
 `CampfireCookingRecipe` set, so it is broader than the butcher's six hand-listed meats and
-modded food comes along for free.
+modded food comes along for free. The roasting itself is one helper, `CampfireRoast`
+(2026-09-02), shared with the roaming wanderer's camp on the road (`CampStep`,
+[population-and-labor.md](population-and-labor.md)): where the raw food comes from before the
+pack and where the cooked food goes after it is each step's business; how a campfire roasts
+it is written once.
 
 This is deliberately scoped to idle campers as an early-camp bridge. A young camp has no
 butchery, so raw meat a hunter brings home would sit uncooked; once a butchery exists its

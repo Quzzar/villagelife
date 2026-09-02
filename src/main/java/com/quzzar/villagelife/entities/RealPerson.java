@@ -332,6 +332,38 @@ public class RealPerson extends Person {
   /** A village has taken them in: the road is behind them. */
   public void endRoaming() {
     this.roamOrigin = null;
+    breakCamp();
+  }
+
+  // A roaming wanderer's own fire for the night (CampStep): where it stands,
+  // saved so a reload or a recruitment mid-night still puts it out.
+  @Nullable
+  private BlockPos camp;
+
+  @Nullable
+  public BlockPos getCamp() {
+    return camp;
+  }
+
+  public void setCamp(@Nullable BlockPos camp) {
+    this.camp = camp;
+  }
+
+  /**
+   * The camp's fire is put out and left where it stood, nothing of it back in
+   * the pack (Aaron, 2026-09-02): a wanderer's fire is for the night, not a
+   * possession. A fire in a chunk that is not loaded stays as it is; the
+   * memory of it is dropped regardless.
+   */
+  public void breakCamp() {
+    if (camp == null) {
+      return;
+    }
+    if (level() instanceof net.minecraft.server.level.ServerLevel level && level.hasChunkAt(camp)
+        && level.getBlockState(camp).is(net.minecraft.world.level.block.Blocks.CAMPFIRE)) {
+      level.removeBlock(camp, false);
+    }
+    camp = null;
   }
 
   public boolean isRoaming() {
@@ -500,6 +532,7 @@ public class RealPerson extends Person {
     setStringIfPresent(compound, "Gender", GENDER);
 
     this.callToBedCoolDown = compound.getInt("CallToBedCooldown");
+    this.camp = compound.contains("Camp") ? BlockPos.of(compound.getLong("Camp")) : null;
 
     if (compound.contains("RoamOrigin")) {
       this.roamOrigin = BlockPos.of(compound.getLong("RoamOrigin"));
@@ -539,6 +572,9 @@ public class RealPerson extends Person {
     compound.putString("Gender", this.entityData.get(GENDER));
 
     compound.putInt("CallToBedCooldown", this.callToBedCoolDown);
+    if (camp != null) {
+      compound.putLong("Camp", camp.asLong());
+    }
 
     if (roamOrigin != null) {
       compound.putLong("RoamOrigin", roamOrigin.asLong());
@@ -595,6 +631,7 @@ public class RealPerson extends Person {
   @Override
   public void die(DamageSource source) {
     super.die(source);
+    breakCamp();
     Village village = getVillage();
     if (village != null) {
       village.removePerson(getUUID());
@@ -1990,6 +2027,8 @@ public class RealPerson extends Person {
         new com.quzzar.villagelife.entities.ai.goals.work.ForageHuntStep()));
     this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
         new com.quzzar.villagelife.entities.ai.goals.work.ForageChopStep()));
+    this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
+        new com.quzzar.villagelife.entities.ai.goals.work.CampStep()));
     this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.RoamGoal(this));
 
     // Safe to decide at registration: every occupation change goes through

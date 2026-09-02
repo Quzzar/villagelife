@@ -14,6 +14,7 @@ import com.quzzar.villagelife.village.buildings.Materials;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -197,5 +198,34 @@ public final class PackLogistics {
       skip.add(found);
     }
     return null;
+  }
+
+  /** How many items of any kind in the tag the pack holds. */
+  static int carriedIn(RealPerson person, TagKey<Item> tag) {
+    int count = 0;
+    for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
+      ItemStack stack = person.personMainInv.getItem(slot);
+      if (stack.is(tag)) {
+        count += stack.getCount();
+      }
+    }
+    return count;
+  }
+
+  /** Takes up to {@code count} items of any kind in the tag out of the pack; how many went. */
+  static int spendIn(RealPerson person, TagKey<Item> tag, int count) {
+    int left = count;
+    for (int slot = 0; slot < person.personMainInv.getContainerSize() && left > 0; slot++) {
+      ItemStack stack = person.personMainInv.getItem(slot);
+      if (stack.isEmpty() || !stack.is(tag)) {
+        continue;
+      }
+      left -= stack.split(Math.min(left, stack.getCount())).getCount();
+      if (stack.isEmpty()) {
+        person.personMainInv.setItem(slot, ItemStack.EMPTY);
+      }
+    }
+    person.personMainInv.setChanged();
+    return count - left;
   }
 }

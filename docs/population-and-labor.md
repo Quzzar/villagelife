@@ -198,13 +198,18 @@ The road (**implemented**, reshaped 2026-09-02): at the edge a leaver becomes a 
 wanderer**, a real person with no village (`RealPerson.isRoamingWanderer`), and stays one
 until a village takes them in. They walk a heading every day: the day they leave, straight
 away from the village; every dawn after, a fresh one, aimless by design, leg by leg and
-turning when the ground blocks them (`RoamGoal`). Nobody sleeps rough, so the walk goes on
-through the night, and they still eat from the pack and scatter from monsters like anyone
-else. They live off the land as they go, at the work loops' priority so a find outranks the
+turning when the ground blocks them (`RoamGoal`). Nobody sleeps rough, but a wanderer carrying three
+logs camps for the night: at dusk a fire of their own goes down beside them, out of the pack
+(three logs, sticks and coal waived like every road recipe), whatever they carry raw is roasted
+on it through the same tending the idle camper uses at the village fire (`CampfireRoast`), and
+they sit beside it until dawn, when the fire is put out and left where it stood, nothing of it
+back in the pack, and the walk goes on (`CampStep`). One with fewer logs walks the night
+through. They still eat from the pack when hurt, and scatter from monsters like anyone else. They live off the land as they go, at the work loops' priority so a find outranks the
 walk: game met within a dozen blocks is taken with whatever is in hand while the pack holds
 fewer than four bites (`ForageHuntStep`, the hunter's own rule that farmed stock is never
 game), a tree by the road is brought down whole, bare-handed and slowly or quicker with an
-axe, while the pack holds fewer than four logs (`ForageChopStep`, the shared `TreeFelling`,
+axe, while the pack holds fewer than sixteen logs, a reserve of fires (`ForageChopStep`, the
+shared `TreeFelling`,
 so nothing anyone placed comes down), and a wanderer with an empty hand and a log makes
 themselves a wooden axe out of it, three planks with a log standing in at the recipes' rate,
 through the same recipe path and best-tier-first order a village's bedtime tool-making uses
@@ -299,7 +304,7 @@ The campfire model is the current code. Key locations:
   `PersonaSpawner`, so every villager has a persona by construction; see
   [personas.md](personas.md)).
 - The road: `RoamGoal` (the daily walk), `ForageHuntStep` and `ForageChopStep` (living off
-  the land), `JobTool.makeFromPack` (the road's axe), `RealPerson.crossHorizon` (the crossing
+  the land), `CampStep` (the night's fire), `JobTool.makeFromPack` (the road's axe), `RealPerson.crossHorizon` (the crossing
   at the edge past the cap), and `WandererPool` in `VillageManagerSaveData` (everyone beyond
   the horizon, one list for the server). `/vldev village emigrate` sends one person out of the
   nearest village to watch it, and `/vldev village wanderers` lists who is beyond the horizon.

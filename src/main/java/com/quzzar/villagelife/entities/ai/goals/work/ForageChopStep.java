@@ -31,8 +31,8 @@ import net.minecraft.world.item.ItemStack;
  * and the tree's base is what they walk to and strike.
  */
 public final class ForageChopStep implements BlockWorkStep {
-  /** Logs a wanderer keeps: an axe's worth and a few over. Past it, trees are left standing. */
-  private static final int LOG_TARGET = 4;
+  /** Logs a wanderer keeps: a reserve of camp fires and an axe (Aaron: sixteen). Past it, trees are left standing. */
+  private static final int LOG_TARGET = 16;
   /** How far to either side of the road a tree is worth the stop. */
   private static final int RANGE = 10;
   private static final int VERTICAL_RANGE = 6;
@@ -50,7 +50,8 @@ public final class ForageChopStep implements BlockWorkStep {
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
-    if (!person.isRoamingWanderer() || person.isInventoryFull() || logsCarried(person) >= LOG_TARGET) {
+    if (!person.isRoamingWanderer() || person.isInventoryFull()
+        || PackLogistics.carriedIn(person, ItemTags.LOGS) >= LOG_TARGET) {
       return null;
     }
     if (!(person.level() instanceof ServerLevel level)) {
@@ -149,17 +150,5 @@ public final class ForageChopStep implements BlockWorkStep {
   @Override
   public int selectEveryTicks() {
     return 40;
-  }
-
-  /** Logs of any wood in the pack. */
-  private static int logsCarried(RealPerson person) {
-    int count = 0;
-    for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
-      ItemStack stack = person.personMainInv.getItem(slot);
-      if (stack.is(ItemTags.LOGS)) {
-        count += stack.getCount();
-      }
-    }
-    return count;
   }
 }

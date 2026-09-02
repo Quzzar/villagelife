@@ -38,9 +38,10 @@ import net.minecraft.world.phys.Vec3;
  * village edge now, by leavers past the wanderer cap (Village.tickTravelers).
  *
  * <p>Sits below fleeing and fighting, and {@link StrollAroundVillage} yields to
- * it, so a roaming wanderer neither loiters nor walks through monsters. There
- * is no sleeping on the road: nobody sleeps rough, by decision, and the walk
- * simply goes on through the night.
+ * it, so a roaming wanderer neither loiters nor walks through monsters. Nobody
+ * sleeps rough, by decision; a wanderer carrying three logs camps for the
+ * night at a fire of their own ({@code CampStep}, which outranks this walk)
+ * and the road resumes at dawn, while one with no logs walks the night through.
  */
 public class RoamGoal extends Goal {
 
