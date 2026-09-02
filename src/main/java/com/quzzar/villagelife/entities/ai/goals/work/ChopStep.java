@@ -25,6 +25,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -229,12 +230,18 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
     return axeReachesFrom(person.blockPosition(), person.getEyePosition(), cut.log());
   }
 
-  /** Whether an axe swung from these eyes, over these feet, reaches the log. */
+  /**
+   * Whether an axe swung from these eyes, over these feet, reaches the log.
+   * Reach is to the log's nearest face, as a player's is, not to its centre:
+   * the half block that gains is the margin the navigator needs, since it may
+   * stop a block short of the standing spot, and a trunk five blocks up was
+   * within reach from the spot and just out of it from one block beside it.
+   */
   private static boolean axeReachesFrom(BlockPos feet, Vec3 eyes, BlockPos log) {
     int dx = feet.getX() - log.getX();
     int dz = feet.getZ() - log.getZ();
     return dx * dx + dz * dz <= HORIZONTAL_REACH_SQR
-        && eyes.distanceToSqr(Vec3.atCenterOf(log)) <= AXE_REACH * AXE_REACH;
+        && new AABB(log).distanceToSqr(eyes) <= AXE_REACH * AXE_REACH;
   }
 
   /** The eyes of a worker standing with their feet in this block. */
