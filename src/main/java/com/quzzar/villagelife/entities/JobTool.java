@@ -12,6 +12,7 @@ import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.AxeItem;
@@ -32,33 +33,37 @@ import net.neoforged.neoforge.common.Tags;
  * the job ({@link RealPerson#issueStartingKit}); after that, a hand that is
  * bare at bedtime is filled the way a player would fill it. First the best tool
  * of the kind the village stores can spare (the ordinary gear pass), then one
- * made from what the stores hold: the head alone, three cobblestone for an axe
- * or a pickaxe, two for a hoe, three string for a bow. Sticks are waived
- * (Aaron, 2026-09-02: "a pickaxe is just three cobblestone"), the way the
- * recipes waive the saw between logs and planks; the handle is not worth a
- * villager's trip to the woodpile. The stone comes out of a real chest, any
- * cobblestone kind the mine yields, and goes back if the rest is short. A
- * village with neither the tool nor the stone logs the shortage, and the
- * worker turns out tomorrow bare-handed, which the chat briefing shows, so
- * they can ask.
+ * made from what the stores hold, in the fundamentals the recipes are written
+ * in: three cobblestone for an axe or a pickaxe, two for a hoe, two planks for
+ * a bow. Sticks and string are waived (Aaron, 2026-09-02: "a pickaxe is just
+ * three cobblestone", "a bow is two planks"), the way the recipes waive the saw
+ * between logs and planks, and a log pays for planks at the recipes' own rate
+ * of four with the rounding lost ({@code Materials}). The stone is any
+ * cobblestone kind the mine yields, the planks any wood; both come out of a
+ * real chest and go back if the rest is short. A village with neither the tool
+ * nor the materials logs the shortage, and the worker turns out tomorrow
+ * bare-handed, which the chat briefing shows, so they can ask.
  */
 public enum JobTool {
 
   AXE(AxeItem.class, Items.STONE_AXE, 3, 0),
   PICKAXE(PickaxeItem.class, Items.STONE_PICKAXE, 3, 0),
   HOE(HoeItem.class, Items.STONE_HOE, 2, 0),
-  BOW(BowItem.class, Items.BOW, 0, 3);
+  BOW(BowItem.class, Items.BOW, 0, 2);
+
+  /** Planks one log stands in for, the recipes' own rate. */
+  private static final int PLANKS_PER_LOG = 4;
 
   private final Class<? extends Item> kind;
   private final Item basic;
   private final int stone;
-  private final int string;
+  private final int planks;
 
-  JobTool(Class<? extends Item> kind, Item basic, int stone, int string) {
+  JobTool(Class<? extends Item> kind, Item basic, int stone, int planks) {
     this.kind = kind;
     this.basic = basic;
     this.stone = stone;
-    this.string = string;
+    this.planks = planks;
   }
 
   /** The tool an occupation works with, or null for a trade that carries a token rather than a tool. */
@@ -90,7 +95,7 @@ public enum JobTool {
    */
   public static void replace(RealPerson person, JobTool tool, @Nullable BlockPos depositToLoc) {
     List<ItemStack> taken = new ArrayList<>();
-    boolean made = tool.gatherString(person, depositToLoc, taken)
+    boolean made = tool.gatherPlanks(person, depositToLoc, taken)
         && gatherAnyOf(person, Tags.Items.COBBLESTONES, tool.stone, depositToLoc, taken) == tool.stone;
     if (!made) {
       for (ItemStack part : taken) {
@@ -108,15 +113,21 @@ public enum JobTool {
         plain(tool.basic), describe(taken));
   }
 
-  private boolean gatherString(RealPerson person, @Nullable BlockPos near, List<ItemStack> taken) {
-    if (this.string == 0) {
+  /**
+   * Planks of any wood from the stores, then logs standing in for what is
+   * short, one per four planks rounded up, the rounding lost as it is when a
+   * recipe's plank line is paid in logs.
+   */
+  private boolean gatherPlanks(RealPerson person, @Nullable BlockPos near, List<ItemStack> taken) {
+    if (this.planks == 0) {
       return true;
     }
-    ItemStack got = person.gatherForWork(new ItemStack(Items.STRING, this.string), near);
-    if (!got.isEmpty()) {
-      taken.add(got);
+    int left = this.planks - gatherAnyOf(person, ItemTags.PLANKS, this.planks, near, taken);
+    if (left <= 0) {
+      return true;
     }
-    return got.getCount() == this.string;
+    int logs = Math.ceilDiv(left, PLANKS_PER_LOG);
+    return gatherAnyOf(person, ItemTags.LOGS, logs, near, taken) == logs;
   }
 
   /** Up to {@code count} of any item in the tag, out of the home chest and stores; how many came. */
