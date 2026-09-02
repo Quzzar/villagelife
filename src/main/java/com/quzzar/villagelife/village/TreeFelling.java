@@ -6,6 +6,8 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.savedata.PlacedBlockStore;
+
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -41,7 +43,9 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
  * Two callers share it: the lumberjack's and guard's {@code ChopStep}, which
  * fells one tree per chop and pockets the wood, and building placement, which
  * fells whatever still stands over a building the moment it goes up
- * ({@link #fellOver}). Where the drops go is each caller's business.
+ * ({@link #fellOver}). Where the drops go is each caller's business. The one
+ * tree the ownership guard does not cover is the lumberjack's own stand, the
+ * lumberjack's to cut whatever the store says of it ({@link #fellStand}).
  */
 public final class TreeFelling {
 
@@ -79,11 +83,38 @@ public final class TreeFelling {
    */
   public static List<ItemStack> fell(ServerLevel level, BlockPos struck, @Nullable Entity feller,
       ItemStack tool) {
+    return fell(level, struck, feller, tool, false);
+  }
+
+  /**
+   * Brings down the tree at a lumberjack's stand. Ownership is not asked at
+   * all here (Aaron, 2026-09-02): every log connected to the station comes
+   * down, whoever placed it, whatever its height and however far its branches
+   * reach, and each one's record goes with it. The lodge once shipped a grown
+   * tree, stamped as the village's, and under {@link #fell} the lumberjack
+   * struck that trunk, nothing came away, and the loop offered the same log
+   * again; the lodge now ships a sapling, and the exemption stays so that
+   * nothing anyone places against the stand can jam the loop. Otherwise
+   * identical: whole tree, drops returned, leaves left to decay.
+   */
+  public static List<ItemStack> fellStand(ServerLevel level, BlockPos struck, @Nullable Entity feller,
+      ItemStack tool) {
+    return fell(level, struck, feller, tool, true);
+  }
+
+  /**
+   * Every log removed has its ownership record dropped with it, as a break
+   * does: the stand's next tree grows on the first one's positions, and must
+   * not inherit the template's protection.
+   */
+  private static List<ItemStack> fell(ServerLevel level, BlockPos struck, @Nullable Entity feller,
+      ItemStack tool, boolean stand) {
     List<ItemStack> drops = new ArrayList<>();
     BlockState soundFrom = null;
+    PlacedBlockStore placed = PlacedBlockStore.get(level);
     for (BlockPos pos : treeLogs(level, struck)) {
       BlockState state = level.getBlockState(pos);
-      if (!state.is(BlockTags.LOGS_THAT_BURN) || !BlockOwnership.mayFell(level, pos)) {
+      if (!state.is(BlockTags.LOGS_THAT_BURN) || (!stand && !BlockOwnership.mayFell(level, pos))) {
         continue;
       }
       drops.addAll(Block.getDrops(state, level, pos, level.getBlockEntity(pos), feller, tool));
@@ -91,6 +122,7 @@ public final class TreeFelling {
         soundFrom = state;
       }
       level.removeBlock(pos, false);
+      placed.clearPlaced(pos);
     }
     if (soundFrom != null) {
       level.playSound((Player) null, struck.getX(), struck.getY(), struck.getZ(),

@@ -508,6 +508,27 @@ seconds; the guard's roll was one in twenty until 2026-09-01, which left a fresh
 quarter of an hour per tree for the lodge it could not yet afford); combat goals outrank the
 guard's chopping.
 
+**Built, 2026-09-02: the stand is a loop.** The lumberjack's station is the sapling the lodge
+is authored with (local `[17,1,3]` in every family), on a block of dirt the structure carries
+so it stands on ground whatever the terrain under the footprint does. Two things had kept the
+stand dead since the lodge was reworked: the station sat four blocks away on the paved yard, so
+the stand chop read a bare andesite plinth on every scan of its life, and the lodge shipped a
+grown tree whose logs the ownership store recorded as the village's the instant the lodge was
+stamped, so even struck they would not have come away (and whose persistent canopy floated
+over the yard once it finally did). The loop now runs as `ChopStep` at the station,
+`PlantStep`, `BonemealStep`, all at one priority since they cannot want the station at once:
+fell the tree at the station whole, whoever planted it (`TreeFelling.fellStand` fells every log
+connected to the station without asking ownership, whatever its height or how far the branches
+reach, and drops each record as it goes); the grown tree's natural canopy decays and drops its
+saplings; set a sapling from the pack
+on the stump, any kind (a plains lodge whose oak is down grows a spruce if spruce is what the
+pack holds), and it is nobody's, so the next fell is an ordinary one; feed it while there is
+bone meal in the pack; fell it again when it is a tree. Saplings reach the pack three ways:
+picked up under the decaying canopy, picked up in the woods, or drawn from the stores at
+bedtime, four at a time, the same way bone meal is. The replant used to be a one-in-a-hundred
+roll per scan that conjured an oak sapling from nothing; that is gone, and a stand that is bare
+with no sapling in the pack says so in the shortage report instead of "growing back".
+
 **Reach is measured from the eyes, not the feet (2026-09-01).** A tree is cut from beside its
 trunk or from beneath it: the worker stands within arm's length of the trunk horizontally, and
 the lowest log has to be within an axe's reach of their eyes, a player's block reach of four

@@ -21,7 +21,6 @@ import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
@@ -41,7 +40,13 @@ import net.minecraft.world.phys.Vec3;
  * the two guards, a natural canopy nearby and nobody's ownership, that keep the
  * axe off the village's own timber and off anything a player built; the flood
  * fill re-checks every log, so a wild tree overhanging a roof drops its own
- * wood and spares the building's.
+ * wood and spares the building's. The one exception is the lumberjack's own
+ * stand: the station is the sapling the lodge is authored with, on its own
+ * block of dirt, and {@link TreeFelling#fellStand} takes whatever tree is
+ * connected to the station without asking who placed it. Once it is down the
+ * loop is {@link PlantStep} (a sapling
+ * from the pack on the stump), {@link BonemealStep} (fed while there is bone
+ * meal), and this step again when it is a tree.
  *
  * <b>A tree is cut from beside its trunk or from beneath it.</b> The worker
  * walks to a standing spot beside the tree's base, within arm's length of it
@@ -66,9 +71,6 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
 
   /** Chance a felled log yields its stripped form instead. */
   private static final float STRIP_CHANCE = 0.3F;
-
-  /** Chance per scan of planting a sapling on an empty stand. */
-  private static final float REPLANT_CHANCE = 0.01F;
 
   /** Vertical reach of the bounded woodland scan around a worker's post. */
   private static final int WOODLAND_VERTICAL_RADIUS = 8;
@@ -140,20 +142,15 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
       return new Cut(post, stand == null ? post : stand);
     }
 
-    // An empty stand over dirt is a felled tree waiting to be replanted. This
-    // branch existed before and could never fire, because nothing ever cleared
-    // the stand.
-    if (state.isAir() && level.getBlockState(post.below()).is(BlockTags.DIRT)) {
-      if (person.getRandom().nextFloat() < REPLANT_CHANCE) {
-        level.setBlock(post, Blocks.OAK_SAPLING.defaultBlockState(), 2);
-      }
-    }
-
-    // Nothing standing to fell: felled and regrowing, or a stand that will not
-    // regrow one. Most of these lulls are just the sapling coming back, so only a
-    // sustained dry stretch is reported, once, as a genuine wood shortage.
-    this.dry.wentDry(person, Items.OAK_LOG, 1,
-        "The trees at my stand are felled; I have no wood to cut until they grow back.");
+    // Nothing standing to fell: a sapling coming back, or a bare stump with
+    // nothing in the pack to plant on it. Most of these lulls are just the
+    // regrowth, so only a sustained dry stretch is reported, once, as a genuine
+    // wood shortage; the words tell the two apart, since a bare stand is the
+    // one a village can do something about.
+    boolean bare = PlantStep.isBare(state) && PlantStep.saplingIn(person) == null;
+    this.dry.wentDry(person, Items.OAK_LOG, 1, bare
+        ? "My stand is bare and I have no sapling to plant on it; there is no wood to cut until I find one."
+        : "The tree at my stand is felled; I have no wood to cut until it grows back.");
     return null;
   }
 
@@ -252,13 +249,18 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
   /**
    * Brings a whole tree down from the struck log through {@link TreeFelling}
    * and pockets the wood: straight into the pack, where HaulStep walks it to
-   * the workplace container once the pack is worth a trip.
+   * the workplace container once the pack is worth a trip. At the stand the
+   * tree is the village's own and comes down whoever planted it; in the
+   * woodland only a tree nobody placed does.
    */
   private void fellTree(RealPerson person, BlockPos struck) {
     if (!(person.level() instanceof ServerLevel level)) {
       return;
     }
-    List<ItemStack> haul = TreeFelling.fell(level, struck, person, person.getMainHandItem());
+    ItemStack axe = person.getMainHandItem();
+    List<ItemStack> haul = this.woodlandRadius > 0
+        ? TreeFelling.fell(level, struck, person, axe)
+        : TreeFelling.fellStand(level, struck, person, axe);
     stripSome(person, haul);
     // Counted before the pack takes it: stacks that merge into ones already
     // carried are emptied as they go in, and read as nothing afterwards.

@@ -25,6 +25,7 @@ import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageManager;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Component;
@@ -33,6 +34,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.TimeUtil;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
@@ -76,6 +78,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.GradeStep;
 import com.quzzar.villagelife.entities.ai.goals.work.ClearBrushStep;
 import com.quzzar.villagelife.entities.ai.goals.work.CompostStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FetchBonemealStep;
+import com.quzzar.villagelife.entities.ai.goals.work.PlantStep;
 import com.quzzar.villagelife.entities.ai.goals.work.StashBonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
@@ -212,6 +215,12 @@ public class RealPerson extends Person {
 
   /** Bone meal one bone grinds into, as the vanilla recipe has it. */
   private static final int MEAL_PER_BONE = 3;
+
+  /**
+   * Saplings the lumberjack's bedtime restock tops the pack up to; PlantStep
+   * spends one on the stand each time its tree comes down.
+   */
+  private static final int SAPLING_PACK_TARGET = 4;
 
   public int callToBedCoolDown = 0;
 
@@ -961,6 +970,13 @@ public class RealPerson extends Person {
 
     }
 
+    // Saplings for the stand, any kind. The felled canopy's saplings ride to
+    // the lodge's barrel with the rest of the haul, and this is how they come
+    // back out; a pack that already holds enough keeps working from it.
+    if (getOccupation() == Occupation.LUMBERJACK) {
+      restockSaplings(depositToLoc);
+    }
+
     // Take seeds
     if (getOccupation() == Occupation.FARMER) {
 
@@ -1112,6 +1128,31 @@ public class RealPerson extends Person {
         + " torches. Decide whether to spend " + coalToSpend
         + " coal on light for tomorrow's dig, and give your reason in a few words.";
     CraftOffer.offer(this, depositToLoc, press, coalToSpend, situation);
+  }
+
+  /**
+   * Tops the pack up to {@link #SAPLING_PACK_TARGET} saplings from village
+   * stores, taking whatever kinds are there: the stand grows any of them, and a
+   * lodge whose first oak is down plants a spruce if spruce is what the
+   * woodland gave. Only saplings that grow into a tree count
+   * ({@link PlantStep#isSapling}).
+   */
+  private void restockSaplings(BlockPos depositToLoc) {
+    int wanted = SAPLING_PACK_TARGET - PlantStep.saplingsHeld(this);
+    for (Holder<Item> holder : BuiltInRegistries.ITEM.getTagOrEmpty(ItemTags.SAPLINGS)) {
+      if (wanted <= 0) {
+        return;
+      }
+      if (!PlantStep.isSapling(holder.value())) {
+        continue;
+      }
+      ItemStack got = this.getVillage().gatherItemStackFromVillage(new ItemStack(holder.value(), wanted),
+          depositToLoc);
+      if (!got.isEmpty()) {
+        wanted -= got.getCount();
+        this.addItems(Arrays.asList(got));
+      }
+    }
   }
 
   /**
@@ -1855,10 +1896,16 @@ public class RealPerson extends Person {
     }
     if (getOccupation() == Occupation.LUMBERJACK) {
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      // The stand's own loop: fell the tree at the station, set a sapling from
+      // the pack on the stump, feed it while there is bone meal, fell it again.
+      // The three cannot want the station at once (a log, a bare stump, a
+      // sapling), so they share one priority.
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new BonemealStep(true)));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new ChopStep()));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
+          new PlantStep()));
       // The planted stand above is the reliable job. This lower-priority pass
       // also clears nearby woodland, about three times as often and farther out
       // than a guard (a roll of two in five every five seconds, twenty blocks

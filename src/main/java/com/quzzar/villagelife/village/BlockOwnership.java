@@ -7,6 +7,8 @@ import com.quzzar.villagelife.village.buildings.Building;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Who owns the block at a position. The rule is the simple one it sounds
@@ -58,11 +60,27 @@ public final class BlockOwnership {
   /**
    * The verdict tree-clearing asks for: a worker may fell this block if
    * nobody placed it - not a player, not a village. A log that fails this is
-   * somebody's structure; a log that passes grew here.
+   * somebody's structure; a log that passes grew here. The one place it is not
+   * asked is a lumberjack's stand: the tree connected to the station is felled
+   * whole, whoever placed it ({@code TreeFelling.fellStand}).
    */
   public static boolean mayFell(ServerLevel level, BlockPos pos) {
     PlacedBlockStore store = PlacedBlockStore.get(level);
     return !store.isPlayerPlaced(pos) && !store.isVillagePlaced(pos);
+  }
+
+  /**
+   * Things put down to grow rather than to stand: a sapling, a crop, a flower.
+   * Never recorded, whoever sets them down, because the record would carry
+   * over to what grows from them. Learned live from a player's sapling: the
+   * grown trunk's base log sat on the sapling's recorded position, so a worker
+   * felled the whole tree and left exactly one block standing. Plants are
+   * nobody's, and what grows from them is fellable. The player placement
+   * events and both template stamps ask this, so the sapling a lumberjack
+   * lodge is authored with is treated the same as one a player plants.
+   */
+  public static boolean isPlanted(BlockState placed) {
+    return placed.is(BlockTags.SAPLINGS) || placed.is(BlockTags.CROPS) || placed.is(BlockTags.FLOWERS);
   }
 
   /** The village whose building footprints claim this ground, or null if none does. */

@@ -81,6 +81,15 @@ building's are left absent so the world's own ground stays. The mine is the one 
 exception: its ground-layer air is the shaft mouth. Above the ground layer, air is wanted, it is
 what clears grass, flowers and branches out of the footprint.
 
+A tree a worker is meant to cut is authored as a sapling, never as a grown tree (the lumberjack
+lodge, 2026-09-02): the sapling sits on a block of dirt in the ground layer, since the world's
+own top block may be sand or, on a slope, air, and the sapling is the work station. The first
+tree then grows on Minecraft's schedule and its canopy is a natural one. A template canopy is
+wrong either way: persistent leaves never decay, so the lodge's original tree left its whole
+crown floating after the first felling (seen live); natural leaves placed one block per swing
+by the builder can decay before their trunk lands. Decorative trees a structure carries, such
+as the church's, stay persistent on purpose.
+
 Seating is checked offline rather than by eye: a door's lower half should sit one layer above
 the ground layer, beds and work stations likewise. Fisheries and level-1 watchtowers carried an
 extra course below that and now declare `"sink": 1`; taverns and bakeries keep their floor a

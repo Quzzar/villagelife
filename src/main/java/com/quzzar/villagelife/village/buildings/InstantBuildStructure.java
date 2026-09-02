@@ -160,8 +160,11 @@ public class InstantBuildStructure {
 
                         if (levelAccess.setBlock(blockpos, blockstate, magicInt)) {
                             // The stamped block is the village's; record it so a
-                            // building's timber never reads as a fellable tree.
-                            if (!blockstate.isAir()) {
+                            // building's timber never reads as a fellable tree. A
+                            // plant the template carries (the lumberjack lodge's
+                            // sapling) is put down to grow, and is nobody's.
+                            if (!blockstate.isAir()
+                                    && !com.quzzar.villagelife.village.BlockOwnership.isPlanted(blockstate)) {
                                 com.quzzar.villagelife.savedata.PlacedBlockStore
                                         .get(levelAccess.getLevel()).markVillagePlaced(blockpos);
                             }

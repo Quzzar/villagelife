@@ -21,7 +21,7 @@ positions: player-placed and village-placed.
   `LongArrayTag`s. A whole village is tens of kilobytes; compactness was the design worry,
   and this is the answer to it.
 - Any block break removes the position from both sets, so build-and-tear churn nets to
-  nothing.
+  nothing. The village's own felling counts: `TreeFelling` prunes every log it removes.
 - Per level because `BlockPos.asLong` does not encode the dimension.
 
 ## Who writes it
@@ -37,13 +37,15 @@ Plants are nobody's, and what grows from them is fellable.
 
 | Writer | What |
 | --- | --- |
-| `InstantBuildStructure.buildInstantly` | every non-air block a building template stamps |
-| `StructureInProgress.progressMiddlePhase` | every non-air block the builder lays, one per swing |
+| `InstantBuildStructure.buildInstantly` | every non-air block a building template stamps, plants excepted |
+| `StructureInProgress.progressMiddlePhase` | every non-air block the builder lays, one per swing, plants excepted |
 | `WallRaiser.place` / `placeGateDoor` | wall segments and gate doors (the wood tier is logs) |
 | `Village.placeCampfireIfMissing` | the gathering-point campfire |
 
 Not recorded on purpose: saplings a lumberjack stand replants (a planted tree is meant to be
-cut), crops, ground-shaping fill (dirt is not a structure), and paths. If a new feature
+cut), the sapling a lumberjack lodge is authored with (the stamps ask the same
+`BlockOwnership.isPlanted` test the player rule does), crops, ground-shaping fill (dirt is not
+a structure), and paths. If a new feature
 places structural village blocks, it records them; that is the contract.
 
 ## The query: `BlockOwnership`
@@ -56,6 +58,15 @@ places structural village blocks, it records them; that is the contract.
 - `mayFell(level, pos)`: nobody placed it. The felling verdict. `TreeFelling` asks it for
   every log of a tree it brings down, and once more up front (with the natural-canopy test)
   before a log is offered as a tree at all.
+- **The lumberjack's stand is exempt** (2026-09-02). The lodge used to ship a grown tree, so
+  the stamp recorded that trunk as the village's like every other block it set down, and under
+  `mayFell` the lumberjack struck it for five seconds, nothing came away, and the loop offered
+  the same log again. `TreeFelling.fellStand` fells the tree connected to the station without
+  asking ownership at all, whatever its height and however far its branches reach, clearing
+  each log's record as it goes. The lodge now ships a sapling, which is nobody's from the
+  start; the exemption stays so nothing placed against the stand can jam the loop. A player's
+  log that touches the stand's tree comes down with it; the stand is the one place the store
+  is not consulted.
 - `isPlayerPlaced` / `isVillagePlaced`: the stored facts individually.
 
 ## No backfill
