@@ -13,7 +13,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -22,11 +21,17 @@ import net.minecraft.world.phys.Vec3;
  * and sets them down in their own chest by hand. Runs ahead of
  * {@link SleepAtNightGoal}, which takes over the moment the pack is put away.
  *
- * <p>Bounded so a bad night cannot cost the village the goods: a chest the
- * pathfinder cannot reach (a bed up a ladder, say) gives the trip up at once,
- * a long walk gets a few minutes and no more, and a chest that is gone or
- * full gives up on arrival. In every case the items stay in the pack and the
- * next bedtime stow returns them to the stores as before.
+ * <p>Bounded so a bad night cannot cost the village the goods, and bounded by
+ * headway rather than by what the pathfinder says: its verdict on whether a
+ * path reaches the chest proved worthless live, false from twenty blocks out
+ * because that is a villager's search range, and false from inside the house
+ * because a door, a turn and a staircase exhaust its node budget. So the
+ * walk gets a larger budget for its duration, and a villager who has not
+ * come closer to the chest for a stretch (stood at the foot of a ladder, or
+ * found no way in) gives up, as does one still walking after a few minutes.
+ * A chest that is gone or full gives up on arrival. In every case the items
+ * stay in the pack and the next bedtime stow returns them to the stores as
+ * before.
  */
 public class StashAtHomeGoal extends Goal {
 
@@ -37,22 +42,20 @@ public class StashAtHomeGoal extends Goal {
    * climb the stairs.
    */
   private static final int GIVE_UP_TICKS = 1800;
-  /** Consecutive paths that stop short of the chest before it counts as unreachable. */
-  private static final int UNREACHABLE_PATHS = 3;
-  /**
-   * Squared distance within which a path that stops short means no route
-   * exists. Farther out the pathfinder has simply run out of range (a
-   * villager's FOLLOW_RANGE is 20 blocks) and hands back the nearest leg,
-   * which is still the way to walk.
-   */
-  private static final double NEAR_SQR = 16 * 16;
+  /** Goal ticks without coming closer to the chest before the walk counts as going nowhere (about 40 s). */
+  private static final int STALL_TICKS = 400;
+  /** Closer by this much (blocks) counts as headway. */
+  private static final double HEADWAY = 0.5D;
+  /** The pathfinder's node budget while walking home, over its usual one. */
+  private static final float PATH_BUDGET = 4.0F;
   /** Close enough to reach into the chest, squared. */
   private static final double REACH_SQR = 6.25;
 
   private final RealPerson person;
   private BlockPos chest;
   private int ticks;
-  private int shortPaths;
+  private int stalledTicks;
+  private double bestDistance;
 
   public StashAtHomeGoal(RealPerson person) {
     this.setFlags(EnumSet.of(Flag.MOVE));
@@ -85,21 +88,35 @@ public class StashAtHomeGoal extends Goal {
   @Override
   public void start() {
     this.ticks = 0;
-    this.shortPaths = 0;
+    this.stalledTicks = 0;
+    this.bestDistance = Double.MAX_VALUE;
+    person.getNavigation().setMaxVisitedNodesMultiplier(PATH_BUDGET);
     walk();
+  }
+
+  @Override
+  public void stop() {
+    person.getNavigation().resetMaxVisitedNodesMultiplier();
   }
 
   @Override
   public void tick() {
     this.ticks++;
-    if (person.position().distanceToSqr(Vec3.atCenterOf(this.chest)) <= REACH_SQR) {
+    double distance = person.position().distanceTo(Vec3.atCenterOf(this.chest));
+    if (distance * distance <= REACH_SQR) {
       person.getNavigation().stop();
       putAway();
       return;
     }
-    if (this.shortPaths >= UNREACHABLE_PATHS) {
-      Villagelife.LOGGER.info("'{}' has no path to their chest at home; the {} stays in the pack",
-          person.getFullName(), StashOffer.names(person.keepingForHome()));
+    if (distance < this.bestDistance - HEADWAY) {
+      this.bestDistance = distance;
+      this.stalledTicks = 0;
+    } else {
+      this.stalledTicks++;
+    }
+    if (this.stalledTicks >= STALL_TICKS) {
+      Villagelife.LOGGER.info("'{}' made no headway toward their chest at home ({} blocks off); the {} stays in the pack",
+          person.getFullName(), Math.round(distance), StashOffer.names(person.keepingForHome()));
       person.doneKeeping();
       return;
     }
@@ -114,26 +131,8 @@ public class StashAtHomeGoal extends Goal {
     }
   }
 
-  /**
-   * One leg of the walk. The pathfinder hands back the closest route it can
-   * find even when the chest is out of reach, so a path that stops short is
-   * counted once the chest is within pathfinding range: a few in a row mean
-   * no route exists (a chest up a ladder), and the trip is given up rather
-   * than walked to the foot of the ladder all night. From farther away a
-   * short path is only the pathfinder's range, so it is walked, not counted;
-   * the next leg starts closer, and the range catches up with the chest.
-   */
   private void walk() {
-    Path path = person.getNavigation().createPath(this.chest, 1);
-    boolean near = person.blockPosition().distSqr(this.chest) <= NEAR_SQR;
-    if (path != null && path.canReach()) {
-      this.shortPaths = 0;
-    } else if (near) {
-      this.shortPaths++;
-    }
-    if (path != null) {
-      person.getNavigation().moveTo(path, 0.5D);
-    }
+    person.getNavigation().moveTo(this.chest.getX(), this.chest.getY(), this.chest.getZ(), 0.5D);
   }
 
   private void putAway() {
