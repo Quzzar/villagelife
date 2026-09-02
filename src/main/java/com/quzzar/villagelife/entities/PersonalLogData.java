@@ -128,6 +128,48 @@ public record PersonalLogData(List<Entry> entries, long reflectedThrough) {
         .anyMatch(e -> e.text().equals(text) && nowDayTime - e.dayTime() < 24000L);
   }
 
+  /**
+   * A stretch of the same trouble: the complaint, when its unbroken run began,
+   * and whether the run reaches the oldest issue the capped log still holds, in
+   * which case it may have begun earlier than the log can show.
+   */
+  public record StandingIssue(String text, long since, boolean atLeast) {
+  }
+
+  /**
+   * How old the newest issue may be and still count as standing: the day within
+   * which {@link #hasRecentIssue} holds a repeat back, plus a day of slack for
+   * the re-log that follows it.
+   */
+  private static final long STANDING_WINDOW = 2 * 24000L;
+
+  /**
+   * The person's standing trouble, if any: their newest issue while it is still
+   * current, with how long the same complaint has stood. A worker who cannot
+   * work re-logs the same sentence about once a day, so an unbroken run of it,
+   * each entry within {@link #STANDING_WINDOW} of the next, is one stretch of
+   * trouble and its first entry is when it began. Read by the build briefing
+   * (UrbanPlanner), which states it as a fact for the brain to weigh.
+   */
+  public Optional<StandingIssue> standingIssue(long nowDayTime) {
+    List<Entry> issues = issuesNewestFirst();
+    if (issues.isEmpty() || nowDayTime - issues.get(0).dayTime() >= STANDING_WINDOW) {
+      return Optional.empty();
+    }
+    Entry newest = issues.get(0);
+    long since = newest.dayTime();
+    int run = 1;
+    for (Entry earlier : issues.subList(1, issues.size())) {
+      if (!earlier.text().equals(newest.text()) || since - earlier.dayTime() >= STANDING_WINDOW) {
+        break;
+      }
+      since = earlier.dayTime();
+      run++;
+    }
+    boolean atLeast = run == issues.size() && issues.size() >= MAX_ISSUES;
+    return Optional.of(new StandingIssue(newest.text(), since, atLeast));
+  }
+
   /** "Day 14, morning" — the proper-log rendering of a dayTime stamp. */
   public static String formatDay(long dayTime) {
     long day = dayTime / 24000L + 1;

@@ -4,10 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.entities.PersonalLogData;
+import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmDecision;
 import com.quzzar.villagelife.llm.LlmService;
+import com.quzzar.villagelife.village.JobAssignment;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
@@ -17,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -309,6 +315,7 @@ public class UrbanPlanner {
       situation.append("No building grows or gathers food yet. ");
     }
     appendRequests(village, situation);
+    appendWorkplaceTrouble(village, situation);
     // A stalled goal is stated as a fact, so the brain knows why a building it
     // wanted is missing from its options rather than quietly choosing around a gap.
     String stalled = VillageGoal.stalled(village, village.getVillageTime());
@@ -335,6 +342,46 @@ public class UrbanPlanner {
     return village.getBuildings().stream().anyMatch(building -> building.getInfo() != null
         && (building.getInfo().getGrants().contains("GRAIN")
             || building.getInfo().getGrants().contains("MEAT")));
+  }
+
+  /**
+   * Standing trouble at the village's workplaces, in the workers' own words. A
+   * worker who cannot work writes why into their personal log (a flooded shaft,
+   * a wall of lava, a post they cannot reach), and that reached only
+   * conversation: the brain choosing the next building was never told the mine
+   * it already had was dead, and, offered "a mine" as one option among many,
+   * picked a well over it three times while the miner stood down for five hours
+   * (Wildflower Downs, 2026-09-02). So each employed worker's newest issue, while
+   * it still stands, is stated as a fact with how long it has stood; what to do
+   * about it, if anything, is the model's call. Only people loaded right now are
+   * read: a chunk is never paged in to decide.
+   */
+  private static void appendWorkplaceTrouble(Village village, StringBuilder situation) {
+    ServerLevel level = village.getLevel();
+    if (level == null) {
+      return;
+    }
+    long now = level.getDayTime();
+    List<String> lines = new ArrayList<>();
+    for (Map.Entry<UUID, JobAssignment> entry : village.getJobAssignmentsView().entrySet()) {
+      RealPerson worker = village.getPerson(level, entry.getKey());
+      if (worker == null) {
+        continue;
+      }
+      Optional<PersonalLogData.StandingIssue> trouble =
+          worker.getData(VillagelifeAttachments.PERSONAL_LOG.get()).standingIssue(now);
+      if (trouble.isEmpty()) {
+        continue;
+      }
+      long days = (now - trouble.get().since()) / 24000L;
+      String standing = days == 0 ? "since today"
+          : "for " + (trouble.get().atLeast() ? "at least " : "") + days + (days == 1 ? " day" : " days");
+      lines.add("your " + entry.getValue().getOccupation().name().toLowerCase() + " "
+          + worker.getFullName() + ", " + standing + ": \"" + trouble.get().text() + "\"");
+    }
+    if (!lines.isEmpty()) {
+      situation.append("Trouble your workers report: ").append(String.join("; ", lines)).append(". ");
+    }
   }
 
   /**

@@ -39,6 +39,17 @@ nearest thing to a site and what ruled it out, and the rule that villagers never
 hill. Whether to build smaller or wait is the model's call; see
 [site-selection.md](site-selection.md).
 
+And for trouble at work (2026-09-02). A worker who cannot work writes why into their personal
+log (`RealPerson.logIssue`: a flooded shaft, a wall of lava, a post they cannot reach), and until
+now that reached only conversation. The brain choosing the next building was never told the mine
+it had was dead: Wildflower Downs' miner stood down for five hours with the bucket in a chest at
+home while the brain, offered "a mine" as one option among many, picked a well over it three
+times. `UrbanPlanner.appendWorkplaceTrouble` now states each employed worker's newest issue,
+while it still stands, with how long the same complaint has stood ("your miner Colm Willis, for
+15 days: \"water keeps flooding my mine - a bucket would let me seal it\""), read from the people
+loaded at that moment and never by paging a chunk in. It is a fact, not a request: whether the
+answer is a second mine, a bucket, or nothing is the model's.
+
 A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
 and when two or more idle people are near-equally suited by aptitude (within a small
 `PICK_DELTA`) it offers those near-equals to `decide()` to choose among on character, each

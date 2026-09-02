@@ -429,7 +429,10 @@ Emit a `NoResourceBookkeepingEvent`, write an entry to the worker's `PersonalLog
 Both mechanisms already exist. The shortage feeds attractiveness, so a village that has exhausted
 its forest becomes less attractive and the brain is told why. The personal log entry is one plain
 sentence that surfaces in conversation, which is the foundation of emergent quests: an issue can
-be resolved by anyone or no one, and there is no quest state machine.
+be resolved by anyone or no one, and there is no quest state machine. For as long as the worker
+keeps logging it, it also stands in the brain's build briefing as a fact with its age
+(`UrbanPlanner.appendWorkplaceTrouble`, [llm-brain.md](llm-brain.md)), so a dead mine is
+something the brain knows about when it weighs a second one.
 
 **The job is never freed.** Returning the worker to the campfire would thrash the whole labor pool
 every time a radius empties.
