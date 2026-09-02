@@ -1360,6 +1360,37 @@ public class RealPerson extends Person {
    * line (docs/relationships.md). Struck often enough, a villager crosses it;
    * fighters answer it by attacking, everyone else by keeping their distance.
    */
+  /** How long a quarrel picked in conversation lasts before the villager lets it go. */
+  private static final int QUARREL_TICKS = 20 * 60;
+
+  private UUID quarrelTarget;
+  private long quarrelUntil;
+
+  /**
+   * Comes to blows with a player over what they said: the villager's own
+   * decision, made in conversation ("fight" in the reply,
+   * docs/villager-conversations.md). A fighter draws what they carry; anyone
+   * else uses their fists. A quarrel is short and never saved: a minute of it,
+   * then the villager lets it go unless the player gives fresh cause. Unlike a
+   * grudge it needs no low opinion first; the words were enough.
+   */
+  public void pickFightWith(Player player) {
+    quarrelTarget = player.getUUID();
+    quarrelUntil = level().getGameTime() + QUARREL_TICKS;
+    setTarget(player);
+    Villagelife.LOGGER.info("'{}' picks a fight with {}", getFullName(), player.getGameProfile().getName());
+  }
+
+  /** Whether this villager is in a quarrel they picked with this player. */
+  public boolean isQuarrellingWith(Player player) {
+    return quarrelTarget != null && quarrelTarget.equals(player.getUUID()) && level().getGameTime() < quarrelUntil;
+  }
+
+  /** Whether this villager is in a quarrel they picked with anyone. */
+  public boolean isQuarrelling() {
+    return quarrelTarget != null && level().getGameTime() < quarrelUntil;
+  }
+
   public boolean holdsGrudgeAgainst(Player player) {
     return com.quzzar.villagelife.relationships.OpinionService.opinionOf(this, player.getUUID())
         <= com.quzzar.villagelife.configuration.VillagelifeConfig.GrudgeAttackBelow;
@@ -1435,7 +1466,29 @@ public class RealPerson extends Person {
           (target) -> target instanceof Player player
               && (holdsGrudgeAgainst(player) || villageConsidersThreat(player))));
 
+      // Fists, and only in a quarrel this villager picked: a monster that hurts
+      // them still sets a target through SlowToAngerGoal, and that is answered
+      // with distance as before, not a punch.
+      this.goalSelector.addGoal(2, new PersonMeleeGoal(this, 0.8D, true) {
+        @Override
+        public boolean canUse() {
+          return RealPerson.this.getTarget() instanceof Player player && isQuarrellingWith(player) && super.canUse();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+          return RealPerson.this.getTarget() instanceof Player player && isQuarrellingWith(player)
+              && super.canContinueToUse();
+        }
+      });
+
     }
+
+    // A quarrel picked in conversation is answered by anyone, armed or not, for
+    // as long as it lasts (pickFightWith). Above the grudge and the village's
+    // verdict: this one the villager chose.
+    this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
+        (target) -> target instanceof Player player && isQuarrellingWith(player)));
 
     if (willInitiateCombat()) {// Actively seeks out combat
 

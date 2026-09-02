@@ -33,6 +33,11 @@ public class PauseForConversationGoal extends Goal {
     if (person.isOnFire() || person.isInLava() || person.getAirSupply() <= 0) {
       return false;
     }
+    // A villager who has just picked a fight in this very conversation stops
+    // standing politely still for it; the chat window closes on its own side.
+    if (person.isQuarrelling()) {
+      return false;
+    }
     return PersonChatDispatcher.isConversing(person);
   }
 

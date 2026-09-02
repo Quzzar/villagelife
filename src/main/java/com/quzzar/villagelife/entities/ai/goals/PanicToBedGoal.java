@@ -16,6 +16,17 @@ public class PanicToBedGoal extends PanicGoal {
     }
 
     @Override
+    public boolean canUse() {
+        // A villager who picked a fight does not flee the first blow of it; the
+        // quarrel runs its minute. Anything else that hurts them still sends
+        // them to bed.
+        if (person.isQuarrelling()) {
+            return false;
+        }
+        return super.canUse();
+    }
+
+    @Override
     protected boolean findRandomPosition() {
         // Read the bed location FRESH each panic, never cached at construction: a
         // villager handed a bed by reconcileBeds after its goals were built keeps a

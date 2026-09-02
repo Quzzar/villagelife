@@ -204,6 +204,12 @@ public final class PersonChatDispatcher {
       if (reply.give() != null && person.isAlive()) {
         executeGive(person, player, reply.give(), reply.giveCount());
       }
+      // Words answered with blows: the villager's own decision, honoured only
+      // for a player. A villager who says it to another villager is left to
+      // their words; that is a fight the village would have to referee.
+      if (reply.fight() && person.isAlive()) {
+        person.pickFightWith(player);
+      }
       PacketDistributor.sendToPlayer(player, new PersonChatReplyPacket(person.getId(), reply.say()));
     }));
   }
@@ -280,6 +286,7 @@ public final class PersonChatDispatcher {
           int opinion = 0;
           JsonObject undertaking = null;
           JsonObject request = null;
+          boolean fight = false;
           if (result.isPresent()) {
             Reply parsed = parseReply(result.get());
             if (parsed != null) {
@@ -289,6 +296,7 @@ public final class PersonChatDispatcher {
               opinion = parsed.opinionDelta();
               undertaking = parsed.undertaking();
               request = parsed.request();
+              fight = parsed.fight();
             }
           }
           if (say == null || say.isBlank()) {
@@ -298,11 +306,12 @@ public final class PersonChatDispatcher {
             opinion = 0;
             undertaking = null; // a fallback line committed to nothing; record nothing
             request = null;
+            fight = false;
           }
           say = VillagerText.clean(say);
           finalizeExchange(person, speakerName, speakerUUID, historyLine, say, give, giveCount, opinion, undertaking,
-              request, System.currentTimeMillis() - askedAtMs);
-          return new Reply(say, give, giveCount, opinion, undertaking, request);
+              request, fight, System.currentTimeMillis() - askedAtMs);
+          return new Reply(say, give, giveCount, opinion, undertaking, request, fight);
         });
   }
 
@@ -373,7 +382,7 @@ public final class PersonChatDispatcher {
    */
   private static void finalizeExchange(RealPerson person, String speakerName, UUID speakerUUID,
       String playerLine, String reply, String give, int giveCount, int requestedOpinion, JsonObject undertaking,
-      JsonObject request, long elapsedMs) {
+      JsonObject request, boolean fight, long elapsedMs) {
     var server = person.getServer();
     if (server == null) {
       return;
@@ -386,11 +395,12 @@ public final class PersonChatDispatcher {
                   new ChatHistoryData.Exchange(playerLine, reply, person.level().getDayTime())));
       String matter = applyUndertaking(person, speakerUUID, undertaking);
       String asked = applyRequest(person, request);
-      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
+      Villagelife.LOGGER.info("[chat] ({}ms) {} -> {}: \"{}\"{}{}{}{}{}", elapsedMs, speakerName, person.getFullName(), reply,
           give != null ? " [give: " + giveCount + "x " + give + "]" : "",
           applied != 0 ? " [opinion: " + (applied > 0 ? "+" : "") + applied + "]" : "",
           matter != null ? " [" + matter + "]" : "",
-          asked != null ? " [" + asked + "]" : "");
+          asked != null ? " [" + asked + "]" : "",
+          fight ? " [fight]" : "");
     });
   }
 
@@ -592,7 +602,7 @@ public final class PersonChatDispatcher {
    * reads {@code say}/{@code give}.
    */
   public record Reply(String say, String give, int giveCount, int opinionDelta, JsonObject undertaking,
-      JsonObject request) {
+      JsonObject request, boolean fight) {
   }
 
   /** Largest single-call opinion step the model may take. */
@@ -612,6 +622,7 @@ public final class PersonChatDispatcher {
   private static final Pattern GIVE_PATTERN = Pattern.compile("\"give\"\\s*:\\s*\"([a-z0-9_.:/-]+)\"");
   private static final Pattern GIVE_COUNT_PATTERN = Pattern.compile("\"give_count\"\\s*:\\s*(\\d+)");
   private static final Pattern OPINION_PATTERN = Pattern.compile("\"opinion\"\\s*:\\s*(-?\\d+)");
+  private static final Pattern FIGHT_PATTERN = Pattern.compile("\"fight\"\\s*:\\s*true");
 
   /** Strict-then-regex, the parsing discipline used everywhere in llm-land. */
   private static Reply parseReply(String raw) {
@@ -644,7 +655,14 @@ public final class PersonChatDispatcher {
             JsonObject request = node.has("request") && node.get("request").isJsonObject()
                 ? node.getAsJsonObject("request")
                 : null;
-            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking, request);
+            boolean fight = false;
+            if (node.has("fight") && node.get("fight").isJsonPrimitive()) {
+              try {
+                fight = node.get("fight").getAsBoolean();
+              } catch (Exception ignored) {
+              }
+            }
+            return new Reply(node.get("say").getAsString(), give, giveCount, opinion, undertaking, request, fight);
           }
         } catch (Exception ignored) {
           // fall through to the regex pass
@@ -663,7 +681,7 @@ public final class PersonChatDispatcher {
           give.find() ? give.group(1) : null,
           giveCount.find() ? Math.max(1, Integer.parseInt(giveCount.group(1))) : 1,
           opinion.find() ? clampStep(Integer.parseInt(opinion.group(1))) : 0,
-          null, null);
+          null, null, FIGHT_PATTERN.matcher(raw).find());
     }
     return null;
   }

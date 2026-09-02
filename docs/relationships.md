@@ -117,7 +117,10 @@ is the single tool for "how I feel about someone" and takes any UUID, so a fello
 and a player go through exactly the same call. Only the storage differs: feelings about a
 resident live as that person's private lean on the pair, feelings about a player live on
 the villager. The `"opinion"` field a villager may return mid-conversation is the same tool,
-invoked while talking instead of while thinking.
+invoked while talking instead of while thinking. A villager may also answer words with blows:
+`"fight": true` in the reply picks a minute-long quarrel with the player
+(villager-conversations.md), the villager's own decision rather than a threshold of opinion.
+Grudges and the standing tiers remain what the numbers do on their own.
 
 If the model is unavailable or answers unusably, the entries are marked considered and the
 villager carries on unchanged: quiet, not wrong.

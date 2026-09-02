@@ -59,17 +59,22 @@ public final class PersonChatContext {
       + "briefing does not cover, say you do not know or that there is nothing to tell; never fill the gap "
       + "with a guess. Small talk is about what IS there: your "
       + "work, what the village is building and still short of, the time of day, and the people you know. "
-      + "You may hand an item from your pockets to the person you are talking to with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
+      + "You may hand an item to the person you are talking to with \"give\" (the item id), and \"give_count\" for how many (a whole number, default 1), but ONLY an item the briefing says you are holding or have in your pockets, you own nothing else, and ONLY when they have just asked you for something. Never offer an item unprompted, and never give away anything precious. Most replies have no \"give\" at all. "
       + "Add \"opinion\" (a whole number from -10 to 10) ONLY when something in this exact moment changes "
       + "how you feel about them: a real kindness, a real slight, a promise kept or broken. A greeting, "
-      + "small talk, or agreeing changes nothing. Most replies have no \"opinion\" at all. ";
+      + "small talk, or agreeing changes nothing. Most replies have no \"opinion\" at all. "
+      + "Add \"fight\": true ONLY when you have decided to come to blows with this person over what they have "
+      + "just said or done. A fight is real: you strike them until one of you goes down or they run, with your "
+      + "weapon if you carry one and your fists if not, and everyone remembers it. Most replies have no "
+      + "\"fight\" at all. ";
 
   private static final String RULES = RULES_BODY
       + "Answer with ONLY a JSON object: {\"say\": \"<reply>\"} "
-      + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"give_count\": <how many>, \"opinion\": <number>}.";
+      + "or {\"say\": \"<reply>\", \"give\": \"<item id>\", \"give_count\": <how many>, \"opinion\": <number>, "
+      + "\"fight\": true}.";
 
   private static final String SHAPE_UNDERTAKING =
-      "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", or "
+      "Answer with ONLY a JSON object: {\"say\": \"<reply>\"}, adding any of \"give\", \"opinion\", \"fight\", or "
       + "\"undertaking\" only when it applies.";
 
   /**

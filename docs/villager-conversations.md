@@ -111,3 +111,24 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
 - `llm/LlmService.java`: `submitBackgroundChat`, the background lane.
 - `entities/ai/goals/PauseForConversationGoal.java`: faces players and
   villager partners alike.
+
+## Fights picked in conversation (2026-09-02)
+
+A villager may answer words with blows. The reply may carry `"fight": true` alongside `say`,
+`give` and `opinion`; the rules tell the villager what it means (a real fight, weapon or fists,
+everyone remembers it) and that most replies have none, and the model decides when a
+provocation has crossed the line. Aaron spent a morning shouting "FIGHT ME" at Wildflower Downs
+and nobody could oblige: the schema had no such action, and the only paths to a villager's
+blade were the numbers, a personal opinion at or below the grudge line or the whole village's
+standing at hostile, both of which words move slowly.
+
+Honoured only when the speaker is a player: `RealPerson.pickFightWith` opens a quarrel, a
+minute long and never saved, sets the player as the villager's target, and a quarrel target
+goal above the grudge and the village verdict keeps it. Fighters draw what they carry; a
+villager with no combat occupation gets a fists-only melee goal that engages solely against
+a quarrel target, so monsters that hurt them are still answered with distance, as before.
+`PauseForConversationGoal` and `PanicToBedGoal` both yield while a quarrel runs, so the
+villager neither stands politely still for the chat nor flees the first blow of the fight it
+picked. A villager who says it to another villager is left to their words. The exchange logs
+`[fight]`, and the villager logs "picks a fight with".
+
