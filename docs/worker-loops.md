@@ -609,7 +609,12 @@ and what to call them stays the model's call; nothing sorts by tab or tag itself
 slot arithmetic itself; a deterministic validator then checks the
 partition (every slot covered once, no gaps, no overlaps, every item placed) and, when it does
 not hold, hands the errors back. The quartermaster and the village brain alternate turns
-correcting it, up to six rounds. The first partition that validates wins. The rounds are for
+correcting it, up to six rounds. The first partition that validates wins. Valid means sorted, not
+just summed (2026-09-02): with four or more kinds on the shelves a single group over everything is
+rejected and sent back like any other problem, the correcting turn is told to keep the groups
+given and fix only what was listed, and a correction that merges everything anyway is set aside
+for the earlier grouping, because two plans in one night ended as "All Items, slots 1 to 81" once
+one group had passed the arithmetic. The rounds are for
 the grouping, though, not the sums: once the grouping holds (every item in some group, no
 group empty, no number that is not an item; a repeat stays with the first group to name it),
 a partition whose slot numbers still overlap or leave gaps is not sent back again; the

@@ -82,6 +82,15 @@ public final class QuartermasterPlanner {
   /** How many correcting turns the pair gets before giving up on a valid partition. */
   private static final int MAX_ROUNDS = 6;
 
+  /**
+   * With this many kinds of goods or more, a plan must sort them into at least
+   * two groups. One group over everything passes the arithmetic (every slot and
+   * every item owned once) and is no shelving plan at all: a correcting turn
+   * that gave up and merged the lot was being adopted as a valid answer, which
+   * is how a storehouse of eight kinds ended up "All Items, slots 1 to 81".
+   */
+  private static final int KINDS_THAT_NEED_SORTING = 4;
+
   /** How many offending slots or items an error message lists before trailing off. */
   private static final int MAX_LISTED = 12;
 
@@ -188,7 +197,21 @@ public final class QuartermasterPlanner {
             context.who(), round + 1);
         return CompletableFuture.completedFuture(Optional.of(layoutByCount(context, proposal, raw)));
       }
-      List<RawCategory> latest = proposal.isEmpty() ? prior : proposal;
+      // The next turn corrects a real attempt: a reply that gave nothing, or
+      // that gave up the sorting and merged everything into one group, is set
+      // aside and the earlier grouping goes back to the table with its problems.
+      List<RawCategory> latest = proposal;
+      List<String> latestErrors = errors;
+      if (proposal.isEmpty()
+          || (collapsed(proposal, context.items().size()) && !collapsed(prior, context.items().size())
+              && !prior.isEmpty())) {
+        latest = prior;
+        latestErrors = new ArrayList<>(priorErrors);
+        if (!proposal.isEmpty()) {
+          latestErrors.add("the last correction merged everything into one group, which is not a plan;"
+              + " go back to the groups above and fix them");
+        }
+      }
       if (round + 1 >= MAX_ROUNDS) {
         if (latest.isEmpty()) {
           Villagelife.LOGGER.info("[quartermaster] {} never gave a readable grouping in {} rounds",
@@ -200,8 +223,13 @@ public final class QuartermasterPlanner {
             context.who(), MAX_ROUNDS);
         return CompletableFuture.completedFuture(Optional.of(layoutByCount(context, latest, raw)));
       }
-      return converge(context, round + 1, latest, errors);
+      return converge(context, round + 1, latest, latestErrors);
     });
+  }
+
+  /** A plan with too few groups for the kinds on the shelves: valid arithmetic, no sorting. */
+  private static boolean collapsed(List<RawCategory> groups, int itemCount) {
+    return itemCount >= KINDS_THAT_NEED_SORTING && groups.size() < 2;
   }
 
   /**
@@ -211,6 +239,9 @@ public final class QuartermasterPlanner {
    * an item keeps it.
    */
   private static boolean groupingHolds(List<RawCategory> groups, int itemCount) {
+    if (collapsed(groups, itemCount)) {
+      return false; // one group is arithmetic, not sorting; it gets no shortcut either
+    }
     boolean[] seen = new boolean[itemCount + 1];
     for (RawCategory group : groups) {
       boolean holdsOne = false;
@@ -328,9 +359,12 @@ public final class QuartermasterPlanner {
         + context.items().size() + ":\n" + context.numbered()
         + "\nThe plan so far:\n" + priorRender
         + "\nIt is not valid yet:\n" + problems
-        + "Fix it and reply with ONLY the corrected JSON, same format:\n" + formatExample()
+        + "Keep these groups and their names, and fix only the problems listed: move an item that is"
+        + " placed twice, give each group its own run of slots, and leave no slot unowned."
+        + " Do not merge the groups into one and do not start a new plan."
+        + " Reply with ONLY the corrected JSON, same format:\n" + formatExample()
         + "\nCover every slot from 1 to " + context.totalSlots()
-        + " once, with no gaps and no overlaps, and put every item in one group.";
+        + " once, with no gaps and no overlaps, and put every item in exactly one group.";
   }
 
   /**
@@ -457,6 +491,10 @@ public final class QuartermasterPlanner {
     if (groups.isEmpty()) {
       errors.add("no groups were given");
       return errors;
+    }
+    if (collapsed(groups, itemCount)) {
+      errors.add("one group holding everything is not a shelving plan; sort the goods into at least two"
+          + " groups of things that belong together, each with its own run of slots");
     }
 
     int[] slotOwner = new int[totalSlots + 1];
