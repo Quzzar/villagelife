@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.quzzar.villagelife.Villagelife;
@@ -69,6 +71,29 @@ public final class LlmService {
 
           Answer with ONLY the JSON object.""",
       "{\"reason\": \"We cannot live without clean water, so the well matters more than fun or chores.\", \"choice\": 2, \"action\": \"rebuild the well\"}"));
+
+  /**
+   * The multi-pick sibling of DECIDE_SYSTEM: every option that fits, or none.
+   * The example keeps some and leaves some, so a small model sees that both
+   * halves of the answer are ordinary.
+   */
+  private static final String CHOOSE_SYSTEM = """
+      You are the mind of a villager in a village simulation. \
+      Choose every option that makes sense for the situation, which may be several or none at all. \
+      Answer with ONLY a JSON object: {"reason": "<one short sentence weighing the situation>", "choices": [<the option numbers you choose, or an empty list>]}""";
+
+  private static final List<FewShotExample> CHOOSE_EXAMPLES = List.of(new FewShotExample(
+      """
+          Situation: You are packing for a week of work at the quarry. On the table are these things.
+
+          Options:
+          1. Take the pickaxe
+          2. Take the fishing rod
+          3. Take the bread
+          4. Take the wedding ring
+
+          Answer with ONLY the JSON object.""",
+      "{\"reason\": \"The quarry wants a pick and food; there is no water to fish and the ring is safer at home.\", \"choices\": [1, 3]}"));
 
   private final Object providerLock = new Object();
   private volatile LlmProvider provider;
@@ -238,33 +263,64 @@ public final class LlmService {
    * names the decision for the call log, in a few words.
    */
   public CompletableFuture<Optional<LlmDecision>> decide(String purpose, String situation, List<String> options) {
-    if (options.isEmpty()) {
+    if (options.isEmpty() || !decisionCanRun(purpose)) {
       return CompletableFuture.completedFuture(Optional.empty());
     }
+    List<String> optionsCopy = List.copyOf(options);
+    return foregroundComplete(LANE_DECIDE, purpose, new CompletionRequest(DECIDE_SYSTEM,
+        optionsPrompt(situation, options), DECIDE_EXAMPLES, VillagelifeConfig.LlmDecisionMaxNewTokens,
+        VillagelifeConfig.LlmDecisionTemperature))
+        .thenApply(raw -> raw.flatMap(text -> parseDecision(text, optionsCopy)));
+  }
+
+  /**
+   * Asks the LLM which of the given options apply to the situation: any
+   * number of them, or none. The multi-pick sibling of {@link #decide}, on the
+   * same lane with the same gates and the same failure semantics: empty when
+   * unavailable, timed out, or unparseable, and the caller's own default
+   * stands in. An answer that names no option at all is a valid answer (an
+   * empty selection), distinct from no answer.
+   */
+  public CompletableFuture<Optional<LlmSelection>> choose(String purpose, String situation, List<String> options) {
+    if (options.isEmpty() || !decisionCanRun(purpose)) {
+      return CompletableFuture.completedFuture(Optional.empty());
+    }
+    int count = options.size();
+    return foregroundComplete(LANE_DECIDE, purpose, new CompletionRequest(CHOOSE_SYSTEM,
+        optionsPrompt(situation, options), CHOOSE_EXAMPLES, VillagelifeConfig.LlmDecisionMaxNewTokens,
+        VillagelifeConfig.LlmDecisionTemperature))
+        .thenApply(raw -> raw.flatMap(text -> parseSelection(text, count)));
+  }
+
+  /**
+   * The gates a decision passes before it is sent: a provider that is ready,
+   * and no player mid-conversation. A build choice waits behind a live
+   * conversation: decide already treats an empty answer as "keep the current
+   * plan and ask again next cycle", so a village simply re-decides once the
+   * player has stopped talking; no work is lost, and a player's reply is not
+   * slowed by a village thinking. Logs the skip when it says no.
+   */
+  private boolean decisionCanRun(String purpose) {
     if (!isReady()) {
       LlmCallLog.skipped(LANE_DECIDE, purpose, "provider not ready (" + getStatus() + ")");
-      return CompletableFuture.completedFuture(Optional.empty());
+      return false;
     }
-    // A build choice waits behind a live conversation. decide already treats an
-    // empty answer as "keep the current plan and ask again next cycle", so a
-    // village simply re-decides once the player has stopped talking - no work
-    // is lost, and a player's reply is not slowed by a village thinking.
     if (playerTalking()) {
       LlmCallLog.skipped(LANE_DECIDE, purpose, "a player is mid-conversation; asked again next cycle");
-      return CompletableFuture.completedFuture(Optional.empty());
+      return false;
     }
+    return true;
+  }
 
+  /** The situation and the numbered options, as both decide and choose put them. */
+  private static String optionsPrompt(String situation, List<String> options) {
     StringBuilder user = new StringBuilder();
     user.append("Situation: ").append(situation).append("\n\nOptions:\n");
     for (int i = 0; i < options.size(); i++) {
       user.append(i + 1).append(". ").append(options.get(i)).append("\n");
     }
     user.append("\nAnswer with ONLY the JSON object.");
-
-    List<String> optionsCopy = List.copyOf(options);
-    return foregroundComplete(LANE_DECIDE, purpose, new CompletionRequest(DECIDE_SYSTEM, user.toString(),
-        DECIDE_EXAMPLES, VillagelifeConfig.LlmDecisionMaxNewTokens, VillagelifeConfig.LlmDecisionTemperature))
-        .thenApply(raw -> raw.flatMap(text -> parseDecision(text, optionsCopy)));
+    return user.toString();
   }
 
   /**
@@ -373,6 +429,77 @@ public final class LlmService {
 
   private static final Pattern CHOICE_PATTERN = Pattern.compile("\"choice\"\\s*:\\s*\"?(\\d+)");
   private static final Pattern REASON_PATTERN = Pattern.compile("\"reason\"\\s*:\\s*\"([^\"]*)\"");
+  private static final Pattern CHOICES_PATTERN = Pattern.compile("\"choices\"\\s*:\\s*\\[([^\\]]*)\\]");
+  private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+");
+
+  /**
+   * The multi-pick answer: option numbers out of "choices", validated against
+   * the option count, deduplicated, in the order given. Strict JSON first,
+   * then the same lenient regex pass as a single decision. A "choices" that
+   * is present but empty is a real answer (nothing chosen); a reply with no
+   * "choices" at all is no answer.
+   */
+  private static Optional<LlmSelection> parseSelection(String raw, int optionCount) {
+    List<Integer> numbers = null;
+    String reason = "";
+
+    int jsonStart = raw.indexOf('{');
+    for (int jsonEnd : new int[] { raw.indexOf('}', jsonStart), raw.lastIndexOf('}') }) {
+      if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        try {
+          JsonObject node = JsonParser.parseString(raw.substring(jsonStart, jsonEnd + 1)).getAsJsonObject();
+          if (node.has("choices") && node.get("choices").isJsonArray()) {
+            numbers = new java.util.ArrayList<>();
+            JsonArray array = node.getAsJsonArray("choices");
+            for (JsonElement element : array) {
+              Matcher digits = NUMBER_PATTERN.matcher(element.isJsonPrimitive() ? element.getAsString() : "");
+              if (digits.find()) {
+                numbers.add(Integer.parseInt(digits.group()));
+              }
+            }
+            if (node.has("reason")) {
+              reason = node.get("reason").getAsString();
+            }
+            break;
+          }
+        } catch (Exception ignored) {
+          // try the next extraction strategy
+        }
+      }
+    }
+
+    if (numbers == null) {
+      Matcher choices = CHOICES_PATTERN.matcher(raw);
+      if (choices.find()) {
+        numbers = new java.util.ArrayList<>();
+        Matcher digits = NUMBER_PATTERN.matcher(choices.group(1));
+        while (digits.find()) {
+          numbers.add(Integer.parseInt(digits.group()));
+        }
+        Matcher reasonMatcher = REASON_PATTERN.matcher(raw);
+        if (reasonMatcher.find()) {
+          reason = reasonMatcher.group(1);
+        }
+      }
+    }
+    if (numbers == null) {
+      Villagelife.LOGGER.warn("LLM gave no \"choices\" to pick from: {}", raw.trim());
+      return Optional.empty();
+    }
+
+    List<Integer> indexes = new java.util.ArrayList<>();
+    for (int number : numbers) {
+      int index = number - 1;
+      if (index < 0 || index >= optionCount) {
+        Villagelife.LOGGER.warn("LLM chose option {} of {}, which does not exist; ignoring it", number, optionCount);
+        continue;
+      }
+      if (!indexes.contains(index)) {
+        indexes.add(index);
+      }
+    }
+    return Optional.of(new LlmSelection(List.copyOf(indexes), reason));
+  }
 
   private static Optional<LlmDecision> parseDecision(String raw, List<String> options) {
     String choice = null;

@@ -60,10 +60,13 @@ leaves the pack short of its sixteen bone meal and the stores hold bones, the sa
 whether to grind them (one bone makes three), with the same semantics, and the meal joins the
 farm's fertiliser shelf described in [worker-loops.md](worker-loops.md). The third personal
 decision is the bedtime chest question: a villager whose home has a chest of its own is asked,
-once a night, whether to keep one kind of what they are carrying rather than return it all to
-the stores (`entities/StashOffer`). Here silence keeps nothing, since the rules' own default is
-the stow that always happened, and only an explicit pick holds something back, which the
-villager then carries home and puts away by hand.
+once a night, which kinds of what they are carrying to keep, any number or none, rather than
+return it all to the stores (`entities/StashOffer`). It is the first consumer of
+`LlmService.choose`, the multi-pick sibling of `decide()`: the same lane, gates and prompt
+shape, answered as `{"reason": "...", "choices": [<option numbers>]}` and validated the same
+way, where an empty list is a real answer and a reply with no list is none. Here silence keeps
+nothing, since the rules' own default is the stow that always happened, and only an explicit
+pick holds something back, which the villager then carries home and puts away by hand.
 
 That makes the LLM **strongly wanted, not structurally required**: when it is absent,
 slow, or gives an unusable answer, the rules' own top-scoring option stands in and the

@@ -1,6 +1,7 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
 import java.util.EnumSet;
+import java.util.Set;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
@@ -16,8 +17,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * The walk that follows a bedtime "keep it": a villager who chose to hold
- * something back from the village stores ({@link StashOffer}) carries it home
- * and sets it down in their own chest by hand. Runs ahead of
+ * things back from the village stores ({@link StashOffer}) carries them home
+ * and sets them down in their own chest by hand. Runs ahead of
  * {@link SleepAtNightGoal}, which takes over the moment the pack is put away.
  *
  * <p>Bounded so a bad night cannot cost the village the goods: a chest that
@@ -42,11 +43,11 @@ public class StashAtHomeGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    Item keeping = person.keepingForHome();
-    if (keeping == null) {
+    Set<Item> keeping = person.keepingForHome();
+    if (keeping.isEmpty()) {
       return false;
     }
-    if (person.personMainInv.countItem(keeping) <= 0) {
+    if (keeping.stream().noneMatch(item -> person.personMainInv.countItem(item) > 0)) {
       person.doneKeeping(); // already set down, or stowed by a refire
       return false;
     }
@@ -60,7 +61,7 @@ public class StashAtHomeGoal extends Goal {
 
   @Override
   public boolean canContinueToUse() {
-    return person.keepingForHome() != null && this.chest != null && this.ticks < GIVE_UP_TICKS;
+    return !person.keepingForHome().isEmpty() && this.chest != null && this.ticks < GIVE_UP_TICKS;
   }
 
   @Override
@@ -79,7 +80,7 @@ public class StashAtHomeGoal extends Goal {
     }
     if (this.ticks >= GIVE_UP_TICKS) {
       Villagelife.LOGGER.info("'{}' could not reach their chest at home tonight; the {} stays in the pack",
-          person.getFullName(), StashOffer.plain(person.keepingForHome()));
+          person.getFullName(), StashOffer.names(person.keepingForHome()));
       person.doneKeeping();
       return;
     }
@@ -93,21 +94,24 @@ public class StashAtHomeGoal extends Goal {
   }
 
   private void putAway() {
-    Item keeping = person.keepingForHome();
+    Set<Item> keeping = person.keepingForHome();
     Container container = PersonalChest.container(person, this.chest);
-    if (keeping == null || container == null) {
+    if (container == null) {
       Villagelife.LOGGER.info("'{}' found no chest at home to keep the {} in", person.getFullName(),
-          StashOffer.plain(keeping));
+          StashOffer.names(keeping));
       person.doneKeeping();
       return;
     }
-    int moved = PackLogistics.depositCarried(person, container, keeping, "home");
+    int moved = 0;
+    for (Item item : keeping) {
+      moved += PackLogistics.depositCarried(person, container, item, "home");
+    }
     if (moved > 0) {
-      Villagelife.LOGGER.info("'{}' put {} {} away in their chest at home", person.getFullName(), moved,
-          StashOffer.plain(keeping));
+      Villagelife.LOGGER.info("'{}' put {} item(s) of {} away in their chest at home", person.getFullName(),
+          moved, StashOffer.names(keeping));
     } else {
       Villagelife.LOGGER.info("'{}' found no room in their chest at home for the {}", person.getFullName(),
-          StashOffer.plain(keeping));
+          StashOffer.names(keeping));
     }
     person.doneKeeping();
   }

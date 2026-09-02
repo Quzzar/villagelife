@@ -60,12 +60,13 @@ A village founds with **three buildings**, placed free:
 
 | Building | Contents |
 | --- | --- |
-| `village_center` | 4 beds, 1 chest, a campfire and a bell outside, one BUILDER station |
+| `village_center` | 4 beds, a chest of the campers' own, a campfire and a bell outside, one BUILDER station |
 | `mine` | the MINER station |
 | `storehouse` | two barrels |
 
 That is the whole camp. Four beds are the entire starting housing cap, so a camp supports four
-people until it builds a house. One chest plus two barrels are the entire village inventory. Two
+people until it builds a house. The storehouse's two barrels are the entire village inventory;
+the camp circle's chest belongs to the four who sleep there. Two
 jobs exist, builder and miner, so at most two of the four people are employed and the rest idle
 at the fire where the campfire model wants them
 ([population-and-labor.md](population-and-labor.md)).
@@ -283,11 +284,15 @@ The consequences that follow, and which the implementation owes:
   lumberjack hut, the level-1 watchtower). It belongs to whoever sleeps there, shared between
   them. It is never registered as village storage, so no fetch reads it, no deposit fills it,
   the planner does not count it as a store, and the quartermaster's sweep never sees it
-  (`village/PersonalChest`). What goes in is what its residents choose to keep at bedtime
-  ([worker-loops.md](worker-loops.md), "A chest of their own"). A workplace with a single chest,
-  the camp circle and the level-1 blacksmith among them, keeps that one chest shared, and the
-  upper blacksmith's two chests both sit in the workshop, well away from the bed, so it has none
-  either. When a home is rebuilt for an upgrade its chest is emptied into village storage with
+  (`village/PersonalChest`). What goes in is whatever kinds of thing its residents choose to
+  keep at bedtime, any number or none ([worker-loops.md](worker-loops.md), "A chest of their
+  own"). The camp circle is a home for four, so its one chest is theirs, shared (Aaron,
+  2026-09-01): a new village's storage is the storehouse's two barrels. A workplace with a
+  single chest that is first a workplace, the level-1 blacksmith and the level-2 watchtower,
+  keeps that chest shared, and the upper blacksmith's two chests both sit in the workshop, well
+  away from the bed, so it has none either. A chest that leaves the pool for this rule in an
+  existing world hands what it holds back to the stores first, since workers filled it as
+  village storage. When a home is rebuilt for an upgrade its chest is emptied into village storage with
   the rest, since the alternative is the residents' things on the floor of a building site; and
   a leaver's chest stays with the house, for whoever moves in next.
 - **A fetch can fail even when the pool says yes** — the chest holding it is unloaded, or
@@ -519,11 +524,11 @@ Worker: **BUILDER**  ·  Phase 1  ·  Variants: `plains`, `taiga`, `snowy`, `des
 
 | Level | Name | Footprint | Recipe (plains) | Grants |
 | --- | --- | --- | --- | --- |
-| 1 | camp circle | 7x7 | placed free at founding | 4 beds, 1 chest, campfire, bell, BUILDER station |
+| 1 | camp circle | 7x7 | placed free at founding | 4 beds, a chest of the campers' own, campfire, bell, BUILDER station |
 | 2 (upgrade) | village hall | 11x11 | 48 oak log, 76 oak planks, 80 cobblestone, 12 glass, 8 wool, 8 iron ingot | +2 beds, +2 containers, LEADER station: the brain's voice, shown in the UI |
 | 3 (upgrade) | town hall | 21x21 | 100 oak log, 148 oak planks, 156 cobblestone, 28 glass, 16 wool, 16 iron ingot | +4 beds, +3 containers, festivals: a periodic lift to ATTRACTIVENESS |
 
-Founding building, placed free. Four beds, one chest, a campfire and a bell outside, and a single BUILDER station. That is the entire camp. The four beds are the whole starting housing cap, so a camp supports four people until it builds a house.
+Founding building, placed free. Four beds, one chest, a campfire and a bell outside, and a single BUILDER station. That is the entire camp. The four beds are the whole starting housing cap, so a camp supports four people until it builds a house. The chest is the campers' own (`personal_containers`), shared by the four who sleep there, not village storage: the camp keeps its goods in the storehouse.
 
 #### `house`
 
@@ -580,7 +585,7 @@ Worker: **none**  ·  Phase 1  ·  Variants: `plains`
 | 2 (upgrade) | great storehouse | 11x11 | 16 oak log, 24 oak planks, 24 cobblestone, 4 glass, 2 wool | 8 containers |
 | 3 (upgrade) | warehouse | 15x15 | 28 oak log, 44 oak planks, 48 cobblestone, 8 glass, 6 wool | 20 containers |
 
-Founding building, placed free. Two barrels, and with the village center's single chest that is the whole of a new village's inventory. Absorbed the granary: both were always the same chests read by the same code, so one category covers both.
+Founding building, placed free. Two barrels: the whole of a new village's inventory, since the camp circle's chest belongs to the campers. Absorbed the granary: both were always the same chests read by the same code, so one category covers both.
 
 #### `market`
 

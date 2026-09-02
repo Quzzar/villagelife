@@ -379,15 +379,17 @@ public class VillageBrain {
    *
    * Also releases any position a building now declares as a home's own chest
    * ({@code homeChests}, from PersonalChest): worlds from before homes had
-   * chests of their own registered every house chest as village storage.
+   * chests of their own registered every house chest as village storage, and
+   * workers filled them. What such a chest holds when it leaves the pool is
+   * the village's, not the residents', so it is handed back to the remaining
+   * stores first (when the chest is in sight; whatever will not fit stays).
    */
   public void pruneMissingContainers(ServerLevelAccessor levelAccess, java.util.Set<BlockPos> homeChests) {
+    List<Long> released = new ArrayList<>();
     containerLocs.removeIf(longLoc -> {
       BlockPos pos = BlockPos.of(longLoc);
       if (homeChests.contains(pos)) {
-        foodLedger.remove(longLoc);
-        Villagelife.LOGGER.info("Releasing the chest at {} from village storage: it is a home's own",
-            pos.toShortString());
+        released.add(longLoc);
         return true;
       }
       if (!levelAccess.getLevel().hasChunkAt(pos)) {
@@ -401,6 +403,32 @@ public class VillageBrain {
       }
       return gone;
     });
+    for (Long longLoc : released) {
+      foodLedger.remove(longLoc);
+      BlockPos pos = BlockPos.of(longLoc);
+      int handedBack = levelAccess.getLevel().hasChunkAt(pos) ? handBack(levelAccess, pos) : 0;
+      Villagelife.LOGGER.info("Releasing the chest at {} from village storage: it is a home's own ({} item(s) handed back to the stores)",
+          pos.toShortString(), handedBack);
+    }
+  }
+
+  /** Moves what a chest holds into village storage, slot by slot; returns how many items moved. */
+  private int handBack(ServerLevelAccessor levelAccess, BlockPos pos) {
+    Container chest = containerAt(levelAccess, pos.asLong());
+    if (chest == null) {
+      return 0;
+    }
+    int moved = 0;
+    for (int slot = 0; slot < chest.getContainerSize(); slot++) {
+      ItemStack stack = chest.getItem(slot);
+      if (stack.isEmpty()) {
+        continue;
+      }
+      ItemStack left = storeAwayFrom(levelAccess, stack.copy(), List.of());
+      moved += stack.getCount() - left.getCount();
+      chest.setItem(slot, left);
+    }
+    return moved;
   }
 
   private Container containerAt(ServerLevelAccessor levelAccess, long longLoc) {

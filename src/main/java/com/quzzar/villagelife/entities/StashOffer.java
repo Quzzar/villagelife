@@ -1,16 +1,19 @@
 package com.quzzar.villagelife.entities;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Villagelife;
-import com.quzzar.villagelife.llm.LlmDecision;
+import com.quzzar.villagelife.llm.LlmSelection;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.village.PersonalChest;
 
@@ -22,11 +25,11 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Puts one bedtime question to a villager who has a chest of their own: of
- * what they are carrying home tonight, is there anything they would rather
- * keep than hand back to the village stores? The rules lay out the facts,
- * what is in the pack, what the chest already holds and who shares it, and
- * one option per kind of item carried; the model keeps one kind or keeps
- * nothing, in character, per the decide() pattern of docs/llm-brain.md.
+ * what they are carrying home tonight, what would they rather keep than hand
+ * back to the village stores? The rules lay out the facts, what is in the
+ * pack, what the chest already holds and who shares it, and one option per
+ * kind of item carried; the model keeps any number of them, or none, in
+ * character, over the multi-pick sibling of decide() (docs/llm-brain.md).
  *
  * <p>Silence keeps nothing. The rules' own choice is what always happened,
  * the whole pack back to the stores, so a mute or absent model costs the
@@ -52,21 +55,20 @@ public final class StashOffer {
     LlmService llm = LlmService.get();
     MinecraftServer server = person.getServer();
     if (carried.isEmpty() || !llm.isReady() || server == null) {
-      person.settleStash(null);
+      person.settleStash(Set.of());
       return;
     }
     List<Item> kinds = new ArrayList<>(carried.keySet());
     List<String> options = new ArrayList<>();
     for (Item item : kinds) {
-      options.add("Keep the " + carried.get(item) + " " + plain(item) + " in your own chest at home");
+      options.add("Keep the " + carried.get(item) + " " + plain(item));
     }
-    options.add("Keep nothing; it all goes back to the village stores");
     String purpose = person.getFullName() + "'s chest at home";
-    llm.decide(purpose, situation(person, chest, carried), options).whenComplete((decision, error) -> {
+    llm.choose(purpose, situation(person, chest, carried), options).whenComplete((selection, error) -> {
       if (error != null) {
         Villagelife.LOGGER.error("'{}' could not weigh what to keep at home", person.getFullName(), error);
       }
-      Optional<LlmDecision> settled = decision == null ? Optional.empty() : decision;
+      Optional<LlmSelection> settled = selection == null ? Optional.empty() : selection;
       server.execute(() -> finish(person, kinds, settled));
     });
   }
@@ -90,27 +92,30 @@ public final class StashOffer {
       situation.append(holds.isEmpty() ? "; it is empty. " : "; it holds " + holds + ". ");
     }
     situation.append("Whatever you put there is yours, not the village's: no worker takes from it and the")
-        .append(" quartermaster leaves it alone. Everything you do not keep goes back to the village stores")
-        .append(" tonight. Decide whether to keep one kind of thing for yourself, and give your reason in a")
-        .append(" few words.");
+        .append(" quartermaster leaves it alone. Decide which of these, if any, to keep for yourself;")
+        .append(" everything else goes back to the village stores tonight. Give your reason in a few words.");
     return situation.toString();
   }
 
-  private static void finish(RealPerson person, List<Item> kinds, Optional<LlmDecision> decision) {
+  private static void finish(RealPerson person, List<Item> kinds, Optional<LlmSelection> selection) {
     if (!person.isAlive()) {
       return;
     }
-    Item keep = null;
-    if (decision.isEmpty()) {
+    Set<Item> keep = new LinkedHashSet<>();
+    if (selection.isEmpty()) {
       Villagelife.LOGGER.debug("'{}' had no answer on what to keep at home, so the pack goes to the stores",
           person.getFullName());
-    } else if (decision.get().choiceIndex() < kinds.size()) {
-      keep = kinds.get(decision.get().choiceIndex());
-      Villagelife.LOGGER.info("'{}' keeps the {} for their chest at home: {}", person.getFullName(),
-          plain(keep), decision.get().reason());
     } else {
-      Villagelife.LOGGER.info("'{}' keeps nothing back tonight: {}", person.getFullName(),
-          decision.get().reason());
+      for (int index : selection.get().choiceIndexes()) {
+        keep.add(kinds.get(index));
+      }
+      if (keep.isEmpty()) {
+        Villagelife.LOGGER.info("'{}' keeps nothing back tonight: {}", person.getFullName(),
+            selection.get().reason());
+      } else {
+        Villagelife.LOGGER.info("'{}' keeps the {} for their chest at home: {}", person.getFullName(),
+            names(keep), selection.get().reason());
+      }
     }
     person.settleStash(keep);
   }
@@ -130,5 +135,14 @@ public final class StashOffer {
   /** An item as the model reads it: "wheat", "iron pickaxe". */
   public static String plain(@Nullable Item item) {
     return item == null ? "nothing" : item.getDescription().getString().toLowerCase(Locale.ROOT);
+  }
+
+  /** Several kinds as a log reads them: "wheat and apple and bread". */
+  public static String names(Collection<Item> items) {
+    List<String> out = new ArrayList<>();
+    for (Item item : items) {
+      out.add(plain(item));
+    }
+    return out.isEmpty() ? "nothing" : String.join(" and ", out);
   }
 }

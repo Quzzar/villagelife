@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.Random;
 import java.util.UUID;
 
@@ -213,11 +215,10 @@ public class RealPerson extends Person {
   // is still deciding over.
   private transient boolean stashPending;
 
-  // What the villager chose to keep tonight. It stays in the pack, skipped by
-  // the stow, until StashAtHomeGoal sets it down in their own chest; null when
-  // nothing is being kept.
-  @Nullable
-  private transient Item keepingForHome;
+  // What the villager chose to keep tonight, by kind. It stays in the pack,
+  // skipped by the stow, until StashAtHomeGoal sets it down in their own
+  // chest; empty when nothing is being kept.
+  private transient Set<Item> keepingForHome = Set.of();
 
   // Village-directed walk target (arriving at the campfire / leaving the
   // village); driven by Village.tickTravelers, executed by VillageTravelGoal.
@@ -634,23 +635,28 @@ public class RealPerson extends Person {
    * The bedtime chest question answered, or given up on: note what to keep, if
    * anything, then the rest of the pack goes to the stores as it always did.
    */
-  void settleStash(@Nullable Item keep) {
+  void settleStash(Set<Item> keep) {
     this.stashPending = false;
-    this.keepingForHome = keep != null && this.personMainInv.countItem(keep) > 0 ? keep : null;
+    Set<Item> carried = new LinkedHashSet<>();
+    for (Item item : keep) {
+      if (this.personMainInv.countItem(item) > 0) {
+        carried.add(item);
+      }
+    }
+    this.keepingForHome = Collections.unmodifiableSet(carried);
     if (this.getVillage() != null) {
       stowPackAndRestock();
     }
   }
 
-  /** What this villager is carrying home for their own chest tonight, or null. */
-  @Nullable
-  public Item keepingForHome() {
+  /** The kinds of item this villager is carrying home for their own chest tonight; empty when none. */
+  public Set<Item> keepingForHome() {
     return this.keepingForHome;
   }
 
-  /** The kept item is put away, or the trip was given up: nothing is held back any more. */
+  /** The kept items are put away, or the trip was given up: nothing is held back any more. */
   public void doneKeeping() {
-    this.keepingForHome = null;
+    this.keepingForHome = Set.of();
   }
 
   /**
@@ -682,7 +688,7 @@ public class RealPerson extends Person {
     List<ItemStack> items = this.clearMainInventory();
     List<ItemStack> kept = new ArrayList<>();
     for (ItemStack item : items) {
-      if (this.keepingForHome != null && item.is(this.keepingForHome)) {
+      if (this.keepingForHome.contains(item.getItem())) {
         kept.add(item);
         continue;
       }
