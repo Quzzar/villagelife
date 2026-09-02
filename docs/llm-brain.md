@@ -64,8 +64,9 @@ workers stays purely rule-based.
 Further consumers follow the same shape. `VillageTrading.consider` proposes every legal,
 beneficial bank trade plus an explicit "trade nothing", and the best deal stands in for a
 silent model. And the miner's bedtime torch press is the first *personal* decision: the
-nightly restock (`RealPerson.goToBed`) tops a miner's pack up to sixteen torches from village
-stores, and when the stores are out of torches but hold coal or charcoal, the rules size a
+nightly restock (`RealPerson.goToBed`) tops a miner's pack up to sixteen torches from the
+miner's own chest at home first and then village stores, and when both are out of torches but
+the stores hold coal or charcoal, the rules size a
 top-up (one lump makes four torches; sticks are deliberately waived so shaft lighting never
 waits on the forest) and offer the miner, in their own persona, the press or leaving the coal.
 An explicit refusal is honored and logged with its reason; silence crafts anyway, so the

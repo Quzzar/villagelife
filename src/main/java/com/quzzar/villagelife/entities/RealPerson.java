@@ -105,6 +105,7 @@ import net.minecraft.world.entity.ai.goal.target.ResetUniversalAngerTargetGoal;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.CrossbowItem;
@@ -774,8 +775,7 @@ public class RealPerson extends Person {
       // Restock rations: apples for now, until a farm lets the village bake bread.
       if (this.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
 
-        ItemStack rations = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.APPLE, 16),
-            depositToLoc);
+        ItemStack rations = gatherForWork(new ItemStack(Items.APPLE, 16), depositToLoc);
         if (rations.getCount() >= 1) {
           this.setItemSlot(EquipmentSlot.OFFHAND, rations);
         } else {
@@ -797,23 +797,23 @@ public class RealPerson extends Person {
     // Take 1 sponge if builder or miner // TODO, change to if needed
     if (getOccupation() == Occupation.BUILDER || getOccupation() == Occupation.MINER) {
 
-      ItemStack item = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.SPONGE, 1), depositToLoc);
+      ItemStack item = gatherForWork(new ItemStack(Items.SPONGE, 1), depositToLoc);
       this.addItems(Arrays.asList(item));
 
     }
 
     // Restock torches for the miner to light the shaft as they dig. Physical:
-    // taken from village stores, so the mine goes dark only when the village has
-    // no torches to spare. MineStep places them from the pack a few blocks apart.
-    // Buckets ride along for the same reason: a miner who breaks into water or
-    // lava seals the leak with one and keeps digging (MineStep), so a flooded
-    // shaft reads as a village with no bucket to spare rather than a dead end.
-    // One is all it needs - the bucket is a tool it never fills or spends.
+    // taken from the miner's own chest at home and then village stores, so the
+    // mine goes dark only when neither has torches to spare. MineStep places
+    // them from the pack a few blocks apart. Buckets ride along for the same
+    // reason: a miner who breaks into water or lava seals the leak with one and
+    // keeps digging (MineStep), so a flooded shaft reads as a village with no
+    // bucket to spare rather than a dead end. One is all it needs - the bucket
+    // is a tool it never fills or spends.
     if (getOccupation() == Occupation.MINER) {
-      ItemStack torches = this.getVillage()
-          .gatherItemStackFromVillage(new ItemStack(Items.TORCH, TORCH_PACK_TARGET), depositToLoc);
+      ItemStack torches = gatherForWork(new ItemStack(Items.TORCH, TORCH_PACK_TARGET), depositToLoc);
       this.addItems(Arrays.asList(torches));
-      ItemStack buckets = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.BUCKET, 1), depositToLoc);
+      ItemStack buckets = gatherForWork(new ItemStack(Items.BUCKET, 1), depositToLoc);
       this.addItems(Arrays.asList(buckets));
       maybeCraftTorchesFromCoal(depositToLoc);
     }
@@ -821,8 +821,7 @@ public class RealPerson extends Person {
     // Grab bonemeal
     if (getOccupation() == Occupation.LUMBERJACK || getOccupation() == Occupation.FARMER) {
 
-      ItemStack item = this.getVillage()
-          .gatherItemStackFromVillage(new ItemStack(Items.BONE_MEAL, BONEMEAL_PACK_TARGET), depositToLoc);
+      ItemStack item = gatherForWork(new ItemStack(Items.BONE_MEAL, BONEMEAL_PACK_TARGET), depositToLoc);
       this.addItems(Arrays.asList(item));
 
     }
@@ -832,7 +831,7 @@ public class RealPerson extends Person {
 
       ArrayList<ItemStack> gatheredSeeds = new ArrayList<>();
       for (Item seed : TillStep.PLANTABLES.keySet()) {
-        ItemStack gatheredSeed = this.getVillage().gatherItemStackFromVillage(new ItemStack(seed, 8), depositToLoc);
+        ItemStack gatheredSeed = gatherForWork(new ItemStack(seed, 8), depositToLoc);
         gatheredSeeds.add(gatheredSeed);
       }
 
@@ -842,6 +841,54 @@ public class RealPerson extends Person {
 
     }
 
+  }
+
+  /**
+   * A stack for tomorrow's work, taken from this villager's own chest at home
+   * first and from village stores for whatever that leaves short. What a
+   * villager held back for themselves at an earlier bedtime is theirs to work
+   * with, so the restock reaches into it before it asks the village: the miner
+   * once kept the village's only bucket at home and the next miner stood at a
+   * flooded shaft while it sat in the barrel. Returns the want with the count
+   * actually found, possibly zero, like the village gather it wraps.
+   */
+  private ItemStack gatherForWork(ItemStack want, BlockPos depositToLoc) {
+    ItemStack fromHome = takeFromHomeChest(want);
+    int short_ = want.getCount() - fromHome.getCount();
+    if (short_ <= 0) {
+      return fromHome;
+    }
+    ItemStack fromStores = this.getVillage().gatherItemStackFromVillage(want.copyWithCount(short_), depositToLoc);
+    if (fromHome.isEmpty()) {
+      return fromStores;
+    }
+    fromHome.grow(fromStores.getCount());
+    return fromHome;
+  }
+
+  /**
+   * Up to {@code want}'s count of its item out of this villager's own chest at
+   * home (PersonalChest), or none when they have no chest, its chunk is not
+   * resident, or it holds none of the item. Never pages a chunk in to look.
+   */
+  private ItemStack takeFromHomeChest(ItemStack want) {
+    BlockPos chest = PersonalChest.of(this);
+    Container container = chest == null ? null : PersonalChest.container(this, chest);
+    if (container == null) {
+      return want.copyWithCount(0);
+    }
+    int taken = 0;
+    for (int slot = 0; slot < container.getContainerSize() && taken < want.getCount(); slot++) {
+      if (container.getItem(slot).is(want.getItem())) {
+        taken += container.removeItem(slot, want.getCount() - taken).getCount();
+      }
+    }
+    if (taken > 0) {
+      container.setChanged();
+      Villagelife.LOGGER.info("'{}' took {} {} from their chest at home for tomorrow's work",
+          getFullName(), taken, want.getItem().getDescription().getString().toLowerCase(java.util.Locale.ROOT));
+    }
+    return want.copyWithCount(taken);
   }
 
   /**

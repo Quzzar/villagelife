@@ -54,7 +54,11 @@ their role's gear, torches, and seeds at the end of the day, plus the silent bed
 still draws from stores at a distance, pending a design for a morning provisioning round that
 does not send villagers walking in the dark; and **village-scale acts** (site-preparation
 fill, market trades) are the village acting as an institution rather than any one worker, and
-carry no fetch trip to skip.
+carry no fetch trip to skip. The restock reaches into the worker's own chest at home first and
+the village stores for whatever that leaves short (2026-09-02, `RealPerson.gatherForWork`): what
+a villager held back for themselves is theirs to work with, and the village's only bucket once
+sat in a miner's barrel at home while the next miner stood at a flooded shaft. Watch for
+`took N ... from their chest at home for tomorrow's work` in the log.
 
 ### A chest of their own
 
@@ -348,9 +352,13 @@ does not stand down at the mouth: it completes the shaft's missing floor, one co
 own mined stock) under each ramp cell that opens into void, laid standing on the floor already
 there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget: a miner
 out of cobblestone logs it and waits at the mouth until restocked, so a cavern too large to floor
-ends the shaft. Torches are hung the way a player hangs them: at head height on the shaft wall, one
-wherever the light at the miner's feet has fallen to dim (about every twelve blocks of ramp),
-and only once the shaft is deep enough to be dark. Every pick re-walks the shaft from the mouth, an audit that costs a block read per
+ends the shaft. Torches are hung the way a player hangs them: at head height on the shaft wall,
+wherever the sweep finds an open cell on the ramp's edge reading dim (about every twelve blocks of
+ramp), and only once the shaft is deep enough to be dark. Lighting is sweep work like flooring and
+bailing, not a side effect of breaking a block (2026-09-02): the sweep walks the shaft from the
+mouth on every pick, so a shaft dug dark by a miner with no torches, or inherited from one, is lit
+from the top down before the face is touched, and a miner stalled at water she has no bucket for
+still lights the ramp above it. Every pick re-walks the shaft from the mouth, an audit that costs a block read per
 open cell, so a cell an interruption skipped or gravel refilled behind the miner is dug on the next
 pass. Ore is taken from the shaft's own walls, floor and ceiling around the miner, the corridor's
 full width from either side, and followed into the rock only through the holes she opened, never

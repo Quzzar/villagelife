@@ -67,6 +67,16 @@ import net.neoforged.neoforge.common.Tags;
  * which is what this did before, lost the race to the water flowing back between
  * picks and looked from outside like a miner ignoring her bucket.
  *
+ * <p>Light is work the same way. The sweep that re-walks the shaft from the mouth
+ * on every pick reads the light in each open head-height cell along the ramp's
+ * edge, and the first it finds dim, deep enough to be dark, with a wall beside it
+ * and a torch in the pack, is the pick: she walks there and hangs the torch. A
+ * fresh layer is lit as it opens, one layer behind the face, and a shaft dug dark
+ * by a miner with no torches, or inherited from one, is lit from the top down the
+ * moment a miner with torches walks in, since the sweep meets the dark before it
+ * meets the face. Torches used to go up only in the act of breaking a block,
+ * which lit nothing behind the miner and left an inherited shaft dark for good.
+ *
  * <p>Every pick re-walks the shaft from the mouth. An open cell costs one block
  * read, so auditing a thousand of them is nothing, and it is what makes a cell
  * an interruption skipped, or gravel refilled behind the miner, get dug on the
@@ -95,12 +105,12 @@ public final class MineStep implements BlockWorkStep {
   private static final int TORCH_MIN_DEPTH = 10;
 
   /**
-   * The light at the miner's feet below which the shaft wants a torch: a player's
-   * spacing. A torch gives 14 and light falls one per block, the ramp costs about
-   * two per layer, so 4 hangs one roughly every six layers, twelve blocks of ramp,
-   * and the dimmest stretch between two torches never nears the dark that spawns
-   * monsters. At 8 the shaft was lit every three or four layers, brighter than any
-   * player bothers with.
+   * The light in an open head-height cell of the shaft below which it wants a
+   * torch: a player's spacing. A torch gives 14 and light falls one per block, the
+   * ramp costs about two per layer, so 4 hangs one roughly every six layers, twelve
+   * blocks of ramp, and the dimmest stretch between two torches never nears the
+   * dark that spawns monsters. At 8 the shaft was lit every three or four layers,
+   * brighter than any player bothers with.
    */
   private static final int TORCH_LIGHT_FLOOR = 4;
 
@@ -140,8 +150,11 @@ public final class MineStep implements BlockWorkStep {
   private int lastProgress = -1;
   private int bucketShownTicks;
 
-  /** The descent layer (inward) that last got a torch, so a layer is lit once. */
-  private int torchedLayer;
+  /**
+   * True when the cursor cell is an open head-height cell on the ramp's edge that
+   * reads dim: the act hangs a torch there instead of digging.
+   */
+  private boolean placeTorch;
 
   /**
    * True when the cursor cell's column has no floor under it: the act lays one
@@ -212,6 +225,10 @@ public final class MineStep implements BlockWorkStep {
       layFloor(person, face);
       return false; // floored (or out of cobble); the next select re-scans
     }
+    if (this.placeTorch) {
+      hangTorch(person, rotation(person), face);
+      return false; // lit (or out of torches); the next select re-scans
+    }
     if (this.bailWater) {
       bailAct(person, mouth, rotation(person), face);
       return false; // dry (or out of cobble); the next select re-scans
@@ -221,10 +238,11 @@ public final class MineStep implements BlockWorkStep {
 
   /**
    * Break {@code pos} over {@link #breakTicks} ticks, then take its drops and clear
-   * the crack overlay. A shaft face ({@code vein} false) lights the descent behind
-   * it; a wall ore instead joins {@link #veinToSeal}, to be plugged with
-   * cobblestone once the vein is worked out. True while still breaking, false when
-   * the block comes down and the next select should choose again.
+   * the crack overlay. A wall ore ({@code vein} true) joins {@link #veinToSeal}, to
+   * be plugged with cobblestone once the vein is worked out; a shaft face is simply
+   * gone, and the sweep lights the descent behind it ({@link #wantsTorch}). True
+   * while still breaking, false when the block comes down and the next select
+   * should choose again.
    */
   private boolean breakAct(RealPerson person, BlockPos mouth, BlockPos pos, boolean vein) {
     person.getLookControl().setLookAt(pos.getX(), pos.getY(), pos.getZ(), 30.0F, 30.0F);
@@ -258,8 +276,6 @@ public final class MineStep implements BlockWorkStep {
         this.veinTaken++;
         Villagelife.LOGGER.info("[mine] {} pulled {} from the wall at {}",
             person.getName().getString(), this.block.getName().getString(), pos.toShortString());
-      } else {
-        maybeTorch(person, mouth, rotation(person), pos);
       }
     }
     person.level().destroyBlockProgress(person.getId(), pos, -1);
@@ -563,81 +579,88 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * At most one wall torch per descent LAYER, so lighting follows the shaft down
-   * as a line rather than sprinkling the walls. Counting blocks broken - the old
-   * rule - fell apart the moment the sweep gnawed at a cave: every sixth solid
-   * cell got a torch, scattered wherever in the cavern the cursor happened to be,
-   * which is exactly the "torches everywhere" mess Aaron watched. The layer gate
-   * bounds torches by depth, and the brightness check below spaces even those out.
+   * Whether the open cursor cell wants a torch: the head-height cell of a ramp
+   * column on the corridor's edge (local x at the radius, y one above the column's
+   * bottom), with the walk cell under it already open, deep enough below the lit
+   * mouth ({@link #TORCH_MIN_DEPTH}) and reading dimmer than
+   * {@link #TORCH_LIGHT_FLOOR}, while the pack holds a torch to hang and a wall
+   * stands beside the cell to hang it on.
    *
-   * Physical: the torch comes out of the miner's pack (kept stocked from village
-   * stores when they turn in for the night), so an unlit mine reads as a village
-   * with no torches to spare rather than a bug. The cursor skips torches, so one
-   * placed here is never mistaken for stone later.
-   *
-   * A WALL torch, not a floor one: a torch standing on the floor sits in the dig
-   * path, and the block under it then has to be left unbroken to avoid knocking it
-   * out -- which is what riddled the shaft with holes. It hangs at head height,
-   * where a player puts one (see the row rule inside). And only once the shaft has
-   * dropped {@link #TORCH_MIN_DEPTH} below its lit mouth, and only where the light
-   * has fallen under {@link #TORCH_LIGHT_FLOOR}.
+   * <p>Only once the cell below is open, and the light read in the cell itself
+   * rather than at the miner's feet: a cell's light is recomputed on the light
+   * engine's own thread (ThreadedLevelLightEngine queues checkBlock), so a freshly
+   * opened cell still reads the zero of the stone it was, and the first version of
+   * this rule read every layer as dark and hung a torch on every step down. The
+   * walk cell opens a full layer after the head cell, by when the head cell's
+   * light has long settled, and it is where the miner stands to hang the torch, so
+   * a fresh layer's torch is at most one layer behind the face. A player's spacing
+   * falls out of the read: a torch gives 14, light drops one per block and the ramp
+   * costs about two per layer, so at a floor of 4 the next torch hangs about six
+   * layers on. A torch counts as light, so a lit cell is never picked twice.
    */
-  private void maybeTorch(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos face) {
-    int layer = -this.offset.getY();
-    if (layer == this.torchedLayer) {
-      return; // this layer of the descent is already lit
+  private boolean wantsTorch(RealPerson person, BlockPos mouth, Rotation rotation, BlockPos cell) {
+    BlockPos local = this.offset;
+    if (Math.abs(local.getX()) != RADIUS || local.getY() != -(local.getZ() + 1)) {
+      return false;
     }
     Level level = person.level();
-    // Already lit (the last torch still reaches here), or still in the daylit
-    // approach near the mouth: no torch wanted at this cell. The light is read
-    // at the miner's feet, not at the cell just dug: a changed block's light is
-    // recomputed on the light engine's own thread (ThreadedLevelLightEngine
-    // queues checkBlock), so the freshly opened cell still reads the zero of
-    // the stone it was, every layer looked dark, and a torch went on every
-    // step down. The miner stands a block or two from the face on ground that
-    // has been open for a while, so its light is settled.
-    if (level.getMaxLocalRawBrightness(person.blockPosition()) >= TORCH_LIGHT_FLOOR
-        || mouth.getY() - face.getY() < TORCH_MIN_DEPTH) {
-      return;
-    }
-    // Hang it at head height, where a player puts one. The sweep digs each column
-    // from its ceiling down, so the cell under the cursor is always still stone
-    // and "one lower" can never be used at the moment of digging; instead the
-    // cursor itself is at floor level on a layer's first row (the torch goes one
-    // above it, in air the previous layer opened) and at head height on its
-    // second (the torch goes in the cursor's own cell). Later rows of a layer sit
-    // above head height and are passed over, so a torch is at most one layer
-    // late, never on the ceiling. Before this rule torches hung wherever the
-    // light first read dark, three of five on the ceiling.
-    int lift = -(this.offset.getZ() + 1) - this.offset.getY();
-    if (lift < 0 || lift > 1) {
-      return;
-    }
-    BlockPos at = lift == 1 ? face.above() : face;
-    if (lift == 1 && !level.getBlockState(at).isAir()) {
-      return; // something already hangs or sits there
-    }
-    // Hang it on a wall that STAYS put -- a solid cell just outside the dig corridor,
-    // so the cursor never comes back and digs the torch's own support out. Work in the
-    // mine's local frame to tell corridor (will be dug) from wall, then rotate to the
-    // world for the block ops. A centre cell has no such wall: try again at the next
-    // broken block of this layer rather than leaving the layer dark.
+    return mouth.getY() - cell.getY() >= TORCH_MIN_DEPTH
+        && level.getBlockState(cell.below()).isAir()
+        && level.getMaxLocalRawBrightness(cell) < TORCH_LIGHT_FLOOR
+        && person.hasItem(Items.TORCH)
+        && torchWall(level, rotation, cell) != null;
+  }
+
+  /**
+   * The world-frame direction from the cursor cell to the wall a torch in it would
+   * hang on: a sturdy face just OUTSIDE the dig corridor, which the cursor never
+   * comes back to dig out, so the torch's own support stays put. Told from corridor
+   * in the mine's local frame, then rotated to the world. Null while nothing sturdy
+   * stands there, as beside a cave the shaft has broken into.
+   */
+  @Nullable
+  private Direction torchWall(Level level, Rotation rotation, BlockPos cell) {
     for (Direction local : Direction.Plane.HORIZONTAL) {
       if (withinCorridor(this.offset.relative(local))) {
         continue;
       }
       Direction worldDir = rotation.rotate(local);
-      BlockPos wall = at.relative(worldDir);
-      if (!level.getBlockState(wall).isFaceSturdy(level, wall, worldDir.getOpposite())) {
-        continue;
+      BlockPos wall = cell.relative(worldDir);
+      if (level.getBlockState(wall).isFaceSturdy(level, wall, worldDir.getOpposite())) {
+        return worldDir;
       }
-      if (person.removeItem(Items.TORCH, 1).getCount() >= 1) {
-        level.setBlock(at, Blocks.WALL_TORCH.defaultBlockState()
-            .setValue(WallTorchBlock.FACING, worldDir.getOpposite()), 3);
-        this.torchedLayer = layer;
-      }
-      return; // out of torches: leave the layer unlit until the pack is restocked
     }
+    return null;
+  }
+
+  /**
+   * Hang one torch from the pack in the cursor cell, on the wall beside it, at head
+   * height where a player puts one. A WALL torch, not a floor one: a torch standing
+   * on the floor sits in the dig path, and the block under it then has to be left
+   * unbroken to avoid knocking it out, which is what riddled the shaft with holes.
+   * The miner stands in the walk cell under it or beside it (select found the
+   * footing before act ran), so this is placing a block at arm's length. Out of
+   * torches leaves the cell dark until the pack is restocked, and the sweep meets
+   * it again on the next pick.
+   */
+  private void hangTorch(RealPerson person, Rotation rotation, BlockPos cell) {
+    this.placeTorch = false;
+    Level level = person.level();
+    person.getLookControl().setLookAt(cell.getX(), cell.getY(), cell.getZ(), 30.0F, 30.0F);
+    Direction worldDir = torchWall(level, rotation, cell);
+    if (!level.getBlockState(cell).isAir() || worldDir == null) {
+      return; // filled or unwalled in the meantime; the next pick reads it afresh
+    }
+    if (person.removeItem(Items.TORCH, 1).getCount() < 1) {
+      return; // handed away since the pick; the next pick asks the pack again
+    }
+    level.setBlock(cell, Blocks.WALL_TORCH.defaultBlockState()
+        .setValue(WallTorchBlock.FACING, worldDir.getOpposite()), 3);
+    level.playSound((Player) null, cell.getX(), cell.getY(), cell.getZ(),
+        Blocks.WALL_TORCH.defaultBlockState().getSoundType().getPlaceSound(), SoundSource.BLOCKS,
+        1.0F, person.getRandom().nextFloat() * 0.4F + 0.8F);
+    Villagelife.LOGGER.info("[mine] {} lit the shaft at {}", person.getName().getString(),
+        cell.toShortString());
   }
 
   /**
@@ -835,6 +858,7 @@ public final class MineStep implements BlockWorkStep {
     this.inward = 1;
     this.placeFloor = false;
     this.bailWater = false;
+    this.placeTorch = false;
     int steps = 0;
     BlockPos facePos = null;
     do {
@@ -871,9 +895,16 @@ public final class MineStep implements BlockWorkStep {
         this.placeFloor = true;
         return true;
       }
+      // An open cell of the shaft gone dark is work too: hang a torch there before
+      // the sweep goes on toward the face. Read on the way down on every pick, so a
+      // shaft dug dark, or inherited dark, is lit from the top.
+      if (this.block == Blocks.AIR && wantsTorch(person, mouth, rotation, facePos)) {
+        this.placeTorch = true;
+        return true;
+      }
       // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
       // the cursor leaves the shaft's own lighting alone. Torches now hang on the
-      // walls (see maybeTorch), so the block BELOW a torch no longer needs
+      // walls (see hangTorch), so the block BELOW a torch no longer needs
       // protecting: digging it cannot knock a wall torch out, and skipping it was
       // exactly what left a hole under every torch.
     } while (this.block == Blocks.AIR
@@ -914,6 +945,7 @@ public final class MineStep implements BlockWorkStep {
     this.lastProgress = -1;
     this.placeFloor = false;
     this.bailWater = false;
+    this.placeTorch = false;
   }
 
 }
