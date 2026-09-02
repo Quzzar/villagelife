@@ -18,12 +18,17 @@ import net.minecraft.world.phys.Vec3;
  * world that only exists near players: the visible part is the walk away, the
  * rest is bookkeeping.
  *
- * <p>Terrain is met by turning, not by pathing around it. Each leg is aimed
- * past the horizon and the navigator walks as far toward it as its range
- * allows, then the next leg is aimed; a leg that gains no ground swings the
- * heading. A walk that has not reached the horizon after several travel
- * timeouts is taken as blocked, and the wanderer moves on beyond the horizon
- * from wherever they stand rather than pacing a cliff edge for a day.
+ * <p>The walk is one leg at a time, each aimed a follow-range step along the
+ * heading from where the wanderer stands. Legs are short on purpose: the
+ * ground navigator refuses outright any target whose chunk is not loaded
+ * (GroundPathNavigation.createPath), and a point a horizon away almost never
+ * is, so aiming at the horizon itself produced a wanderer who stood at the
+ * village edge forever. Terrain is met by turning, not by pathing around it: a
+ * leg over loaded ground that gains nothing swings the heading. Ground that is
+ * not loaded is not terrain, it is the end of the world for now, and the
+ * wanderer waits at it rather than turning back. A walk that has not reached
+ * the horizon after several travel timeouts is taken as blocked, and the
+ * wanderer moves on beyond the horizon from wherever they stand.
  *
  * <p>Sits below fleeing and fighting, and {@link StrollAroundVillage} yields to
  * it, so a roaming wanderer neither loiters nor walks through monsters. There
@@ -34,8 +39,8 @@ public class RoamGoal extends Goal {
 
     private static final double SPEED = 0.6D;
 
-    /** How far past the horizon each leg is aimed, so the walk never ends short of it. */
-    private static final int AIM_BEYOND_HORIZON = 32;
+    /** Blocks each leg reaches ahead: a follow-range step, so the whole leg is ground the navigator can see. */
+    private static final int LEG = 16;
 
     /** Goal ticks between checks; the selector ticks a running goal every other game tick. */
     private static final int CHECK_EVERY = 10;
@@ -52,6 +57,9 @@ public class RoamGoal extends Goal {
     private int ticks;
     private long lastSample;
     private Vec3 samplePos = Vec3.ZERO;
+
+    /** Whether the last leg was over loaded ground; only such a leg can count as blocked. */
+    private boolean legOnLoadedGround;
 
     public RoamGoal(RealPerson person) {
         this.person = person;
@@ -87,15 +95,15 @@ public class RoamGoal extends Goal {
             return;
         }
         if (now - lastSample >= STUCK_SAMPLE_TICKS) {
-            if (person.position().distanceToSqr(samplePos) < STUCK_DISTANCE_SQR) {
+            if (legOnLoadedGround && person.position().distanceToSqr(samplePos) < STUCK_DISTANCE_SQR) {
                 // Something in the way: swing anywhere from a quarter to a half
                 // turn, either side, and try that way instead.
                 double swing = (Math.PI / 2) + person.getRandom().nextDouble() * (Math.PI / 2);
                 person.turnRoamHeading(person.getRandom().nextBoolean() ? swing : -swing);
-                aim();
             }
             lastSample = now;
             samplePos = person.position();
+            aim();
         } else if (person.getNavigation().isDone()) {
             aim();
         }
@@ -106,16 +114,19 @@ public class RoamGoal extends Goal {
         person.getNavigation().stop();
     }
 
-    /** Sends the navigator toward a point past the horizon along the heading; it walks what it can reach. */
+    /**
+     * Sends the navigator one leg along the heading from where the wanderer
+     * stands. A leg into ground that is not loaded is not attempted: the
+     * navigator would refuse it, and the wanderer waits at the edge of the
+     * world for it to load rather than reading the wait as a wall.
+     */
     private void aim() {
-        BlockPos origin = person.getRoamOrigin();
-        if (origin == null) {
-            return;
+        double x = person.getX() + Math.cos(person.getRoamHeading()) * LEG;
+        double z = person.getZ() + Math.sin(person.getRoamHeading()) * LEG;
+        legOnLoadedGround = person.level().hasChunkAt(BlockPos.containing(x, person.getY(), z));
+        if (legOnLoadedGround) {
+            person.getNavigation().moveTo(x, person.getY(), z, SPEED);
         }
-        double reach = VillagelifeConfig.WandererHorizonDistance + AIM_BEYOND_HORIZON;
-        double x = origin.getX() + Math.cos(person.getRoamHeading()) * reach;
-        double z = origin.getZ() + Math.sin(person.getRoamHeading()) * reach;
-        person.getNavigation().moveTo(x, person.getY(), z, SPEED);
     }
 
     private boolean pastHorizon(long now) {
