@@ -33,8 +33,10 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
  * {@link HeightGrid}, so screening is arithmetic, and the volume scan is spent
  * only on ground the heightmap could not rule out.
  *
- * A free site always wins; otherwise the cheapest preparable ground does; and a
- * search that finds neither hands back the nearest thing to a site it saw, so
+ * In the ring a free site wins outright. In the sweep the nearest usable ground
+ * wins, cost deciding only among neighbours, because a village that sprawls has
+ * a wall ring it can never afford and ground it can never finish grading. A
+ * search that finds nothing hands back the nearest thing to a site it saw, so
  * the village can say where its room ran out rather than only that it did.
  */
 public class LocationValidator {
@@ -56,6 +58,13 @@ public class LocationValidator {
 
   /** How far past the village's own ring the sweep looks before it gives up. */
   public static final int SWEEP_BEYOND = 32;
+
+  /**
+   * How much further out than the nearest usable ground the sweep keeps
+   * reading, so cost can still choose between neighbours without reaching for
+   * cheap ground far away.
+   */
+  public static final int SWEEP_BAND = 8;
 
   /** No village looks further than this for a site, however large it grows. */
   public static final int MAX_SEARCH_RADIUS = 96;
@@ -87,7 +96,8 @@ public class LocationValidator {
     // somewhere. When this was a plain multiple of the building count, a young
     // village searched a radius of zero, every candidate landed on the town
     // centre's own footprint, and no site was ever scored at all.
-    int ringRadius = SEARCH_RADIUS_PER_4_BUILDINGS * (1 + village.getBuildings().size() / 4);
+    int ringRadius = Math.min(MAX_SEARCH_RADIUS,
+        SEARCH_RADIUS_PER_4_BUILDINGS * (1 + village.getBuildings().size() / 4));
     int sweepRadius = Math.min(MAX_SEARCH_RADIUS, ringRadius + SWEEP_BEYOND);
     // Never propose the ground the town centre is standing on.
     int standOff = (int) village.getTownCenter().getRadius() + MIN_STAND_OFF;
@@ -133,9 +143,25 @@ public class LocationValidator {
       }
     }
     offsets.sort(Comparator.comparingInt(offset -> offset[0] * offset[0] + offset[1] * offset[1]));
+    // The random pass found nothing free, so what it priced is set aside: the
+    // sweep decides by distance and would read that ground again anyway.
+    hunt.forgetCheapest();
+    // Nearest first, and the first ground that will do settles a band: the sweep
+    // reads only SWEEP_BAND blocks further and takes the cheapest in it, free
+    // winning outright. Taking the cheapest in the whole reach (the first cut of
+    // this) put Wildflower Downs' lumberjack 90 blocks from its fire, 78 blocks
+    // of work there against 211 within 50.
+    int settledAt = -1;
     for (int[] offset : offsets) {
+      double distance = Math.sqrt((double) offset[0] * offset[0] + (double) offset[1] * offset[1]);
+      if (settledAt >= 0 && distance > settledAt + SWEEP_BAND) {
+        break;
+      }
       if (hunt.consider(offset[0], offset[1])) {
         break;
+      }
+      if (settledAt < 0 && hunt.hasCheapest()) {
+        settledAt = (int) Math.ceil(distance);
       }
     }
     return hunt.result(ringRadius, sweepRadius);
@@ -373,6 +399,15 @@ public class LocationValidator {
         cheapestCost = cost.blocksMoved();
       }
       return false;
+    }
+
+    boolean hasCheapest() {
+      return cheapest != null;
+    }
+
+    void forgetCheapest() {
+      cheapest = null;
+      cheapestCost = Integer.MAX_VALUE;
     }
 
     /** Keeps the refused ground with the least earth standing off level. */

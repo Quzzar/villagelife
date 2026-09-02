@@ -27,8 +27,8 @@ nine-elevation loop, so a search reads roughly a ninth of the blocks it used to,
 candidates in unloaded chunks are skipped before any scan rather than being scored as
 impossible one at a time.
 
-The planner now takes ground that needs work: a free site always wins, and otherwise the
-cheapest preparable site is chosen. Heightmap-first screening and a systematic sweep are
+The planner now takes ground that needs work: a free site in the ring always wins, and
+otherwise the nearest preparable ground does, cost deciding only among neighbours. Heightmap-first screening and a systematic sweep are
 built (2026-09-01, "Where a village looks" below), and a refused search now leaves the
 village knowing where its room ran out ("What the village knows when it finds nothing").
 Still unbuilt from the sections below: the resumable budgeted search and the site cache.
@@ -53,7 +53,12 @@ candidate's flatness is arithmetic: its plane is the height most of its columns 
 ground with more than one column in eight past the per-column budget, or averaging past the
 levelling budget across the rest, is refused without a block scan. A few tall columns are
 let through because a tree reads as a tall column and is cleared, not levelled. Only
-survivors get the volume scan. The grid's stride is 4, so a site with a few blocks of slack
+survivors get the volume scan. In the sweep the nearest usable ground wins: the first candidate
+that is free or preparable settles a band, the sweep reads 8 blocks further out, and the
+cheapest in that band is taken, free outright. The first cut took the cheapest ground in the
+whole reach (2026-09-02) and put Wildflower Downs' lumberjack 90 blocks from its fire, 78
+blocks of work there against 211 within 50; a village that sprawls has a wall ring it cannot
+afford and ground it cannot finish grading. The grid's stride is 4, so a site with a few blocks of slack
 around it cannot fall between grid points; a site that fits only exactly can, and a refusal
 means "no site with a little room to spare". Unloaded chunks read as no ground and are never
 loaded by the search: a refusal records how far out the village actually read ground, and

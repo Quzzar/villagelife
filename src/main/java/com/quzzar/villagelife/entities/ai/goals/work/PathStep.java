@@ -59,7 +59,7 @@ public final class PathStep implements BlockWorkStep {
   @Nullable
   public BlockPos select(RealPerson person) {
     Village village = person.getVillage();
-    if (village == null || village.getCurrentProject() != null) {
+    if (village == null || (village.getCurrentProject() != null && person.isConstructionLead())) {
       return null; // there is something to build; paths can wait
     }
     List<Building> buildings = new ArrayList<>(village.getBuildings());

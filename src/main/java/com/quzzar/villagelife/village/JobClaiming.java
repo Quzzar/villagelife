@@ -272,10 +272,10 @@ public final class JobClaiming {
       return; // a pick is in flight; the post it is deciding stays open until it lands
     }
     while (!village.getUnassignedJobs().isEmpty()) {
-      JobAssignment job = village.getUnassignedJobs().get(0);
+      JobAssignment job = nextOpening(village);
       if (!isStationValid(village, job)) {
         // Stale opening from a redefined building: drop it, never fill it.
-        village.getUnassignedJobs().remove(0);
+        village.getUnassignedJobs().remove(job);
         Villagelife.LOGGER.warn("Dropped a stale open {} job in '{}': station no longer in the building definition",
             job.getOccupation(), village.getName());
         continue;
@@ -291,6 +291,25 @@ public final class JobClaiming {
       Applicant best = shortlist.get(0);
       assignJob(village, level, best.person(), job, best.score());
     }
+  }
+
+  /**
+   * The next post to fill: the first open one for a trade nobody in the village
+   * holds yet, else simply the first. Posts are otherwise filled in registration
+   * order, and the town centre registers three BUILDER posts at founding
+   * (docs/worker-loops.md), which would have made the first three campers
+   * builders and left the mine and the storehouse unstaffed: a camp with no
+   * miner never gets its stone. Every trade is staffed once before any is
+   * doubled.
+   */
+  private static JobAssignment nextOpening(Village village) {
+    List<JobAssignment> open = village.getUnassignedJobs();
+    for (JobAssignment job : open) {
+      if (!village.hasWorkerOf(job.getOccupation())) {
+        return job;
+      }
+    }
+    return open.get(0);
   }
 
   /**

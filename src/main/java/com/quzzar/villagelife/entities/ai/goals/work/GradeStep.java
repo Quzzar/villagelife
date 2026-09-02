@@ -193,7 +193,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   @Nullable
   public Job select(RealPerson person) {
     Village village = person.getVillage();
-    if (village == null || village.getCurrentProject() != null) {
+    if (village == null || (village.getCurrentProject() != null && person.isConstructionLead())) {
       return null; // there is something to build; grading can wait
     }
     if (!(person.level() instanceof ServerLevel level)) {
@@ -206,7 +206,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   @Override
   public boolean act(RealPerson person, Job job) {
     Village village = person.getVillage();
-    if (village == null || village.getCurrentProject() != null
+    if (village == null || (village.getCurrentProject() != null && person.isConstructionLead())
         || !(person.level() instanceof ServerLevel level)) {
       return false;
     }

@@ -108,7 +108,13 @@ hooks it needs:
   the village is established (a building-count or population floor). It sits alongside the
   ranked NBT candidates, not inside the `Buildings` registry.
 - **Cost**: priced per ring length (segments times a per-segment recipe), not per footprint.
-  This is the "priced per segment" the spec always called for.
+  This is the "priced per segment" the spec always called for. **Priced at a tenth
+  (2026-09-02):** one log raises ten blocks of wall (`WallTier.BLOCKS_PER_ITEM`), both in the
+  bill the village checks before starting and in the builder's draw as it lays each column,
+  the remainder of an item carrying over to the next column. At a block per log no village
+  ever afforded a wall: Wildflower Downs, sprawling to a 740-segment ring, wanted 3700 logs
+  and logged the shortage forever. Aaron's call: the wall may well be worth that many logs,
+  and the village pays a tenth anyway.
 - **Project**: the village runs it as its one `currentProject`, the same slot an NBT build uses,
   but backed by the ring and `WallStep` rather than a template and `StructureInProgress`.
 - **Completion and upgrade**: on finish, the village records the wall's tier. The stone upgrade

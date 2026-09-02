@@ -915,8 +915,9 @@ public class Village {
       return false;
     }
     // A rough bill, a course or two of slack per column for the slopes it steps
-    // down. The exact draw happens column by column as it builds.
-    int estimate = ring.size() * (tier.height() + 2);
+    // down, at the tier's rate of blocks per item. The exact draw happens
+    // column by column as it builds.
+    int estimate = Math.ceilDiv(ring.size() * (tier.height() + 2), WallTier.BLOCKS_PER_ITEM);
     if (com.quzzar.villagelife.village.buildings.Materials.counted(stockTally(), tier.material()) < estimate) {
       maybeLogShortage(new ItemStack(tier.material(), estimate));
       return false;
@@ -1775,6 +1776,40 @@ public class Village {
       }
     }
     return idle;
+  }
+
+  /** Whether anyone in the village holds a post of this occupation. */
+  public boolean hasWorkerOf(Occupation occupation) {
+    return jobAssignments.values().stream().anyMatch(job -> job.getOccupation() == occupation);
+  }
+
+  /**
+   * A builder's place among the village's builders, by the order of the
+   * builder posts in their workplace's definition: 0 is the construction lead,
+   * 1 wears the paths, 2 grades the ground (docs/worker-loops.md). Anyone
+   * without a builder's post ranks 0, so a lone builder does everything.
+   */
+  public int builderRank(UUID personId) {
+    JobAssignment job = jobAssignments.get(personId);
+    if (job == null || job.getOccupation() != Occupation.BUILDER) {
+      return 0;
+    }
+    Building workplace = buildings.get(job.getBuildingUUID());
+    if (workplace == null) {
+      return 0;
+    }
+    int rank = 0;
+    int index = 0;
+    for (Occupation occupation : workplace.getInfo().getWorkLocations().values()) {
+      if (index >= job.getStationIndex()) {
+        break;
+      }
+      if (occupation == Occupation.BUILDER) {
+        rank++;
+      }
+      index++;
+    }
+    return rank;
   }
 
   public void assignJob(UUID personId, JobAssignment job) {

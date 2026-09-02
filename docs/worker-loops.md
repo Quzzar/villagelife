@@ -218,6 +218,19 @@ This is deliberately the low-priority half of the job: a village with something 
 always building it, and a village with nothing to build is tidying itself. It also means
 paths are the visible sign of a village that has caught up with its own plans.
 
+**Built, 2026-09-02: a village can have three builders, and they divide the duties.** The town
+centre registers three BUILDER posts at founding. Posts are filled each trade once before any
+trade is doubled (`JobClaiming.nextOpening`), so a four-bed camp still staffs its guard, miner
+and quartermaster before a second builder, and the extra builders arrive with the beds that
+houses bring. A builder's rank is the order of its post in the definition
+(`Village.builderRank`): the lead (rank 0) builds, gathers and raises the wall, then grades and
+wears paths between builds, exactly as a lone builder always did; the second (rank 1) wears
+paths first and helps build only when there is no path to wear; the third (rank 2) grades
+first. Only the lead is owned by a building project: the others keep to their duty while it
+runs. This exists because Wildflower Downs never got a path in a day: its one builder, whenever
+it was idle, read over a thousand columns of hillside to grade, and grading a hillside does not
+end. A dedicated builder can grade forever without costing the village its paths.
+
 **Built, 2026-09-01: the idle builder grades the ground first, and wears paths second.** A
 village on a hillside gets level footprints and rough ground between them: two-block steps a
 villager cannot climb, the notch where a site was cut in, the ledge where one was filled up.

@@ -52,11 +52,19 @@ public final class WallStep implements BlockWorkStep {
    */
   private static final int LOW_WATER = 8;
 
+  /**
+   * Wall blocks already paid for by an item drawn on an earlier column. One
+   * item raises {@link WallTier#BLOCKS_PER_ITEM} blocks and a column rarely
+   * needs a round number, so the remainder carries over. This builder's own
+   * and never saved: a builder swapped mid-ring forfeits at most an item.
+   */
+  private int credit;
+
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
     Village village = person.getVillage();
-    if (village == null || village.getCurrentProject() != null) {
+    if (village == null || (village.getCurrentProject() != null && person.isConstructionLead())) {
       return null; // a building project owns the builder; the wall waits its turn
     }
     WallProject wall = village.getWallProject();
@@ -167,17 +175,20 @@ public final class WallStep implements BlockWorkStep {
       return true; // nothing to place here; treat the column as done
     }
     int count = range[1] - range[0] + 1;
+    int owed = Math.max(0, count - credit);
+    int items = Math.ceilDiv(owed, WallTier.BLOCKS_PER_ITEM);
 
-    if (PackLogistics.carried(person, tier.material()) < count) {
+    if (PackLogistics.carried(person, tier.material()) < items) {
       // What is carried stays carried for the next column; the shortage is only
       // real when the village's chests have none left to fetch either.
       if (Materials.counted(village.stockTally(), tier.material()) == 0) {
-        village.logEvent(new NoResourceBookkeepingEvent(tier.material(), count));
+        village.logEvent(new NoResourceBookkeepingEvent(tier.material(), items));
         person.logIssue("we are short of materials to raise the village wall", Optional.empty());
       }
       return false;
     }
-    Materials.take(person.personMainInv, tier.material(), count);
+    Materials.take(person.personMainInv, tier.material(), items);
+    credit += items * WallTier.BLOCKS_PER_ITEM - count;
 
     WallRaiser.place(level, x, z, range, tier);
     if (gate) {

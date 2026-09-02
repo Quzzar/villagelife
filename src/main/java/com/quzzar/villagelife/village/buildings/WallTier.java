@@ -16,6 +16,15 @@ public enum WallTier {
   WOOD(Blocks.OAK_LOG, Items.OAK_LOG, 3, false),
   STONE(Blocks.STONE_BRICKS, Items.STONE_BRICKS, 5, true);
 
+  /**
+   * Wall blocks one item of the material raises. A wall is village-scale work,
+   * hundreds of segments round even a modest village, and at a block per log no
+   * village ever afforded one: Wildflower Downs wanted 3700 logs and waited
+   * forever. Aaron priced walls at a tenth instead (2026-09-02). The bill the
+   * village checks and the draw the builder makes both use this rate.
+   */
+  public static final int BLOCKS_PER_ITEM = 10;
+
   private final Block block;
   private final Item material;
   private final int height;

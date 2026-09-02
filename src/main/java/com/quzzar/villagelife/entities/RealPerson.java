@@ -556,6 +556,16 @@ public class RealPerson extends Person {
     return this.entityData.get(VILLAGE_NAME);
   }
 
+  /**
+   * The construction lead is the builder a building project owns: the village's
+   * first builder, or its only one. The other builders keep to their own duty
+   * while a project runs (docs/worker-loops.md).
+   */
+  public boolean isConstructionLead() {
+    Village village = getVillage();
+    return village == null || village.builderRank(getUUID()) == 0;
+  }
+
   public Village getVillage() {
     if (this.level().isClientSide || !(this.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
       return null;
@@ -1489,15 +1499,25 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MineStep()));
     }
     if (getOccupation() == Occupation.BUILDER) {
-      // Gathering the recipe comes before raising it; the two never run at once
-      // because they gate on the project's phase, but priority makes it plain.
-      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new GatherStep()));
-      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new BuildStep()));
-      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new WallStep()));
-      // With nothing to build, the ground between the buildings is graded to
-      // walkable slopes before the paths across it are worn in.
-      this.goalSelector.addGoal(7, new WorkLoopGoal<>(this, new GradeStep()));
-      this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new PathStep()));
+      // A lone builder does it all in one order: gathering the recipe, raising
+      // it (the two gate on the project's phase and never run at once), the
+      // wall, then between builds the ground graded to walkable slopes before
+      // the paths across it are worn in. With more than one builder the posts
+      // divide the duties (docs/worker-loops.md): the lead builds, the second
+      // wears paths, the third grades, each taking the others' work only when
+      // its own is done. Without this a village's one builder never reached
+      // the paths, because grading a hillside does not end.
+      int rank = getVillage() == null ? 0 : getVillage().builderRank(getUUID());
+      int[] order = switch (rank) { // gather, build, wall, grade, path
+        case 1 -> new int[] {7, 7, 4, 8, 4};
+        case 2 -> new int[] {8, 8, 4, 4, 7};
+        default -> new int[] {3, 4, 4, 7, 8};
+      };
+      this.goalSelector.addGoal(order[0], new WorkLoopGoal<>(this, new GatherStep()));
+      this.goalSelector.addGoal(order[1], new WorkLoopGoal<>(this, new BuildStep()));
+      this.goalSelector.addGoal(order[2], new WorkLoopGoal<>(this, new WallStep()));
+      this.goalSelector.addGoal(order[3], new WorkLoopGoal<>(this, new GradeStep()));
+      this.goalSelector.addGoal(order[4], new WorkLoopGoal<>(this, new PathStep()));
     }
     if (getOccupation() == Occupation.MERCHANT) {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new MarketStep()));
