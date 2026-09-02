@@ -20,9 +20,9 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
  * a village changes the surface of the land, never its shape.
  *
  * Preparation cost is space's own currency, deliberately separate from a
- * building's item recipe (building-spec.md). The planner currently gates on a
- * free site (cost zero), so this scoring changes which sites are DESCRIBED,
- * not which are chosen; paying nonzero costs arrives with the prepare phase.
+ * building's item recipe (building-spec.md). The planner takes a free site
+ * when the search finds one and the cheapest preparable ground otherwise; the
+ * builder pays the bill as the first phase of construction.
  *
  * Removal is a whitelist: only blocks in the villagelife:clearable tag may
  * ever be counted as removable, never a block entity, never claimed ground.
@@ -42,13 +42,22 @@ public final class SitePreparation {
   /** How far above the build plane each column is checked for obstructions. */
   public static final int CLEARANCE_HEIGHT = 8;
 
-  /** One candidate site's bill, in blocks moved, and why it failed if it did. */
-  public record SiteCost(int clearCount, int cutCount, int fillCount, boolean impossible, String reason) {
-
-    public static final SiteCost IMPOSSIBLE = new SiteCost(0, 0, 0, true, "unknown");
+  /**
+   * One candidate site's bill, in blocks moved, and why it failed if it did.
+   * {@code earthwork} marks a refusal that only more digging than the village
+   * allows would overturn: the ground is there, it just stands too far off the
+   * plane. Water, claimed ground and someone's chest are not earthwork, and no
+   * amount of levelling makes them a site.
+   */
+  public record SiteCost(int clearCount, int cutCount, int fillCount, boolean impossible, boolean earthwork,
+      String reason) {
 
     static SiteCost impossible(String reason) {
-      return new SiteCost(0, 0, 0, true, reason);
+      return new SiteCost(0, 0, 0, true, false, reason);
+    }
+
+    static SiteCost earthwork(String reason) {
+      return new SiteCost(0, 0, 0, true, true, reason);
     }
 
     public int blocksMoved() {
@@ -259,7 +268,7 @@ public final class SitePreparation {
 
         int delta = surface - plane;
         if (Math.abs(delta) > MAX_COLUMN_DELTA) {
-          return SiteCost.impossible("ground at " + worldX + "," + worldZ + " is " + delta
+          return SiteCost.earthwork("ground at " + worldX + "," + worldZ + " is " + delta
               + " off the build plane, past the levelling budget");
         }
         // Match planWork: cut what stands above the plane, fill up to plane-1. A
@@ -272,10 +281,10 @@ public final class SitePreparation {
     }
 
     if (columns > 0 && (double) deltaSum / columns > MAX_AVERAGE_DELTA) {
-      return SiteCost.impossible(String.format("too uneven: %.1f blocks per column against a budget of %.1f",
+      return SiteCost.earthwork(String.format("too uneven: %.1f blocks per column against a budget of %.1f",
           (double) deltaSum / columns, MAX_AVERAGE_DELTA));
     }
-    return new SiteCost(clear, cut, fill, false, "");
+    return new SiteCost(clear, cut, fill, false, false, "");
   }
 
 }

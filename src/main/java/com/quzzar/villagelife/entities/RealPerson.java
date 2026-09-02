@@ -294,9 +294,7 @@ public class RealPerson extends Person {
 
   /** The compass point the road heading points at, for a log line. */
   public String roamHeadingName() {
-    String[] points = {"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"};
-    int index = (int) Math.round(roamHeading / (Math.PI / 4));
-    return points[Math.floorMod(index, points.length)];
+    return Utils.compassPoint(roamHeading);
   }
 
   /**

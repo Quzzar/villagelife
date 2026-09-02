@@ -32,6 +32,13 @@ two goal lifetimes; the brain is told so in its situation ("nothing came in for 
 time, so it is off the table for now") rather than quietly losing an option. Without this a camp
 re-named its lumberjack lodge ten times over four hours, nine logs short throughout.
 
+The same holds for room (2026-09-01). A building whose footprint found no site lately is kept
+out of the options, and the situation says why, as facts from `SiteMemory` through
+`Village.describeRoom`: which footprints found no ground and how far the village looked, the
+nearest thing to a site and what ruled it out, and the rule that villagers never reshape a
+hill. Whether to build smaller or wait is the model's call; see
+[site-selection.md](site-selection.md).
+
 A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
 and when two or more idle people are near-equally suited by aptitude (within a small
 `PICK_DELTA`) it offers those near-equals to `decide()` to choose among on character, each

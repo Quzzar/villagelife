@@ -313,6 +313,14 @@ public class UrbanPlanner {
       situation.append("You saved up for a ").append(label)
           .append(" before and nothing came in for it the whole time, so it is off the table for now. ");
     }
+    // What the village has learned about its own room, stated for the same
+    // reason the stalled goal is: buildings that found no ground are missing
+    // from the options below, and the brain should know that is why rather than
+    // choose around a gap it cannot see.
+    String room = village.describeRoom();
+    if (room != null) {
+      situation.append(room).append(' ');
+    }
     situation.append("Choose what to build next.");
     return situation.toString();
   }

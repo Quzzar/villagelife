@@ -366,6 +366,14 @@ public final class PersonChatContext {
         // planks it was short of (a live finding).
         system.append("Your village is not saving up for or building anything at the moment.\n");
       }
+      // Where the village's room ran out, when it has. The builder especially
+      // gets asked why nothing is going up, and "no flat ground, the slope east
+      // of the fire came closest" is an answer a player can act on. Facts only;
+      // what to make of them is the villager's.
+      String room = village.describeRoom();
+      if (room != null) {
+        system.append(room).append('\n');
+      }
     }
 
     // The villager's own work in hand. Their job is a title; this is what a

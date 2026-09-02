@@ -36,6 +36,17 @@ public class Utils {
     return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
   }
 
+  /**
+   * The compass point an angle in radians points at, in the world's frame: zero
+   * is east (+x) and a quarter turn is south (+z). Shared by the road heading's
+   * log line and the site memory's "18 blocks east of the fire".
+   */
+  public static String compassPoint(double angle) {
+    String[] points = {"east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"};
+    int index = (int) Math.round(angle / (Math.PI / 4));
+    return points[Math.floorMod(index, points.length)];
+  }
+
   public static InteractionHand getHandWith(LivingEntity livingEntity, Predicate<Item> itemPredicate) {
     return itemPredicate.test(livingEntity.getMainHandItem().getItem()) ? InteractionHand.MAIN_HAND
         : InteractionHand.OFF_HAND;

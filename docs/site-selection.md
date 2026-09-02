@@ -28,18 +28,36 @@ candidates in unloaded chunks are skipped before any scan rather than being scor
 impossible one at a time.
 
 The planner now takes ground that needs work: a free site always wins, and otherwise the
-cheapest preparable site is chosen. Still unbuilt from the sections below: the resumable
-budgeted search, the site cache, and heightmap-first screening.
+cheapest preparable site is chosen. Heightmap-first screening and a systematic sweep are
+built (2026-09-01, "Where a village looks" below), and a refused search now leaves the
+village knowing where its room ran out ("What the village knows when it finds nothing").
+Still unbuilt from the sections below: the resumable budgeted search and the site cache.
 
-**Where a village looks.** Candidates are drawn from a square ring around the town centre.
-The ring's outer edge grows with the village — one search radius, plus another for every
-four buildings standing — but it never shrinks to nothing, and candidates always stand off
-the centre rather than starting on it. Both halves of that rule were learned by breaking
-them: a radius proportional to the building count alone is zero for a young village, so
-every candidate lands on the town centre's own footprint, is skipped as claimed ground, and
-the village decides there is nowhere to build. A candidate that does land on the centre is
-pushed out along one axis only, so a building can sit due north or east of the fire instead
-of only on the diagonals.
+**Where a village looks.** Two passes, both in `LocationValidator`. The first draws a
+handful of random candidates from a square ring around the town centre, biased toward the
+fire, and takes the first free one: that randomness is what gives a village its irregular
+spread, and when land is plentiful the search ends here. The ring's outer edge grows with
+the village, one search radius plus another for every four buildings standing, but it never
+shrinks to nothing, and candidates always stand off the centre rather than starting on it.
+Both halves of that rule were learned by breaking them: a radius proportional to the
+building count alone is zero for a young village, so every candidate lands on the town
+centre's own footprint, is skipped as claimed ground, and the village decides there is
+nowhere to build. A candidate that does land on the centre is pushed out along one axis
+only, so a building can sit due north or east of the fire instead of only on the diagonals.
+
+When the random pass finds nothing free, the second pass sweeps a grid outward from the
+fire, nearest first, to 32 blocks past the ring (never beyond 96). Before any candidate is
+looked at, the heights of the whole search square are read once from the chunk heightmaps
+(`MOTION_BLOCKING_NO_LEAVES`, the real ground under a canopy) into a grid, so every
+candidate's flatness is arithmetic: its plane is the height most of its columns share, and
+ground with more than one column in eight past the per-column budget, or averaging past the
+levelling budget across the rest, is refused without a block scan. A few tall columns are
+let through because a tree reads as a tall column and is cleared, not levelled. Only
+survivors get the volume scan. The grid's stride is 4, so a site with a few blocks of slack
+around it cannot fall between grid points; a site that fits only exactly can, and a refusal
+means "no site with a little room to spare". Unloaded chunks read as no ground and are never
+loaded by the search: a refusal records how far out the village actually read ground, and
+with nobody near, that is roughly the founding forceload rather than the full sweep.
 
 A village only searches while its ground is loaded. Nothing can be sited in a chunk nobody
 is near, and asking the brain to choose would spend a model call on an answer no site search
@@ -49,6 +67,24 @@ Every search leaves one debug line saying what it saw: how many candidates were 
 many sat on claimed ground, how many were in unloaded chunks. A search that skips every
 candidate before scoring is otherwise indistinguishable from one where every site was
 genuinely bad, and that ambiguity hid the zero-radius bug above for as long as it existed.
+
+**What the village knows when it finds nothing.** A refused search is remembered in
+`SiteMemory` for 900 village seconds, and dropped the moment anything is built: the
+footprint that found no ground, which rules out every footprint at least as large in both
+dimensions; how far out the search read ground; and the nearest thing to a site it saw,
+meaning the refused ground with the least earth standing off level, with the fact that ruled
+it out ("22 of its 99 columns stand more than 3 blocks off level"). Water, claimed ground and
+someone's chest are never a near miss, since no levelling makes them a site.
+`Village.describeRoom` turns that into one sentence of facts, and both briefings carry it:
+the planner's situation, so the brain knows why a building is missing from its options
+instead of choosing around a gap, and every villager's chat, so a builder asked why nothing
+is going up can say that nothing 9 by 11 or larger has found ground within about 40 blocks
+of the fire and that the nearest thing to a site was 18 blocks east. The sentence ends with
+the rule, that villagers level ground only lightly and never reshape a hill, and says
+nothing about what to do: building smaller, waiting, or a player levelling the slope by hand
+are the reader's calls. That division of labour is deliberate. The village holds the
+surface-not-shape line; a player is free to break it, and a slope they level is found on the
+next search once the refusal expires. The refusal is logged at INFO with the same sentence.
 
 Earlier slice: `SitePreparation.score` prices any candidate
 footprint in blocks moved (clear, cut, fill, or impossible) using the
@@ -199,7 +235,8 @@ Four mitigations, in order of how much they buy:
 
 1. **Heightmap first, blocks second.** A footprint's flatness comes from the chunk heightmap
    in ~256 reads with no volume scan. Reject most candidates on height variance alone, then
-   volume-scan only the survivors. This is the difference between viable and not.
+   volume-scan only the survivors. This is the difference between viable and not. Built:
+   one grid read per search, then arithmetic per candidate.
 2. **Budget reads per tick.** Site search becomes a resumable job with a read budget per
    village per tick, not a synchronous loop inside the planner. `Village` already
    phase-staggers attractiveness across villages, so the pattern exists to copy.
@@ -217,7 +254,8 @@ Sites reach the LLM as description, not coordinates, the same way every other op
 - *"a slope by the river, would need levelling"*
 
 The planner has already filtered to sites within budget, so the model is choosing among legal
-moves and cannot ask for the ravine.
+moves and cannot ask for the ravine. When there is no site, the brain hears that too, as the
+room sentence above rather than as a silent gap in its options.
 
 ## Open questions
 

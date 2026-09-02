@@ -104,7 +104,10 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
   written by `WorkLoopGoal` from each step's `activity()`), stated in the past
   tense because opening a chat pauses the loop; the village's building
   programme is always stated, even as "nothing at the moment", since a gap
-  there is what a small model fills with an invented project.
+  there is what a small model fills with an invented project. When the village
+  has found no ground for something lately, the briefing carries the room
+  sentence from `Village.describeRoom` (site-selection.md), so "no flat land,
+  the slope east of the fire came closest" is an answer a builder can give.
 - `llm/LlmService.java`: `submitBackgroundChat`, the background lane.
 - `entities/ai/goals/PauseForConversationGoal.java`: faces players and
   villager partners alike.

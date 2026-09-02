@@ -1,10 +1,12 @@
 package com.quzzar.villagelife.village.buildings;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.Villagelife;
 
 import net.minecraft.core.BlockPos;
@@ -30,6 +32,12 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlac
  * rectangle cannot fit where a smaller one would not. One failure teaches the
  * whole catalogue.
  *
+ * A refusal also keeps the nearest thing to a site the search saw, so the
+ * knowledge is not only "no" but "no, and here is where it came closest": the
+ * planner's briefing and every villager's chat carry it ({@link #describe}),
+ * which is how a builder can tell a player that the slope east of the fire is
+ * the problem, and the player can decide to level it.
+ *
  * The memory is deliberately short-lived and is dropped outright whenever the
  * village builds something, since clearing ground and raising walls is exactly
  * what changes the answer. It is a cache of the world, so it is never
@@ -39,15 +47,30 @@ public final class SiteMemory {
 
   /**
    * Village seconds a refusal stands. Long enough to stop the pick-fail-repick
-   * loop spinning, short enough that terrain cleared by other work is noticed.
+   * loop spinning, short enough that terrain cleared by other work, or levelled
+   * by a player, is noticed.
    */
   private static final int REMEMBER_SECONDS = 900;
 
   /** Refusals are kept whole rather than merged; see {@link #noSiteFor}. */
   private static final int MAX_REFUSALS = 6;
 
-  /** One footprint that found no site, normalised so short <= long, and its expiry. */
-  private record Refusal(int shortSide, int longSide, int until) {
+  /**
+   * The nearest thing to a site a refused search saw: ground that only more
+   * digging than the village allows would turn into one. {@code centre} is the
+   * middle of where the footprint would have stood, {@code blocksOffPlane} how
+   * far its columns stand from level in total, and {@code reason} the fact
+   * that ruled it out, in words a briefing can carry.
+   */
+  public record NearMiss(BlockPos centre, int blocksOffPlane, String reason) {
+  }
+
+  /**
+   * One footprint that found no site, normalised so short <= long, its expiry,
+   * how far from the fire the search managed to read ground, and the nearest
+   * thing to a site it saw.
+   */
+  private record Refusal(int shortSide, int longSide, int until, int reach, @Nullable NearMiss nearMiss) {
 
     boolean covers(int shorter, int longer) {
       return shorter >= shortSide && longer >= longSide;
@@ -66,7 +89,7 @@ public final class SiteMemory {
    * neither did. Each refusal only ever rules out footprints at least as large
    * as ITSELF in both dimensions.
    */
-  public void noSiteFor(BoundingBox footprint, int villageTime) {
+  public void noSiteFor(BoundingBox footprint, int villageTime, int reach, @Nullable NearMiss nearMiss) {
     int shorter = Math.min(footprint.getXSpan(), footprint.getZSpan());
     int longer = Math.max(footprint.getXSpan(), footprint.getZSpan());
     forget(villageTime);
@@ -79,10 +102,10 @@ public final class SiteMemory {
     if (refusals.size() >= MAX_REFUSALS) {
       refusals.remove(0);
     }
-    refusals.add(new Refusal(shorter, longer, villageTime + REMEMBER_SECONDS));
+    refusals.add(new Refusal(shorter, longer, villageTime + REMEMBER_SECONDS, reach, nearMiss));
     Villagelife.LOGGER.debug(
-        "No site for a {}x{} footprint; ruling out anything at least {}x{} for {}s",
-        footprint.getXSpan(), footprint.getZSpan(), shorter, longer, REMEMBER_SECONDS);
+        "No site for a {}x{} footprint within {} blocks; ruling out anything at least {}x{} for {}s",
+        footprint.getXSpan(), footprint.getZSpan(), reach, shorter, longer, REMEMBER_SECONDS);
   }
 
   /** Whether a footprint this size is known not to fit. */
@@ -94,6 +117,43 @@ public final class SiteMemory {
     int shorter = Math.min(footprint.getXSpan(), footprint.getZSpan());
     int longer = Math.max(footprint.getXSpan(), footprint.getZSpan());
     return refusals.stream().anyMatch(r -> r.covers(shorter, longer));
+  }
+
+  /**
+   * The village's room as a fact for a briefing, or null when nothing has been
+   * refused lately: which footprints found no ground and how far the village
+   * looked, the nearest thing to a site it saw and why that was not one, and
+   * the rule that keeps it from digging further. Stated, not judged: whether
+   * to build smaller, wait, or level the slope by hand is the reader's call.
+   */
+  @Nullable
+  public String describe(BlockPos fire, int villageTime) {
+    forget(villageTime);
+    if (refusals.isEmpty()) {
+      return null;
+    }
+    StringBuilder out = new StringBuilder("Nothing ");
+    out.append(String.join(" or ", refusals.stream().map(r -> r.shortSide() + " by " + r.longSide()).toList()))
+        .append(" or larger has found ground");
+    int reach = refusals.stream().mapToInt(Refusal::reach).max().orElse(0);
+    if (reach > 0) {
+      out.append(" within about ").append(reach).append(" blocks of the fire");
+    }
+    out.append(" lately.");
+    refusals.stream()
+        .filter(r -> r.nearMiss() != null)
+        .min(Comparator.comparingInt(r -> r.nearMiss().blocksOffPlane()))
+        .ifPresent(closest -> {
+          NearMiss miss = closest.nearMiss();
+          int dx = miss.centre().getX() - fire.getX();
+          int dz = miss.centre().getZ() - fire.getZ();
+          int distance = (int) Math.round(Math.sqrt((double) dx * dx + (double) dz * dz));
+          out.append(" The nearest thing to a site was ").append(distance).append(" blocks ")
+              .append(Utils.compassPoint(Math.atan2(dz, dx))).append(" of the fire: ")
+              .append(miss.reason()).append('.');
+        });
+    out.append(" Villagers level ground only lightly and never reshape a hill.");
+    return out.toString();
   }
 
   /** Forgotten the moment the village's shape changes. */

@@ -653,8 +653,8 @@ public class Village {
     // landed inside the footprint of a project already under way and was
     // demolished by it — taking a market's chest, and its treasury, with it.
     BlockPos site = LocationValidator.findValidLocation(level,
-        BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random);
-    if (site.equals(BlockPos.ZERO)) {
+        BlockPos.of(getTownCenter().getCenterLocation()).below(), struct.getBounds(), this, random).site();
+    if (site == null) {
       Villagelife.LOGGER.info("Village '{}' has nowhere to put a {}", name, buildingName);
       return false;
     }
@@ -681,6 +681,16 @@ public class Village {
   /** What the village has learned about its own room (never persisted). */
   public com.quzzar.villagelife.village.buildings.SiteMemory getSiteMemory() {
     return this.siteMemory;
+  }
+
+  /**
+   * The village's room as a fact for a briefing, or null when no search has
+   * come up empty lately (docs/site-selection.md).
+   */
+  @javax.annotation.Nullable
+  public String describeRoom() {
+    Building centre = getTownCenter();
+    return centre == null ? null : siteMemory.describe(BlockPos.of(centre.getCenterLocation()), time);
   }
 
   /**
@@ -1037,18 +1047,19 @@ public class Village {
       BoundingBox bounds = project.getStructureTemplate().getBoundingBox(project.getStructurePlaceSettings(),
           BlockPos.ZERO);
 
-      BlockPos projectLocation = LocationValidator.findValidLocation(level,
+      LocationValidator.Search search = LocationValidator.findValidLocation(level,
           BlockPos.of(getTownCenter().getCenterLocation()).below(), bounds, this, random);
 
-      if (projectLocation == BlockPos.ZERO) {
+      if (!search.found()) {
         // Remember it, or the planner will keep choosing this and failing here
-        // for as long as the village stands hemmed in.
-        siteMemory.noSiteFor(bounds, time);
-        Villagelife.LOGGER.debug("No site for '{}' ({}x{}); the village will not offer it again for now",
-            buildingInfo.getName(), bounds.getXSpan(), bounds.getZSpan());
+        // for as long as the village stands hemmed in. The search swept the
+        // ground before saying so, which makes this worth a line of its own.
+        siteMemory.noSiteFor(bounds, time, search.reach(), search.nearMiss());
+        Villagelife.LOGGER.info("Village '{}' has no site for a {} ({}x{}). {}",
+            name, buildingInfo.getName(), bounds.getXSpan(), bounds.getZSpan(), describeRoom());
         return false;
       }
-      return beginProject(project, bounds, projectLocation);
+      return beginProject(project, bounds, search.site());
   }
 
   /**
