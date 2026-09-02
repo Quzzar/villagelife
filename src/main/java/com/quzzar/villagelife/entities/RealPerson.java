@@ -631,9 +631,28 @@ public class RealPerson extends Person {
    * whatever they held, and refilled a hand that had just given its axe away.
    */
   public void reloadState() {
-    // Reregister Goals
-    this.goalSelector.removeAllGoals((goal) -> true);
+    // Running goals are stopped on the way out, or they hold the villager's
+    // legs for good (clearGoals). The target selector is rebuilt the same way;
+    // it used to gain another copy of every target goal on each reload.
+    clearGoals(this.goalSelector);
+    clearGoals(this.targetSelector);
     this.registerGoals();
+  }
+
+  /**
+   * Removes every goal from the selector, stopping the running ones first.
+   * The selector's own removeAllGoals drops the wrappers without stopping
+   * them, and a goal that is never stopped keeps its control flags locked in
+   * the selector for good: nothing at its priority or below can take the
+   * flag again, and the villager stands wherever the reload caught them.
+   * That was the wanderer frozen at the village edge (the walk to the exit,
+   * priority 1, was still running when the edge reloaded the goals), and the
+   * same trap waits for any worker reassigned mid-task.
+   */
+  private static void clearGoals(net.minecraft.world.entity.ai.goal.GoalSelector selector) {
+    for (net.minecraft.world.entity.ai.goal.WrappedGoal wrapped : List.copyOf(selector.getAvailableGoals())) {
+      selector.removeGoal(wrapped.getGoal());
+    }
   }
 
   public void goToBed(double speed) {
