@@ -311,7 +311,7 @@ public final class QuartermasterPlanner {
 
   private static String openingPrompt(Context context) {
     return "Our storehouse " + context.layout() + " It holds these goods, numbered 1 to "
-        + context.items().size() + ", each with the count on hand, "
+        + context.items().size() + ", each with the count on hand and the slots that takes, "
         + "the kind of thing it is, and the tags the game files it under:\n" + context.numbered()
         + "\nAssign every slot to exactly one group, and every item to exactly one group. "
         + "A group keeps its items in its slots. Reply with ONLY JSON:\n" + formatExample()
@@ -344,16 +344,29 @@ public final class QuartermasterPlanner {
         + "note is one short sentence in your own voice.";
   }
 
+  /**
+   * The storehouse as one numbered slot space, chest by chest, with how much of
+   * each chest is in use today. The model divides the slots however it likes;
+   * a group that spans two chests is as valid as one that does not.
+   */
   private static String layout(List<Container> containers) {
     int total = Storehouse.totalSlots(containers);
     StringBuilder out = new StringBuilder("has " + containers.size() + " chest(s), " + total
         + " slots in total, numbered 1 to " + total + " (");
     int at = 1;
     for (int c = 0; c < containers.size(); c++) {
-      int size = containers.get(c).getContainerSize();
-      out.append("chest ").append(c + 1).append(" is slots ").append(at).append(" to ").append(at + size - 1);
+      Container chest = containers.get(c);
+      int size = chest.getContainerSize();
+      int used = 0;
+      for (int slot = 0; slot < size; slot++) {
+        if (!chest.getItem(slot).isEmpty()) {
+          used++;
+        }
+      }
+      out.append("chest ").append(c + 1).append(" is slots ").append(at).append(" to ").append(at + size - 1)
+          .append(used == 0 ? ", empty" : ", " + used + " in use");
       at += size;
-      out.append(c == containers.size() - 1 ? ")." : ", ");
+      out.append(c == containers.size() - 1 ? ")." : "; ");
     }
     return out.toString();
   }
@@ -362,8 +375,11 @@ public final class QuartermasterPlanner {
     StringBuilder out = new StringBuilder();
     for (int i = 0; i < items.size(); i++) {
       Item item = items.get(i);
+      int count = counts.getOrDefault(item, 0);
+      int perStack = Math.max(1, item.getDefaultMaxStackSize());
+      int stacks = (count + perStack - 1) / perStack;
       out.append(i + 1).append(". ").append(displayName(item))
-          .append(" (x").append(counts.getOrDefault(item, 0)).append(')');
+          .append(" (x").append(count).append(", ").append(stacks).append(stacks == 1 ? " stack)" : " stacks)");
       String tab = tabs.get(item);
       if (tab != null) {
         out.append(", kind ").append(tab);

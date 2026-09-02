@@ -567,8 +567,10 @@ the items that live there. The tidy pass lays the shelves out to match, with no 
 loop.
 
 The plan is built by a conversation, not by rules. The storehouse's slots are numbered across
-its chests, and the model is asked to assign every slot to one category and every item to one
-category. Each good is listed with its count, the creative-inventory tab it sits in (Building
+its chests as one slot space (chest one is slots 1 to 27, chest two 28 to 54, and so on, each
+with how many slots it has in use), and the model is asked to assign every slot to one category
+and every item to one category, dividing the slots however it likes, across chests or not. Each
+good is listed with its count and the slots that takes, the creative-inventory tab it sits in (Building
 Blocks, Ingredients, Food & Drinks...) and its item tags (logs, c:ores...): the groupings the
 game already knows, handed over as facts for the model to use or ignore, since a small model
 guessing from the name alone shelved the list in thirds by list order. Which shelves to keep
