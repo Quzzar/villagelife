@@ -80,12 +80,13 @@ public final class QuartermasterPlanner {
 
   /**
    * How many turns the pair gets in all: one opening proposal and, only when that
-   * proposal has no usable sorting yet (empty, or everything in one group), a single
-   * correcting round. A real attempt with some goods left loose is never sent back -
-   * it is shelved as-is with an "Odds and ends" catch-all (see the class note) - so
-   * the old six-round grind on slot arithmetic the small model could never do is gone.
+   * proposal has no usable sorting yet (empty, or everything in one group), up to two
+   * correcting rounds to sort it. A real attempt with some goods left loose is never
+   * sent back - it is shelved as-is with an "Odds and ends" catch-all (see the class
+   * note) - so the old six-round grind on slot arithmetic the small model could never
+   * do is gone, while a collapsed dump still gets a couple of tries at real sorting.
    */
-  private static final int MAX_ROUNDS = 2;
+  private static final int MAX_ROUNDS = 3;
 
   /**
    * With this many kinds of goods or more, a plan must sort them into at least
