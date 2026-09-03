@@ -432,21 +432,36 @@ public class UrbanPlanner {
   }
 
   /**
-   * Housing is a resource the way logs are. When every bed is full and work stands
-   * open, that work cannot be taken, because a villager needs a bed before they can
-   * hold a post: the empty farm is waiting on a house, not on another farm. Stated
-   * as a fact with its answer, so the model does not read "a job nobody has taken"
-   * and "someone has nowhere to sleep" as two unrelated troubles. Silent while a
-   * bed stands free or no post is going unfilled.
+   * Housing is a resource the way logs are. A full village (no free bed) can
+   * neither take in a newcomer nor house anyone for a post, so its labour is
+   * fixed until a bed frees up or a home is raised. Two forms of the same fact,
+   * both stated with their answer so the model does not read the troubles apart:
+   * when a post already stands open, the empty farm is waiting on a house, not on
+   * another farm; and even before any post is open, another workshop raised while
+   * full only makes work no one is free to take. That second form is the one the
+   * model most often reasons past, choosing another workshop over the house that
+   * would let the village grow into the work it keeps taking on (Emberwood, a
+   * full four-person village, chose a lumberjack with every bed already spoken
+   * for). Silent while a bed stands free, and while anyone is outright homeless,
+   * which is its own line above.
    */
   private static void appendHousingShortage(Village village, StringBuilder situation) {
     VillageAttractiveness report = village.getAttractiveness();
-    if (report == null || report.freeBeds() > 0 || village.claimableJobs().isEmpty()) {
+    if (report == null || report.freeBeds() > 0 || report.homelessCount() > 0) {
       return;
     }
-    situation.append("Work stands open that no one can take, because every bed is full and a "
-        + "villager needs somewhere to sleep before they can hold a post. A house adds the beds "
-        + "that let those posts be filled. ");
+    if (!village.claimableJobs().isEmpty()) {
+      situation.append("Work already stands open that no one can take, because every bed is full "
+          + "and a villager needs somewhere to sleep before they can hold a post. Build a house "
+          + "before another workshop: the beds are what let those posts be filled. ");
+      return;
+    }
+    // Full, but no post open yet: the trap the model walks into is raising more
+    // workshops it then has no one free to staff, since a full village cannot
+    // grow. A house is the move that turns the next workshop into filled work.
+    situation.append("With every bed full the village cannot grow, so another workshop would only "
+        + "make work no one is free to take. A house adds the beds that let new folk move in and "
+        + "hold the posts the village takes on. ");
   }
 
   /**
