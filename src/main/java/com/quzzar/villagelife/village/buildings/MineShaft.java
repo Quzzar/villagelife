@@ -127,9 +127,14 @@ public final class MineShaft {
       return walkCell(localFrom.getZ() + (ahead > 0 ? HOP : -HOP));
     }
     if (fromIn) {
-      // Climbing out: up the ramp a hop at a time, then the mouth itself.
+      // Climbing out: up the ramp a hop at a time, and within a hop of the mouth
+      // hand back to the ordinary path so it climbs the last steps out to the real
+      // target. Returning this.mouth here pinned anyone standing below the mouth:
+      // the walk to the mouth is a no-op once they reach it, and the goal's real
+      // up-top target (a bed, the day's work) never got a path, so a villager who
+      // wandered onto the ramp could never climb back out of the shaft.
       int z = localFrom.getZ() - HOP;
-      return z <= -(RADIUS - 1) ? this.mouth : walkCell(z);
+      return z <= -(RADIUS - 1) ? null : walkCell(z);
     }
     // Going in: the mouth first, from wherever they are, then down the ramp.
     if (from.distSqr(this.mouth) > AT_MOUTH_SQR) {
