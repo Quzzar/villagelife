@@ -156,6 +156,7 @@ public class VillageManagerSaveData extends SavedData {
      */
     public Village.Removal removeVillage(ServerLevel level, Village village) {
         Village.Removal removal = village.demolish(level);
+        com.quzzar.villagelife.village.VillageChunkLoader.release(level, village.getID());
         villages.remove(village.getID());
         setDirty();
         return removal;

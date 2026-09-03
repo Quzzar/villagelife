@@ -29,6 +29,7 @@ public class Villagelife {
         modEventBus.addListener(this::addAttributes);
         modEventBus.addListener(this::registerCapabilities);
         modEventBus.addListener(VillagelifeNetworking::register);
+        modEventBus.addListener(com.quzzar.villagelife.village.VillageChunkLoader::onRegisterTicketControllers);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, VillagelifeConfig.COMMON_SPEC);
 

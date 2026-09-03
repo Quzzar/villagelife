@@ -74,6 +74,11 @@ in it, and update it in the same change that moves what it describes.
 - [structure-authoring.md](structure-authoring.md): how a building's structure file gets made,
   headlessly, with commands plus `/vldev village save-structure`. The loop the current village
   center was built with.
+- [village-loading.md](village-loading.md): keeping a village awake when no player is near. The
+  two-speed village today (bookkeeping always, world frozen when unattended), what a loaded
+  village keeps resident (building chunks, a 2-chunk perimeter, the pending build site, a bubble
+  per member), the three modes (off, all, hybrid default with a six-day grace window), and why
+  there is no loaded-village cap.
 
 ## Research
 

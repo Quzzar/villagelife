@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nullable;
@@ -44,6 +45,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
@@ -71,8 +73,10 @@ public class Village {
       JobAssignment.CODEC.listOf().fieldOf("unassigned_jobs").forGetter(v -> List.copyOf(v.unassignedJobs)),
       BedAssignment.CODEC.listOf().fieldOf("unassigned_beds").forGetter(v -> List.copyOf(v.unassignedBeds)),
       Codec.STRING.optionalFieldOf("tier", VillageTiers.DEFAULT_TIER_ID).forGetter(v -> v.tierId),
-      PendingTraveler.CODEC.listOf().optionalFieldOf("pending_arrivals", List.of()).forGetter(v -> List.copyOf(v.pendingArrivals)),
-      PendingTraveler.CODEC.listOf().optionalFieldOf("pending_departures", List.of()).forGetter(v -> List.copyOf(v.pendingDepartures))
+      Travelers.CODEC.optionalFieldOf("travelers", Travelers.NONE)
+          .forGetter(v -> new Travelers(List.copyOf(v.pendingArrivals), List.copyOf(v.pendingDepartures))),
+      LoadingState.CODEC.optionalFieldOf("loading", LoadingState.NONE)
+          .forGetter(v -> new LoadingState(v.lastVisitedTick, Map.copyOf(v.memberChunks)))
   ).apply(inst, Village::fromCodec));
 
   /** Someone mid-walk: arriving at the campfire or leaving for the village edge. */
@@ -82,6 +86,35 @@ public class Village {
         Codec.LONG.fieldOf("deadline").forGetter(PendingTraveler::deadline),
         Codec.LONG.fieldOf("target").forGetter(PendingTraveler::target)
     ).apply(inst, PendingTraveler::new));
+  }
+
+  /**
+   * The travellers on the road to or from the village, in one save slot: arrivals
+   * walking to the campfire and departures walking to the edge. They ride together
+   * because the codec is at its sixteen-field ceiling, the same reason
+   * {@link ActiveProjects} shares a slot.
+   */
+  public record Travelers(List<PendingTraveler> arrivals, List<PendingTraveler> departures) {
+    public static final Travelers NONE = new Travelers(List.of(), List.of());
+    public static final Codec<Travelers> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        PendingTraveler.CODEC.listOf().optionalFieldOf("arrivals", List.of()).forGetter(Travelers::arrivals),
+        PendingTraveler.CODEC.listOf().optionalFieldOf("departures", List.of()).forGetter(Travelers::departures)
+    ).apply(inst, Travelers::new));
+  }
+
+  /**
+   * What the village-loading system persists (docs/village-loading.md): when a
+   * player last stood in the village, so a hybrid village knows when its grace
+   * has run out, and each resident's last-known chunk, so one who was roaming
+   * beyond the footprint when the village last slept can be woken there.
+   */
+  public record LoadingState(long lastVisitedTick, Map<UUID, Long> memberChunks) {
+    public static final LoadingState NONE = new LoadingState(NEVER_VISITED, Map.of());
+    public static final Codec<LoadingState> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        Codec.LONG.optionalFieldOf("last_visited", NEVER_VISITED).forGetter(LoadingState::lastVisitedTick),
+        Codec.unboundedMap(UUIDUtil.STRING_CODEC, Codec.LONG).optionalFieldOf("member_chunks", Map.of())
+            .forGetter(LoadingState::memberChunks)
+    ).apply(inst, LoadingState::new));
   }
 
   /**
@@ -101,7 +134,7 @@ public class Village {
       List<Long> claimGrid, ActiveProjects project, List<UUID> people, List<Building> buildings,
       Map<UUID, JobAssignment> jobAssignments, Map<UUID, BedAssignment> bedAssignments,
       List<JobAssignment> unassignedJobs, List<BedAssignment> unassignedBeds, String tierId,
-      List<PendingTraveler> pendingArrivals, List<PendingTraveler> pendingDepartures) {
+      Travelers travelers, LoadingState loading) {
     Village village = new Village(id, name);
     village.time = time;
     village.brain = brain;
@@ -116,8 +149,10 @@ public class Village {
     village.unassignedJobs = new ArrayList<>(unassignedJobs);
     village.unassignedBeds = new ArrayList<>(unassignedBeds);
     village.tierId = tierId;
-    village.pendingArrivals = new ArrayList<>(pendingArrivals);
-    village.pendingDepartures = new ArrayList<>(pendingDepartures);
+    village.pendingArrivals = new ArrayList<>(travelers.arrivals());
+    village.pendingDepartures = new ArrayList<>(travelers.departures());
+    village.lastVisitedTick = loading.lastVisitedTick();
+    village.memberChunks = new HashMap<>(loading.memberChunks());
     return village;
   }
 
@@ -129,6 +164,8 @@ public class Village {
   /** The hard ceiling: checks a gather gets even while its materials sit in transit, so a
    *  delivery that never lands cannot freeze a project forever. */
   private static final int MAX_TRANSIT_CHECKS = 60;
+  /** A last-visit stamp far enough in the past to read as never visited, safe from overflow. */
+  public static final long NEVER_VISITED = -1_000_000_000L;
 
   private int time = 0;
 
@@ -137,6 +174,13 @@ public class Village {
 
   private VillageBrain brain;
   private UUID townCenterUUID;
+
+  // Village-loading state (docs/village-loading.md), persisted through LoadingState.
+  // When a player last stood in the village, so a hybrid village knows when its
+  // grace has run out; and each resident's last-known chunk, so one who was
+  // roaming beyond the footprint when the village last slept can be woken there.
+  private long lastVisitedTick = NEVER_VISITED;
+  private Map<UUID, Long> memberChunks = new HashMap<>();
 
   // Runtime-only state, re-attached by the VillageManager save data. Never persisted.
   private transient ServerLevel level;
@@ -1485,7 +1529,96 @@ public class Village {
       updateTier();
     }
 
+    // Keep the village's chunks loaded when the mode calls for it, so it keeps
+    // working unattended (docs/village-loading.md). Cheap when off: the desired
+    // set comes back empty and the reconcile has nothing to do.
+    long tl = VillageProfile.start();
+    tickLoading(level);
+    VillageProfile.end("loading", tl);
+
     time++;
+  }
+
+  /**
+   * Stamps the hybrid visit clock, records where each loaded resident is (so one
+   * who roams out of the footprint can be woken there later), and brings the
+   * forced chunks in line with what the village wants right now.
+   */
+  private void tickLoading(ServerLevel level) {
+    for (var player : level.players()) {
+      if (hasClaimedWithin(player.blockPosition(), VillageChunkLoader.VISIT_PADDING)) {
+        lastVisitedTick = level.getGameTime();
+        break;
+      }
+    }
+    // Only remember members still on the roster, and refresh the chunk of every
+    // one that is currently loaded.
+    memberChunks.keySet().retainAll(new HashSet<>(people));
+    for (UUID personId : people) {
+      RealPerson person = getPerson(level, personId);
+      if (person != null) {
+        memberChunks.put(personId, ChunkPos.asLong(person.chunkPosition().x, person.chunkPosition().z));
+      }
+    }
+    VillageChunkLoader.reconcile(level, this);
+  }
+
+  /**
+   * The chunks this village wants held loaded and ticking right now, or an empty
+   * set when it wants none: the mode is off, it has no centre yet, or a hybrid
+   * village's grace has run out. Otherwise the union of its footprint, a
+   * perimeter, and a bubble around every resident wherever they are
+   * (docs/village-loading.md).
+   */
+  public Set<Long> desiredLoadedChunks(ServerLevel level) {
+    com.quzzar.villagelife.configuration.VillageLoadingMode mode =
+        com.quzzar.villagelife.configuration.VillagelifeConfig.VillageLoading;
+    if (mode == com.quzzar.villagelife.configuration.VillageLoadingMode.OFF || getTownCenter() == null) {
+      return Set.of();
+    }
+    if (mode == com.quzzar.villagelife.configuration.VillageLoadingMode.HYBRID
+        && level.getGameTime() - lastVisitedTick > VillageChunkLoader.HYBRID_GRACE_TICKS) {
+      return Set.of();
+    }
+
+    // The village's own footprint, one chunk per claimed column; the centre chunk
+    // if it has claimed nothing yet.
+    Set<Long> core = new HashSet<>();
+    for (long column : claimGrid) {
+      BlockPos p = BlockPos.of(column);
+      core.add(ChunkPos.asLong(p.getX() >> 4, p.getZ() >> 4));
+    }
+    if (core.isEmpty()) {
+      BlockPos centre = BlockPos.of(getTownCenter().getCenterLocation());
+      core.add(ChunkPos.asLong(centre.getX() >> 4, centre.getZ() >> 4));
+    }
+
+    Set<Long> chunks = new HashSet<>();
+    for (long chunk : core) {
+      addRing(chunks, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), VillageChunkLoader.PERIMETER_CHUNKS);
+    }
+    // A bubble around each resident, at their live chunk if loaded, else the last
+    // chunk they were seen in, so a miner deep past the footprint stays awake and
+    // one frozen out there is woken when the village loads.
+    for (UUID personId : people) {
+      RealPerson person = getPerson(level, personId);
+      Long chunk = person != null
+          ? ChunkPos.asLong(person.chunkPosition().x, person.chunkPosition().z)
+          : memberChunks.get(personId);
+      if (chunk != null) {
+        addRing(chunks, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), VillageChunkLoader.MEMBER_BUBBLE_CHUNKS);
+      }
+    }
+    return chunks;
+  }
+
+  /** Adds the (2*radius+1) square of chunks centred on (cx, cz) to the set. */
+  private static void addRing(Set<Long> chunks, int cx, int cz, int radius) {
+    for (int dx = -radius; dx <= radius; dx++) {
+      for (int dz = -radius; dz <= radius; dz++) {
+        chunks.add(ChunkPos.asLong(cx + dx, cz + dz));
+      }
+    }
   }
 
   /** Reclassifies the village from its population; the tier only ever rises. */
