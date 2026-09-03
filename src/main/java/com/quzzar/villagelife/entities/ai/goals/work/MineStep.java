@@ -218,10 +218,93 @@ public final class MineStep implements BlockWorkStep {
     BlockPos footingAt = this.placeSeal ? columnFloor(mouth, rotation(person)) : face;
     BlockPos stand = standToMine(person, footingAt);
     if (stand == null) {
+      // The swept face has no reachable footing: a fresh mine with nothing dug to
+      // stand in yet, or a face across an undug gap. Rather than stand idle, carve
+      // toward it - mine the nearest corridor cell the miner CAN stand beside,
+      // opening the shaft a block at a time from where he already is until the
+      // swept face comes within reach. A proper adjacent stand is still required,
+      // so this never digs a face from a distance (the reason the old
+      // fall-back-to-the-mouth target was removed, comment above).
+      BlockPos frontierStand = carveFrontier(person, mouth, rotation(person));
+      if (frontierStand != null) {
+        return frontierStand;
+      }
       resetShaft();
       return null;
     }
     return stand;
+  }
+
+  /**
+   * The nearest corridor cell to the miner that is solid, diggable, and has a
+   * reachable place to stand beside it. When the swept face cannot be reached - a
+   * fresh mine with no foothold dug yet, or a face across an undug gap - this
+   * hands the miner a block he can actually work, so the shaft is carved outward
+   * from where he already stands rather than the miner standing idle at a face he
+   * cannot get to. Null when nothing diggable is within reach. Points the cursor
+   * at the chosen cell so {@link #act} breaks it, and returns the stand to work
+   * it from.
+   */
+  @Nullable
+  private BlockPos carveFrontier(RealPerson person, BlockPos mouth, Rotation rotation) {
+    Level level = person.level();
+    BlockPos anchor = person.blockPosition();
+    BlockPos anchorLocal = anchor.subtract(mouth).rotate(inverse(rotation));
+    BlockPos bestLocal = null;
+    BlockPos bestStand = null;
+    double bestDist = Double.MAX_VALUE;
+    int reach = 4;
+    for (int dz = -reach; dz <= reach; dz++) {
+      for (int dy = -reach; dy <= reach; dy++) {
+        for (int dx = -reach; dx <= reach; dx++) {
+          BlockPos local = anchorLocal.offset(dx, dy, dz);
+          if (!inShaft(local)) {
+            continue;
+          }
+          BlockPos world = mouth.offset(local.rotate(rotation));
+          Block here = level.getBlockState(world).getBlock();
+          if (here == Blocks.AIR || here == Blocks.WATER || here == Blocks.LAVA
+              || here == Blocks.BEDROCK || isLight(level, world)) {
+            continue;
+          }
+          BlockPos frontierStand = standToMine(person, world);
+          if (frontierStand == null) {
+            continue;
+          }
+          double dist = world.distSqr(anchor);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestLocal = local;
+            bestStand = frontierStand;
+          }
+        }
+      }
+    }
+    if (bestLocal == null) {
+      return null;
+    }
+    this.offset = bestLocal;
+    this.block = level.getBlockState(mouth.offset(bestLocal.rotate(rotation))).getBlock();
+    this.placeFloor = false;
+    this.placeTorch = false;
+    this.bailWater = false;
+    this.placeSeal = false;
+    return bestStand;
+  }
+
+  /**
+   * Whether a cell in the mine's local frame lies inside the shaft's dug
+   * cross-section - the volume the sweep drives: {@link #RADIUS} to each side of
+   * the centre line, from the entrance inward, and the five-tall span standing on
+   * the ramp floor at that column. Keeps {@link #carveFrontier} from cutting a
+   * hole out through the wall of the shaft.
+   */
+  private boolean inShaft(BlockPos local) {
+    if (Math.abs(local.getX()) > RADIUS || local.getZ() < -(RADIUS - 1)) {
+      return false;
+    }
+    int floorY = local.getZ() < 0 ? -1 : -(local.getZ() + 2);
+    return local.getY() >= floorY && local.getY() <= floorY + 4;
   }
 
   /**
