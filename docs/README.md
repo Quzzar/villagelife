@@ -19,6 +19,10 @@ in it, and update it in the same change that moves what it describes.
 - [marriage.md](marriage.md): two villagers who have grown close ask the brain to wed them,
   and it decides. The emergent proposal, the brain's blessing, the couple choosing their own
   married name in a group chat, and the couple's cottage the village saves for and moves them into.
+- [companions.md](companions.md): the dog or cat some villagers keep. Who is granted one and
+  when, the one-per-species cap bonded to the person not the post, the owner naming it and
+  choosing its look, the custom follow goal a mob owner needs, the village-tether when the
+  owner is gone, and the owner's occasional sit-or-recall decision.
 - [ui-preview.md](ui-preview.md): how to photograph a client screen without playing the
   game. Required reading before changing anything under `client/gui/`, because every
   version of the villager screen written without looking at it was wrong.
@@ -31,10 +35,10 @@ in it, and update it in the same change that moves what it describes.
   build something, with a reason, and the brain still decides. The propose-not-dispose
   invariant, the chat-tool-to-planner loop, and requests as raw context the brain weighs.
 - [conversations.md](conversations.md): the one turn-taking engine (`Dialogue`) behind
-  every conversation the village drives itself. The four conversation shapes, the
-  voices-transcript-stop-condition loop, the three autonomous callers (villager talk,
-  the quartermaster's shelving, a couple's naming), and why the one-shot `decide`
-  family stays a separate primitive.
+  every conversation the village drives itself. The conversation shapes, the
+  voices-transcript-stop-condition loop, the autonomous callers (villager talk, the
+  quartermaster's shelving, a couple's and a pet-owner's naming), and why the one-shot
+  `decide` family stays a separate primitive.
 - [villager-conversations.md](villager-conversations.md): villagers talking to each
   other through the same pipeline a player uses, run on the shared conversation engine.
   The seek-and-pause loop, the background LLM lane, what passes between them (items,

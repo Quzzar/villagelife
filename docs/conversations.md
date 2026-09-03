@@ -8,7 +8,7 @@ village drives itself runs on it. The pattern is the one Aaron keeps reaching
 for: put a villager (or two, or the brain and a villager) in a situation, let
 them talk, and let the way out be a valid answer.
 
-## The four conversations
+## The conversations
 
 | Conversation | Voices | Who drives the turns | Ends on |
 | --- | --- | --- | --- |
@@ -16,12 +16,13 @@ them talk, and let the way out be a valid answer.
 | Villager and villager | two villagers | the model | `"done"`, a fight, drift, or a busy lane |
 | Quartermaster and brain | the quartermaster, the brain | the model | a partition that validates, or the round cap |
 | A couple naming their household | the two betrothed | the model | a valid household name, or the turn cap |
+| A villager naming a new pet | a villager | the model | a valid name, collar, and coat, or the turn cap |
 
 The first is **reactive**: a human supplies each turn, so there is no loop to
 run. It is not driven by the engine. It shares the single-turn core instead
 (`PersonChatDispatcher.converse`: assemble the briefing, ask the model, read the
 structured reply), which is the seam that already existed between player chat and
-villager chat. The other three are **autonomous**: the village drives every turn
+villager chat. The other four are **autonomous**: the village drives every turn
 itself, and those are what the engine unifies.
 
 ## The engine
@@ -57,8 +58,8 @@ a whole conversation: nothing is forced, and a quiet model costs a deferral, not
 a crash.
 
 `R` is the result type: a `ShelvingPlan.Outcome` for the quartermaster, a chosen
-surname (a `String`) for a naming, and `Void` for a social talk that only ever
-ends, never resolves.
+surname (a `String`) for a marriage naming, a pet's chosen look for a pet naming,
+and `Void` for a social talk that only ever ends, never resolves.
 
 ## The callers
 
@@ -75,10 +76,16 @@ ends, never resolves.
   resolution. The last permitted turn lays out whatever grouping stands rather
   than sending it back again.
 - **`relationships/MarriageNaming.java`** (a couple naming their household). The
-  newest caller, and the reason the engine earned its keep: a genuinely new kind
-  of conversation dropped onto it with no change to the engine. The brain
-  convenes the two betrothed, they talk it over as themselves, and the way to end
-  is a valid choice of surname. See [marriage.md](marriage.md).
+  caller that earned the engine its keep: a genuinely new kind of conversation
+  dropped onto it with no change to the engine. The brain convenes the two
+  betrothed, they talk it over as themselves, and the way to end is a valid choice
+  of surname. See [marriage.md](marriage.md).
+- **`village/PetNaming.java`** (a villager naming a new pet). A single-voice
+  caller: one villager, just given a companion dog or cat, decides its name,
+  collar, and coat, and the first valid choice ends the talk. The look is
+  constrained to the sixteen dye colours and the species' coat variants and
+  validated against them, the same guardrail the marriage name uses. See
+  [companions.md](companions.md).
 
 Player-to-villager chat is not a caller: it runs its own reactive packet loop
 (`PersonChatDispatcher`) and shares only the single-turn `converse` core.
@@ -89,8 +96,8 @@ Not every question the village asks the model is a conversation. A one-shot
 structured decision (`LlmService.decide` and `choose`: pick one of these
 options, or every one that fits, and say why) is a single call with no transcript
 and no turns, and it is already one shared primitive, used by the build planner,
-job assignment, the bank, the craft and stash offers, and the marriage blessing
-itself ([llm-brain.md](llm-brain.md)). Folding that into the conversation engine
+job assignment, the bank, the craft and stash offers, a pet owner's sit-or-recall
+call, and the marriage blessing itself ([llm-brain.md](llm-brain.md)). Folding that into the conversation engine
 would help neither; a conversation is the turn-taking kind, and the decision is
 the single-shot kind. They stay separate on purpose.
 

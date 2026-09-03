@@ -1552,13 +1552,6 @@ public class RealPerson extends Person {
   }
 
   /**
-   * Offers the miner's brain a bedtime torch craft when the restock above left
-   * the pack short and the stores hold coal or charcoal. The rules decide the
-   * legal move and its size (a pack top-up, nothing more); CraftOffer carries
-   * the ask, and the model only takes it or leaves it, in character
-   * (docs/llm-brain.md). Once per night: goToBed refires until sleep takes.
-   */
-  /**
    * Once a day, a pet owner puts it to their own brain whether to sit their
    * companion down and have it stay, or call it back to their heel: their choice,
    * through the shared decide() primitive, not a rule (PetOrder). Silence leaves
@@ -1594,6 +1587,13 @@ public class RealPerson extends Person {
     PetOrder.offer(this, pet, situation);
   }
 
+  /**
+   * Offers the miner's brain a bedtime torch craft when the restock above left
+   * the pack short and the stores hold coal or charcoal. The rules decide the
+   * legal move and its size (a pack top-up, nothing more); CraftOffer carries
+   * the ask, and the model only takes it or leaves it, in character
+   * (docs/llm-brain.md). Once per night: goToBed refires until sleep takes.
+   */
   private void maybeCraftTorchesFromCoal(BlockPos depositToLoc) {
     long day = this.level().getDayTime() / 24000L;
     if (this.torchOfferDay == day) {
