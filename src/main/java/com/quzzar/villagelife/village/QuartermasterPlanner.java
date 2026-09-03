@@ -35,25 +35,23 @@ import net.minecraft.world.level.Level;
  * Builds a village's {@link ShelvingPlan} by talking it out. The quartermaster
  * proposes a slot-by-slot partition of the storehouse; a deterministic validator
  * checks it (every slot covered exactly once, no overlaps, every item placed);
- * and if it does not hold, the errors go back to the table and the quartermaster
- * and the village brain take turns correcting it, up to {@link #MAX_ROUNDS}
- * rounds. The first partition that validates wins; if none does, it returns
- * empty and the shelves keep the order they had.
+ * and a plan is sent back to the table for one correcting round only when it has
+ * no usable sorting yet. The first partition that validates wins; a run that never
+ * parsed a single group returns empty and the shelves keep the order they had.
  *
  * <p>The model does the slot arithmetic itself (the design's deliberate choice),
  * which a small model gets wrong; the validator is what makes that safe, since a
- * plan that loses or double-books a slot can never be applied. What the rounds
- * are for is the grouping: which goods belong together, and under what name,
- * is the model's call. Once the grouping holds (every item in some group, no
- * group empty, no number that is not an item; a repeat stays with the first
- * group to name it), a partition whose slot sums still do not add up is not
- * sent back again; the shelves are laid out from those groups by count
- * instead ({@link #layoutByCount}), because arithmetic is bookkeeping, not a
- * decision, and Llama-3.2-3B failed it six rounds running on a real 81-slot
- * storehouse (2026-09-01). Out of rounds with the grouping still incomplete,
- * the last grouping given is laid out the same way, with the goods it never
- * named on an "Odds and ends" shelf. Only a run that never parsed a single
- * group ends with no plan.
+ * plan that loses or double-books a slot can never be applied. What a correcting
+ * round is for is the grouping: which goods belong together, and under what name,
+ * is the model's call. But only a reply with nothing to keep is sent back - an
+ * empty one, or one that dumped every good into a single group. Any real attempt
+ * is taken as it stands: its groups are kept, the goods it never named go on a
+ * trailing "Odds and ends" catch-all, and the shelves are laid out by count
+ * ({@link #layoutByCount}). Slot sums that do not add up are never sent back
+ * either - arithmetic is bookkeeping, not a decision, and Llama-3.2-3B failed it
+ * six rounds running on a real 81-slot storehouse (2026-09-01), so the pair now
+ * takes at most one correcting round ({@link #MAX_ROUNDS}) and loose goods are
+ * shelved as odds and ends rather than ground on for rounds it cannot fix.
  *
  * <p>Each good is listed with its count, the creative-inventory tab it sits in
  * ("Building Blocks", "Ingredients", "Food & Drinks"...) and its item tags
@@ -80,8 +78,14 @@ public final class QuartermasterPlanner {
   /** Distinct items shown to the model; a longer list makes a small model choose worse. */
   private static final int MAX_ITEMS_SHOWN = 40;
 
-  /** How many correcting turns the pair gets before giving up on a valid partition. */
-  private static final int MAX_ROUNDS = 6;
+  /**
+   * How many turns the pair gets in all: one opening proposal and, only when that
+   * proposal has no usable sorting yet (empty, or everything in one group), a single
+   * correcting round. A real attempt with some goods left loose is never sent back -
+   * it is shelved as-is with an "Odds and ends" catch-all (see the class note) - so
+   * the old six-round grind on slot arithmetic the small model could never do is gone.
+   */
+  private static final int MAX_ROUNDS = 2;
 
   /**
    * With this many kinds of goods or more, a plan must sort them into at least
@@ -228,6 +232,19 @@ public final class QuartermasterPlanner {
           Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
               + "the slot sums did not add up, so the shelves are laid out by count",
               context.who(), currentRound + 1);
+          return Dialogue.Turn.<Outcome>resolved(layoutByCount(context, proposal, raw));
+        }
+        // A real attempt that only left some goods loose is not sent back for more
+        // rounds either: keep the groups the model made, and let layoutByCount shelve
+        // the goods it never named on a trailing "Odds and ends" and size every shelf
+        // by count. Only an empty reply, or one that dumped everything into a single
+        // group (collapsed), still gets a correcting round below - those have no
+        // sorting to keep yet. (Aaron 2026-09-03: loose goods become a miscellaneous
+        // shelf, not a grind of rounds; the six-round slot arithmetic never worked.)
+        if (!proposal.isEmpty() && !collapsed(proposal, context.items().size())) {
+          Villagelife.LOGGER.info("[quartermaster] {} settled the groups in {} round(s); "
+              + "the goods it did not name go on an \"{}\" shelf, laid out by count",
+              context.who(), currentRound + 1, ODDS_AND_ENDS);
           return Dialogue.Turn.<Outcome>resolved(layoutByCount(context, proposal, raw));
         }
         // The next turn corrects a real attempt: a reply that gave nothing, or
