@@ -270,6 +270,25 @@ public final class MineStep implements BlockWorkStep {
     }
     RampScan scan = locateNext(person, mouth, rotation);
     if (scan == RampScan.WORK) {
+      // Bridging a cave - laying a floor cell or lining a wall - is the one ramp work
+      // that needs cobblestone the miner may not have. With an empty pack, do not stand
+      // down and wait on a restock a fresh cave outpaces: that was Aaron's deadlock, the
+      // miner frozen at the cave, leaving the ore in its own corridor walls because
+      // pulling ore is gated on cobblestone to seal too (selectVein). Quarry the
+      // cobblestone instead - fan short ribs into the solid rock beside the ramp, which
+      // needs none and drops plenty (selectFan) - and let the next sweep resume the
+      // bridge once the pack has refilled. Only the cobble-gated work reroutes; a
+      // diggable face still digs, since breaking stone is itself a cobblestone source.
+      if ((this.placeFloor || this.placeSeal) && !person.hasItem(Items.COBBLESTONE)) {
+        BlockPos fanStand = selectFan(person, mouth, rotation);
+        if (fanStand != null) {
+          return fanStand;
+        }
+        // No rib left to cut either: fall through to standing down, so a mine with
+        // nothing to quarry still waits on a restock the way it always did.
+        resetShaft();
+        return null;
+      }
       this.fanning = false;
       // Stand next to the face and work it, walking down into the shaft as it
       // deepens. No footing reachable - a hole in the ramp behind, say - and the
