@@ -348,9 +348,7 @@ public final class PersonChatContext {
       String goal = VillageGoal.current(village);
       if (goal != null) {
         BuildingInfo wanted = Buildings.getByName(goal);
-        String label = wanted != null && wanted.hasWellFormedId()
-            ? wanted.getCategory().replace('_', ' ')
-            : (wanted != null ? wanted.getName() : goal);
+        String label = wanted != null ? wanted.displayLabel() : goal;
         system.append("Your village is saving up to build a ").append(label);
         String why = VillageGoal.reason(village);
         if (why != null && !why.isEmpty()) {
@@ -379,7 +377,7 @@ public final class PersonChatContext {
       StructureInProgress project = village.getCurrentProject();
       if (project != null) {
         BuildingInfo built = project.getBuilding().getInfo();
-        String label = built.hasWellFormedId() ? built.getCategory().replace('_', ' ') : built.getName();
+        String label = built.displayLabel();
         system.append(project.isGathering()
             ? "Your village is gathering materials to build a " + label + "."
             : "Your village is now building a " + label + ".").append('\n');
@@ -390,6 +388,25 @@ public final class PersonChatContext {
         // in the briefing, invented a hut for a travelling merchant and the
         // planks it was short of (a live finding).
         system.append("Your village is not saving up for or building anything at the moment.\n");
+      }
+      // What the village has finished lately, newest first, so a villager can
+      // speak to recent work and not only to what is rising now: a miner told a
+      // player the village "is going to build a fishery" the day after one had
+      // gone up, with only the current project and the saving goal in the
+      // briefing and nothing of what was already built. Facts, with the day each
+      // was raised; what to make of them is the villager's.
+      List<Village.CompletedBuild> recentBuilds = village.getRecentBuilds();
+      if (!recentBuilds.isEmpty()) {
+        system.append("Lately the village finished building ");
+        for (int i = 0; i < recentBuilds.size(); i++) {
+          Village.CompletedBuild raised = recentBuilds.get(i);
+          if (i > 0) {
+            system.append(i == recentBuilds.size() - 1 ? " and " : ", ");
+          }
+          system.append("a ").append(raised.label()).append(" (")
+              .append(PersonalLogData.formatDay(raised.dayTime())).append(')');
+        }
+        system.append(".\n");
       }
       // Where the village's room ran out, when it has. The builder especially
       // gets asked why nothing is going up, and "no flat ground, the slope east

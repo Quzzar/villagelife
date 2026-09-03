@@ -158,6 +158,16 @@ public class BuildingInfo {
     return Integer.parseInt(tokens[tokens.length - 1]);
   }
 
+  /**
+   * The short human label for this building: the datapack category with its
+   * underscores spaced ("couple cottage"), or the raw name when the id is not
+   * well formed. The single home for a mapping the briefing, the planner, and
+   * the recent-build trail had each been spelling out inline.
+   */
+  public String displayLabel() {
+    return hasWellFormedId() ? getCategory().replace('_', ' ') : getName();
+  }
+
   /** The id this building upgrades from in place, or null for a level-1 building. */
   @javax.annotation.Nullable
   /**

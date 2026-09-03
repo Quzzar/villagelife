@@ -66,7 +66,7 @@ public class Village {
       Codec.LONG.listOf().fieldOf("claim_grid").forGetter(v -> List.copyOf(v.claimGrid)),
       ActiveProjects.CODEC.optionalFieldOf("project", ActiveProjects.NONE)
           .forGetter(v -> new ActiveProjects(Optional.ofNullable(v.currentProject), Optional.ofNullable(v.wallProject),
-              v.lastBuildCompletedTime)),
+              v.lastBuildCompletedTime, List.copyOf(v.recentBuilds))),
       UUIDUtil.CODEC.listOf().fieldOf("people").forGetter(v -> List.copyOf(v.people)),
       Building.CODEC.listOf().fieldOf("buildings").forGetter(v -> List.copyOf(v.buildings.values())),
       Codec.unboundedMap(UUIDUtil.STRING_CODEC, JobAssignment.CODEC).fieldOf("job_assignments").forGetter(v -> Map.copyOf(v.jobAssignments)),
@@ -119,19 +119,40 @@ public class Village {
   }
 
   /**
+   * One building the village has finished, kept as a short newest-first trail so
+   * a villager can speak to what has just gone up and not only to what is rising
+   * now. A live finding drove it: a miner told a player the village "is going to
+   * build a fishery" the day after one had been raised, because the briefing
+   * carried the current project and the saving goal but nothing of recent work.
+   * The stamp is a day-time (not the monotonic game time), so it renders through
+   * {@link com.quzzar.villagelife.entities.PersonalLogData#formatDay} exactly as
+   * the briefing's "It is now" line does, and a build's day lines up for the player.
+   */
+  public record CompletedBuild(String label, long dayTime) {
+    public static final Codec<CompletedBuild> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        Codec.STRING.fieldOf("label").forGetter(CompletedBuild::label),
+        Codec.LONG.fieldOf("day_time").forGetter(CompletedBuild::dayTime)
+    ).apply(inst, CompletedBuild::new));
+  }
+
+  /**
    * The village's one active project, if any: either a building rising or the
    * wall being raised. They are mutually exclusive (one builder, one job at a
    * time), so they share a single slot in the save. That slot also carries the
-   * tick the last building finished, which the build cooldown reads: the codec
-   * is at its sixteen-field ceiling, so this additive field rides here.
+   * tick the last building finished (the build cooldown reads it) and the short
+   * trail of recently finished buildings: the codec is at its sixteen-field
+   * ceiling, so these additive fields ride here.
    */
   public record ActiveProjects(Optional<StructureInProgress> building, Optional<WallProject> wall,
-      long lastBuildCompletedTime) {
-    public static final ActiveProjects NONE = new ActiveProjects(Optional.empty(), Optional.empty(), 0L);
+      long lastBuildCompletedTime, List<CompletedBuild> recentBuilds) {
+    public static final ActiveProjects NONE =
+        new ActiveProjects(Optional.empty(), Optional.empty(), 0L, List.of());
     public static final Codec<ActiveProjects> CODEC = RecordCodecBuilder.create(inst -> inst.group(
         StructureInProgress.CODEC.optionalFieldOf("building").forGetter(ActiveProjects::building),
         WallProject.CODEC.optionalFieldOf("wall").forGetter(ActiveProjects::wall),
-        Codec.LONG.optionalFieldOf("last_build_completed", 0L).forGetter(ActiveProjects::lastBuildCompletedTime)
+        Codec.LONG.optionalFieldOf("last_build_completed", 0L).forGetter(ActiveProjects::lastBuildCompletedTime),
+        CompletedBuild.CODEC.listOf().optionalFieldOf("recent_builds", List.of())
+            .forGetter(ActiveProjects::recentBuilds)
     ).apply(inst, ActiveProjects::new));
   }
 
@@ -148,6 +169,7 @@ public class Village {
     village.currentProject = project.building().orElse(null);
     village.wallProject = project.wall().orElse(null);
     village.lastBuildCompletedTime = project.lastBuildCompletedTime();
+    village.recentBuilds.addAll(project.recentBuilds());
     village.people = new ArrayList<>(people);
     buildings.forEach(b -> village.buildings.put(b.getUUID(), b));
     village.jobAssignments = new HashMap<>(jobAssignments);
@@ -183,6 +205,20 @@ public class Village {
    * the first build is never held back.
    */
   private long lastBuildCompletedTime = 0L;
+
+  /**
+   * How many recently finished buildings the village keeps on the trail a
+   * villager speaks from. A few is enough to answer "what have you built lately"
+   * without crowding the briefing the small model reads.
+   */
+  private static final int RECENT_BUILDS_KEPT = 3;
+
+  /**
+   * The last {@link #RECENT_BUILDS_KEPT} buildings the village raised, newest
+   * first, persisted through {@link ActiveProjects}. Read into the villager
+   * briefing so a villager can speak to recent work, not only to what is rising.
+   */
+  private final List<CompletedBuild> recentBuilds = new ArrayList<>();
 
   private final String id;
   private String name;
@@ -1154,6 +1190,21 @@ public class Village {
         BlockPos.asLong(x0, 0, mz));
   }
 
+  /**
+   * Puts a just-finished building at the head of the recent-build trail and
+   * trims it to {@link #RECENT_BUILDS_KEPT}. The label is the same short noun
+   * the briefing uses for a building; a building whose definition has gone
+   * missing falls back to its raw name rather than dropping off the trail.
+   */
+  private void noteRecentBuild(Building finished, long dayTime) {
+    BuildingInfo info = finished.getInfo();
+    String label = info != null ? info.displayLabel() : finished.getName();
+    recentBuilds.add(0, new CompletedBuild(label, dayTime));
+    while (recentBuilds.size() > RECENT_BUILDS_KEPT) {
+      recentBuilds.remove(recentBuilds.size() - 1);
+    }
+  }
+
   private void checkCurrentProject() {
 
     if (wallProject != null && !wallProject.isComplete()) {
@@ -1176,9 +1227,11 @@ public class Village {
         currentProject = null;
         // Start the build cooldown here, at the one point a building finishes:
         // the village raises nothing new for BuildCooldownDays, giving its
-        // builder the lull to grade and lay paths.
+        // builder the lull to grade and lay paths. The same point records the
+        // build on the recent trail, so a villager can later speak to it.
         if (level != null) {
           lastBuildCompletedTime = level.getGameTime();
+          noteRecentBuild(finished, level.getDayTime());
         }
 
       } else if (currentProject.isGathering()) {
@@ -2770,6 +2823,11 @@ public class Village {
       currentProject.attach(level);
     }
     return currentProject;
+  }
+
+  /** The buildings the village has finished lately, newest first (see {@link #recentBuilds}). */
+  public List<CompletedBuild> getRecentBuilds() {
+    return List.copyOf(recentBuilds);
   }
 
 }
