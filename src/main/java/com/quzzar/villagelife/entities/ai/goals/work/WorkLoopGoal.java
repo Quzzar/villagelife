@@ -162,6 +162,14 @@ public class WorkLoopGoal<T> extends Goal {
         || this.person.isFreezing()
         || this.person.isOnFire()
         || this.person.isInterrupted()
+        // Someone at the chat screen, or a fellow villager mid-exchange, holds
+        // this villager still: work yields so PauseForConversationGoal can pin
+        // them and face the speaker. Priority alone cannot do this - a haul runs
+        // at the same priority as the pause goal and would win by already being
+        // in progress - so the work loop stands down for a conversation itself
+        // (conversation map #40). Danger still wins: combat and panic outrank the
+        // pause goal, so a guard breaks off to defend the village.
+        || com.quzzar.villagelife.chat.PersonChatDispatcher.isConversing(this.person)
         || (!this.step.worksAtNight() && this.person.level().isNight());
   }
 
