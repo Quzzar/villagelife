@@ -98,6 +98,17 @@ villages), inspectable in-game via `/vldev village attractiveness [pos]`.
   `Minimum village population`): a village never empties itself, and below the floor the
   unhappy stay put however low the score reads. Between the thresholds, population holds.
 
+The **population floor is two-sided** (Aaron, 2026-09-03). It is not only the line below which
+nobody leaves; a village pushed *under* it, a bad night of mob deaths on Hard, must climb back
+to it whatever its mood or means. So a village below the floor is always in a growing state: it
+draws one newcomer per population check regardless of attractiveness, and the forced refill
+ignores the caps and even the cold-ledger hold, since the floor check that fires it already
+counts walkers and stops at the floor. This is the growth-side mirror of the no-emigration
+rule, and it means deaths can no longer strand a settlement below its floor with nobody coming
+(a village mauled to two by skeletons that then sat empty, because the deaths had dropped its
+attractiveness out of the growing band). Above the floor, growth is attractiveness-gated as
+usual.
+
 The decided v1 formula — every number a config tunable in `villagelife-common.toml`,
 clamped to 0-100:
 
@@ -202,10 +213,11 @@ as death frees them and they walk to the village edge. At the edge, whatever the
 they become a **wanderer**: the title changes there, the job's kit (hands and armour) stays
 with the village, and they keep their pack. There is nothing else to pack: whatever they kept
 in a chest of their own stays with the house, for whoever moves in next. Then they take to
-the road. The population floor applies here and nowhere else: a village at or below it loses
-nobody to mood, whatever the score reads, so a founding camp of four is never emptied by its
-own first hungry morning. `/vldev village emigrate` ignores the floor, so the road can still be
-watched from a small village.
+the road. The floor gates emigration here: a village at or below it loses nobody to mood,
+whatever the score reads, so a founding camp of four is never emptied by its own first hungry
+morning (the floor's other, growth-side half is above: below the floor the village force-grows
+back to it). `/vldev village emigrate` ignores the floor, so the road can still be watched from
+a small village.
 
 The road (**implemented**, reshaped 2026-09-02): at the edge a leaver becomes a **roaming
 wanderer**, a real person with no village (`RealPerson.isRoamingWanderer`), and stays one
@@ -363,7 +375,7 @@ All of these belong in config, not constants buried in `Village`:
 | Arrival check interval | How often inflow is evaluated | 100 s |
 | Attractiveness threshold | Score above which people arrive | 50 |
 | Emigration threshold | Score below which people leave | 25 |
-| Minimum village population | People a village keeps whatever its mood; emigration stops here | 4 |
+| Minimum village population | Two-sided floor: emigration never drops below it, and a village below it force-grows back up to it | 4 |
 | Wanderer recruit radius | How far a growing village looks for a loaded wanderer | 128 |
 | Wanderer cap | Wanderers walking the loaded world at once | 8 |
 | Wanderer pool cap | People the world remembers on the road | 64 |

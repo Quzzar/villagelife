@@ -1652,6 +1652,18 @@ public class Village {
     if (level == null || getTownCenter() == null) {
       return;
     }
+    int floor = com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation;
+    // The population floor is two-sided (Aaron, 2026-09-03). It is not only the
+    // line below which nobody leaves; a village pushed under it, a bad night of
+    // mob deaths, must climb back to it whatever its mood or means. So below the
+    // floor the village always draws a newcomer, the growth-side mirror of the
+    // no-emigration rule. Counting walkers keeps it from over-summoning while a
+    // refill is already on its way, and it runs before the cold-ledger hold
+    // below, so a decimated camp refills even before its storage is resident.
+    if (people.size() + pendingArrivals.size() < floor) {
+      tryArrival(true); // forced: mood and means do not gate the refill to the floor
+      return;
+    }
     // A village that has not managed to look inside its own chests yet holds
     // still rather than acting on a cold ledger (#65). This lasts only until
     // the first time any of its storage is resident.
@@ -1660,13 +1672,13 @@ public class Village {
     }
     VillageAttractiveness report = getAttractiveness();
     switch (report.status()) {
-      case GROWING -> tryArrival(report);
+      case GROWING -> tryArrival(false);
       case DECLINING -> {
         // A village never empties itself. Below the floor the unhappy stay
         // put, however low the score reads: leaving is for a village with
         // people to spare (Aaron, 2026-09-02, after Ember Hill lost all four
         // of its founders in one morning).
-        if (people.size() > com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation) {
+        if (people.size() > floor) {
           tryEmigration();
         }
       }
@@ -1690,30 +1702,37 @@ public class Village {
     return count;
   }
 
-  private void tryArrival(VillageAttractiveness report) {
-    // The further above the grow threshold, the likelier an arrival this check.
-    double arriveThreshold = com.quzzar.villagelife.configuration.VillagelifeConfig.AttractivenessArriveThreshold;
-    double chance = (report.total() - arriveThreshold) / Math.max(1.0, 100.0 - arriveThreshold);
-    if (random.nextDouble() > Math.max(0.05, chance)) {
-      return;
-    }
+  private void tryArrival(boolean forced) {
+    // Above the floor an arrival is a roll against attractiveness, held back by
+    // the caps. Below the floor the call is forced: the village must grow back
+    // to the floor whatever its mood or means, so neither the roll nor the caps
+    // apply. What bounds a forced refill is the floor check that fires it (it
+    // counts walkers and stops at the floor) and its one arrival per check.
+    if (!forced) {
+      // The further above the grow threshold, the likelier an arrival this check.
+      double arriveThreshold = com.quzzar.villagelife.configuration.VillagelifeConfig.AttractivenessArriveThreshold;
+      double chance = (getAttractiveness().total() - arriveThreshold) / Math.max(1.0, 100.0 - arriveThreshold);
+      if (random.nextDouble() > Math.max(0.05, chance)) {
+        return;
+      }
 
-    // Caps, both counting walkers. Population may exceed beds by up to the tier's
-    // idle cap: the campfire reservoir is where bedless newcomers wait, so housing
-    // alone must not gate arrivals (docs/population-and-labor.md).
-    int futurePopulation = people.size() + pendingArrivals.size();
-    int totalBeds = bedAssignments.size() + unassignedBeds.size();
-    if (futurePopulation >= totalBeds + idleCap()) {
-      Villagelife.LOGGER.debug(
-          "Village '{}' at population cap: {} here + {} walking vs {} beds + {} idle cap",
-          name, people.size(), pendingArrivals.size(), totalBeds, idleCap());
-      return;
-    }
-    if (idleCount() + pendingArrivals.size() >= idleCap()) {
-      Villagelife.LOGGER.debug(
-          "Village '{}' campfire reservoir full: {} idle + {} walking vs idle cap {}",
-          name, idleCount(), pendingArrivals.size(), idleCap());
-      return;
+      // Caps, both counting walkers. Population may exceed beds by up to the tier's
+      // idle cap: the campfire reservoir is where bedless newcomers wait, so housing
+      // alone must not gate arrivals (docs/population-and-labor.md).
+      int futurePopulation = people.size() + pendingArrivals.size();
+      int totalBeds = bedAssignments.size() + unassignedBeds.size();
+      if (futurePopulation >= totalBeds + idleCap()) {
+        Villagelife.LOGGER.debug(
+            "Village '{}' at population cap: {} here + {} walking vs {} beds + {} idle cap",
+            name, people.size(), pendingArrivals.size(), totalBeds, idleCap());
+        return;
+      }
+      if (idleCount() + pendingArrivals.size() >= idleCap()) {
+        Villagelife.LOGGER.debug(
+            "Village '{}' campfire reservoir full: {} idle + {} walking vs idle cap {}",
+            name, idleCount(), pendingArrivals.size(), idleCap());
+        return;
+      }
     }
 
     long deadline = level.getGameTime()
