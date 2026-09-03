@@ -14,8 +14,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 
 public class PersonModel extends PlayerModel<Person> {
-    public PersonModel(ModelPart part) {
-        super(part, false);
+    public PersonModel(ModelPart part, boolean slim) {
+        super(part, slim);
     }
     
     @Override
@@ -31,8 +31,15 @@ public class PersonModel extends PlayerModel<Person> {
         }
     }
     
+    /** The wide (Steve) body: 4-pixel arms. */
     public static LayerDefinition createMesh() {
         MeshDefinition meshdefinition = PlayerModel.createMesh(CubeDeformation.NONE, false);
+        return LayerDefinition.create(meshdefinition, 64, 64);
+     }
+
+    /** The slim (Alex) body: 3-pixel arms, on the same 64x64 skin sheet as the wide model. */
+    public static LayerDefinition createSlimMesh() {
+        MeshDefinition meshdefinition = PlayerModel.createMesh(CubeDeformation.NONE, true);
         return LayerDefinition.create(meshdefinition, 64, 64);
      }
 

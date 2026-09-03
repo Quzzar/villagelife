@@ -117,9 +117,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.PotionContents;
-import net.minecraft.world.item.alchemy.Potions;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 
@@ -701,6 +698,7 @@ public class RealPerson extends Person {
     // stand idle beside work they own the tool for.
     if (!this.level().isClientSide && this.tickCount % 200 == 71 && !this.level().isNight()) {
       tendJobTool();
+      tendSignatureGear();
     }
     super.aiStep();
 
@@ -761,6 +759,59 @@ public class RealPerson extends Person {
         ItemStack held = this.getMainHandItem();
         this.setItemSlot(EquipmentSlot.MAINHAND, stack);
         this.personMainInv.setItem(slot, held);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Keep a trade whose mark is a token, not a tool, holding that mark: the
+   * quartermaster's ledger, the builder's crafting table, the blacksmith's
+   * ingot, the cleric's potions (SignatureGear). For each mark whose slot has
+   * gone empty, the villager draws one they already own out of their pack, else
+   * fetches one the stores can spare; a village that can spare none logs it and
+   * the villager goes without (Aaron, 2026-09-03: fetch only, never crafted or
+   * conjured). Only an empty slot is filled: a mark still in hand is left, and a
+   * slot busy with something transient, an off-hand meal being eaten, is not
+   * disturbed. The tiered tools are tended by {@link #tendJobTool} instead.
+   */
+  public void tendSignatureGear() {
+    if (getVillage() == null) {
+      return;
+    }
+    BlockPos depositTo = LocationManager.getJobLocation(this);
+    for (SignatureGear.Piece piece : SignatureGear.of(getOccupation())) {
+      if (!getItemBySlot(piece.slot()).isEmpty()) {
+        continue;
+      }
+      if (drawSignatureGearFromPack(piece)) {
+        continue;
+      }
+      ItemStack got = gatherForWork(piece.fresh().get(), depositTo);
+      if (!got.isEmpty()) {
+        setItemSlot(piece.slot(), got);
+        continue;
+      }
+      String name = StashOffer.plain(piece.item());
+      logIssue("I have no " + name + " to keep at hand", Optional.empty());
+      Villagelife.LOGGER.info("'{}' has no {} to keep in hand and the stores hold none",
+          getFullName(), name);
+    }
+  }
+
+  /**
+   * Move a signature mark the villager already owns from their pack into its
+   * slot. The mark is MOVED, never copied, like a drawn tool: held items are
+   * single-source, and a copy duplicates on death. True when one was drawn. Only
+   * called for an empty slot, so nothing held is displaced.
+   */
+  private boolean drawSignatureGearFromPack(SignatureGear.Piece piece) {
+    for (int slot = 0; slot < this.personMainInv.getContainerSize(); slot++) {
+      ItemStack stack = this.personMainInv.getItem(slot);
+      if (piece.matches(stack)) {
+        this.setItemSlot(piece.slot(), stack);
+        this.personMainInv.setItem(slot, ItemStack.EMPTY);
         return true;
       }
     }
@@ -1591,20 +1642,6 @@ public class RealPerson extends Person {
       case LUMBERJACK:
         kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         break;
-      case BLACKSMITH:
-        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_INGOT));
-        break;
-      case BUILDER:
-        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.CRAFTING_TABLE));
-        break;
-      case CLERIC:
-        ItemStack healingPotion = new ItemStack(Items.POTION);
-        healingPotion.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.HEALING));
-        kit(EquipmentSlot.OFFHAND, healingPotion);
-        ItemStack regenPotion = new ItemStack(Items.SPLASH_POTION);
-        regenPotion.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.REGENERATION));
-        kit(EquipmentSlot.MAINHAND, regenPotion);
-        break;
       case FARMER:
         // A basic hoe, like the lumberjack's stone axe and miner's stone
         // pickaxe: kept basic until the village can make better. An iron hoe is
@@ -1614,9 +1651,6 @@ public class RealPerson extends Person {
         break;
       case LEADER:
         kit(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
-        break;
-      case LIBRARIAN:
-        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
         break;
       case HUNTER:
         // A plain bow, like the guard's stone axe: enough to work with until
@@ -1630,12 +1664,14 @@ public class RealPerson extends Person {
       case MINER:
         kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
-      case QUARTERMASTER:
-        // The quartermaster keeps the village's stores; a writable book reads as
-        // the ledger they are forever taking count in.
-        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
-        break;
       default:
+        // The trades whose mark is a token rather than a tool: the builder's
+        // crafting table, the quartermaster's ledger, the blacksmith's ingot,
+        // the cleric's potions. They are named once, in SignatureGear, so the
+        // kit here and the day-to-day check that keeps them in hand agree.
+        for (SignatureGear.Piece piece : SignatureGear.of(getOccupation())) {
+          kit(piece.slot(), piece.fresh().get());
+        }
         break;
     }
   }

@@ -280,14 +280,21 @@ A workplace building finishing construction registers its work stations as open
   consulted here, because need, not aptitude, is the point. Only loaded workers can be moved
   (a reassignment rebuilds their goals in the world), one decision is in flight per village
   (`Village.laborDecisionPending`), and a brain that leaves the crew as it is sits the
-  question out a while before it is asked again.
+  question out a while before it is asked again. **The last builder is off the table while a
+  build is in progress** (2026-09-03): the crew offered to the field never includes a village's
+  only builder when a construction project stands, since moving them leaves no one to finish it,
+  the build stalls, and the village sits stuck on it, never advancing to houses (a farm that
+  hung half-built with its builder gone to the field, while every villager's briefing kept
+  saying "building a farm"). A second builder, if there is one, may still move.
 - The person walks from the campfire to the workplace, takes on the `Occupation` of the
   station, and holds it until the job stops existing. Taking the job is the one moment a
-  bare starting kit appears from nothing, and only into a bare hand: a stone axe, pickaxe or
-  hoe, or a plain bow (`RealPerson.issueStartingKit`, decided 2026-09-02). Nothing is conjured
-  after that; a tool given away or lost is replaced at bedtime from the stores or made from
-  real materials ([worker-loops.md](worker-loops.md), "Nothing is conjured after the starting
-  kit").
+  bare starting kit appears from nothing: the mark of the trade, a stone axe, pickaxe or hoe or
+  a plain bow for the trades that work with a tool, or a token for the rest, a builder's crafting
+  table, a quartermaster's ledger, a blacksmith's ingot (`RealPerson.issueStartingKit`, the tokens
+  in `entities/SignatureGear`). Nothing is conjured after that; a worker may give a mark away like
+  anything else, and by day draws it back into hand from pack or stores when it has strayed, and a
+  tool given away or lost is also replaced at bedtime from the stores or made from real materials
+  ([worker-loops.md](worker-loops.md), "Nothing is conjured after the starting kit").
 - **Vacancy refills**: a worker dying or the building being removed puts the
   `JobAssignment` back in `unassignedJobs`, and the next idle person claims it. A building
   with no available worker just sits unstaffed until someone new arrives.

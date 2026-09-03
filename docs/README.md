@@ -47,8 +47,9 @@ in it, and update it in the same change that moves what it describes.
   build, the three axes they vary on (category, variant, level), the production chains
   that connect them, and which biomes can support which. Proposed, not yet decided.
 - [appearance.md](appearance.md): why villagers use the player model and not the vanilla
-  villager model, and the three-layer skin plan (base skin, regional dress, occupation
-  layer) that makes them read as villagers rather than as players.
+  villager model, the wide/slim model split by gender, and the client-side runtime skin
+  compositor that bakes a villager's look from layered genetic parts (skin tone, hair,
+  eyes) seeded per person and ready for the genetics system.
 - [site-selection.md](site-selection.md): how a village finds somewhere to build. Site cost
   instead of site validity, how far villagers may reshape ground (surface yes, shape never),
   the builder's prepare phase, and the runtime budget that keeps site search off the tick.

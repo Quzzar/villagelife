@@ -21,6 +21,8 @@ public class PersonClientEvents {
 
     public static ModelLayerLocation PERSON = new ModelLayerLocation(
             ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, "person"), "person");
+    public static ModelLayerLocation PERSON_SLIM = new ModelLayerLocation(
+            ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, "person_slim"), "person_slim");
     public static ModelLayerLocation PERSON_ARMOR_OUTER = new ModelLayerLocation(
             ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, "person_armor_outer"), "person_armor_outer");
     public static ModelLayerLocation PERSON_ARMOR_INNER = new ModelLayerLocation(
@@ -29,6 +31,7 @@ public class PersonClientEvents {
     @SubscribeEvent
     public static void layerDefinitions(EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(PersonClientEvents.PERSON, PersonModel::createMesh);
+        event.registerLayerDefinition(PersonClientEvents.PERSON_SLIM, PersonModel::createSlimMesh);
         event.registerLayerDefinition(PersonClientEvents.PERSON_ARMOR_OUTER, PersonArmorModel::createOuterArmorLayer);
         event.registerLayerDefinition(PersonClientEvents.PERSON_ARMOR_INNER, PersonArmorModel::createInnerArmorLayer);
     }

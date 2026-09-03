@@ -86,6 +86,17 @@ public final class GradingSurvey {
    */
   public static final int MAX_STEP = SitePreparation.MAX_COLUMN_DELTA + 1;
 
+  /**
+   * Movable ground within this many blocks of a building's footprint: the
+   * building's apron. Apron columns are graded to a walkable ramp down from the
+   * building's own floor even where the land between would otherwise be left a
+   * cliff or held within the levelling budget, so a villager can always step up
+   * onto the building and in at its door (docs/worker-loops.md, tight apron
+   * decided 2026-09-03). Kept small on purpose: the wider ground still keeps its
+   * hills, and the graded path to the door carries the rest of the way in.
+   */
+  public static final int APRON = 3;
+
   /** Most clearable cover the reading skips on its way down to the ground under it. */
   private static final int COVER_DEPTH = 4;
 
@@ -109,7 +120,7 @@ public final class GradingSurvey {
    * A column the survey would move: its ground height now (the Y of its top
    * block) and the height it should stand at.
    */
-  public record Column(int x, int z, int height, int target) {
+  public record Column(int x, int z, int height, int target, boolean apron) {
 
     public boolean wantsCut() {
       return target < height;
@@ -122,6 +133,10 @@ public final class GradingSurvey {
   private final int depth;
   private final int[] height;
   private final boolean[] fixed;
+  /** Columns a building has claimed for its footprint, standing at its floor plane. */
+  private final boolean[] claimed;
+  /** Movable ground within {@link #APRON} of a footprint: ramped to the floor even across a cliff or past the budget. */
+  private final boolean[] apron;
   /** Columns whose top is a worn path, given a gentler grade than the rest. */
   private final boolean[] path;
   private final int[] target;
@@ -133,6 +148,8 @@ public final class GradingSurvey {
     this.depth = depth;
     this.height = new int[width * depth];
     this.fixed = new boolean[width * depth];
+    this.claimed = new boolean[width * depth];
+    this.apron = new boolean[width * depth];
     this.path = new boolean[width * depth];
     this.target = new int[width * depth];
   }
@@ -179,8 +196,38 @@ public final class GradingSurvey {
 
     GradingSurvey survey = new GradingSurvey(minX, minZ, maxX - minX + 1, maxZ - minZ + 1);
     survey.read(level, village, buildings);
+    survey.markApron();
     survey.aim();
     return survey;
+  }
+
+  /**
+   * Marks every movable column within {@link #APRON} of a building's footprint,
+   * so the aim ramps it to the building's floor even where the raw land would
+   * leave a step. Claimed footprint columns and rock are never apron: only soft
+   * ground the builder can actually move.
+   */
+  private void markApron() {
+    for (int i = 0; i < claimed.length; i++) {
+      if (!claimed[i]) {
+        continue;
+      }
+      int cx = i % width;
+      int cz = i / width;
+      for (int dz = -APRON; dz <= APRON; dz++) {
+        for (int dx = -APRON; dx <= APRON; dx++) {
+          int x = cx + dx;
+          int z = cz + dz;
+          if (x < 0 || z < 0 || x >= width || z >= depth) {
+            continue;
+          }
+          int j = z * width + x;
+          if (height[j] != NO_GROUND && !fixed[j]) {
+            apron[j] = true;
+          }
+        }
+      }
+    }
   }
 
   /** The columns standing off their target, nearest to {@code from} first. */
@@ -188,7 +235,7 @@ public final class GradingSurvey {
     List<Column> out = new ArrayList<>();
     for (int i = 0; i < height.length; i++) {
       if (height[i] != NO_GROUND && !fixed[i] && target[i] != height[i]) {
-        out.add(new Column(minX + i % width, minZ + i / width, height[i], target[i]));
+        out.add(new Column(minX + i % width, minZ + i / width, height[i], target[i], apron[i]));
       }
     }
     out.sort(Comparator.comparingLong(column -> {
@@ -216,9 +263,10 @@ public final class GradingSurvey {
           height[i] = NO_GROUND;
           continue;
         }
-        boolean claimed = village.hasClaimed(cursor);
-        fixed[i] = claimed;
-        if (claimed) {
+        boolean isClaimed = village.hasClaimed(cursor);
+        fixed[i] = isClaimed;
+        claimed[i] = isClaimed;
+        if (isClaimed) {
           // A building's ground is its plane, whatever the roof above it reads.
           Building owner = buildingOver(buildings, worldX, worldZ);
           if (owner != null) {
@@ -482,10 +530,19 @@ public final class GradingSurvey {
     buckets[slot].add(column);
   }
 
-  /** Two neighbouring columns of ground with no cliff between them. */
+  /**
+   * Two neighbouring columns of ground with no cliff between them. A building's
+   * apron is the exception: there the grade ramps to the floor even across what
+   * would otherwise be a cliff, so the ground always reaches the door.
+   */
   private boolean connected(int a, int b) {
-    return height[a] != NO_GROUND && height[b] != NO_GROUND
-        && Math.abs(height[a] - height[b]) <= MAX_STEP;
+    if (height[a] == NO_GROUND || height[b] == NO_GROUND) {
+      return false;
+    }
+    if (apron[a] || apron[b]) {
+      return true;
+    }
+    return Math.abs(height[a] - height[b]) <= MAX_STEP;
   }
 
 }

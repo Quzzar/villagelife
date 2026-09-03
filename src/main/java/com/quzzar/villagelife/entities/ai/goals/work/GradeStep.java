@@ -117,6 +117,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     private final int x;
     private final int z;
     private final int target;
+    private final boolean apron;
     private int height;
 
     private Planned(GradingSurvey.Column column) {
@@ -124,6 +125,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       this.z = column.z();
       this.height = column.height();
       this.target = column.target();
+      this.apron = column.apron();
     }
 
     private boolean done() {
@@ -381,10 +383,16 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
    * stand at most {@link SitePreparation#MAX_COLUMN_DELTA} above or below the
    * height it had before grading, and one that has been raised is never cut
    * again nor a cut one refilled, so grading always ends.
+   *
+   * <p>A building's apron column is exempt from the height cap: it is graded all
+   * the way to the ramp that meets the building's floor, however far that is from
+   * where the raw land stood, so a villager can always step onto the building and
+   * in at its door (tight apron, 2026-09-03). The never-turn-back rule still
+   * holds for it, so it too always ends.
    */
   private static boolean withinBudget(GradedColumnStore graded, Planned column, int delta) {
     int original = graded.originalHeight(column.x, column.z, column.height);
-    if (Math.abs(column.height + delta - original) > SitePreparation.MAX_COLUMN_DELTA) {
+    if (!column.apron && Math.abs(column.height + delta - original) > SitePreparation.MAX_COLUMN_DELTA) {
       return false;
     }
     return delta < 0 ? column.height <= original : column.height >= original;

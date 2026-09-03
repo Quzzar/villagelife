@@ -623,7 +623,7 @@ public final class JobClaiming {
     }
   }
 
-  private static boolean isOnCooldown(Village village, UUID personId, long now) {
+  static boolean isOnCooldown(Village village, UUID personId, long now) {
     CompoundTag cooldowns = village.getSwapCooldowns();
     String key = personId.toString();
     if (!cooldowns.contains(key)) {
@@ -637,7 +637,7 @@ public final class JobClaiming {
     return true;
   }
 
-  private static void markCooldown(Village village, UUID personId, long now) {
+  static void markCooldown(Village village, UUID personId, long now) {
     village.getSwapCooldowns().putLong(personId.toString(), now);
   }
 }

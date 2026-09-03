@@ -50,6 +50,17 @@ public final class LaborPlanner {
   private static final Set<Occupation> FOOD_PRODUCERS =
       EnumSet.of(Occupation.FARMER, Occupation.FISHER, Occupation.HUNTER);
 
+  /**
+   * The trades a village always keeps at least one of: its miner (no miner, no
+   * stone, and the build economy stalls) and its builder (no builder, and a
+   * project in progress never finishes, so the village sits stuck on it and
+   * never advances to houses). The last of either is never moved off to the
+   * field, however hungry the village; a second, if there is one, may still go
+   * (Aaron, 2026-09-03).
+   */
+  private static final Set<Occupation> ALWAYS_STAFFED =
+      EnumSet.of(Occupation.MINER, Occupation.BUILDER);
+
   /** Village-seconds a village waits out after the brain leaves the crew as it is. */
   private static final int QUIET_SECONDS = 300;
 
@@ -112,12 +123,28 @@ public final class LaborPlanner {
     return null;
   }
 
-  /** Loaded workers not already doing the wanted job: the ones a reassignment could actually move. */
+  /**
+   * Loaded workers a reassignment could actually move onto the field. Three are
+   * held back: whoever already does the wanted job; the last miner and the last
+   * builder, the trades a village must always keep ({@link #ALWAYS_STAFFED});
+   * and anyone still inside their job-swap cooldown, so a person just placed or
+   * moved is left to settle rather than yanked straight onto the field
+   * (the same per-person cooldown the aptitude swap pass respects,
+   * {@link JobClaiming#isOnCooldown}).
+   */
   private static List<RealPerson> movableWorkers(Village village, ServerLevel level, Occupation wanted) {
+    long now = level.getGameTime();
     List<RealPerson> crew = new ArrayList<>();
     for (var entry : village.getJobAssignmentsView().entrySet()) {
-      if (entry.getValue().getOccupation() == wanted) {
+      Occupation occupation = entry.getValue().getOccupation();
+      if (occupation == wanted) {
         continue;
+      }
+      if (ALWAYS_STAFFED.contains(occupation) && countOf(village, occupation) <= 1) {
+        continue; // a village always keeps its miner and its builder
+      }
+      if (JobClaiming.isOnCooldown(village, entry.getKey(), now)) {
+        continue; // recently placed, swapped, or displaced: let them settle
       }
       RealPerson worker = village.getPerson(level, entry.getKey());
       if (worker != null) {
@@ -125,6 +152,17 @@ public final class LaborPlanner {
       }
     }
     return crew;
+  }
+
+  /** How many villagers hold this occupation right now. */
+  private static int countOf(Village village, Occupation occupation) {
+    int count = 0;
+    for (JobAssignment job : village.getJobAssignmentsView().values()) {
+      if (job.getOccupation() == occupation) {
+        count++;
+      }
+    }
+    return count;
   }
 
   private static void ask(Village village, ServerLevel level, JobAssignment vacancy, List<RealPerson> crew) {
@@ -206,6 +244,7 @@ public final class LaborPlanner {
     }
     village.assignJob(worker.getUUID(), post);
     JobClaiming.startJob(village, worker, post);
+    JobClaiming.markCooldown(village, worker.getUUID(), level.getGameTime());
     worker.logIssue("Moved off " + from.name().toLowerCase() + " to work as the " + field
         + "; the village needed the food more.", Optional.empty());
     Villagelife.LOGGER.info("'{}' moved '{}' from {} to {} to feed the village: {}",

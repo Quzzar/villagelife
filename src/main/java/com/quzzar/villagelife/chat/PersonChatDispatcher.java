@@ -844,7 +844,10 @@ public final class PersonChatDispatcher {
   /**
    * Takes up to {@code want} of the item from the villager's slots and returns
    * how many actually came out. Equipment first (hand, off-hand, armour), then
-   * carry-inventory, across as many stacks as it takes.
+   * carry-inventory, across as many stacks as it takes. Anything goes, the job's
+   * own tool or token included: a villager parting with what they work with is
+   * their business, and by day the tool-tending pass draws it back
+   * ({@link RealPerson#tendJobTool}, {@link RealPerson#tendSignatureGear}).
    */
   private static int takeFromSlots(RealPerson person, net.minecraft.world.item.Item item, int want) {
     int collected = 0;

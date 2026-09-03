@@ -30,9 +30,15 @@ import net.minecraft.world.item.UseAnim;
 
 public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Person>> {
 
+    /** The two body geometries, chosen per person by gender in {@link #render}. */
+    private final PersonModel wideModel;
+    private final PersonModel slimModel;
+
     public PersonRenderer(EntityRendererProvider.Context context) {
-        super(context, new PersonModel(context.bakeLayer(PersonClientEvents.PERSON)), 0.5F);
-        this.model = new PersonModel(context.bakeLayer(PersonClientEvents.PERSON));
+        super(context, new PersonModel(context.bakeLayer(PersonClientEvents.PERSON), false), 0.5F);
+        this.wideModel = new PersonModel(context.bakeLayer(PersonClientEvents.PERSON), false);
+        this.slimModel = new PersonModel(context.bakeLayer(PersonClientEvents.PERSON_SLIM), true);
+        this.model = this.wideModel;
 
         this.addLayer(new HumanoidArmorLayer<>(this,
                 new HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_INNER_ARMOR)),
@@ -42,8 +48,25 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
 
     @Override
     public void render(Person entityIn, float entityYaw, float partialTicks, PoseStack matrixStackIn, MultiBufferSource bufferIn, int packedLightIn) {
+        this.model = bodyModelFor(entityIn);
         this.setModelVisibilities(entityIn);
         super.render(entityIn, entityYaw, partialTicks, matrixStackIn, bufferIn, packedLightIn);
+    }
+
+    /**
+     * The body geometry this person renders on, keyed off the same gender the skin pool
+     * uses so body and skin agree: women get the slim (Alex) model, men the wide (Steve)
+     * model. The nonbinary, and plain Persons that carry no gender, get a stable seeded
+     * pick off the skin variant so a given villager always renders the same body.
+     */
+    private PersonModel bodyModelFor(Person entity) {
+        Gender gender = (entity instanceof RealPerson realPerson) ? realPerson.getGender() : Gender.NONBINARY;
+        boolean slim = switch (gender) {
+            case MALE -> false;
+            case FEMALE -> true;
+            case NONBINARY -> (entity.getSkinVariant() & 1) == 1;
+        };
+        return slim ? this.slimModel : this.wideModel;
     }
 
     /**

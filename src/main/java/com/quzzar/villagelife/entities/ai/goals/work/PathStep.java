@@ -7,11 +7,13 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.Building;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
@@ -21,13 +23,19 @@ import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.SaplingBlock;
 
 /**
- * Wearing a route between two buildings: a PLACE step whose act belongs to the
- * journey rather than to the destination.
+ * Wearing a route from the campfire to a building's door: a PLACE step whose
+ * act belongs to the journey rather than to the destination.
  *
  * The only step that lays as it walks, and the reason {@link WorkStep} has a
- * travelling variant at all. The builder picks two buildings, walks quietly to
- * the first, and then treads a path to the second, turning ground to dirt path
- * beneath and beside them as they go.
+ * travelling variant at all. The builder starts at the town centre, where the
+ * campfire is, walks quietly out to a building, and treads a path to its
+ * doorstep, turning ground to dirt path beneath and beside them as they go
+ * ({@link LocationManager#getEntrance}), so a villager can always get from the
+ * campfire in at the door (docs/worker-loops.md, doorstep spokes 2026-09-03).
+ * A spoke to each door, rather than a route between two building centres, is
+ * what makes a building reachable: a path aimed at a building's middle stops at
+ * the near wall when the door is round the back. The {@link GradingSurvey} path
+ * pass then settles the worn spoke into a gentle ramp.
  *
  * Paths are what a builder does when there is nothing to build, so the step
  * finds no work at all while a project stands. Refusing outright rather than
@@ -51,8 +59,15 @@ public final class PathStep implements BlockWorkStep {
   /** Fraction of a building's radius that counts as having arrived at it. */
   private static final double ARRIVAL_FRACTION = 0.4D;
 
+  /** Close enough to a doorstep to count as arrived: right at the door, not its whole radius. */
+  private static final double DOOR_REACH_SQR = 6.25D;
+
   private Building nearEnd;
   private Building destination;
+  @Nullable
+  private BlockPos destinationTarget;
+  /** Whether the far end is a doorstep (arrive right at it) or a doorless building's middle (arrive within its radius). */
+  private boolean toDoor;
   private boolean laying;
 
   @Override
@@ -62,23 +77,36 @@ public final class PathStep implements BlockWorkStep {
     if (village == null || (village.getCurrentProject() != null && person.isConstructionLead())) {
       return null; // there is something to build; paths can wait
     }
+    if (!(person.level() instanceof ServerLevel level)) {
+      return null;
+    }
+    if (this.laying && this.destinationTarget != null) {
+      return this.destinationTarget; // still treading the spoke out to the far end
+    }
+    Building hub = village.getTownCenter();
     List<Building> buildings = new ArrayList<>(village.getBuildings());
-    if (buildings.size() < 2) {
-      return null; // a path runs between two buildings
+    if (hub == null || buildings.size() < 2) {
+      return null; // a spoke runs from the campfire out to a building
     }
-    if (this.laying && this.destination != null) {
-      return BlockPos.of(this.destination.getCenterLocation()); // still walking the route
-    }
-
-    Building from = buildings.get(person.getRandom().nextInt(buildings.size()));
     Building to = buildings.get(person.getRandom().nextInt(buildings.size()));
-    if (from == to) {
+    if (to == hub) {
       return null; // try again next scan
     }
-    this.nearEnd = from;
+    LocationManager.Entrance entrance = LocationManager.getEntrance(level, to);
+    this.nearEnd = hub;
     this.destination = to;
+    if (entrance != null) {
+      this.destinationTarget = entrance.doorstep();
+      this.toDoor = true;
+    } else {
+      // No door (an open structure), or its chunks are not resident this scan:
+      // fall back to the building's middle so a path is still laid, the way it
+      // always was, rather than leaving that building with no route to it.
+      this.destinationTarget = BlockPos.of(to.getCenterLocation());
+      this.toDoor = false;
+    }
     this.laying = false;
-    return BlockPos.of(from.getCenterLocation());
+    return BlockPos.of(hub.getCenterLocation());
   }
 
   @Override
@@ -92,7 +120,8 @@ public final class PathStep implements BlockWorkStep {
       this.laying = false;
       this.nearEnd = null;
       this.destination = null;
-      return false; // route complete; the next scan picks a fresh pair
+      this.destinationTarget = null;
+      return false; // spoke complete; the next scan picks a fresh building
     }
     pave(person);
     return true;
@@ -103,6 +132,7 @@ public final class PathStep implements BlockWorkStep {
     if (!this.laying) {
       this.nearEnd = null;
       this.destination = null;
+      this.destinationTarget = null;
     }
   }
 
@@ -137,7 +167,10 @@ public final class PathStep implements BlockWorkStep {
    */
   @Override
   public double reachSqr(RealPerson person) {
-    Building at = this.laying ? this.destination : this.nearEnd;
+    if (this.laying) {
+      return farReachSqr(); // arrive at the doorstep, or within a doorless building's radius
+    }
+    Building at = this.nearEnd;
     if (at == null) {
       return 9.0D;
     }
@@ -150,13 +183,20 @@ public final class PathStep implements BlockWorkStep {
     return this.laying ? 0.3D : 0.5D; // a path is trodden slowly
   }
 
+  /** How close counts as arrived at the far end: right at a doorstep, or within a doorless building's radius. */
+  private double farReachSqr() {
+    if (this.toDoor) {
+      return DOOR_REACH_SQR;
+    }
+    double radius = this.destination == null ? 3.0D : this.destination.getRadius();
+    return radius * radius * ARRIVAL_FRACTION;
+  }
+
   private boolean arrived(RealPerson person) {
-    if (this.destination == null) {
+    if (this.destinationTarget == null) {
       return true;
     }
-    BlockPos centre = BlockPos.of(this.destination.getCenterLocation());
-    double radius = this.destination.getRadius();
-    return centre.distSqr(person.blockPosition()) <= radius * radius * ARRIVAL_FRACTION;
+    return this.destinationTarget.distSqr(person.blockPosition()) <= farReachSqr();
   }
 
   /** Turns one square under or beside the builder into path, if it may be turned. */

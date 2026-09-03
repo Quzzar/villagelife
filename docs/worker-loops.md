@@ -61,12 +61,19 @@ sat in a miner's barrel at home while the next miner stood at a flooded shaft. W
 `took N ... from their chest at home for tomorrow's work` in the log.
 
 **Nothing is conjured after the starting kit** (decided 2026-09-02). Taking a job is the one
-moment a tool appears from nothing: a stone axe, pickaxe or hoe, or a plain bow, into a bare hand
-only (`RealPerson.issueStartingKit`, from `JobClaiming.startJob`). It used to re-run on every
-state reload, which put a fresh stone axe over whatever a guard held on every chunk load, and the
-guard's bedtime pass refilled an empty hand with a new axe; a guard gave their axe away in
-conversation and had another five seconds later. Villagers may still give their tools away, that
-is their business. A hand bare at bedtime is filled the way a player would fill it
+moment the mark of a trade appears from nothing: a stone axe, pickaxe or hoe, or a plain bow for
+the trades that work with a tool, or a token for the rest, a builder's crafting table, a
+quartermaster's ledger, a librarian's book, a blacksmith's ingot, a cleric's potions
+(`RealPerson.issueStartingKit`, from `JobClaiming.startJob`; the tokens are named in one place,
+`entities/SignatureGear`). It used to re-run on every state reload, which put a fresh stone axe over
+whatever a guard held on every chunk load, and the guard's bedtime pass refilled an empty hand with a
+new axe; a guard gave their axe away in conversation and had another five seconds later. Villagers may
+still give anything away, the job's own tool or token included, that is their business. What keeps a
+worker working is that by day a worker whose mark has left its slot draws it back, out of their pack or
+the village stores, so a tool put away or given off is taken up again and a token likewise (`tendJobTool`
+for the tiered tools, `tendSignatureGear` for the tokens). The tokens are fetch only, never crafted or
+conjured (decided 2026-09-03): a village that cannot spare one has the want logged and the villager goes
+without. A hand bare at bedtime is filled the way a player would fill it
 (`entities/JobTool`): the best tool of the job's kind the stores can spare, else one made from what
 the stores hold, in the fundamentals the recipes are written in: three cobblestone for an axe or
 pickaxe, two for a hoe, two planks of any wood for a bow, a log standing in for four planks with
@@ -322,6 +329,24 @@ from where it started, and none is moved back across its own starting height, so
 ends. Ownership is the felling rule's neighbour ([block-ownership.md](block-ownership.md)): a
 village-placed block is never cut and nothing under one is; a player's placed dirt is graded
 like any other, and its record is dropped when it is dug.
+
+**Built, 2026-09-03: a building is only built if you can get into it.** Two rules keep the
+gentle general grade from leaving a building stranded, since a butchery on a slope with a
+two-block lip on one side is a butchery nobody can enter. First, the **apron**: the soft
+ground within three blocks of a footprint (`GradingSurvey.APRON`) is graded to a ramp that
+meets the building's own floor even where the raw land between would be left a cliff or held
+inside the levelling budget. An apron column connects across a cliff (`connected`) so the
+floor plane's envelope reaches it, and it is exempt from the three-block height cap
+(`GradeStep.withinBudget`), so however far the edge stands from the floor the ramp is built
+to meet it. The apron is deliberately small: the wider ground still keeps its hills, and the
+path carries the rest of the way in (tight apron, Aaron 2026-09-03). Second, the path is a
+**spoke to the door, not a line between centres**: the builder treads a route from the town
+centre, where the campfire is, out to each building's doorstep (`LocationManager.getEntrance`,
+`PathStep`), rather than between two building middles, because a path aimed at a middle stops
+at the near wall when the door faces away. The worn spoke is then settled into a gentle ramp
+by the path pass (`GradingSurvey.smoothPaths`), so a villager walks from the campfire to the
+door on an even grade. The just-finished building is served first for free: the builder stands
+at it when it completes, so its apron is the nearest uneven ground the grading picks up.
 
 ## The farmer's idle hands feed the composter
 
