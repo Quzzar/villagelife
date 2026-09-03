@@ -109,6 +109,14 @@ may differ in size, shape, and face position. Hidden skin uses an authored two-t
 across every base UV face rather than a flat bucket fill, then the source's exposed-skin detail
 is restored above it.
 
+Skin, hairstyle, and eye parts also carry a **face profile**. The profile records the eye rows
+the face was authored around, while each hairstyle records the exact front-face texels it
+occludes. Recipe selection chooses a skin profile first, limits hair and eyes to that profile,
+and rejects any eye mask the chosen hairstyle would cover. Clothing has no face profile and
+remains freely interchangeable. Newly authored parts should use one canonical profile so their
+full cross-product stays valid; retained source parts may use their original profile without
+forcing every face onto one geometry.
+
 So v1's four configurable dimensions are **skin tone**, **hairstyle**, **hair color**, and
 **eye color**. Face shape is a single baked default in v1 (the "face" swap dimension,
 facial hair, and skin marks are deferred). The tintable skin and hair layers are grayscale
@@ -131,13 +139,15 @@ v1 `SkinRecipe` fields:
 | Field | Type | Source in v1 |
 | --- | --- | --- |
 | `model` | `WIDE` \| `SLIM` | gender (NB seeded) |
+| `faceProfile` | id shared by skin, hair, and eyes | chosen skin |
 | `skinTone` | packed RGB | palette roll |
 | `hairstyle` | index into the gender's hairstyle set | roll |
 | `hairColor` | packed RGB | palette roll |
 | `eyeColorL`, `eyeColorR` | packed RGB | palette roll (equal in v1) |
 
 Derivation is one deterministic function `AppearanceInputs -> SkinRecipe`: seed a PRNG from
-`skinVariant`, then roll each field, drawing tints from curated palettes (a natural
+`skinVariant`, choose the skin and its face profile, then roll compatible hair and eye parts
+plus independent clothing. Tints come from curated palettes (a natural
 skin-tone ramp, a hair-color set, an eye-color set) so results read as people, not
 confetti. Determinism is what makes every client agree without syncing the recipe.
 
@@ -169,10 +179,16 @@ Gender compatibility belongs to each part, not only to the original whole skin. 
 clothing, hairstyle, left eye, and right eye asset is tagged `MALE`, `FEMALE`, or
 `NONBINARY`. `NONBINARY` is the shared compatibility pool: male recipes draw from `MALE +
 NONBINARY`, female recipes draw from `FEMALE + NONBINARY`, and non-binary recipes may draw
-from all three. Skin and eye parts are shared by default. Clothing and hairstyles are
-classified independently and conservatively from their visible design; anything ambiguous
-stays shared. These tags describe recipe compatibility, not biological traits or the gender
-identity of the source character.
+from all three. One recipe may never contain both a definitively `MALE` and a definitively
+`FEMALE` part; `NONBINARY` parts can accompany either expression. Skin and eye parts are
+shared by default. Clothing and hairstyles are classified independently and conservatively
+from their visible design; anything ambiguous stays shared. These tags describe recipe
+compatibility, not biological traits or the gender identity of the source character.
+
+Face compatibility is a separate manifest concern. Skin, hair, and both eye parts must share
+one face profile, and each selected eye must avoid the chosen hairstyle's front-face occlusion
+mask. The generated selection table carries both fields so invalid combinations are excluded
+before a recipe reaches the compositor.
 
 The existing curated whole-skin gender pools are replaced by this part set; per the
 project's no-backwards-compat rule the world is wiped rather than migrated. The wandering
