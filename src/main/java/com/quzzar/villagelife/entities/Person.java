@@ -733,6 +733,27 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     return count;
   }
 
+  /**
+   * A shield, or any off-hand item that can block: a guard's defence. Told by the
+   * SHIELD_BLOCK ability rather than the vanilla class, so a modded shield counts
+   * the same way {@link com.quzzar.villagelife.entities.ai.goals.RaiseShieldGoal}
+   * reads it.
+   */
+  public static boolean isShield(ItemStack stack) {
+    return !stack.isEmpty()
+        && stack.getItem().canPerformAction(stack, net.neoforged.neoforge.common.ItemAbilities.SHIELD_BLOCK);
+  }
+
+  /** The pack slot holding the first shield, or -1 when the pack has none. */
+  public int shieldSlotInPack() {
+    for (int slot = 0; slot < this.personMainInv.getContainerSize(); slot++) {
+      if (isShield(this.personMainInv.getItem(slot))) {
+        return slot;
+      }
+    }
+    return -1;
+  }
+
   public void addItems(List<ItemStack> items) {
     Utils.insertItems(this.personMainInv, items, this);
   }

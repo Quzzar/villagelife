@@ -1246,6 +1246,10 @@ public class RealPerson extends Person {
       JobTool.replace(this, tool, depositToLoc);
     }
     if (getOccupation() == Occupation.GUARD) {
+      // A shield first, so it takes the off hand before the rations do (which then
+      // route to the pack); the guard swaps a meal in to eat and the shield back
+      // after (PersonEatFoodGoal). Only then top up the rations.
+      maybeEquipOrForgeShield(depositToLoc);
       restockRations(depositToLoc);
     }
 
@@ -1405,6 +1409,84 @@ public class RealPerson extends Person {
       this.getVillage().logEvent(
           new com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent(Items.BREAD, wanted));
     }
+  }
+
+  /**
+   * A guard takes up a shield when one can be had, so {@link
+   * com.quzzar.villagelife.entities.ai.goals.RaiseShieldGoal} finally has something
+   * to raise. The shield rides in the off hand and the guard swaps a meal in to eat
+   * and the shield back after ({@link
+   * com.quzzar.villagelife.entities.ai.goals.PersonEatFoodGoal}); because this runs
+   * before {@link #restockRations}, the rations then settle into the pack. Nothing
+   * is conjured, the way a villager's gear never is: a shield already carried or
+   * sitting in the stores is worn, and only failing that is one forged from an iron
+   * ingot and six planks the stores can pay for. No shield to be had leaves the
+   * guard with just its axe, as before - the guard is under-armed, not misbehaving.
+   */
+  private void maybeEquipOrForgeShield(BlockPos depositToLoc) {
+    if (Person.isShield(this.getItemBySlot(EquipmentSlot.OFFHAND))) {
+      return; // already carrying one in hand
+    }
+    ItemStack shield = takeShieldFromPack();
+    if (shield.isEmpty()) {
+      shield = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.SHIELD), depositToLoc);
+    }
+    if (shield.isEmpty() && forgeShield(depositToLoc)) {
+      shield = new ItemStack(Items.SHIELD);
+    }
+    if (shield.isEmpty()) {
+      return; // none carried, none in the stores, and none the stores could pay to forge
+    }
+    ItemStack held = this.getItemBySlot(EquipmentSlot.OFFHAND);
+    this.setItemSlot(EquipmentSlot.OFFHAND, shield);
+    if (!held.isEmpty()) {
+      this.addItems(List.of(held)); // a meal that had the hand steps aside to the pack
+    }
+    Villagelife.LOGGER.info("[guard] {} takes up a shield", this.getFullName());
+  }
+
+  /** A shield the guard is already carrying in its pack, pulled out; empty when it holds none. */
+  private ItemStack takeShieldFromPack() {
+    int slot = this.shieldSlotInPack();
+    return slot < 0 ? ItemStack.EMPTY : this.personMainInv.removeItemNoUpdate(slot);
+  }
+
+  /**
+   * Forges one shield's cost out of the stores: an iron ingot and six planks of any
+   * wood (wood is wood). All or nothing - a shortfall puts back whatever was drawn,
+   * so the stores are never left half-spent on a shield that was not made. True when
+   * the full cost was paid and the caller mints the shield, false otherwise.
+   */
+  private boolean forgeShield(BlockPos depositToLoc) {
+    List<ItemStack> paid = new ArrayList<>();
+    ItemStack iron = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.IRON_INGOT, 1), depositToLoc);
+    if (!iron.isEmpty()) {
+      paid.add(iron);
+    }
+    int planks = 0;
+    if (iron.getCount() >= 1) {
+      for (net.minecraft.core.Holder<Item> plank : net.minecraft.core.registries.BuiltInRegistries.ITEM
+          .getTagOrEmpty(net.minecraft.tags.ItemTags.PLANKS)) {
+        if (planks >= 6) {
+          break;
+        }
+        ItemStack pull = this.getVillage()
+            .gatherItemStackFromVillage(new ItemStack(plank.value(), 6 - planks), depositToLoc);
+        if (!pull.isEmpty()) {
+          planks += pull.getCount();
+          paid.add(pull);
+        }
+      }
+    }
+    if (iron.getCount() >= 1 && planks >= 6) {
+      Villagelife.LOGGER.info("[guard] {} forged a shield from an iron ingot and six planks",
+          this.getFullName());
+      return true;
+    }
+    for (ItemStack refund : paid) {
+      this.getVillage().placeItemStackIntoVillage(refund, this, depositToLoc);
+    }
+    return false;
   }
 
   /** What one bite of this heals, by {@link Person#eatFood}'s rule; nothing for a drink with no food value. */
