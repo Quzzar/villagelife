@@ -681,6 +681,15 @@ public class RealPerson extends Person {
             this.getName().getString(), roamHeadingName());
       }
     }
+    // A worker whose job tool is in their pack instead of their hand cannot
+    // work, since the work steps read the hand (a miner will not swing at stone
+    // his HELD tool would not drop). Off the hot path, a few times a minute by
+    // day, a worker with an empty hand draws their tool back out, or fetches or
+    // makes one, so a villager who put their tool away or gave it off does not
+    // stand idle beside work they own the tool for.
+    if (!this.level().isClientSide && this.tickCount % 200 == 71 && !this.level().isNight()) {
+      tendJobTool();
+    }
     super.aiStep();
 
     // A wandering merchant keeps its own clock: it counts down to its departure
@@ -689,6 +698,51 @@ public class RealPerson extends Person {
     if (!this.level().isClientSide && isWanderingMerchant()) {
       tickWanderingMerchant();
     }
+  }
+
+  /**
+   * Make sure a worker is actually holding their job tool, so the work steps
+   * (which read the hand) can run. The self-help cascade a worker with an empty
+   * hand walks on their own: draw the tool they already own out of their pack;
+   * else take a spare the village stores can hand over; else make one from the
+   * stores' cobblestone and sticks. A worker who can do none of these has the
+   * shortage logged (JobTool.replace) and keeps to an idle rather than standing
+   * empty-handed beside work they cannot do (Aaron, 2026-09-02: the miner whose
+   * pickaxe was in his pack, not his hand, so he never mined).
+   */
+  public void tendJobTool() {
+    JobTool tool = JobTool.of(getOccupation());
+    if (tool == null || tool.inHand(this) || getVillage() == null) {
+      return;
+    }
+    BlockPos depositTo = LocationManager.getJobLocation(this);
+    if (drawJobToolFromPack(tool)) {
+      return;
+    }
+    equipBestPossibleGear(tool.kind(), null, getOccupation() == Occupation.GUARD, depositTo);
+    if (tool.inHand(this)) {
+      return;
+    }
+    JobTool.replace(this, tool, depositTo);
+  }
+
+  /**
+   * Move a job tool the worker already owns from their pack into the main hand,
+   * the hand's own item taking the freed slot. The tool is MOVED, never copied:
+   * held items are single-source, and a copy duplicates on death. True when one
+   * was drawn.
+   */
+  private boolean drawJobToolFromPack(JobTool tool) {
+    for (int slot = 0; slot < this.personMainInv.getContainerSize(); slot++) {
+      ItemStack stack = this.personMainInv.getItem(slot);
+      if (!stack.isEmpty() && tool.kind().isInstance(stack.getItem())) {
+        ItemStack held = this.getMainHandItem();
+        this.setItemSlot(EquipmentSlot.MAINHAND, stack);
+        this.personMainInv.setItem(slot, held);
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
