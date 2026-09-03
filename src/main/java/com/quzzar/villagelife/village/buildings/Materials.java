@@ -289,11 +289,6 @@ public final class Materials {
   }
 
   /**
-   * The cost item in words, for the brain's briefing and a villager's mouth.
-   * A generic kind is spoken as what pays for it, "logs", "planks" or "stone";
-   * anything else is its plain name, "iron ingot" for "minecraft:iron_ingot".
-   */
-  /**
    * The shortfall against a stock as a villager would say it, e.g. "40
    * cobblestone, 3 white wool"; empty when the recipe is covered. The chat
    * briefing and the bedtime chest question both state what the village is
@@ -307,6 +302,15 @@ public final class Materials {
     return String.join(", ", parts);
   }
 
+  /**
+   * The cost item in words, for the brain's briefing and a villager's mouth.
+   * A generic kind is spoken as what pays for it, "logs", "planks" or
+   * "cobblestone"; anything else is its plain name, "iron ingot" for
+   * "minecraft:iron_ingot". A stone cost is met by any cobblestone, cobbled
+   * deepslate or sandstone, but "cobblestone" is the concrete item a villager
+   * or player is asked for: "stone" (smooth stone) is a different item and pays
+   * for nothing.
+   */
   public static String describe(Item wanted) {
     switch (kindOf(wanted)) {
       case LOGS:
@@ -314,7 +318,7 @@ public final class Materials {
       case PLANKS:
         return "planks";
       case STONE:
-        return "stone";
+        return "cobblestone";
       case WOOL:
         return "wool";
       default:
