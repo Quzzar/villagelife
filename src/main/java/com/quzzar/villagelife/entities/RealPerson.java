@@ -20,6 +20,7 @@ import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.networking.OpenPersonChatPacket;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.PersonalChest;
+import com.quzzar.villagelife.village.CompanionPets;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageManager;
@@ -41,6 +42,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.SpawnGroupData;
@@ -272,6 +274,11 @@ public class RealPerson extends Person {
 
   // Same guard for the bedtime question of what to keep in the chest at home.
   private transient long stashOfferDay = -1;
+
+  // Game day of the last companion-pet order (sit/recall). At most once a day a
+  // pet owner puts it to their brain whether to sit or call back their pet
+  // (maybeOrderPet). Not persisted: a reload at worst offers once more.
+  private transient long petOrderDay = -1;
 
   // True from that question going out until its answer lands (StashOffer). The
   // pack is held whole meanwhile: stowing it would empty the pockets the brain
@@ -702,6 +709,12 @@ public class RealPerson extends Person {
     if (!this.level().isClientSide && this.tickCount % 200 == 71 && !this.level().isNight()) {
       tendJobTool();
       tendSignatureGear();
+    }
+    // A pet owner now and then decides, in their own brain, to sit their
+    // companion down or call it back (maybeOrderPet). Its own staggered slot, off
+    // the hot path; the once-a-day gate inside keeps it to a single ask.
+    if (!this.level().isClientSide && this.tickCount % 200 == 113) {
+      maybeOrderPet();
     }
     super.aiStep();
 
@@ -1545,6 +1558,42 @@ public class RealPerson extends Person {
    * the ask, and the model only takes it or leaves it, in character
    * (docs/llm-brain.md). Once per night: goToBed refires until sleep takes.
    */
+  /**
+   * Once a day, a pet owner puts it to their own brain whether to sit their
+   * companion down and have it stay, or call it back to their heel: their choice,
+   * through the shared decide() primitive, not a rule (PetOrder). Silence leaves
+   * the pet as it is. The day-gate is only claimed once a pet is actually nearby,
+   * so a day the pet was off following its own nose can still bring the ask later
+   * when it returns.
+   */
+  private void maybeOrderPet() {
+    // The situation opener (CraftOffer.identityLead) names the speaker's village,
+    // so a former owner now roaming with no village is skipped; their tethered
+    // pet is not at their heel out on the road anyway.
+    if (this.level().isClientSide || getVillage() == null) {
+      return;
+    }
+    long day = this.level().getDayTime() / 24000L;
+    if (this.petOrderDay == day) {
+      return;
+    }
+    TamableAnimal pet = CompanionPets.findOwnedPet(this, 16.0D);
+    if (pet == null) {
+      return;
+    }
+    this.petOrderDay = day;
+
+    String activity = getOccupation().isIdle()
+        ? "You are idling near the campfire between jobs."
+        : "You are going about your work as the " + getOccupation().name().toLowerCase(java.util.Locale.ROOT) + ".";
+    String posture = pet.isOrderedToSit()
+        ? "Your " + pet.getName().getString() + " is sitting where you left it."
+        : "Your " + pet.getName().getString() + " is at your heel.";
+    String situation = CraftOffer.identityLead(this) + activity + " " + posture
+        + " Decide whether to change that, and give your reason in a few words.";
+    PetOrder.offer(this, pet, situation);
+  }
+
   private void maybeCraftTorchesFromCoal(BlockPos depositToLoc) {
     long day = this.level().getDayTime() / 24000L;
     if (this.torchOfferDay == day) {

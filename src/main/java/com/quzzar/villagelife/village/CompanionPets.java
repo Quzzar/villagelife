@@ -25,6 +25,7 @@ import net.minecraft.world.entity.animal.WolfVariant;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -310,6 +311,28 @@ public final class CompanionPets {
     }
     BlockPos shift = pos.subtract(pet.blockPosition());
     return pet.level().noCollision(pet, pet.getBoundingBox().move(shift));
+  }
+
+  /**
+   * The nearest companion pet this villager owns within {@code radius}, or null.
+   * The owner-to-pet lookup, kept here beside the pet-to-owner one so both ends
+   * of the bond resolve in the same home. Mirrors {@code HerdStep.select}: scan a
+   * box, keep only what passes the ownership predicate, take the nearest.
+   */
+  public static TamableAnimal findOwnedPet(RealPerson owner, double radius) {
+    AABB box = owner.getBoundingBox().inflate(radius);
+    TamableAnimal nearest = null;
+    double best = Double.MAX_VALUE;
+    for (TamableAnimal pet : owner.level().getEntitiesOfClass(TamableAnimal.class, box,
+        candidate -> candidate.isAlive() && isCompanionPet(candidate)
+            && ownerUuid(candidate).map(id -> id.equals(owner.getUUID())).orElse(false))) {
+      double distance = owner.distanceToSqr(pet);
+      if (distance < best) {
+        best = distance;
+        nearest = pet;
+      }
+    }
+    return nearest;
   }
 
   /** Whether an entity is one of our companion pets, by its ownership tag. */
