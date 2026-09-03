@@ -128,12 +128,11 @@ each with the reason, because from the game "the village never decided" and "the
 never asked" look the same.
 
 Every entry carries a **lane** (which queue it rode: `chat`, `decide`, `background`,
-`villager-chat`, `judge`) and a **purpose** the caller wrote in a few words: `Quzzar -> Jasper
+`villager-chat`) and a **purpose** the caller wrote in a few words: `Quzzar -> Jasper
 Ferguson`, `what Mangrove's Edge builds next`, `who takes the miner post at Emberstead`, `a
 persona for Birdie Hull`. Every public entry point of `LlmService` takes the purpose as its
 first argument, and nothing reaches a provider except through `LlmService.callProvider`, which
-is what makes the record complete (the persona judge, which builds its own cloud provider, goes
-through it too).
+is what makes the record complete.
 
 The file is its own rolling appender (`LlmCallLog`), attached to the live log4j configuration
 at startup because a mod cannot ship a log4j config: it rolls at 20 MB and keeps five
@@ -149,7 +148,7 @@ callers never learn which provider answered, and all of them receive the same pr
 few-shot example turns, and parsing. There are exactly two offline models and three cloud
 services, and nothing else:
 
-- **`llamacpp`** (default): the offline path. `LlmService` provisions llama.cpp's
+- **`local`** (default): the offline path. `LlmService` provisions llama.cpp's
   `llama-server` binary and a GGUF model and runs them as a subprocess on this machine,
   then talks to it over the OpenAI protocol on localhost (`LocalRuntimeProvider` +
   `LlamaServerLauncher`). Nothing to install, no account. Two models, chosen by the

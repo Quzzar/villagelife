@@ -107,9 +107,6 @@ public class VillagelifeConfig {
 
     // --- developer (advanced) ---
     public static boolean DeveloperCommands;
-    public static String PersonaJudgeProvider;
-    public static String PersonaJudgeApiKey;
-    public static String PersonaJudgeModel;
 
     public static void bakeCommonConfig() {
         // general
@@ -179,9 +176,6 @@ public class VillagelifeConfig {
 
         // developer
         DeveloperCommands = ADVANCED.DeveloperCommands.get();
-        PersonaJudgeProvider = ADVANCED.PersonaJudgeProvider.get();
-        PersonaJudgeApiKey = ADVANCED.PersonaJudgeApiKey.get();
-        PersonaJudgeModel = ADVANCED.PersonaJudgeModel.get();
     }
 
     @SubscribeEvent
@@ -226,10 +220,10 @@ public class VillagelifeConfig {
             builder.comment("The language model that gives villagers their conversation, decisions, personas, and village names. The sampling knobs live in villagelife-advanced.toml.").push("llm");
 
             LlmEnabled = builder.comment("Enable the LLM behind villager conversation, village decisions, personas, and settlement names. The offline model (about 2 GB) downloads from HuggingFace on first server start and is cached in <game dir>/villagelife/models. Budget roughly 3 GB of RAM beyond the game's needs for the offline model, or point LLM provider at a cloud service for no local cost. Check /vlbrain status in-game.").translation(Villagelife.MODID + ".config.LlmEnabled").define("Enable LLM?", true);
-            LlmProviderName = builder.comment("Which LLM answers for the villagers: 'llamacpp' (default) downloads llama.cpp and an offline model and runs them for you - no account, nothing to install; 'claude', 'openai', or 'deepseek' use that cloud service with your API key. Changing this requires a game restart.").translation(Villagelife.MODID + ".config.LlmProvider").define("LLM provider", "llamacpp");
-            LlmApiKey = builder.comment("Optional; only needed when 'LLM provider' is a cloud service (claude/openai/deepseek). The offline 'llamacpp' provider ignores it. Paste it here in plain text and TREAT THIS FILE LIKE A PASSWORD: anyone with this file can spend your account's money.").translation(Villagelife.MODID + ".config.LlmApiKey").define("LLM API key", "");
-            LlmCloudModel = builder.comment("Model id for the cloud provider (unused by llamacpp, which uses LLM local model). Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.LlmCloudModel").define("LLM cloud model", "");
-            LlmLocalModel = builder.comment("Which offline model the 'llamacpp' provider downloads and runs: 'llama-3b' (default, Llama-3.2-3B) or 'gemma-2-2b' (Gemma-2-2B). Llama was the clear best of the candidates at holding a conversation in character without looping the same line, which is what a player notices first. Gemma is a slightly smaller, slightly faster alternative that talks nearly as well. A one-time download of about 2 GB.").translation(Villagelife.MODID + ".config.LlmLocalModel").define("LLM local model", "llama-3b");
+            LlmProviderName = builder.comment("Which LLM answers for the villagers: 'local' (default) downloads llama.cpp and an offline model and runs them for you - no account, nothing to install; 'claude', 'openai', or 'deepseek' use that cloud service with your API key. Changing this requires a game restart.").translation(Villagelife.MODID + ".config.LlmProvider").define("LLM provider", "local");
+            LlmApiKey = builder.comment("Optional; only needed when 'LLM provider' is a cloud service (claude/openai/deepseek). The offline 'local' provider ignores it. Paste it here in plain text and TREAT THIS FILE LIKE A PASSWORD: anyone with this file can spend your account's money.").translation(Villagelife.MODID + ".config.LlmApiKey").define("LLM API key", "");
+            LlmCloudModel = builder.comment("Model id for the cloud provider (unused by the 'local' provider, which uses LLM local model). Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.LlmCloudModel").define("LLM cloud model", "");
+            LlmLocalModel = builder.comment("Which offline model the 'local' provider downloads and runs: 'llama-3b' (default, Llama-3.2-3B) or 'gemma-2-2b' (Gemma-2-2B). Llama was the clear best of the candidates at holding a conversation in character without looping the same line, which is what a player notices first. Gemma is a slightly smaller, slightly faster alternative that talks nearly as well. A one-time download of about 2 GB.").translation(Villagelife.MODID + ".config.LlmLocalModel").define("LLM local model", "llama-3b");
             LlmVillagerConversations = builder.comment("Whether villagers strike up conversations with each other (overheard as gray chat lines when you are close by). They talk, trade items, and file village requests among themselves on the LLM's spare time - it never delays a player's own conversation. Turn off to save LLM calls, which on a cloud provider are billed.").translation(Villagelife.MODID + ".config.LlmVillagerConversations").define("Villagers talk to each other", true);
 
             builder.pop();
@@ -289,9 +283,6 @@ public class VillagelifeConfig {
 
         // developer
         public final ModConfigSpec.BooleanValue DeveloperCommands;
-        public final ModConfigSpec.ConfigValue<String> PersonaJudgeProvider;
-        public final ModConfigSpec.ConfigValue<String> PersonaJudgeApiKey;
-        public final ModConfigSpec.ConfigValue<String> PersonaJudgeModel;
 
         public AdvancedConfig(ModConfigSpec.Builder builder) {
 
@@ -365,9 +356,6 @@ public class VillagelifeConfig {
             builder.comment("Developer tools. All off or blank by default: these are for anyone working on the mod, not for players.").push("developer");
 
             DeveloperCommands = builder.comment("Registers the /vldev command tree: scaffolding, diagnostics, and stand-ins for interfaces that do not exist yet. Off for players; on for anyone developing the mod.").translation(Villagelife.MODID + ".config.DeveloperCommands").define("Developer commands", false);
-            PersonaJudgeProvider = builder.comment("Which cloud service scores persona quality in '/vldev persona audit' (developer benchmark only, never the live game): 'claude', 'openai', or 'deepseek'. A cloud judge is used because a small local model cannot reliably tell a well-paraphrased trait from a contradicted one. Leave the key blank to run the audit without scoring.").translation(Villagelife.MODID + ".config.PersonaJudgeProvider").define("Persona judge provider", "claude");
-            PersonaJudgeApiKey = builder.comment("API key for the persona-judge provider (developer benchmark only). Separate from the villagers' 'LLM API key' so the game can run a local model while the judge calls the cloud. Blank disables scoring. TREAT THIS FILE LIKE A PASSWORD.").translation(Villagelife.MODID + ".config.PersonaJudgeApiKey").define("Persona judge API key", "");
-            PersonaJudgeModel = builder.comment("Model id for the persona-judge provider. Leave empty for the provider's default (Claude: claude-haiku-4-5, OpenAI: gpt-5.6-luna, DeepSeek: deepseek-chat).").translation(Villagelife.MODID + ".config.PersonaJudgeModel").define("Persona judge model", "");
 
             builder.pop();
         }

@@ -189,8 +189,8 @@ public final class LlmService {
     if (cloud.isPresent()) {
       return cloud.get();
     }
-    if (!"llamacpp".equalsIgnoreCase(name)) {
-      Villagelife.LOGGER.error("Unknown LLM provider '{}', using llamacpp", name);
+    if (!"local".equalsIgnoreCase(name)) {
+      Villagelife.LOGGER.error("Unknown LLM provider '{}', using local", name);
     }
     // The only offline provider: fetches llama.cpp and a model and runs them
     // itself, nothing to install. Cloud (claude/openai/deepseek) returned above.
@@ -200,12 +200,10 @@ public final class LlmService {
   /**
    * Builds a CLOUD provider ("claude"/"openai"/"deepseek") from the given key and
    * model suppliers, or empty for any non-cloud name. The single cloud-construction
-   * site, shared by the global provider above and an ad-hoc judge that reads its
-   * OWN config keys (issue #77) rather than the global ones, so the two never drift.
-   * {@code complete()} on a cloud provider needs no {@link #startLoading()}, so a
-   * caller can use the returned provider directly.
+   * site. {@code complete()} on a cloud provider needs no {@link #startLoading()}, so
+   * a caller can use the returned provider directly.
    */
-  public static Optional<LlmProvider> cloudProvider(String name,
+  private static Optional<LlmProvider> cloudProvider(String name,
       java.util.function.Supplier<String> apiKey, java.util.function.Supplier<String> model) {
     return switch (name.toLowerCase(Locale.ROOT)) {
       case "claude" -> Optional.of(new ClaudeProvider(apiKey, model));
