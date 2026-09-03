@@ -1638,7 +1638,10 @@ public class Village {
     int radius = com.quzzar.villagelife.configuration.VillagelifeConfig.WandererRecruitRadius;
     net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(center).inflate(radius, 64, radius);
     List<RealPerson> wanderers = level.getEntitiesOfClass(RealPerson.class, box,
-        p -> p.isAlive() && p.getVillage() == null);
+        // A wandering merchant is village-less on purpose: it belongs to its
+        // home village's economy, not this roster. Never recruit one, or a
+        // village would absorb the very trader that just pulled up to it.
+        p -> p.isAlive() && p.getVillage() == null && !p.isWanderingMerchant());
     return wanderers.stream()
         .min(java.util.Comparator.comparingDouble(
             p -> p.distanceToSqr(center.getX(), center.getY(), center.getZ())))
@@ -1728,11 +1731,11 @@ public class Village {
     return isPending(person);
   }
 
-  /** Every loaded person with no village, across the whole level. */
+  /** Every loaded person with no village, across the whole level (wandering merchants aside). */
   private int loadedWandererCount() {
     return level.getEntities(
         net.minecraft.world.level.entity.EntityTypeTest.forClass(RealPerson.class),
-        p -> p.isAlive() && p.getVillage() == null).size();
+        p -> p.isAlive() && p.getVillage() == null && !p.isWanderingMerchant()).size();
   }
 
   /** Shepherds everyone mid-walk: re-issues targets, confirms arrivals, completes departures. */
