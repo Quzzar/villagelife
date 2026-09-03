@@ -1,15 +1,20 @@
 package com.quzzar.villagelife.entities.ai;
 
+import java.util.Set;
+
 import javax.annotation.Nullable;
 
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.buildings.MineShaft;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.PathNavigationRegion;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -50,14 +55,19 @@ import net.minecraft.world.phys.Vec3;
  * meanwhile: walking into the wall is what vanilla reads as "climb up", which
  * is the wrong answer on the way down.
  *
- * <b>A mine shaft is walked by its ramp.</b> The search expands nodes only
- * within the follow range, twenty blocks, and past that hands back the partial
- * path to the node nearest the target as the crow flies: for a face twenty
- * layers down that is the surface above the shaft bottom, where the miner
- * stood over his work with no way down, and the walk back out to bed failed
- * the same way until the stranded recovery teleported him. Any route that
- * starts or ends down a shaft is therefore routed by the ramp a hop at a time
- * ({@link MineShaft#waypoint}), under {@code moveTo}, so every goal gets it.
+ * <b>Route sight is not eyesight.</b> Vanilla uses the follow-range attribute
+ * both for sensing and as the maximum distance a path search may expand. That
+ * made ordinary routes end after about twenty blocks even though the search
+ * still had nodes left. People search at least forty-eight blocks instead,
+ * while their genetically varied follow range remains their perception range.
+ * The vanilla node ceiling still bounds the work, and its navigation region
+ * still substitutes empty chunks rather than loading missing ones.
+ *
+ * <b>A mine shaft is walked by its ramp.</b> A long vertical target also makes
+ * vanilla's best partial path end at the surface directly above it. Any route
+ * that starts or ends down a shaft is therefore routed by the ramp a hop at a
+ * time ({@link MineShaft#waypoint}), under {@code moveTo}, so every goal gets
+ * it.
  */
 public final class PersonPathNavigation extends GroundPathNavigation {
 
@@ -67,15 +77,32 @@ public final class PersonPathNavigation extends GroundPathNavigation {
   /** Squared: the next node is in this ladder's column, not off to one side of it. */
   private static final double SAME_COLUMN_SQR = 0.25D;
 
+  /** Bounded route-planning horizon, independent of a person's perception range. */
+  private static final float MINIMUM_SEARCH_RANGE = 48.0F;
+
   public PersonPathNavigation(Mob mob, Level level) {
     super(mob, level);
   }
 
   @Override
   protected PathFinder createPathFinder(int maxVisitedNodes) {
-    this.nodeEvaluator = new PersonNodeEvaluator();
-    this.nodeEvaluator.setCanPassDoors(true);
-    return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
+    PersonNodeEvaluator evaluator = new PersonNodeEvaluator();
+    evaluator.setCanPassDoors(true);
+    this.nodeEvaluator = evaluator;
+    return new MeasuredPathFinder(evaluator, maxVisitedNodes);
+  }
+
+  /**
+   * Keep perception local without forcing route planning to stop at the same
+   * radius. The five-argument vanilla implementation retains both its node
+   * budget and its loaded-chunk-only {@link PathNavigationRegion}.
+   */
+  @Override
+  @Nullable
+  protected Path createPath(Set<BlockPos> targets, int regionOffset, boolean offsetUpward, int accuracy) {
+    float perceptionRange = (float)this.mob.getAttributeValue(Attributes.FOLLOW_RANGE);
+    return super.createPath(targets, regionOffset, offsetUpward, accuracy,
+        Math.max(MINIMUM_SEARCH_RANGE, perceptionRange));
   }
 
   /**
@@ -144,8 +171,63 @@ public final class PersonPathNavigation extends GroundPathNavigation {
     return state.is(BlockTags.CLIMBABLE);
   }
 
+  /** Debug-only measurements around the stock weighted A* search. */
+  private static final class MeasuredPathFinder extends PathFinder {
+
+    private final PersonNodeEvaluator evaluator;
+    private final int baseMaxVisitedNodes;
+
+    private MeasuredPathFinder(PersonNodeEvaluator evaluator, int maxVisitedNodes) {
+      super(evaluator, maxVisitedNodes);
+      this.evaluator = evaluator;
+      this.baseMaxVisitedNodes = maxVisitedNodes;
+    }
+
+    @Override
+    @Nullable
+    public Path findPath(PathNavigationRegion region, Mob mob, Set<BlockPos> targets, float maxRange,
+        int accuracy, float searchDepthMultiplier) {
+      if (!Villagelife.LOGGER.isDebugEnabled()) {
+        return super.findPath(region, mob, targets, maxRange, accuracy, searchDepthMultiplier);
+      }
+
+      this.evaluator.resetSearchMetrics();
+      long started = System.nanoTime();
+      Path result = super.findPath(region, mob, targets, maxRange, accuracy, searchDepthMultiplier);
+      long elapsedMicros = (System.nanoTime() - started) / 1_000L;
+      int expandedNodes = this.evaluator.expandedNodeCount();
+      int nodeLimit = (int)(this.baseMaxVisitedNodes * searchDepthMultiplier);
+      boolean nodeLimitHit = expandedNodes >= nodeLimit - 1;
+      Node end = result == null ? null : result.getEndNode();
+      String outcome = result == null ? "none" : result.canReach() ? "reached" : "partial";
+
+      Villagelife.LOGGER.debug(
+          "[path] {} at {} to {}: {}, end {}, remaining {}, path nodes {}, expanded {}/{}, discovered {}, "
+              + "{} us, range {}, accuracy {}, node limit hit {}",
+          mob.getName().getString(), mob.blockPosition(), targets, outcome,
+          end == null ? null : end.asBlockPos(), result == null ? null : result.getDistToTarget(),
+          result == null ? 0 : result.getNodeCount(), expandedNodes, nodeLimit,
+          this.evaluator.discoveredNodeCount(), elapsedMicros, maxRange, accuracy, nodeLimitHit);
+      return result;
+    }
+  }
+
   /** Vanilla's walking evaluator, with gates read as doors and rungs as ground. */
   private static final class PersonNodeEvaluator extends WalkNodeEvaluator {
+
+    private int expandedNodeCount;
+
+    private void resetSearchMetrics() {
+      this.expandedNodeCount = 0;
+    }
+
+    private int discoveredNodeCount() {
+      return this.nodes.size();
+    }
+
+    private int expandedNodeCount() {
+      return this.expandedNodeCount;
+    }
 
     @Override
     public Node getStart() {
@@ -185,6 +267,7 @@ public final class PersonPathNavigation extends GroundPathNavigation {
 
     @Override
     public int getNeighbors(Node[] outputArray, Node node) {
+      this.expandedNodeCount++;
       int count = super.getNeighbors(outputArray, node);
       if (!isClimbable(this.currentContext.getBlockState(new BlockPos(node.x, node.y, node.z)))) {
         return count;

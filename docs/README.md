@@ -90,6 +90,12 @@ in it, and update it in the same change that moves what it describes.
 Findings gathered against primary sources, kept as read at the time. The topic files above
 carry the decisions; these carry the evidence behind them.
 
+- [research/automatone.md](research/automatone.md): Automatone, the server-side Baritone fork that
+  gives non-player entities terrain-modifying pathfinding. Why it is read-not-ship (Fabric-locked,
+  fake-player-shaped, unmaintained at 1.21, built for a few bots), and the small license-clean core
+  worth reimplementing ourselves: a tick-priced movement cost model with break and place folded
+  into the A* edge weights, and a weighted A* that returns a best-so-far segment on timeout and
+  never expands into unloaded chunks. The real alternative to teleport-on-stuck.
 - [research/poi-gathering-points.md](research/poi-gathering-points.md): POI types on NeoForge
   1.21.1 for the campfire gathering point. Why a custom `villagelife:campfire` POI beats reusing
   `minecraft:meeting`, and what goal-based claiming costs without the Brain system.

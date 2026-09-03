@@ -123,7 +123,14 @@ Aimed straight at a chest indoors it stalled against the back wall of a house wh
 away from the village, night after night, because the search ran out of budget on the open
 ground before it found the way round, while a walk that began inside reached the same chest.
 Every villager's path search now also gets four times the default node budget (`Person`): a
-follow range of 20 allowed 320 nodes, under half a vanilla villager's.
+follow range of 20 allowed 320 nodes, under half a vanilla villager's. Route planning no longer
+uses that genetically varied perception range as its whole horizon. `PersonPathNavigation` gives
+the stock search a minimum 48-block window while retaining the roughly 1,280-node hard ceiling
+and vanilla's loaded-chunk-only navigation region. The mine-ramp waypoints and `ApproachWatch`
+recovery remain in place; the wider window is not permission to load terrain or search forever.
+The work loop checks distance and progress every tick but refreshes a route at most every 10 ticks.
+An animal can still be followed twice a second, while one unreachable block cannot spend the same
+hundreds of node expansions on every server tick until `ApproachWatch` stands the worker down.
 
 ## Three verbs
 
