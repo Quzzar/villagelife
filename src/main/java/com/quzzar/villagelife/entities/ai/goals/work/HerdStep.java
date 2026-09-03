@@ -6,6 +6,8 @@ import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.FarmedStock;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.Occupation;
+import com.quzzar.villagelife.village.Village;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
@@ -36,9 +38,31 @@ import net.minecraft.world.item.Items;
  */
 public final class HerdStep implements WorkStep<Animal> {
 
+  /**
+   * Whether this worker should be tending the herd this round. The herder always
+   * does. A butcher does too, but only while the village has no herder of its
+   * own: one worker on the pen fills both halves of the job (breed and shear as
+   * well as cull), and the moment a herder is hired the butcher hands the
+   * breeding and shearing back and returns to the knife alone (Aaron, 2026-09-03).
+   */
+  public static boolean tends(RealPerson person) {
+    Occupation job = person.getOccupation();
+    if (job == Occupation.HERDER) {
+      return true;
+    }
+    if (job != Occupation.BUTCHER) {
+      return false;
+    }
+    Village village = person.getVillage();
+    return village != null && !village.hasWorkerOf(Occupation.HERDER);
+  }
+
   @Override
   @Nullable
   public Animal select(RealPerson person) {
+    if (!tends(person)) {
+      return null;
+    }
     BlockPos pasture = LocationManager.getJobLocation(person);
     if (pasture == BlockPos.ZERO) {
       return null;

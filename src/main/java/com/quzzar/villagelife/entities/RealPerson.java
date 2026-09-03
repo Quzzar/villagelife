@@ -2361,6 +2361,12 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.SALMON, 4), new ItemStack(Items.COOKED_SALMON, 4),
           6, SoundEvents.FURNACE_FIRE_CRACKLE)));
+      // With no herder on the pen, the butcher runs the herder's half too --
+      // fetches breeding wheat and tends the herd (HerdStep) as well as culling
+      // it. Both steps stand down the moment a herder is hired (HerdStep#tends),
+      // so two workers split the pen and one works it whole (Aaron, 2026-09-03).
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FetchStep(Items.WHEAT, 8, HerdStep::tends)));
+      this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HerdStep()));
     }
     if (getOccupation() == Occupation.HUNTER) {
       // Shoots game on the ground around the lodge (HuntStep: bow work, special
