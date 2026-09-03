@@ -53,10 +53,66 @@ public final class FarmedStock {
   /** How many of each kind the pen keeps; the butcher slaughters above it. */
   public static final int KEEP = 6;
 
+  /**
+   * The fewest grown animals of a kind a herder needs before it can breed them:
+   * a pair. A pen holding none or one of a kind cannot grow that kind on its own
+   * (HerdStep spends no grain without a partner), so this is the line below which
+   * the kind is a standing need only the world outside the pen can fill.
+   */
+  public static final int BREED_MIN = 2;
+
   /** How far around a pen's station its stock is counted and tended. */
   public static final double PASTURE_RADIUS = 12.0D;
 
   private FarmedStock() {
+  }
+
+  /**
+   * The kinds a village keeps, each with the words a villager speaks it by.
+   * {@link #isStock} decides membership by these same classes; this list adds a
+   * fixed order and a name so the herd can be spoken about a kind at a time,
+   * including a kind the pen holds none of, which {@link #herds} alone cannot
+   * show (it can only list the kinds present).
+   */
+  public enum Stock {
+    COW(Cow.class, "cow", "cows"),
+    PIG(Pig.class, "pig", "pigs"),
+    SHEEP(Sheep.class, "sheep", "sheep"),
+    CHICKEN(Chicken.class, "chicken", "chickens");
+
+    private final Class<? extends Animal> type;
+    private final String one;
+    private final String many;
+
+    Stock(Class<? extends Animal> type, String one, String many) {
+      this.type = type;
+      this.one = one;
+      this.many = many;
+    }
+
+    /** The plural word for the kind: "cows", "sheep". */
+    public String plural() {
+      return many;
+    }
+
+    /** A count with the right word for it: "1 sheep", "3 cows", "0 pigs". */
+    public String count(int n) {
+      return n + " " + (n == 1 ? one : many);
+    }
+  }
+
+  /**
+   * One kept kind on a pasture, counted: how many stand there in all, and how
+   * many of those are grown. Breeding a kind needs {@link #BREED_MIN} grown of
+   * it, so the grown count, not the total, is what says whether the herder can
+   * breed the kind at all.
+   */
+  public record HerdCount(Stock kind, int total, int grown) {
+
+    /** Grown animals short of a breeding pair: 2 with none, 1 with one, else 0. */
+    public int shortOfPair() {
+      return Math.max(0, BREED_MIN - grown);
+    }
   }
 
   public static void mark(Entity animal) {
@@ -95,6 +151,29 @@ public final class FarmedStock {
       herds.computeIfAbsent(animal.getClass(), kind -> new ArrayList<>()).add(animal);
     }
     return herds;
+  }
+
+  /**
+   * Every kept kind on the pasture, counted, in a fixed order and including the
+   * kinds the pen holds none of. This is the herd as the herder knows it, kind
+   * by kind: what it has and, through {@link HerdCount#shortOfPair}, where it
+   * falls short of a breeding pair. Built on {@link #herds} so the "what counts
+   * as stock" rule stays in one place.
+   */
+  public static List<HerdCount> census(Level level, BlockPos station) {
+    Map<Class<?>, List<Animal>> herds = herds(level, station);
+    List<HerdCount> census = new ArrayList<>();
+    for (Stock kind : Stock.values()) {
+      List<Animal> of = herds.getOrDefault(kind.type, List.of());
+      int grown = 0;
+      for (Animal animal : of) {
+        if (!animal.isBaby()) {
+          grown++;
+        }
+      }
+      census.add(new HerdCount(kind, of.size(), grown));
+    }
+    return census;
   }
 
   /**

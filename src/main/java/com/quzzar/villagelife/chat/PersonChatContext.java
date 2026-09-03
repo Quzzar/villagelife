@@ -19,6 +19,8 @@ import com.quzzar.villagelife.llm.LlmService.FewShotExample;
 import com.quzzar.villagelife.relationships.RelationshipPair;
 import com.quzzar.villagelife.other.YearManager;
 import com.quzzar.villagelife.persona.PersonaData;
+import com.quzzar.villagelife.village.FarmedStock;
+import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.Village;
@@ -405,6 +407,18 @@ public final class PersonChatContext {
     // nothing to say about their day, and said something invented instead.
     system.append(activityLine(person)).append('\n');
 
+    // The herder knows its pen kind by kind. A kind it holds none or one of
+    // cannot breed, and it cannot make animals itself, so a missing or lone kind
+    // is a standing need only a visitor can fill -- exactly the thing a herder
+    // asked "how can I help" should raise. Facts only (the counts and the
+    // pairing rule); how loudly to ask for a second sheep is the villager's.
+    if (person.getOccupation() == Occupation.HERDER) {
+      String herd = herdLine(person);
+      if (!herd.isEmpty()) {
+        system.append(herd).append('\n');
+      }
+    }
+
     // Everything on their person is ALWAYS stated, even when empty: an omitted
     // line is an invitation for the model to invent contents (dogfood finding).
     system.append("You are holding: ").append(heldSummary(person)).append(".\n");
@@ -693,6 +707,43 @@ public final class PersonChatContext {
       return "You have no job yet and no work in hand; you pass the day about the camp.";
     }
     return "You have no work in hand at the moment.";
+  }
+
+  /**
+   * The herder's herd, kind by kind: what stands in the pen now, and which kinds
+   * fall short of a breeding pair. Breeding a kind takes two grown of it
+   * ({@link FarmedStock#BREED_MIN}), so a kind the pen has none or one of cannot
+   * grow on its own; the herder cannot make animals, so those kinds are the one
+   * thing only the world outside the pen can fix, and its standing need. Given
+   * as plain counts, so the villager speaks to the real herd rather than an
+   * invented one; whether to press a visitor for a second sheep is its own call.
+   */
+  private static String herdLine(RealPerson person) {
+    BlockPos pasture = LocationManager.getJobLocation(person);
+    if (pasture == BlockPos.ZERO) {
+      return "";
+    }
+    List<String> have = new ArrayList<>();
+    List<String> need = new ArrayList<>();
+    for (FarmedStock.HerdCount count : FarmedStock.census(person.level(), pasture)) {
+      have.add(count.kind().count(count.total()));
+      int shortfall = count.shortOfPair();
+      if (shortfall > 0) {
+        need.add(count.kind().plural() + " (" + count.grown() + " grown, need "
+            + shortfall + " more)");
+      }
+    }
+    StringBuilder line = new StringBuilder();
+    line.append("Your pasture holds ").append(String.join(", ", have)).append(". ");
+    if (need.isEmpty()) {
+      line.append("You have a breeding pair of every kind you keep.");
+    } else {
+      line.append("Breeding a kind takes two grown animals of it, so you cannot breed: ")
+          .append(String.join(", ", need))
+          .append(". You cannot make animals yourself; only more brought into the pen"
+              + " will let those kinds breed.");
+    }
+    return line.toString();
   }
 
   /**

@@ -469,6 +469,17 @@ drops to gather them, cooks the raw meat from the pack (the cook loop takes what
 before it fetches), and carries the leather, feathers and wool to a chest once the round is
 done.
 
+**Built, 2026-09-03: the herder knows its pen kind by kind, and asks.** Breeding needs a
+pair, so a kind the pen holds none or one of cannot grow, and the herder cannot make animals:
+a missing or lone kind is a standing need only a visitor can fill. When a player talks to a
+herder its briefing now carries the herd counted kind by kind (`FarmedStock.census`, one
+`HerdCount` per kept kind including the ones the pen holds none of, which `herds` alone cannot
+show), and names the kinds that fall short of a breeding pair (`BREED_MIN`, two grown).
+Following the mod's rule that the briefing states facts and the model decides what to make of
+them, the line is plain counts and the pairing rule, not scripted pleading: the herder with one
+sheep and no pigs is told exactly that, and a "how can I help" turns into its own ask for a
+second sheep or a pair of pigs.
+
 **Built, 2026-09-02: villagers open fence gates.** Vanilla reads a closed fence gate as a fence,
 so no mob ever plans a route through one. The butchery pen has two gates and a door, and to its
 own butcher it was a yard with one exit: every trip to the storehouse barrel three blocks past the
