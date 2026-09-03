@@ -70,6 +70,11 @@ public final class ClaudeProvider implements LlmProvider {
 
   @Override
   public void shutdown() {
+    // Release the HTTP client's threads. An unclosed java.net.http.HttpClient keeps
+    // non-daemon worker threads alive, and one of those is what hangs the server JVM
+    // on stop (it saves and releases the world, then never exits). shutdownNow so the
+    // stop does not block on any in-flight request.
+    http.shutdownNow();
   }
 
   @Override

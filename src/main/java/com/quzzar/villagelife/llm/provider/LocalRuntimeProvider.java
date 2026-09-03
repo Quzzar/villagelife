@@ -163,6 +163,10 @@ public final class LocalRuntimeProvider implements LlmProvider {
 
   @Override
   public void shutdown() {
+    // Close the HTTP client first, and unconditionally: even when no llama process is
+    // running, an unclosed java.net.http.HttpClient keeps non-daemon threads alive that
+    // hang the server JVM on stop. shutdownNow so it does not block on an in-flight probe.
+    http.shutdownNow();
     Process running = process;
     if (running == null) {
       return;

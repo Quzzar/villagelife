@@ -102,6 +102,9 @@ public final class OpenAiCompatibleProvider implements LlmProvider {
 
   @Override
   public void shutdown() {
+    // Release the HTTP client's threads so a lingering non-daemon worker cannot hang
+    // the server JVM on stop. shutdownNow so the stop does not block on an in-flight call.
+    http.shutdownNow();
   }
 
   @Override
