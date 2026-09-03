@@ -38,17 +38,26 @@ public class PauseForConversationGoal extends Goal {
     if (person.isQuarrelling()) {
       return false;
     }
-    // Bedtime outranks small talk: once night falls on someone who sleeps, they
-    // stop standing still to chat and let SleepAtNightGoal walk them home. The
-    // conversation ends on its own side too (VillagerConversation parts a pair
-    // at either one's bedtime); this is the backstop that frees the sleeper the
-    // very tick night falls, so a talk that ran past dusk can never freeze them
-    // by the mine all night while the sleep goal waits below it. A guard, who
-    // never sleeps, keeps talking.
-    if (person.getOccupation().sleepsAtNight() && person.level().isNight()) {
+    // Bedtime outranks small talk BETWEEN VILLAGERS: once night falls on someone
+    // who sleeps, they stop standing still for a fellow villager's chat and let
+    // SleepAtNightGoal walk them home (VillagerConversation parts the pair on
+    // its own side too). But a chat with a PLAYER is never walked out of: when
+    // someone has the screen open the villager stays and talks, night or not,
+    // and only the player's own leave-taking ends it. A guard, who never sleeps,
+    // keeps talking to anyone.
+    if (person.getOccupation().sleepsAtNight() && person.level().isNight()
+        && !conversingWithPlayer()) {
       return false;
     }
     return PersonChatDispatcher.isConversing(person);
+  }
+
+  /** Whether the person the villager is talking to is a player at the chat screen. */
+  private boolean conversingWithPlayer() {
+    return person.level() instanceof ServerLevel serverLevel
+        && PersonChatDispatcher.conversingWith(person)
+            .map(partnerId -> serverLevel.getServer().getPlayerList().getPlayer(partnerId) != null)
+            .orElse(false);
   }
 
   @Override
