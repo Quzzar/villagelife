@@ -87,6 +87,15 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
   /** Paths the navigator is asked for per tree before it is called unreachable. */
   private static final int PATHS_PER_TREE = 4;
 
+  /** How far out and up from a hemmed-in trunk to look for a leaf blocking the way in. */
+  private static final int LEAF_CLEAR_RADIUS = 3;
+
+  /** Leaves the navigator is asked about per pass before a way in is given up on. */
+  private static final int LEAVES_PER_PASS = 6;
+
+  /** Ticks to swat one leaf out of the way: far quicker than felling a log. */
+  private static final int LEAF_TRIM_TICKS = 20;
+
   private final int woodlandRadius;
   private final float woodlandChance;
   private final int woodlandScanTicks;
@@ -139,7 +148,17 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
     if (state.is(BlockTags.LOGS_THAT_BURN)) {
       this.dry.foundWork();
       BlockPos stand = standBeside(person, level, post);
-      return new Cut(post, stand == null ? post : stand);
+      if (stand != null) {
+        return new Cut(post, stand);
+      }
+      // The trunk is grown but hemmed in by its own low, dense canopy (a spruce
+      // skirts the ground in leaves): no spot beside it can be stood on or
+      // walked to. Cut a way in rather than stand on the log, which is
+      // unreachable and left the lumberjack stranded on a loop (Aaron,
+      // 2026-09-02). The nearest leaf the worker CAN reach is trimmed, one per
+      // pass, until a stand to the trunk itself comes free.
+      Cut throughLeaves = reachableLeaf(person, level, post);
+      return throughLeaves != null ? throughLeaves : new Cut(post, post);
     }
 
     // Nothing standing to fell: a sapling coming back, or a bare stump with
@@ -164,18 +183,29 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
     }
 
     BlockState state = person.level().getBlockState(target);
-    if (!state.is(BlockTags.LOGS_THAT_BURN)) {
-      return false; // somebody else got it
+    boolean trimming = state.is(BlockTags.LEAVES);
+    if (!state.is(BlockTags.LOGS_THAT_BURN) && !trimming) {
+      return false; // somebody else got the log, or a leaf already fell away
     }
 
     this.chopTime++;
-    int progress = (int) ((float) this.chopTime / CHOP_TICKS * 10.0F);
+    int ticksNeeded = trimming ? LEAF_TRIM_TICKS : CHOP_TICKS;
+    int progress = (int) ((float) this.chopTime / ticksNeeded * 10.0F);
     if (progress != this.lastProgress) {
       person.level().destroyBlockProgress(person.getId(), target, progress);
       this.lastProgress = progress;
     }
-    if (this.chopTime < CHOP_TICKS) {
+    if (this.chopTime < ticksNeeded) {
       return true;
+    }
+
+    if (trimming) {
+      // A leaf out of the way, not a tree down: clear it and look again next
+      // pass, when the stand to the trunk may be open or the next leaf in is
+      // the target. No drop; this is clearing a path, not a harvest.
+      person.level().destroyBlockProgress(person.getId(), target, -1);
+      person.level().destroyBlock(target, false);
+      return false;
     }
 
     fellTree(person, target);
@@ -393,6 +423,42 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
       BlockPos there = end.asBlockPos();
       if (axeReachesFrom(there, eyesAt(there, person), base)) {
         return there;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A way in through a trunk's own canopy when nothing beside it can be reached:
+   * the nearest leaf around its base that the worker can both walk to and reach
+   * with an axe, one leaf per pass. Trimming it opens the skirt until a stand to
+   * the trunk itself comes free. Only the lumberjack's OWN stand tree is ever
+   * reached here (the woodland pass returns earlier), so this never swats a wild
+   * canopy or a player's. Null when no leaf is reachable either.
+   */
+  @Nullable
+  private Cut reachableLeaf(RealPerson person, ServerLevel level, BlockPos trunk) {
+    List<BlockPos> leaves = new ArrayList<>();
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    for (int dx = -LEAF_CLEAR_RADIUS; dx <= LEAF_CLEAR_RADIUS; dx++) {
+      for (int dy = -1; dy <= LEAF_CLEAR_RADIUS; dy++) {
+        for (int dz = -LEAF_CLEAR_RADIUS; dz <= LEAF_CLEAR_RADIUS; dz++) {
+          cursor.set(trunk.getX() + dx, trunk.getY() + dy, trunk.getZ() + dz);
+          if (level.getBlockState(cursor).is(BlockTags.LEAVES)) {
+            leaves.add(cursor.immutable());
+          }
+        }
+      }
+    }
+    leaves.sort(Comparator.comparingDouble(leaf -> leaf.distSqr(person.blockPosition())));
+    int asked = 0;
+    for (BlockPos leaf : leaves) {
+      if (asked++ >= LEAVES_PER_PASS) {
+        break;
+      }
+      BlockPos stand = standBeside(person, level, leaf);
+      if (stand != null) {
+        return new Cut(leaf, stand);
       }
     }
     return null;
