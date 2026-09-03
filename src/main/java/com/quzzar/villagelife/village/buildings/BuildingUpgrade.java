@@ -163,7 +163,7 @@ public final class BuildingUpgrade {
   /** What the village would gain, in the model's own terms. */
   public static String describe(Building from, BuildingInfo to) {
     BuildingInfo current = from.getInfo();
-    String name = to.hasWellFormedId() ? to.getCategory().replace('_', ' ') : to.getName();
+    String name = to.displayLabel();
     if (current == null) {
       return "a better " + name;
     }

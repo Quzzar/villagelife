@@ -390,7 +390,7 @@ public class UrbanPlanner {
     String stalled = VillageGoal.stalled(village, village.getVillageTime());
     if (stalled != null) {
       BuildingInfo info = Buildings.getByName(stalled);
-      String label = info != null && info.hasWellFormedId() ? info.getCategory().replace('_', ' ') : stalled;
+      String label = info != null ? info.displayLabel() : stalled;
       situation.append("You saved up for a ").append(label)
           .append(" before and nothing came in for it the whole time, so it is off the table for now. ");
     }
@@ -583,7 +583,7 @@ public class UrbanPlanner {
 
   /** A plain-language option line: what it is, and what it would give the village. */
   private static String describe(BuildingInfo info) {
-    String name = info.hasWellFormedId() ? info.getCategory().replace('_', ' ') : info.getName();
+    String name = info.displayLabel();
     List<String> gives = new ArrayList<>();
     int bedCount = info.getBedLocations().size();
     if (bedCount > 0) {
@@ -687,7 +687,7 @@ public class UrbanPlanner {
     if (producer == null) {
       return "";
     }
-    String name = producer.hasWellFormedId() ? producer.getCategory().replace('_', ' ') : producer.getName();
+    String name = producer.displayLabel();
     return " (a " + name + " would make " + Materials.describe(item) + ")";
   }
 

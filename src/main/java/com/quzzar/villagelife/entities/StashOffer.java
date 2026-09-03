@@ -169,7 +169,7 @@ public final class StashOffer {
   }
 
   private static String need(String doing, BuildingInfo building, String shortfall) {
-    String label = building.hasWellFormedId() ? building.getCategory().replace('_', ' ') : building.getName();
+    String label = building.displayLabel();
     return "The village is " + doing + " a " + label
         + (shortfall.isEmpty() ? " and has everything it needs for it." : " and is still short " + shortfall + ".");
   }
