@@ -117,7 +117,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.core.component.DataComponents;
@@ -716,6 +715,16 @@ public class RealPerson extends Person {
       return;
     }
     BlockPos depositTo = LocationManager.getJobLocation(this);
+    // A swap leaves the last job's tool in hand (a quartermaster's writable_book
+    // on someone now farming). The kit and equipBestPossibleGear fill only an
+    // EMPTY hand, so the new tool never lands until the wrong one is set down:
+    // the reason a job swap "did not close out" and the worker stood idle with
+    // the wrong thing in hand. Deposit it to the village and empty the hand.
+    ItemStack wrong = getMainHandItem();
+    if (!wrong.isEmpty()) {
+      getVillage().placeItemStackIntoVillage(wrong, this, depositTo);
+      setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+    }
     if (drawJobToolFromPack(tool)) {
       return;
     }
@@ -1088,22 +1097,25 @@ public class RealPerson extends Person {
     }
     this.addItems(kept);
 
-    // Re-gear for the job, from real stock only. The guard's axe is both a
-    // serviceable weapon and their quiet daytime work tool; saved guards from
-    // before that rule may still carry swords, returned to the village before
-    // the axe track. Then the best tool of the job's kind the village can spare
-    // (armour too, for guards), and a tool still missing after that is made from
-    // cobblestone and sticks out of the stores, or its absence logged
-    // (JobTool.replace). Nothing is conjured here: a guard once gave their axe
-    // away in conversation and had a new one in hand five seconds later.
-    if (getOccupation() == Occupation.GUARD) {
-      ItemStack held = this.getItemBySlot(EquipmentSlot.MAINHAND);
-      if (!held.isEmpty() && !(held.getItem() instanceof AxeItem)) {
-        this.getVillage().placeItemStackIntoVillage(held, this, depositToLoc);
-        this.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
-      }
-    }
+    // Re-gear for the job, from real stock only. Set down first whatever is in
+    // hand that is not a tool of THIS job's kind: a guard's old sword, or the
+    // last job's tool left over from a swap (a quartermaster's book on someone
+    // now farming). The guard's axe is both weapon and daytime work tool, so it
+    // is kept; anything else goes back to the village. Without this the kit and
+    // equipBestPossibleGear, which fill only an empty hand, never land the new
+    // tool and the worker stands idle holding the wrong thing (the job swap that
+    // "did not close out", docs/population-and-labor.md). Then the best tool of
+    // the job's kind the village can spare (armour too, for guards), and a tool
+    // still missing after that is made from cobblestone and sticks out of the
+    // stores, or its absence logged (JobTool.replace). Nothing is conjured: a
+    // guard once gave their axe away in conversation and had a new one in hand
+    // five seconds later.
     JobTool tool = JobTool.of(getOccupation());
+    ItemStack held = this.getItemBySlot(EquipmentSlot.MAINHAND);
+    if (!held.isEmpty() && tool != null && !tool.kind().isInstance(held.getItem())) {
+      this.getVillage().placeItemStackIntoVillage(held, this, depositToLoc);
+      this.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+    }
     equipBestPossibleGear(tool == null ? null : tool.kind(), null,
         getOccupation() == Occupation.GUARD, depositToLoc);
     if (tool != null && !tool.inHand(this)) {
