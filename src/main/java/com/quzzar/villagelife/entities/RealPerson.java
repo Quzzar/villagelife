@@ -267,6 +267,9 @@ public class RealPerson extends Person {
   // Same guard for the farmer's bedtime bone-grind offer.
   private transient long bonemealOfferDay = -1;
 
+  // Same guard for the guard's night-watch offer to forge itself a shield.
+  private transient long shieldOfferDay = -1;
+
   // Same guard for the bedtime question of what to keep in the chest at home.
   private transient long stashOfferDay = -1;
 
@@ -1419,9 +1422,14 @@ public class RealPerson extends Person {
    * com.quzzar.villagelife.entities.ai.goals.PersonEatFoodGoal}); because this runs
    * before {@link #restockRations}, the rations then settle into the pack. Nothing
    * is conjured, the way a villager's gear never is: a shield already carried or
-   * sitting in the stores is worn, and only failing that is one forged from an iron
-   * ingot and six planks the stores can pay for. No shield to be had leaves the
-   * guard with just its axe, as before - the guard is under-armed, not misbehaving.
+   * sitting in the stores is simply worn, no decision, like any gear. Only failing
+   * that does the guard weigh FORGING one - spending an iron ingot and six planks the
+   * village could turn into tools or armour instead - and that spend goes to its own
+   * brain, the same bedtime craft offer as the miner's torches and the farmer's
+   * bonemeal (silence forges, only an explicit "leave it" holds off; asked at most
+   * once a day, and never about a craft the stores plainly cannot pay for; {@link
+   * CraftOffer}). No shield to be had leaves the guard with just its axe, as before -
+   * under-armed, not misbehaving.
    */
   private void maybeEquipOrForgeShield(BlockPos depositToLoc) {
     if (Person.isShield(this.getItemBySlot(EquipmentSlot.OFFHAND))) {
@@ -1431,18 +1439,53 @@ public class RealPerson extends Person {
     if (shield.isEmpty()) {
       shield = this.getVillage().gatherItemStackFromVillage(new ItemStack(Items.SHIELD), depositToLoc);
     }
-    if (shield.isEmpty() && forgeShield(depositToLoc)) {
-      shield = new ItemStack(Items.SHIELD);
+    if (!shield.isEmpty()) {
+      equipShieldToOffHand(shield);
+      return;
     }
-    if (shield.isEmpty()) {
-      return; // none carried, none in the stores, and none the stores could pay to forge
+    long day = this.level().getDayTime() / 24000L;
+    if (this.shieldOfferDay == day || !storesCanForgeShield()) {
+      return;
     }
+    this.shieldOfferDay = day;
+    String situation = CraftOffer.identityLead(this)
+        + "You stand the night watch with only your axe to defend yourself. The village "
+        + "stores hold iron and planks, and a shield takes one iron ingot and six planks. "
+        + "Decide whether to forge yourself a shield to block with, and give your reason in a few words.";
+    CraftOffer.offerCraft(this, situation,
+        "Forge a shield from an iron ingot and six planks",
+        "Leave the iron and planks in the stores",
+        () -> {
+          if (forgeShield(depositToLoc)) {
+            equipShieldToOffHand(new ItemStack(Items.SHIELD));
+          }
+        });
+  }
+
+  /** Put a shield in the off hand, standing any meal that had the hand down to the pack. */
+  private void equipShieldToOffHand(ItemStack shield) {
     ItemStack held = this.getItemBySlot(EquipmentSlot.OFFHAND);
     this.setItemSlot(EquipmentSlot.OFFHAND, shield);
     if (!held.isEmpty()) {
-      this.addItems(List.of(held)); // a meal that had the hand steps aside to the pack
+      this.addItems(List.of(held));
     }
     Villagelife.LOGGER.info("[guard] {} takes up a shield", this.getFullName());
+  }
+
+  /** Whether the stores hold a shield's worth: an iron ingot and six planks of any wood. */
+  private boolean storesCanForgeShield() {
+    if (com.quzzar.villagelife.economy.VillagePricing.countHeld(this.getVillage(), Items.IRON_INGOT) < 1) {
+      return false;
+    }
+    int planks = 0;
+    for (net.minecraft.core.Holder<Item> plank : net.minecraft.core.registries.BuiltInRegistries.ITEM
+        .getTagOrEmpty(net.minecraft.tags.ItemTags.PLANKS)) {
+      planks += com.quzzar.villagelife.economy.VillagePricing.countHeld(this.getVillage(), plank.value());
+      if (planks >= 6) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** A shield the guard is already carrying in its pack, pulled out; empty when it holds none. */

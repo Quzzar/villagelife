@@ -131,4 +131,41 @@ public final class CraftOffer {
         decision.map(LlmDecision::reason).filter(reason -> !reason.isBlank())
             .orElse("no answer came, so the rules chose"));
   }
+
+  /**
+   * Puts a plain yes/no craft to a villager's own brain and runs {@code craft} on
+   * the main thread when the answer is yes - or when the model is silent or absent,
+   * so the rules' own choice to make it stands and no craft stalls on a mute model.
+   * Only an explicit "leave it" (the second option) holds off. For a craft whose
+   * product does not simply land in the pack the way {@link #offer}'s fixed press
+   * does: a guard forging a shield it then takes into the off hand. The caller both
+   * pays the cost and places the product inside {@code craft}, so it also checks the
+   * stores could still pay at answer time, however long the model took.
+   */
+  public static void offerCraft(RealPerson person, String situation, String make, String leave,
+      Runnable craft) {
+    LlmService llm = LlmService.get();
+    MinecraftServer server = person.getServer();
+    if (!llm.isReady() || server == null) {
+      craft.run();
+      return;
+    }
+    String purpose = person.getFullName() + "'s craft";
+    llm.decide(purpose, situation, List.of(make, leave)).whenComplete((decision, error) -> {
+      if (error != null) {
+        Villagelife.LOGGER.error("'{}' could not weigh a craft", person.getFullName(), error);
+      }
+      Optional<LlmDecision> settled = decision == null ? Optional.empty() : decision;
+      server.execute(() -> {
+        if (!person.isAlive() || person.getVillage() == null) {
+          return;
+        }
+        if (settled.isPresent() && settled.get().choiceIndex() == 1) {
+          Villagelife.LOGGER.info("'{}' left a craft: {}", person.getFullName(), settled.get().reason());
+          return;
+        }
+        craft.run();
+      });
+    });
+  }
 }
