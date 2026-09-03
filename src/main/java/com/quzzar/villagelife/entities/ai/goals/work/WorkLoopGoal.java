@@ -62,7 +62,12 @@ public class WorkLoopGoal<T> extends Goal {
 
   @Override
   public final boolean canUse() {
-    if (interrupted() || this.approach.standingDown()) {
+    if (interrupted()) {
+      diag("interrupted: " + interruptReason());
+      return false;
+    }
+    if (this.approach.standingDown()) {
+      diag("standing down (could not reach the work)");
       return false;
     }
     // Looking for work is rate-limited: a fruitless scan every tick is the
@@ -72,7 +77,47 @@ public class WorkLoopGoal<T> extends Goal {
     }
     this.nextSelectTick = this.person.tickCount + this.step.selectEveryTicks();
     this.target = this.step.select(this.person);
+    if (this.target == null) {
+      diag("no work found (the step's scan came up empty)");
+    }
     return this.target != null;
+  }
+
+  /** Which interrupt condition is stopping work, for the diagnostic below. */
+  private String interruptReason() {
+    if (this.person.getLastHurtByMob() != null) {
+      return "hurt by a mob";
+    }
+    if (this.person.isFreezing()) {
+      return "freezing";
+    }
+    if (this.person.isOnFire()) {
+      return "on fire";
+    }
+    if (this.person.isInterrupted()) {
+      return "interrupted flag set";
+    }
+    if (!this.step.worksAtNight() && this.person.level().isNight()) {
+      return "night";
+    }
+    return "unknown";
+  }
+
+  /**
+   * Diagnostic (temporary): why this work step will not start, throttled to
+   * about once every five seconds per goal so an idle worker is legible in the
+   * log without flooding it. Only fires when this goal is actually being
+   * considered; silence next to an idle worker means a higher-priority goal is
+   * holding them instead.
+   */
+  private int lastDiagTick = -1000;
+
+  private void diag(String reason) {
+    if (this.person.tickCount - this.lastDiagTick >= 100) {
+      this.lastDiagTick = this.person.tickCount;
+      com.quzzar.villagelife.Villagelife.LOGGER.info("[work-diag] {} ({}) idle: {}",
+          this.person.getFullName(), this.step.describe(), reason);
+    }
   }
 
   @Override
