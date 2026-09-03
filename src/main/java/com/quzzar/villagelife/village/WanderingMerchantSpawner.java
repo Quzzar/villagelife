@@ -33,8 +33,8 @@ public final class WanderingMerchantSpawner {
   /** How far a merchant strays from where it arrived before it is drawn back. */
   private static final int ROAM_RADIUS = 48;
 
-  /** Llamas an escort has, matching the vanilla trader's one or two. */
-  private static final int MIN_LLAMAS = 1;
+  /** Llamas an escort has: two, as the vanilla trader arrives with. */
+  private static final int MIN_LLAMAS = 2;
   private static final int MAX_LLAMAS = 2;
 
   /**
