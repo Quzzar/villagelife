@@ -73,7 +73,11 @@ public class RoamGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return person.isRoamingWanderer() && person.getTravelTarget() == null;
+        // A following spouse shadows the lead instead (FollowSpouseGoal); only the
+        // lead, a single wanderer, or one whose spouse has left the loaded world
+        // walks a heading of their own.
+        return person.isRoamingWanderer() && person.getTravelTarget() == null
+                && !person.followsSpouseOnTheRoad();
     }
 
     @Override

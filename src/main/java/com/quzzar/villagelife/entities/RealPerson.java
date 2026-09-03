@@ -240,6 +240,15 @@ public class RealPerson extends Person {
    * self-heal in {@link #aiStep} and demote it to a wanderer within seconds.
    */
   private String sourceVillageUuid = "";
+  /**
+   * The married partner's UUID as a string, carried ON the person so it travels
+   * when they leave a village. Who-is-married-to-whom otherwise lives only in the
+   * village brain ({@code RelationshipPair.married}), which a leaver loses at the
+   * edge; this projection lets a village-less wanderer still find their spouse, so
+   * a married couple can leave, roam, and rejoin together (docs/marriage.md). Empty
+   * when single. Set on both sides at {@link #marry}.
+   */
+  private String spouseUuid = "";
 
   /** Ticks a wandering merchant has left before it packs up and leaves, vanilla-trader style. */
   private int merchantDespawnCountdown = 0;
@@ -575,6 +584,7 @@ public class RealPerson extends Person {
 
     this.entityData.set(WANDERING_MERCHANT, compound.getBoolean("WanderingMerchant"));
     this.sourceVillageUuid = compound.getString("SourceVillageUUID");
+    this.spouseUuid = compound.getString("SpouseUUID");
     this.merchantDespawnCountdown = compound.getInt("MerchantDespawnCountdown");
     this.wanderingStock = compound.contains("WanderingStock")
         ? com.quzzar.villagelife.economy.EconomySnapshot.load(compound.getCompound("WanderingStock"))
@@ -625,6 +635,9 @@ public class RealPerson extends Person {
     compound.putBoolean("WanderingMerchant", this.entityData.get(WANDERING_MERCHANT));
     if (!this.sourceVillageUuid.isEmpty()) {
       compound.putString("SourceVillageUUID", this.sourceVillageUuid);
+    }
+    if (!this.spouseUuid.isEmpty()) {
+      compound.putString("SpouseUUID", this.spouseUuid);
     }
     compound.putInt("MerchantDespawnCountdown", this.merchantDespawnCountdown);
     if (this.wanderingStock != null) {
@@ -848,8 +861,61 @@ public class RealPerson extends Person {
     spouse.setLastName(marriedSurname);
     this.setMarriageStatus(MarriageStatus.MARRIED);
     spouse.setMarriageStatus(MarriageStatus.MARRIED);
+    // Each remembers the other's id on their own person, so the bond survives
+    // leaving the village whose brain holds the pair edge (see spouseUuid).
+    this.setSpouseId(spouse.getUUID());
+    spouse.setSpouseId(this.getUUID());
     this.refreshDisplayName();
     spouse.refreshDisplayName();
+  }
+
+  /** The married partner's UUID, or null when single or the stored id is unreadable. */
+  @Nullable
+  public UUID getSpouseId() {
+    if (this.spouseUuid.isEmpty()) {
+      return null;
+    }
+    try {
+      return UUID.fromString(this.spouseUuid);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
+  /** Records the married partner's id on this person, or clears it with null. */
+  public void setSpouseId(@Nullable UUID id) {
+    this.spouseUuid = id == null ? "" : id.toString();
+  }
+
+  public boolean hasSpouse() {
+    return !this.spouseUuid.isEmpty();
+  }
+
+  /**
+   * Of a married pair on the road, the one who walks the day's heading; the other
+   * follows them ({@code FollowSpouseGoal}). A single wanderer leads themselves.
+   * The lead is the lower UUID, so both sides agree on who leads without a stored
+   * flag and the choice survives a reload.
+   */
+  public boolean isRoamLead() {
+    UUID spouseId = getSpouseId();
+    return spouseId == null || getUUID().compareTo(spouseId) <= 0;
+  }
+
+  /** The married partner when loaded, alive, and also roaming the road, else null. */
+  @Nullable
+  public RealPerson loadedRoamingSpouse() {
+    UUID spouseId = getSpouseId();
+    if (spouseId == null || !(level() instanceof net.minecraft.server.level.ServerLevel server)) {
+      return null;
+    }
+    return server.getEntity(spouseId) instanceof RealPerson spouse
+        && spouse.isAlive() && spouse.isRoamingWanderer() ? spouse : null;
+  }
+
+  /** Whether this wanderer should shadow their spouse rather than walk a heading of their own. */
+  public boolean followsSpouseOnTheRoad() {
+    return isRoamingWanderer() && !isRoamLead() && loadedRoamingSpouse() != null;
   }
 
   protected void setGender(Gender gender) {
@@ -2350,6 +2416,10 @@ public class RealPerson extends Person {
         new com.quzzar.villagelife.entities.ai.goals.work.ForageChopStep()));
     this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
         new com.quzzar.villagelife.entities.ai.goals.work.CampStep()));
+    // A wanderer who left with their spouse follows them instead of walking a
+    // heading of their own; same priority as the walk, below fleeing, and the two
+    // never both apply (RealPerson.followsSpouseOnTheRoad).
+    this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.FollowSpouseGoal(this));
     this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.RoamGoal(this));
 
     // Safe to decide at registration: every occupation change goes through

@@ -1595,28 +1595,39 @@ public class Village {
     // recruited ahead of conjuring anyone new, so the same souls circulate
     // between villages carrying their stats, memories, and relationships.
     RealPerson wanderer = findNearbyWanderer();
-    if (wanderer != null) {
-      wanderer.setVillage(id);
-      wanderer.setOccupation(Occupation.WANDERER);
-      wanderer.endRoaming();
-      pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
-      Villagelife.LOGGER.info("'{}' the wanderer was drawn to village '{}' and is coming to join",
-          wanderer.getFullName(), name);
+    if (wanderer != null && admitArrival(wanderer, fire, deadline)) {
       return;
     }
 
     // Then the road: someone who passed beyond the horizon from some other
     // village comes back into the world at this one's edge and walks in, or at
-    // the fire itself when the edge is not loaded. Only with nobody on the road
-    // is anyone conjured (docs/population-and-labor.md).
+    // the fire itself when the edge is not loaded. A couple that crossed the
+    // horizon together comes back together, or waits together. Only with nobody
+    // recruitable is anyone conjured (docs/population-and-labor.md).
     BlockPos edge = edgeSpawnPos();
-    RealPerson returning = VillageManager.get(level).getWanderers().draw(level, edge != null ? edge : fire);
+    BlockPos road = edge != null ? edge : fire;
+    var wanderers = VillageManager.get(level).getWanderers();
+    RealPerson returning = wanderers.draw(level, road);
     if (returning != null) {
-      returning.setVillage(id);
-      returning.setOccupation(Occupation.WANDERER);
-      returning.endRoaming();
-      level.addFreshEntity(returning);
-      pendingArrivals.add(new PendingTraveler(returning.getUUID(), deadline, fire.asLong()));
+      if (returning.hasSpouse()) {
+        RealPerson partner = roomForArrivals(2)
+            ? wanderers.drawPartner(level, road, returning.getSpouseId())
+            : null;
+        if (partner == null) {
+          // No room for the pair, or their partner is not on the road: put them
+          // back rather than bring one half of a married couple in alone.
+          wanderers.bank(returning, level.getGameTime());
+          return;
+        }
+        admitReturning(returning, fire, deadline);
+        admitReturning(partner, fire, deadline);
+        rememberMarriage(returning, partner);
+        Villagelife.LOGGER.info(
+            "the married couple '{}' and '{}' came in off the road to village '{}' together",
+            returning.getFullName(), partner.getFullName(), name);
+        return;
+      }
+      admitReturning(returning, fire, deadline);
       Villagelife.LOGGER.info("'{}' came in off the road to village '{}' and is walking to the fire",
           returning.getFullName(), name);
       return;
@@ -1646,6 +1657,78 @@ public class Village {
         .min(java.util.Comparator.comparingDouble(
             p -> p.distanceToSqr(center.getX(), center.getY(), center.getZ())))
         .orElse(null);
+  }
+
+  /**
+   * Brings a nearby roaming wanderer in, as a couple when they are married and
+   * their spouse is here to come too. Returns false without admitting anyone when
+   * a married wanderer cannot join as a couple right now (their spouse is not a
+   * loaded roaming wanderer, or there is no room for both), leaving them to the
+   * road. The family unit is never split (docs/marriage.md).
+   */
+  private boolean admitArrival(RealPerson wanderer, BlockPos fire, long deadline) {
+    if (wanderer.hasSpouse()) {
+      RealPerson spouse = wanderer.loadedRoamingSpouse();
+      if (spouse == null || !roomForArrivals(2)) {
+        return false;
+      }
+      admitNearby(wanderer, fire, deadline);
+      admitNearby(spouse, fire, deadline);
+      rememberMarriage(wanderer, spouse);
+      Villagelife.LOGGER.info("the married couple '{}' and '{}' were drawn to village '{}' together",
+          wanderer.getFullName(), spouse.getFullName(), name);
+      return true;
+    }
+    admitNearby(wanderer, fire, deadline);
+    Villagelife.LOGGER.info("'{}' the wanderer was drawn to village '{}' and is coming to join",
+        wanderer.getFullName(), name);
+    return true;
+  }
+
+  /** Signs a nearby wanderer (already in the world) up for this village and sets them walking to the fire. */
+  private void admitNearby(RealPerson wanderer, BlockPos fire, long deadline) {
+    wanderer.setVillage(id);
+    wanderer.setOccupation(Occupation.WANDERER);
+    wanderer.endRoaming();
+    pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
+  }
+
+  /** The same for one just restored from the road, who must be added to the world first. */
+  private void admitReturning(RealPerson wanderer, BlockPos fire, long deadline) {
+    wanderer.setVillage(id);
+    wanderer.setOccupation(Occupation.WANDERER);
+    wanderer.endRoaming();
+    level.addFreshEntity(wanderer);
+    pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
+  }
+
+  /**
+   * Whether the village can seat {@code count} more newcomers under both caps a
+   * single arrival is held to: total population against beds plus the idle
+   * reservoir, and the reservoir alone. A married couple asks this for two, so it
+   * only joins where it can be housed together (docs/marriage.md, the double bed).
+   */
+  private boolean roomForArrivals(int count) {
+    int futurePopulation = people.size() + pendingArrivals.size();
+    int totalBeds = bedAssignments.size() + unassignedBeds.size();
+    return futurePopulation + count <= totalBeds + idleCap()
+        && idleCount() + pendingArrivals.size() + count <= idleCap();
+  }
+
+  /**
+   * Re-establishes a married pair's edge in THIS village's brain when a couple
+   * arrives from elsewhere, so the couple-housing flow gives them a couple's
+   * cottage (docs/marriage.md, the double bed). The bond itself travels on the
+   * person ({@code RealPerson.spouseUuid}); this restores the village-scoped
+   * record marriage housing reads from, keeping any opinion the pair already held.
+   */
+  private void rememberMarriage(RealPerson a, RealPerson b) {
+    RelationshipPair existing = getRelationship(a.getUUID(), b.getUUID());
+    RelationshipPair married = existing != null
+        ? new RelationshipPair(existing.personA(), existing.personB(), existing.value(),
+            existing.leanA(), existing.leanB(), existing.asymmetric(), existing.flavor(), true)
+        : new RelationshipPair(a.getUUID(), b.getUUID(), 70, 0, 0, false, "", true);
+    putRelationship(married);
   }
 
   /** A surface point just beyond the outermost building, or null when unloaded. */
@@ -1680,25 +1763,37 @@ public class Village {
 
   @Nullable
   private RealPerson tryEmigration() {
-    // Idle people give up on the village first; then the employed abandon their jobs.
-    UUID leaver = null;
-    for (UUID person : people) {
-      if (isPending(person)) {
+    // Idle people give up on the village first, then the employed abandon their
+    // jobs. A married villager never leaves alone: they go WITH their spouse, and
+    // only when the village can spare BOTH without falling below its floor
+    // (docs/marriage.md, the family unit). A married person who cannot take their
+    // spouse right now - unaffordable, or the spouse is already mid-departure - is
+    // passed over for someone who can leave, rather than splitting the couple.
+    int floor = com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation;
+    RealPerson leaver = null;
+    RealPerson leaverSpouse = null;
+    for (UUID id : people) {
+      if (isPending(id) || !(level.getEntity(id) instanceof RealPerson person)) {
         continue;
       }
-      if (!jobAssignments.containsKey(person)) {
-        leaver = person;
+      RealPerson spouse = residentSpouse(person);
+      if (spouse != null && (isPending(spouse.getUUID()) || people.size() - 2 < floor)) {
+        continue; // the couple cannot afford to leave together right now
+      }
+      if (!jobAssignments.containsKey(id)) {
+        leaver = person; // an idle leaver is taken outright
+        leaverSpouse = spouse;
         break;
       }
       if (leaver == null) {
-        leaver = person;
+        leaver = person; // else keep the first eligible employed one as a fallback
+        leaverSpouse = spouse;
       }
     }
-    if (leaver == null || !(level.getEntity(leaver) instanceof RealPerson person)) {
+    if (leaver == null) {
       return null;
     }
 
-    removePerson(leaver); // frees bed and job exactly like a death does
     long deadline = level.getGameTime()
         + com.quzzar.villagelife.configuration.VillagelifeConfig.TravelTimeoutSeconds * 20L;
     BlockPos exit = edgeSpawnPos();
@@ -1706,9 +1801,36 @@ public class Village {
       exit = BlockPos.of(getTownCenter().getCenterLocation())
           .offset(com.quzzar.villagelife.configuration.VillagelifeConfig.ArrivalEdgeMinDistance, 0, 0);
     }
-    pendingDepartures.add(new PendingTraveler(leaver, deadline, exit.asLong()));
-    Villagelife.LOGGER.info("'{}' is leaving village '{}' (attractiveness collapsed)", person.getFullName(), name);
-    return person;
+    sendOff(leaver, exit, deadline);
+    if (leaverSpouse != null) {
+      sendOff(leaverSpouse, exit, deadline);
+      Villagelife.LOGGER.info(
+          "the married couple '{}' and '{}' are leaving village '{}' together (attractiveness collapsed)",
+          leaver.getFullName(), leaverSpouse.getFullName(), name);
+    } else {
+      Villagelife.LOGGER.info("'{}' is leaving village '{}' (attractiveness collapsed)", leaver.getFullName(), name);
+    }
+    return leaver;
+  }
+
+  /** Frees a leaver's bed and job and sets them walking to the village {@code exit}. */
+  private void sendOff(RealPerson person, BlockPos exit, long deadline) {
+    removePerson(person.getUUID()); // frees bed and job exactly like a death does
+    pendingDepartures.add(new PendingTraveler(person.getUUID(), deadline, exit.asLong()));
+  }
+
+  /**
+   * The married partner of {@code person} when that partner is a loaded resident
+   * of THIS village, else null (single, widowed, or the spouse now lives
+   * elsewhere). A couple only ever moves as a unit when both are here to move.
+   */
+  @Nullable
+  private RealPerson residentSpouse(RealPerson person) {
+    UUID spouseId = person.getSpouseId();
+    if (spouseId == null || !people.contains(spouseId)) {
+      return null;
+    }
+    return level.getEntity(spouseId) instanceof RealPerson spouse ? spouse : null;
   }
 
   private boolean isPending(UUID person) {

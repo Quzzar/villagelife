@@ -3,6 +3,7 @@ package com.quzzar.villagelife.village;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -112,6 +113,43 @@ public final class WandererPool {
         Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
             entry.name(), e);
       }
+    }
+    return null;
+  }
+
+  /**
+   * Draws a specific banked wanderer back by their UUID: the partner of a married
+   * wanderer already drawn, so a couple that crossed the horizon together returns
+   * together (docs/marriage.md, the family unit). Null when no entry with that id
+   * is on the road, in which case the caller keeps the pair together some other
+   * way rather than bringing one half in alone.
+   */
+  @Nullable
+  public RealPerson drawPartner(ServerLevel level, BlockPos pos, @Nullable UUID partnerId) {
+    if (partnerId == null) {
+      return null;
+    }
+    for (int i = 0; i < entries.size(); i++) {
+      CompoundTag tag = entries.get(i).person();
+      if (!tag.hasUUID("UUID") || !partnerId.equals(tag.getUUID("UUID"))) {
+        continue;
+      }
+      Entry entry = entries.remove(i);
+      onChange.run();
+      try {
+        Entity entity = EntityType.create(entry.person(), level).orElse(null);
+        if (entity instanceof RealPerson person) {
+          person.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
+              level.random.nextFloat() * 360F, 0F);
+          return person;
+        }
+        Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
+            entry.name());
+      } catch (RuntimeException e) {
+        Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
+            entry.name(), e);
+      }
+      return null;
     }
     return null;
   }
