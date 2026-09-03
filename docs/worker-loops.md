@@ -276,6 +276,18 @@ This is deliberately the low-priority half of the job: a village with something 
 always building it, and a village with nothing to build is tidying itself. It also means
 paths are the visible sign of a village that has caught up with its own plans.
 
+**Built, 2026-09-03: a build cooldown makes that downtime deliberate.** Left to resources
+alone a village with materials to spare builds without pause, so the tidying half almost never
+ran and the ground between spread-out buildings stayed rough and unwalkable. Now a village
+waits a fixed spell after finishing any building before it starts the next
+(`VillagelifeConfig.BuildCooldownDays`, two game days by default; the timer rides in the save's
+`Village.ActiveProjects` slot, stamped when a building completes and read to gate the start of
+the next in `Village.checkCurrentProject`). Through the cooldown the builder has no project, so
+the grading and path work below is what fills it: the near ground is smoothed, which lets later
+buildings sit closer, and the spokes to each door are worn in, which is what makes the village
+walkable. Safety walls are exempt, being a need rather than a choice ([walls.md](walls.md)).
+The cooldown is Aaron's, against villages that overbuild whenever they can afford to.
+
 **Built, 2026-09-02: a village can have three builders, and they divide the duties.** The town
 centre registers three BUILDER posts at founding, but the second opens only at six people and
 the third at twelve (`Village.PEOPLE_PER_BUILDER`; a locked post is not open, and the planner

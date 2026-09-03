@@ -101,6 +101,7 @@ public class VillagelifeConfig {
     public static double JobSwapThreshold;
     public static int JobSwapIntervalSeconds;
     public static double JobSwapCooldownDays;
+    public static double BuildCooldownDays;
 
     // --- economy (advanced) ---
     public static double BankSpread;
@@ -170,6 +171,7 @@ public class VillagelifeConfig {
         JobSwapThreshold = ADVANCED.JobSwapThreshold.get();
         JobSwapIntervalSeconds = ADVANCED.JobSwapIntervalSeconds.get();
         JobSwapCooldownDays = ADVANCED.JobSwapCooldownDays.get();
+        BuildCooldownDays = ADVANCED.BuildCooldownDays.get();
 
         // economy
         BankSpread = ADVANCED.BankSpread.get();
@@ -277,6 +279,7 @@ public class VillagelifeConfig {
         public final ModConfigSpec.DoubleValue JobSwapThreshold;
         public final ModConfigSpec.IntValue JobSwapIntervalSeconds;
         public final ModConfigSpec.DoubleValue JobSwapCooldownDays;
+        public final ModConfigSpec.DoubleValue BuildCooldownDays;
 
         // economy
         public final ModConfigSpec.DoubleValue BankSpread;
@@ -344,6 +347,7 @@ public class VillagelifeConfig {
             JobSwapThreshold = builder.comment("Minimum aptitude improvement (on the 3-18 stat scale) before the village reassigns a job to someone better suited. Higher = less churn.").translation(Villagelife.MODID + ".config.JobSwapThreshold").defineInRange("Job swap threshold", 3.0, 0.5, 15.0);
             JobSwapIntervalSeconds = builder.comment("Seconds between job-swap evaluation passes (phase-staggered per village).").translation(Villagelife.MODID + ".config.JobSwapIntervalSeconds").defineInRange("Job swap interval seconds", 60, 10, 3600);
             JobSwapCooldownDays = builder.comment("Game days a person is protected from further job swaps after being placed, swapped, or displaced (also gates the hungry-village move onto an open field).").translation(Villagelife.MODID + ".config.JobSwapCooldownDays").defineInRange("Job swap cooldown days", 3.0, 0.0, 30.0);
+            BuildCooldownDays = builder.comment("Game days a village waits after finishing a building before starting the next; it spends the lull grading terrain and laying paths instead of overbuilding.").translation(Villagelife.MODID + ".config.BuildCooldownDays").defineInRange("Build cooldown days", 2.0, 0.0, 30.0);
 
             builder.pop();
 

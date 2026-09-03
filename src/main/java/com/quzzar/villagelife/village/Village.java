@@ -65,7 +65,8 @@ public class Village {
       UUIDUtil.CODEC.optionalFieldOf("town_center").forGetter(v -> Optional.ofNullable(v.townCenterUUID)),
       Codec.LONG.listOf().fieldOf("claim_grid").forGetter(v -> List.copyOf(v.claimGrid)),
       ActiveProjects.CODEC.optionalFieldOf("project", ActiveProjects.NONE)
-          .forGetter(v -> new ActiveProjects(Optional.ofNullable(v.currentProject), Optional.ofNullable(v.wallProject))),
+          .forGetter(v -> new ActiveProjects(Optional.ofNullable(v.currentProject), Optional.ofNullable(v.wallProject),
+              v.lastBuildCompletedTime)),
       UUIDUtil.CODEC.listOf().fieldOf("people").forGetter(v -> List.copyOf(v.people)),
       Building.CODEC.listOf().fieldOf("buildings").forGetter(v -> List.copyOf(v.buildings.values())),
       Codec.unboundedMap(UUIDUtil.STRING_CODEC, JobAssignment.CODEC).fieldOf("job_assignments").forGetter(v -> Map.copyOf(v.jobAssignments)),
@@ -120,13 +121,17 @@ public class Village {
   /**
    * The village's one active project, if any: either a building rising or the
    * wall being raised. They are mutually exclusive (one builder, one job at a
-   * time), so they share a single slot in the save.
+   * time), so they share a single slot in the save. That slot also carries the
+   * tick the last building finished, which the build cooldown reads: the codec
+   * is at its sixteen-field ceiling, so this additive field rides here.
    */
-  public record ActiveProjects(Optional<StructureInProgress> building, Optional<WallProject> wall) {
-    public static final ActiveProjects NONE = new ActiveProjects(Optional.empty(), Optional.empty());
+  public record ActiveProjects(Optional<StructureInProgress> building, Optional<WallProject> wall,
+      long lastBuildCompletedTime) {
+    public static final ActiveProjects NONE = new ActiveProjects(Optional.empty(), Optional.empty(), 0L);
     public static final Codec<ActiveProjects> CODEC = RecordCodecBuilder.create(inst -> inst.group(
         StructureInProgress.CODEC.optionalFieldOf("building").forGetter(ActiveProjects::building),
-        WallProject.CODEC.optionalFieldOf("wall").forGetter(ActiveProjects::wall)
+        WallProject.CODEC.optionalFieldOf("wall").forGetter(ActiveProjects::wall),
+        Codec.LONG.optionalFieldOf("last_build_completed", 0L).forGetter(ActiveProjects::lastBuildCompletedTime)
     ).apply(inst, ActiveProjects::new));
   }
 
@@ -142,6 +147,7 @@ public class Village {
     village.claimGrid = new HashSet<>(claimGrid);
     village.currentProject = project.building().orElse(null);
     village.wallProject = project.wall().orElse(null);
+    village.lastBuildCompletedTime = project.lastBuildCompletedTime();
     village.people = new ArrayList<>(people);
     buildings.forEach(b -> village.buildings.put(b.getUUID(), b));
     village.jobAssignments = new HashMap<>(jobAssignments);
@@ -168,6 +174,15 @@ public class Village {
   public static final long NEVER_VISITED = -1_000_000_000L;
 
   private int time = 0;
+
+  /**
+   * World tick the last building finished, persisted through {@link ActiveProjects}.
+   * The hard build cooldown reads it: no new building starts until
+   * {@code BuildCooldownDays} have passed, and the builder spends the lull grading
+   * terrain and laying paths (docs/worker-loops.md). 0 means nothing built yet, so
+   * the first build is never held back.
+   */
+  private long lastBuildCompletedTime = 0L;
 
   private final String id;
   private String name;
@@ -1159,6 +1174,12 @@ public class Village {
           addBuilding(finished);
         }
         currentProject = null;
+        // Start the build cooldown here, at the one point a building finishes:
+        // the village raises nothing new for BuildCooldownDays, giving its
+        // builder the lull to grade and lay paths.
+        if (level != null) {
+          lastBuildCompletedTime = level.getGameTime();
+        }
 
       } else if (currentProject.isGathering()) {
         // A gathering project holds the village - it plans nothing new while it
@@ -1208,6 +1229,15 @@ public class Village {
       // A safety-triggered wall is decided by rules, not the brain, so it is
       // weighed before an LLM call is spent choosing a building (docs/walls.md).
       if (maybeStartWall()) {
+        return;
+      }
+      // A hard cooldown after each finished building: the village starts nothing
+      // new until BuildCooldownDays have passed, so its builder spends the lull
+      // grading terrain and laying paths between buildings rather than piling on
+      // more structures while it can afford them. Safety walls are exempt: they
+      // are weighed above, as a need, not a choice.
+      if (level != null && level.getGameTime() < lastBuildCompletedTime
+          + (long) (com.quzzar.villagelife.configuration.VillagelifeConfig.BuildCooldownDays * 24000L)) {
         return;
       }
       projectDecisionPending = true;
