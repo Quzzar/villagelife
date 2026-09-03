@@ -394,15 +394,24 @@ public final class MineStep implements BlockWorkStep {
    * Whether a cell in the mine's local frame lies inside the shaft's dug
    * cross-section - the volume the sweep drives: {@link #RADIUS} to each side of
    * the centre line, from the entrance inward, and the five-tall span standing on
-   * the ramp floor at that column. Keeps {@link #carveFrontier} from cutting a
-   * hole out through the wall of the shaft.
+   * the ramp floor at that column, never at or above the mouth. Keeps
+   * {@link #carveFrontier} from cutting a hole out through the wall of the shaft,
+   * or UP into the mine's own surface: the corridor is {@code y <= -1}
+   * (MineShaft.withinCorridor), and everything at the mouth's level and above is
+   * structure - the cobblestone rim at local y 0, the acacia headframe and fence
+   * at y 1 and up. Without the {@code -1} cap the five-tall span reaches to y +3
+   * near the entrance, so a carveFrontier fired once the top of the shaft was
+   * already open found the rim and fence as the nearest solid cells and quarried
+   * the mouth away, cobblestone and fence and all (Aaron, twice). With the cap this
+   * is exactly {@link #onRamp}, the volume the sweep actually drives.
    */
   private boolean inShaft(BlockPos local) {
     if (Math.abs(local.getX()) > RADIUS || local.getZ() < -(RADIUS - 1)) {
       return false;
     }
     int floorY = local.getZ() < 0 ? -1 : -(local.getZ() + 2);
-    return local.getY() >= floorY && local.getY() <= floorY + 4;
+    int top = Math.min(floorY + 4, -1);
+    return local.getY() >= floorY && local.getY() <= top;
   }
 
   /**
