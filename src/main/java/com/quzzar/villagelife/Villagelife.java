@@ -32,6 +32,7 @@ public class Villagelife {
         modEventBus.addListener(com.quzzar.villagelife.village.VillageChunkLoader::onRegisterTicketControllers);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, VillagelifeConfig.COMMON_SPEC);
+        modContainer.registerConfig(ModConfig.Type.COMMON, VillagelifeConfig.ADVANCED_SPEC, "villagelife-advanced.toml");
 
         PersonEntityType.ENTITIES.register(modEventBus);
         VillagelifeItems.ITEMS.register(modEventBus);
