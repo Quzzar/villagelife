@@ -84,6 +84,18 @@ import net.neoforged.neoforge.common.Tags;
  * next pass rather than never. Ore is taken from the shaft's own walls, floor
  * and ceiling around the miner, the full width of the corridor, and followed
  * into the rock only through the holes she opened herself.
+ *
+ * <p>When the ramp can drive no deeper - bedrock, or lava or water she has no
+ * bucket for - she does not simply stand down. She fans short horizontal ribs out
+ * of the ramp instead ({@link #selectFan}): one block wide, {@link #FAN_HEIGHT}
+ * tall, at most {@link #FAN_LENGTH} out to each side, cut on a fixed grid every
+ * {@link #FAN_PITCH} columns from the bottom of the ramp up, a player's branch mine.
+ * The ribs are deliberately kept to one pathfinder hop, so the navigator needs no
+ * waypoints of its own for them: from the far end of a rib the ordinary path always
+ * reaches back onto the ramp, which does have waypoints (MineShaft). The ore a rib
+ * wall exposes is worked by the same vein detour as the shaft's, since it reads a
+ * rib cell as dug space, and a cut rib is lit with a torch; a rib that meets liquid
+ * or a cave simply stops there, a prospect cut rather than a second shaft.
  */
 public final class MineStep implements BlockWorkStep {
 
@@ -145,6 +157,38 @@ public final class MineStep implements BlockWorkStep {
    */
   private static final int VEIN_SCAN = 3;
 
+  /**
+   * How far a fan-out rib reaches beyond the corridor edge, in blocks. Kept to one
+   * pathfinder hop (MineShaft plans no waypoints for a rib, so the ordinary path has
+   * to reach from the rib's far end back onto the ramp on its own; eight blocks is
+   * well inside the twenty a villager's navigator expands). A rib is one block wide
+   * and {@link #FAN_HEIGHT} tall, so its walls, floor and ceiling put a lot of fresh
+   * rock on show for the vein detour to work.
+   */
+  private static final int FAN_LENGTH = 8;
+
+  /**
+   * Columns between one rib and the next along the ramp: a rib is one column wide, so
+   * a pitch of four leaves three solid columns between cuts, a player's branch-mine
+   * spacing. Ribs sit on the fixed grid {@code z % FAN_PITCH == 0} so {@link #inRib}
+   * can tell a rib cell from the rock around it without tracking which ones are cut.
+   */
+  private static final int FAN_PITCH = 4;
+
+  /** A rib's height: three tall, headroom to walk plus a third row of ore in each wall. */
+  private static final int FAN_HEIGHT = 3;
+
+  /**
+   * The shallowest ramp column a rib is cut from: shallower than this the ramp is near
+   * the lit mouth and still in soil, not the stone a rib is meant to prospect. A column
+   * at forward distance z sits about {@code z + 2} below the mouth, so four is roughly
+   * six blocks down.
+   */
+  private static final int FAN_MIN_LINE = 4;
+
+  /** A hard cap on how deep {@link #deepestDugColumn} scans, well below any real shaft. */
+  private static final int FAN_SCAN_MAX = 384;
+
   private BlockPos offset;
   private Block block;
   private int inward = 1;
@@ -190,6 +234,24 @@ public final class MineStep implements BlockWorkStep {
   private BlockPos sealTarget;
   private int veinTaken;
 
+  /**
+   * True once the ramp has driven as deep as it can and the miner has switched to
+   * fanning ribs out of it ({@link #selectFan}). Latched so the obstacle that ended
+   * the descent is logged once, not on every pick; cleared the moment the ramp yields
+   * work again, so a leak the miner later gets a bucket for resumes the descent.
+   */
+  private boolean fanning;
+
+  /** What one sweep of the ramp found: work to do, a dead end, or a place to fan out. */
+  private enum RampScan {
+    /** A cell was chosen (dig, floor, torch, bail or seal); {@link #act} will work it. */
+    WORK,
+    /** The ramp is driven as deep as it can go: bedrock, or lava/water with no bucket. */
+    BLOCKED,
+    /** The cursor stepped over nothing solid within the pattern; try again later. */
+    DRY_HOLE,
+  }
+
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
@@ -197,42 +259,59 @@ public final class MineStep implements BlockWorkStep {
     if (mouth == BlockPos.ZERO) {
       return null;
     }
+    Rotation rotation = rotation(person);
     // A wall vein takes priority over driving the shaft on: pull the exposed ore,
-    // then plug the holes with cobblestone, before the descent picks back up.
-    BlockPos veinStand = selectVein(person, mouth, rotation(person));
+    // then plug the holes with cobblestone, before the descent picks back up. It
+    // reads rib cells as dug space too, so ore a rib wall exposes is worked the same
+    // way as ore in the shaft's own walls.
+    BlockPos veinStand = selectVein(person, mouth, rotation);
     if (veinStand != null) {
       return veinStand;
     }
-    if (!locateNext(person, mouth, rotation(person))) {
-      return null;
+    RampScan scan = locateNext(person, mouth, rotation);
+    if (scan == RampScan.WORK) {
+      this.fanning = false;
+      // Stand next to the face and work it, walking down into the shaft as it
+      // deepens. No footing reachable - a hole in the ramp behind, say - and the
+      // shaft waits: nothing is picked, and nothing is dug from a distance. This
+      // used to fall back to the mouth as the target, which handed act a face
+      // twenty blocks off and had the miner dig it from the doorstep.
+      BlockPos face = face(mouth, rotation);
+      // Sealing a wall or the ceiling is done standing on the walkway, the reachable
+      // footing at the column's floor, and placing the lining from there, the way a
+      // player lines a tunnel from inside it. Everything else stands beside the face.
+      BlockPos footingAt = this.placeSeal ? columnFloor(mouth, rotation) : face;
+      BlockPos stand = standToMine(person, footingAt);
+      if (stand == null) {
+        // The swept face has no reachable footing: a fresh mine with nothing dug to
+        // stand in yet, or a face across an undug gap. Rather than stand idle, carve
+        // toward it - mine the nearest corridor cell the miner CAN stand beside,
+        // opening the shaft a block at a time from where he already is until the
+        // swept face comes within reach.
+        BlockPos frontierStand = carveFrontier(person, mouth, rotation);
+        if (frontierStand != null) {
+          return frontierStand;
+        }
+        resetShaft();
+        return null;
+      }
+      return stand;
     }
-    // Stand next to the face and work it, walking down into the shaft as it
-    // deepens. No footing reachable - a hole in the ramp behind, say - and the
-    // shaft waits: nothing is picked, and nothing is dug from a distance. This
-    // used to fall back to the mouth as the target, which handed act a face
-    // twenty blocks off and had the miner dig it from the doorstep.
-    BlockPos face = face(mouth, rotation(person));
-    // Sealing a wall or the ceiling is done standing on the walkway, the reachable
-    // footing at the column's floor, and placing the lining from there, the way a
-    // player lines a tunnel from inside it. Everything else stands beside the face.
-    BlockPos footingAt = this.placeSeal ? columnFloor(mouth, rotation(person)) : face;
-    BlockPos stand = standToMine(person, footingAt);
-    if (stand == null) {
-      // The swept face has no reachable footing: a fresh mine with nothing dug to
-      // stand in yet, or a face across an undug gap. Rather than stand idle, carve
-      // toward it - mine the nearest corridor cell the miner CAN stand beside,
-      // opening the shaft a block at a time from where he already is until the
-      // swept face comes within reach. A proper adjacent stand is still required,
-      // so this never digs a face from a distance (the reason the old
-      // fall-back-to-the-mouth target was removed, comment above).
-      BlockPos frontierStand = carveFrontier(person, mouth, rotation(person));
-      if (frontierStand != null) {
-        return frontierStand;
+    if (scan == RampScan.BLOCKED) {
+      // The ramp can drive no deeper. Rather than stand down, fan short horizontal
+      // ribs out of it to prospect the surrounding rock (see the class note). The
+      // obstacle that ended the descent is logged once, on the way in.
+      onRampBlocked(person, mouth, rotation);
+      BlockPos fanStand = selectFan(person, mouth, rotation);
+      if (fanStand != null) {
+        return fanStand;
       }
       resetShaft();
       return null;
     }
-    return stand;
+    // DRY_HOLE.
+    resetShaft();
+    return null;
   }
 
   /**
@@ -305,6 +384,178 @@ public final class MineStep implements BlockWorkStep {
     }
     int floorY = local.getZ() < 0 ? -1 : -(local.getZ() + 2);
     return local.getY() >= floorY && local.getY() <= floorY + 4;
+  }
+
+  /**
+   * Fan-out prospecting: once the ramp can drive no deeper, cut short horizontal
+   * ribs straight out of it to put the surrounding rock on show. Each rib is one
+   * block wide, {@link #FAN_HEIGHT} tall and at most {@link #FAN_LENGTH} out to
+   * either side, sitting flush on a ramp column's floor so the miner walks in from
+   * the corridor; ribs are cut on the fixed grid {@code z % FAN_PITCH == 0},
+   * deepest-first, from the bottom of the ramp up to {@link #FAN_MIN_LINE}. The ore a
+   * rib wall exposes is pulled by the same vein detour that works the shaft
+   * ({@link #selectVein}, which reads rib cells as dug space), and a finished rib is
+   * lit with a single wall torch. Returns a foothold to work the next bit of rib, or
+   * null when every rib off the ramp is cut and the mine is worked out. Kept to one
+   * hop out so the ordinary pathfinder always hands the miner back onto the ramp,
+   * with no waypoints of its own (MineShaft plans none for a rib).
+   */
+  @Nullable
+  private BlockPos selectFan(RealPerson person, BlockPos mouth, Rotation rotation) {
+    int deepest = deepestDugColumn(person, mouth, rotation);
+    for (int zr = deepest - (deepest % FAN_PITCH); zr >= FAN_MIN_LINE; zr -= FAN_PITCH) {
+      if (!columnDug(person, mouth, rotation, zr)) {
+        continue; // the ramp never reached this column (a cave swallowed it, say)
+      }
+      BlockPos stand = workRib(person, mouth, rotation, zr);
+      if (stand != null) {
+        return stand;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The forward distance of the deepest ramp column that has an open, standable walk
+   * cell: where the fan starts and works up from. Scans down the ramp's centre line
+   * and stops once the walk cells run out for good, so a disconnected cavern floor far
+   * below cannot be mistaken for the ramp's bottom.
+   */
+  private int deepestDugColumn(RealPerson person, BlockPos mouth, Rotation rotation) {
+    Level level = person.level();
+    int deepest = 0;
+    int gap = 0;
+    for (int z = 0; z <= FAN_SCAN_MAX; z++) {
+      if (standable(level, mouth.offset(new BlockPos(0, ribFloorY(z), z).rotate(rotation)))) {
+        deepest = z;
+        gap = 0;
+      } else if (++gap > RADIUS + 1) {
+        break; // past the end of the dug ramp
+      }
+    }
+    return deepest;
+  }
+
+  /** Whether the ramp column at forward distance {@code z} has a standable walk cell. */
+  private boolean columnDug(RealPerson person, BlockPos mouth, Rotation rotation, int z) {
+    return standable(person.level(), mouth.offset(new BlockPos(0, ribFloorY(z), z).rotate(rotation)));
+  }
+
+  /**
+   * Work one rib line off the ramp column at {@code zr}, one side at a time. Steps
+   * out from the corridor edge digging the first solid cell it has footing for,
+   * floor row first so the cells above it get something to stand on, and stops the
+   * side at liquid, bedrock or a cave rather than bailing or boring through, the way
+   * the ramp would. When a side is fully cut it is lit ({@link #ribTorch}). Returns
+   * the foothold to work from, or null when both sides are cut and lit.
+   */
+  @Nullable
+  private BlockPos workRib(RealPerson person, BlockPos mouth, Rotation rotation, int zr) {
+    Level level = person.level();
+    int floorY = ribFloorY(zr);
+    for (int side = 1; side >= -1; side -= 2) {
+      boolean cutting = true;
+      for (int step = 1; step <= FAN_LENGTH && cutting; step++) {
+        int x = side * (RADIUS + step);
+        for (int dy = 0; dy < FAN_HEIGHT; dy++) {
+          BlockPos local = new BlockPos(x, floorY + dy, zr);
+          BlockPos world = mouth.offset(local.rotate(rotation));
+          Block here = level.getBlockState(world).getBlock();
+          if (here == Blocks.AIR || isLight(level, world)) {
+            continue; // already open, or a torch: look higher, then step out
+          }
+          if (here == Blocks.WATER || here == Blocks.LAVA || here == Blocks.BEDROCK) {
+            cutting = false; // a rib stops here; it is a prospect cut, not the shaft
+            break;
+          }
+          if (dy == 0 && level.getBlockState(world.below()).isAir()) {
+            cutting = false; // the rib has reached a cave: stop rather than floor it
+            break;
+          }
+          BlockPos stand = standToMine(person, world);
+          if (stand == null) {
+            continue; // no footing yet; a lower or inner cell opens the way first
+          }
+          this.offset = local;
+          this.block = here;
+          this.placeFloor = false;
+          this.placeTorch = false;
+          this.bailWater = false;
+          this.placeSeal = false;
+          return stand;
+        }
+      }
+      BlockPos lit = ribTorch(person, mouth, rotation, zr, side, floorY);
+      if (lit != null) {
+        return lit;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Light a fully-cut rib with one wall torch near its mouth: a torch gives fourteen
+   * and a one-hop rib is eight long, so one near the corridor covers it end to end.
+   * Offered only when that cell is open, dark, has a torch in the pack and a wall to
+   * hang it on, exactly the guards {@link #wantsTorch} uses, so it is placed once and
+   * never looped over. Points the cursor at the cell and returns the foothold; the
+   * torch itself is hung by the shared {@link #hangTorch} through {@link #act}.
+   */
+  @Nullable
+  private BlockPos ribTorch(RealPerson person, BlockPos mouth, Rotation rotation, int zr, int side, int floorY) {
+    BlockPos cell = new BlockPos(side * (RADIUS + 2), floorY + 1, zr);
+    BlockPos world = mouth.offset(cell.rotate(rotation));
+    Level level = person.level();
+    if (!level.getBlockState(world).isAir()
+        || level.getMaxLocalRawBrightness(world) >= TORCH_LIGHT_FLOOR
+        || !person.hasItem(Items.TORCH)) {
+      return null; // undug, already lit enough, or nothing to hang
+    }
+    this.offset = cell; // torchWall reads the cursor to find the wall outside the rib
+    if (torchWall(level, rotation, world) == null) {
+      return null; // no sturdy wall beside the cell (open on every side into a cave)
+    }
+    BlockPos stand = standToMine(person, world);
+    if (stand == null) {
+      return null;
+    }
+    this.block = level.getBlockState(world).getBlock(); // air, so act's null-guard passes
+    this.placeFloor = false;
+    this.bailWater = false;
+    this.placeSeal = false;
+    this.placeTorch = true;
+    return stand;
+  }
+
+  /** The walk-cell Y of the ramp column at forward distance {@code z}, the floor a rib sits on. */
+  private static int ribFloorY(int z) {
+    return z < 0 ? -1 : -(z + 2);
+  }
+
+  /**
+   * Whether a local cell lies inside a rib's cross-section: on a rib grid line
+   * ({@code z % FAN_PITCH == 0}, no shallower than {@link #FAN_MIN_LINE}), one to
+   * {@link #FAN_LENGTH} blocks out past the corridor edge, and in the
+   * {@link #FAN_HEIGHT}-tall span standing on that column's floor. A fixed geometric
+   * test, like {@link #onRamp}, so the vein detour can tell rib air from cave air
+   * without tracking which ribs have been cut.
+   */
+  private boolean inRib(BlockPos local) {
+    int z = local.getZ();
+    if (z < FAN_MIN_LINE || z % FAN_PITCH != 0) {
+      return false;
+    }
+    int ax = Math.abs(local.getX());
+    if (ax < RADIUS + 1 || ax > RADIUS + FAN_LENGTH) {
+      return false;
+    }
+    int floorY = ribFloorY(z);
+    return local.getY() >= floorY && local.getY() <= floorY + (FAN_HEIGHT - 1);
+  }
+
+  /** The dug volume the vein detour follows ore into: the shaft's own corridor, or a rib. */
+  private boolean isDugSpace(BlockPos local) {
+    return onRamp(local) || inRib(local);
   }
 
   /**
@@ -620,11 +871,13 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * The nearest ore on the shaft's own surfaces that the miner can actually
-   * work: in the mine's frame, the corridor's full width plus its walls, the
-   * rows within {@link #VEIN_SCAN} of where she stands and as far up and down,
-   * showing an open face into the shaft, and mineable with the tool in hand (an
-   * iron vein under a stone pick is left, not wasted). Null when nothing is on
+   * The nearest ore the miner can actually work, on any dug surface around her: a
+   * cube of {@link #VEIN_SCAN} blocks to each side of where she stands, showing an
+   * open face into the shaft or a rib ({@link #opensIntoShaft}) and mineable with the
+   * tool in hand (an iron vein under a stone pick is left, not wasted). Scanning
+   * around the miner rather than the corridor's fixed width is what lets a rib's own
+   * walls be worked: out in a rib she is well past the corridor, and a scan pinned to
+   * the corridor would never see the rock she just exposed. Null when nothing is on
    * show.
    */
   @Nullable
@@ -634,7 +887,7 @@ public final class MineStep implements BlockWorkStep {
     BlockPos local = at.subtract(mouth).rotate(inverse(rotation));
     BlockPos best = null;
     double bestDist = Double.MAX_VALUE;
-    for (int lx = -(RADIUS + 1); lx <= RADIUS + 1; lx++) {
+    for (int lx = local.getX() - VEIN_SCAN; lx <= local.getX() + VEIN_SCAN; lx++) {
       for (int ly = local.getY() - VEIN_SCAN; ly <= local.getY() + VEIN_SCAN; ly++) {
         for (int lz = local.getZ() - VEIN_SCAN; lz <= local.getZ() + VEIN_SCAN; lz++) {
           BlockPos cell = new BlockPos(lx, ly, lz);
@@ -682,7 +935,7 @@ public final class MineStep implements BlockWorkStep {
     for (Direction d : Direction.values()) {
       BlockPos neighbour = cell.relative(d);
       BlockPos world = mouth.offset(neighbour.rotate(rotation));
-      if ((onRamp(neighbour) || this.veinToSeal.contains(world))
+      if ((isDugSpace(neighbour) || this.veinToSeal.contains(world))
           && level.getBlockState(world).isAir()) {
         return true;
       }
@@ -1012,12 +1265,14 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * Advances the cursor to the next block worth breaking. False when the miner
-   * has hit something they cannot get through, which resets the shaft and is
-   * written into their personal log - it surfaces in conversation ("the mine is
-   * full of lava") and is the seed of a quest anyone or no one may resolve.
+   * Advances the cursor to the next block worth breaking. {@code WORK} when a cell
+   * is chosen; {@code BLOCKED} when the miner has hit something they cannot get
+   * through (bedrock, or lava/water with no bucket), which is where the fan-out
+   * takes over and where the obstacle is logged into their personal log, surfacing
+   * in conversation ("the mine is full of lava") as the seed of a quest anyone or no
+   * one may resolve; {@code DRY_HOLE} when nothing solid lay within the pattern.
    */
-  private boolean locateNext(RealPerson person, BlockPos mouth, Rotation rotation) {
+  private RampScan locateNext(RealPerson person, BlockPos mouth, Rotation rotation) {
     // The shaft ramps down and AWAY from the mouth, toward local +Z. Local -Z is
     // the mine's entrance/front, its opening and both chests sit there, so leaning
     // the descent toward +Z digs deeper into the ground behind the mine instead of
@@ -1036,8 +1291,7 @@ public final class MineStep implements BlockWorkStep {
     BlockPos facePos = null;
     do {
       if (++steps > MAX_CURSOR_STEPS) {
-        resetShaft();
-        return false; // nothing solid within reach of the pattern; try again later
+        return RampScan.DRY_HOLE; // nothing solid within reach of the pattern; try again later
       }
       this.offset = this.offset.offset(1, 0, 0);
       if (this.offset.getX() >= RADIUS + 1) {
@@ -1055,7 +1309,7 @@ public final class MineStep implements BlockWorkStep {
       // With no bucket the liquid stays and drops to the sponge/impassable path.
       if ((this.block == Blocks.WATER || this.block == Blocks.LAVA) && carriesBucket(person)) {
         this.bailWater = true;
-        return true;
+        return RampScan.WORK;
       }
       // The shaft has broken into a cave here: this cell is the bottom of its
       // column's dug span and there is nothing under it to walk on. Completing
@@ -1069,14 +1323,14 @@ public final class MineStep implements BlockWorkStep {
       if (columnBottom(this.offset)
           && person.level().getBlockState(facePos.below()).isAir()) {
         this.placeFloor = true;
-        return true;
+        return RampScan.WORK;
       }
       // An open cell of the shaft gone dark is work too: hang a torch there before
       // the sweep goes on toward the face. Read on the way down on every pick, so a
       // shaft dug dark, or inherited dark, is lit from the top.
       if (this.block == Blocks.AIR && wantsTorch(person, mouth, rotation, facePos)) {
         this.placeTorch = true;
-        return true;
+        return RampScan.WORK;
       }
       // The tunnel's lining where the shaft has broken into a cave: a wall to the
       // side of an open corridor cell, or the ceiling above one, standing open into
@@ -1092,7 +1346,7 @@ public final class MineStep implements BlockWorkStep {
         if (lining != null) {
           this.sealCell = lining;
           this.placeSeal = true;
-          return true;
+          return RampScan.WORK;
         }
       }
       // Never mine a light source -- skip any emitter (torch, lantern, glowstone) so
@@ -1104,14 +1358,28 @@ public final class MineStep implements BlockWorkStep {
         || isLight(person.level(), facePos));
 
     if (impassable(person)) {
-      if (this.block == Blocks.WATER && person.removeItem(Items.SPONGE, 1).getCount() == 1) {
-        person.level().setBlock(face(mouth, rotation), Blocks.SPONGE.defaultBlockState(), 2);
-      }
-      logObstacle(person);
-      resetShaft();
-      return false;
+      return RampScan.BLOCKED; // the fan-out takes over; the obstacle is logged once, on the way in
     }
-    return true;
+    return RampScan.WORK;
+  }
+
+  /**
+   * Note the obstacle that ended the descent, the first pick the ramp comes back
+   * blocked: log it into the miner's personal record (lava or water she has no
+   * bucket for, the seed of a quest), and lay a sponge into a water face if she is
+   * carrying one, which may soak the leak and let the descent resume. Bedrock is
+   * the honest floor of the world and wants no log. Latched by {@link #fanning} so
+   * it fires once, not on every pick while she is fanning out.
+   */
+  private void onRampBlocked(RealPerson person, BlockPos mouth, Rotation rotation) {
+    if (this.fanning) {
+      return;
+    }
+    this.fanning = true;
+    if (this.block == Blocks.WATER && person.removeItem(Items.SPONGE, 1).getCount() == 1) {
+      person.level().setBlock(face(mouth, rotation), Blocks.SPONGE.defaultBlockState(), 2);
+    }
+    logObstacle(person);
   }
 
   private boolean impassable(RealPerson person) {

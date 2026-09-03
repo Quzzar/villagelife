@@ -421,6 +421,25 @@ is** for most jobs, and the model has to be able to express it. Keep the excavat
 the miner floors a cave rather than exploring it and works the veins its own shaft exposes, while a
 prospector that roams to find caves and hunt veins is a better story still deliberately left as fog.
 
+**The ramp fans out when it can go no deeper** (2026-09-03). The descent is always tried first,
+and only when the ramp is genuinely stopped, at bedrock or at lava or water the miner has no bucket
+for, does she stop driving it down. Rather than stand down at a dead end she cuts short horizontal
+ribs straight out of the ramp, a branch mine: one block wide, three tall, at most eight blocks out
+to each side, on a fixed grid every four columns from the bottom of the ramp up, so three solid
+columns sit between cuts. She works them deepest-first. The ore a rib wall exposes is not a new
+mechanism: it is pulled and plugged by the very vein detour that works the shaft's own walls, which
+now reads a rib cell as dug space and scans the rock around wherever the miner stands rather than the
+corridor's fixed width, so out in a rib she still sees what she has exposed. A cut rib is lit with a
+single wall torch near its mouth, whose fourteen light covers the whole hop. A rib that meets liquid,
+bedrock or a cave simply stops there; it is a prospect cut, not a second shaft, so it never bails or
+floors or bores on the way the ramp does. The one number that matters is the eight-block reach: a rib
+is kept to a single pathfinder hop precisely so `MineShaft` needs no waypoints of its own for it. From
+the far end of a rib the ordinary pathfinder reaches back onto the ramp on its own, and the ramp's own
+hop-by-hop waypoints carry the miner the rest of the way out; a longer rib would strand her the way a
+deep face once stranded her over the shaft. That the pathfinder hands her back onto the ramp is the
+live-verify item, not a proof. When every rib off the ramp is cut, the mine is worked out and the
+miner stands down.
+
 **The ramp is the way in and out** (2026-09-02). A villager's pathfinder expands nodes only within
 twenty blocks of where they stand and, past that, hands back the partial path to whichever node lies
 closest to the target as the crow flies. For a face twenty layers down that node is the surface
