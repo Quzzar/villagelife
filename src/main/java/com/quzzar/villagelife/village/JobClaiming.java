@@ -504,6 +504,12 @@ public final class JobClaiming {
    */
   static void startJob(Village village, RealPerson person, JobAssignment job) {
     person.setOccupation(job.getOccupation());
+    // Taking a job is where a companion pet is granted: a hunter's dog, sometimes
+    // a guard's or a quartermaster's (CompanionPets). The pet, once granted, stays
+    // with the person through later job changes, so this only ever adds one.
+    if (person.level() instanceof ServerLevel level) {
+      CompanionPets.onJobAssigned(level, village, person, job.getOccupation());
+    }
     person.issueStartingKit();
     Building workplace = village.getBuilding(job.getBuildingUUID());
     if (workplace != null) {

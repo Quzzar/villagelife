@@ -9,6 +9,9 @@ import java.util.UUID;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.goals.PetFollowOwnerGoal;
+import com.quzzar.villagelife.entities.ai.goals.PetVillageTetherGoal;
+import com.quzzar.villagelife.village.CompanionPets;
 import com.quzzar.villagelife.village.FarmedStock;
 import com.quzzar.villagelife.village.VillageManager;
 import com.quzzar.villagelife.village.VillageGeneration;
@@ -25,6 +28,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.EnderMan;
@@ -74,12 +78,31 @@ public class CoreEvents {
       }
     }
 
+    // A companion pet (CompanionPets) is a vanilla tamed animal, so its owner-follow
+    // and village-tether behaviours are not vanilla and are attached here. This
+    // fires on a fresh spawn AND on every reload, so the goals are always present;
+    // the guard skips a re-add when they already are, since a reload runs this over
+    // a mob that may still carry them.
+    if (event.getLevel() instanceof ServerLevel
+        && event.getEntity() instanceof TamableAnimal pet
+        && CompanionPets.isCompanionPet(pet)
+        && !hasGoal(pet, PetFollowOwnerGoal.class)) {
+      pet.goalSelector.addGoal(4, new PetFollowOwnerGoal(pet));
+      pet.goalSelector.addGoal(7, new PetVillageTetherGoal(pet));
+    }
+
     if (event.getEntity() instanceof Enemy
         && !(event.getEntity() instanceof EnderMan)
         && !(event.getEntity() instanceof Creeper)) {
       Mob mob = (Mob) event.getEntity();
       mob.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(mob, Person.class, false));
     }
+  }
+
+  /** Whether a mob's goal set already holds a goal of the given kind, so it is not added twice. */
+  private static boolean hasGoal(Mob mob, Class<? extends net.minecraft.world.entity.ai.goal.Goal> goalType) {
+    return mob.goalSelector.getAvailableGoals().stream()
+        .anyMatch(wrapped -> goalType.isInstance(wrapped.getGoal()));
   }
 
   /**
