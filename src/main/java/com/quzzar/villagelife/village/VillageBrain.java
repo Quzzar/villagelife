@@ -484,26 +484,6 @@ public class VillageBrain {
    * not manufacture beds. Cheap: it returns at once when nothing is free, which
    * is the steady state.
    */
-  public void reconcileBeds(ArrayList<UUID> people, HashMap<UUID, BedAssignment> bedAssignments,
-      ArrayList<BedAssignment> unassignedBeds) {
-
-    if (unassignedBeds.isEmpty()) {
-      return;
-    }
-
-    for (UUID personUUID : people) {
-      if (unassignedBeds.isEmpty()) {
-        break;
-      }
-      if (bedAssignments.containsKey(personUUID)) {
-        continue;
-      }
-      BedAssignment bed = unassignedBeds.remove(0);
-      bedAssignments.put(personUUID, bed.setPersonUUID(personUUID));
-    }
-
-  }
-
   /** The free-form strategic state tag; callers may mutate what they put in it. */
   public CompoundTag getStrategy() {
     return strategy;

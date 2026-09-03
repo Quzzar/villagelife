@@ -49,14 +49,27 @@ Two independent caps, checked at arrival time:
 | **Idle cap** | At most N people may be idle at the campfire at once (Stronghold uses 24; ours is per-tier, owned by [village-tiers.md](village-tiers.md)'s `idle_cap`, with a config fallback of 2 when no ladder is loaded). No new arrivals while the pool is full, no matter how much housing is free. |
 | **Housing cap** | Total population may exceed total beds by up to the idle cap, and no further: the campfire reservoir is exactly where bedless newcomers wait. The village center provides the starting beds; each house adds more. |
 
-Beds are assigned on arrival from `unassignedBeds`, ahead of any employment. Houses and the
+Beds are assigned on arrival, ahead of any employment. Houses and the
 village centre are the main sources of beds, and some workplaces carry a live-in bed as well
 (the lumberjack hut, the watchtower, the upper blacksmith, the church), superseding the
 older no-workplace-beds reading of [#61](https://github.com/Quzzar/villagelife/issues/61).
-A workplace bed registers into the same pool as any other, and a worker assigned to a
-building with a free bed moves in (`Village.preferWorkplaceBed`), releasing whatever bed
-they held. Otherwise a villager keeps the first free bed they are given and does not move
-when their job changes, so commutes across a village are normal and expected.
+
+A workplace's live-in bed is **reserved for whoever staffs that workplace**, not thrown into
+general housing: a bed whose building carries a work station and is not the village centre is
+held back, so a newcomer or an idle camper is never handed the empty lumberjack hut's only
+bed for a plain night's sleep (`Village.isReservedWorkplaceBed`, `takeGeneralBed`). Without
+this the one bed that breaks the founding wood deadlock (a house costs logs, logs need a
+lumberjack, a lumberjack needs a bed) gets slept in by someone who is not the lumberjack, and
+the post can never be filled. When a worker is assigned to a building with a free bed they
+move in (`Village.preferWorkplaceBed`), releasing whatever bed they held; a worker whose
+workplace has no live-in bed is housed from general housing at assignment, so an employed
+person always has a bed. Otherwise a villager keeps the first free bed they are given and does
+not move when their job changes, so commutes across a village are normal and expected.
+
+The claiming and swap gates read this correctly: a bedless camper is claimable for a post when
+the village can house them *for that post*, meaning a free general bed or a free bed in that
+post's own building, not a free bed reserved to some other workplace
+(`Village.hasFreeGeneralBed`/`hasFreeBedIn`, `JobClaiming`).
 
 **Employment requires housing** (decided 2026-08-31). A job can only be held by someone
 with a bed: claiming and the swap pass skip bedless candidates (unless a free bed exists

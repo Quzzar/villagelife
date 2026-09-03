@@ -1412,10 +1412,11 @@ public class Village {
     this.brain.update();
     VillageProfile.end("brain bookkeeping", tb);
 
-    // Hand any free beds to residents who arrived bedless (e.g. before the centre
-    // registered its beds), so a village with spare beds never leaves someone a
-    // permanent campfire camper. Self-gating: no-ops when no beds are free.
-    this.brain.reconcileBeds(people, bedAssignments, unassignedBeds);
+    // Hand any free general bed to residents who arrived bedless (e.g. before the
+    // centre registered its beds), so a village with spare beds never leaves
+    // someone a permanent campfire camper. Self-gating: no-ops when no general
+    // bed is free.
+    reconcileBeds();
 
     // Recompute attractiveness every 10 seconds, phase-staggered per village so
     // many villages don't all scan their containers on the same tick.
@@ -2068,8 +2069,12 @@ public class Village {
     person.setTravelTarget(null);
     person.setVillageName(this.name);
     people.add(person.getUUID());
-    if (!unassignedBeds.isEmpty()) {
-      BedAssignment bed = unassignedBeds.remove(0);
+    // A newcomer takes a free general bed if there is one, never a workplace's
+    // reserved live-in bed (isReservedWorkplaceBed): those are held for whoever
+    // staffs the building. No general bed means they wait at the fire until the
+    // village builds a house.
+    BedAssignment bed = takeGeneralBed();
+    if (bed != null) {
       bedAssignments.put(person.getUUID(), bed.setPersonUUID(person.getUUID()));
     }
     Villagelife.LOGGER.info("'{}' arrived at the campfire of '{}' (population {})",
@@ -2281,6 +2286,16 @@ public class Village {
     unassignedJobs.remove(job);
     jobAssignments.put(personId, job.setPersonUUID(personId));
     preferWorkplaceBed(personId, job.getBuildingUUID());
+    if (!bedAssignments.containsKey(personId)) {
+      // A worker is never bedless: a workplace with no live-in bed leaves them
+      // to general housing, taken here. Claiming only seats someone the village
+      // can house (JobClaiming.shortlistFor), so a general bed is free unless
+      // this is the workplace's own live-in bed, which preferWorkplaceBed took.
+      BedAssignment bed = takeGeneralBed();
+      if (bed != null) {
+        bedAssignments.put(personId, bed.setPersonUUID(personId));
+      }
+    }
   }
 
   /**
@@ -2314,6 +2329,81 @@ public class Village {
     if (current != null) {
       unassignedBeds.add(current.setPersonUUID(null)); // their old bed reopens
     }
+  }
+
+  /**
+   * Houses anyone in the village who lacks a bed, drawing only from general
+   * (non-workplace) beds so a workplace's live-in bed stays free for its own
+   * worker ({@link #isReservedWorkplaceBed}). Runs every tick before arrivals
+   * and job claiming; a resident still bedless after this genuinely has no
+   * general bed, which is exactly what makes housing a construction need.
+   */
+  private void reconcileBeds() {
+    for (UUID personUUID : people) {
+      if (bedAssignments.containsKey(personUUID)) {
+        continue;
+      }
+      BedAssignment bed = takeGeneralBed();
+      if (bed == null) {
+        break; // only reserved workplace beds remain; the rest wait for a house
+      }
+      bedAssignments.put(personUUID, bed.setPersonUUID(personUUID));
+    }
+  }
+
+  /**
+   * A live-in workplace bed is held for whoever staffs that workplace, never
+   * given out as ordinary housing. A bed counts as one when its building carries
+   * at least one work station and is not the town centre: the lumberjack hut,
+   * the watchtower, the upper blacksmith and the church house their own worker
+   * (docs/population-and-labor.md), while the centre's base beds and every house
+   * are general housing. Without this a newcomer takes the empty lumberjack
+   * hut's only bed for a plain night's sleep, and the post that bed exists to
+   * staff can never be filled: no bed for a lumberjack, no lumberjack, no logs,
+   * no houses.
+   */
+  private boolean isReservedWorkplaceBed(BedAssignment bed) {
+    if (bed.getBuildingUUID().equals(townCenterUUID)) {
+      return false; // the centre's beds are the founding general housing
+    }
+    Building building = getBuilding(bed.getBuildingUUID());
+    return building != null && building.getInfo() != null
+        && !building.getInfo().getWorkLocations().isEmpty();
+  }
+
+  /**
+   * Removes and returns the first free general (non-workplace) bed, or null when
+   * every free bed is a reserved live-in workplace bed. All general housing
+   * draws from here; workplace beds are seated only by {@link #preferWorkplaceBed}.
+   */
+  @Nullable
+  private BedAssignment takeGeneralBed() {
+    for (int i = 0; i < unassignedBeds.size(); i++) {
+      if (!isReservedWorkplaceBed(unassignedBeds.get(i))) {
+        return unassignedBeds.remove(i);
+      }
+    }
+    return null;
+  }
+
+  /** True when a general (non-workplace) bed is free to house anyone. */
+  public boolean hasFreeGeneralBed() {
+    for (BedAssignment bed : unassignedBeds) {
+      if (!isReservedWorkplaceBed(bed)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** True when the given building has a free bed (a workplace's own live-in bed, or a house's spare). */
+  public boolean hasFreeBedIn(UUID buildingUUID) {
+    for (BedAssignment bed : unassignedBeds) {
+      if (bed.getBuildingUUID().equals(buildingUUID)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** The quartermaster raises this when the storehouse overflows; the planner reads it. */
