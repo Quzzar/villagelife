@@ -1513,37 +1513,37 @@ public class RealPerson extends Person {
         // food is never conjured. The first bedtime restock draws apples from
         // the village stores, and a village with none logs the shortage rather
         // than inventing a meal.
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         break;
       case LUMBERJACK:
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
         break;
       case BLACKSMITH:
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_INGOT));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_INGOT));
         break;
       case BUILDER:
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.CRAFTING_TABLE));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.CRAFTING_TABLE));
         break;
       case CLERIC:
         ItemStack healingPotion = new ItemStack(Items.POTION);
         healingPotion.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.HEALING));
-        kitIfEmpty(EquipmentSlot.OFFHAND, healingPotion);
+        kit(EquipmentSlot.OFFHAND, healingPotion);
         ItemStack regenPotion = new ItemStack(Items.SPLASH_POTION);
         regenPotion.set(DataComponents.POTION_CONTENTS, new PotionContents(Potions.REGENERATION));
-        kitIfEmpty(EquipmentSlot.MAINHAND, regenPotion);
+        kit(EquipmentSlot.MAINHAND, regenPotion);
         break;
       case FARMER:
         // A basic hoe, like the lumberjack's stone axe and miner's stone
         // pickaxe: kept basic until the village can make better. An iron hoe is
         // the blacksmith's to forge later (BlacksmithStep), not a starting tool
         // that fakes iron the village has not yet mined.
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_HOE));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_HOE));
         break;
       case LEADER:
-        kitIfEmpty(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
+        kit(EquipmentSlot.HEAD, new ItemStack(Items.GOLDEN_HELMET));
         break;
       case LIBRARIAN:
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.BOOK));
         break;
       case HUNTER:
         // A plain bow, like the guard's stone axe: enough to work with until
@@ -1552,15 +1552,15 @@ public class RealPerson extends Person {
         // special arrows someone hands them are real. A bow that wears out is
         // replaced at bedtime from stores or made from sticks and string
         // (JobTool), never re-granted.
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         break;
       case MINER:
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
       case QUARTERMASTER:
         // The quartermaster keeps the village's stores; a writable book reads as
         // the ledger they are forever taking count in.
-        kitIfEmpty(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.WRITABLE_BOOK));
         break;
       default:
         break;
@@ -1580,11 +1580,21 @@ public class RealPerson extends Person {
     this.populateDefaultEquipmentSlots(this.random, null);
   }
 
-  /** A starting-kit slot: filled only when bare, so nothing already held is replaced. */
-  private void kitIfEmpty(EquipmentSlot slot, ItemStack stack) {
-    if (this.getItemBySlot(slot).isEmpty()) {
-      this.setItemSlot(slot, stack);
+  /**
+   * A starting-kit slot, given whatever is already there: the job's starting
+   * item is placed even over something held, and the old item goes into the pack
+   * so nothing is lost. A worker always leaves their assignment holding the gear
+   * (Aaron, 2026-09-02: "give them any starting tool for the position... doesn't
+   * matter if it's in their opening hand or not, just give it to them"); the
+   * best-tool pick then chooses between this starting tool and anything better
+   * they were already carrying.
+   */
+  private void kit(EquipmentSlot slot, ItemStack stack) {
+    ItemStack held = this.getItemBySlot(slot);
+    if (!held.isEmpty()) {
+      this.personMainInv.addItem(held);
     }
+    this.setItemSlot(slot, stack);
   }
 
   protected void setFavoriteItems(Map<String, Double> favoriteItems) {
