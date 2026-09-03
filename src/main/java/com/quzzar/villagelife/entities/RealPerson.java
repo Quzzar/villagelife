@@ -1009,6 +1009,13 @@ public class RealPerson extends Person {
    * whatever they held, and refilled a hand that had just given its axe away.
    */
   public void reloadState() {
+    // A villager reassigned mid-sleep must wake. The new occupation may have no sleep
+    // goal to stop on the way out - a butcher asleep at night, swapped to guard, loses
+    // its SleepAtNightGoal and with it the stopSleeping that goal's stop would have
+    // called - so the sleeping pose would carry into the new job and the guard "sleeps"
+    // in daylight. Wake explicitly here, the one chokepoint every occupation change
+    // passes through; stopSleeping is a no-op when they are already awake.
+    this.stopSleeping();
     // Running goals are stopped on the way out, or they hold the villager's
     // legs for good (clearGoals). The target selector is rebuilt the same way;
     // it used to gain another copy of every target goal on each reload.
