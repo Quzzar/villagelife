@@ -115,6 +115,12 @@ public final class VillageChunkLoader {
     }
   }
 
+  /** How many chunks this village currently holds forced. Read-only, for diagnostics. */
+  public static int heldChunkCount(String villageId) {
+    Set<Long> current = held.get(villageId);
+    return current == null ? 0 : current.size();
+  }
+
   /** Unforces everything a village held, when it is unmade. */
   public static void release(ServerLevel level, String villageId) {
     Set<Long> current = held.remove(villageId);

@@ -3,6 +3,7 @@ package com.quzzar.villagelife.events;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageManager;
@@ -131,6 +132,8 @@ public class VillagelifeCommands {
                                         BlockPos.containing(ctx.getSource().getPosition()))))
                         .then(Commands.literal("wanderers")
                                 .executes(ctx -> reportWanderers(ctx.getSource())))
+                        .then(Commands.literal("loading")
+                                .executes(ctx -> reportLoading(ctx.getSource())))
                         // By name, never by nearest: unmaking the wrong village is not recoverable.
                         .then(Commands.literal("delete")
                                 .then(Commands.argument("name", StringArgumentType.greedyString())
@@ -167,6 +170,37 @@ public class VillagelifeCommands {
                                                                 BlockPosArgument.getLoadedBlockPos(ctx, "from"),
                                                                 BlockPosArgument.getLoadedBlockPos(ctx, "to"),
                                                                 StringArgumentType.getString(ctx, "name")))))));
+    }
+
+    /**
+     * Reports each village's chunk-loading state (docs/village-loading.md): the
+     * active mode, whether the village currently wants to be loaded, how many
+     * chunks it wants versus how many are actually forced, and how long since a
+     * player last stood in it. Read-only, and deliberately so: it computes the
+     * desired set without forcing anything, so running it never loads a chunk.
+     */
+    private static int reportLoading(CommandSourceStack source) {
+        ServerLevel level = source.getLevel();
+        var villages = VillageManager.get(level).getVillages().values();
+        long now = level.getGameTime();
+        StringBuilder sb = new StringBuilder("Village loading: mode " + VillagelifeConfig.VillageLoading);
+        if (villages.isEmpty()) {
+            sb.append("\n  (no villages)");
+        }
+        for (Village village : villages) {
+            int desired = village.desiredLoadedChunks(level).size();
+            int held = com.quzzar.villagelife.village.VillageChunkLoader.heldChunkCount(village.getID());
+            long last = village.getLastVisitedTick();
+            String visited = last <= Village.NEVER_VISITED
+                    ? "never visited"
+                    : String.format("%.1fd since visit", (now - last) / 24000.0);
+            sb.append(String.format("\n  %s: %s, wants %d chunks, holds %d, %s, %d people",
+                    village.getName(), desired > 0 ? "LOADED" : "dormant",
+                    desired, held, visited, village.getPopulation().size()));
+        }
+        String out = sb.toString();
+        source.sendSuccess(() -> Component.literal(out), false);
+        return 1;
     }
 
     /**

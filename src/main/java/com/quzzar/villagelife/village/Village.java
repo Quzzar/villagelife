@@ -2337,6 +2337,11 @@ public class Village {
     return people;
   }
 
+  /** The game time a player was last inside this village's footprint, for the loading diagnostic. */
+  public long getLastVisitedTick() {
+    return lastVisitedTick;
+  }
+
   public RealPerson getPerson(ServerLevel level, UUID entityUUID) {
     return (RealPerson) level.getEntity(entityUUID);
   }
