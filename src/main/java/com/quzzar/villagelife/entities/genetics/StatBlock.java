@@ -1,6 +1,7 @@
 package com.quzzar.villagelife.entities.genetics;
 
 import java.util.EnumMap;
+import java.util.Objects;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
@@ -48,6 +49,11 @@ public final class StatBlock {
 
   public GeneticCondition getCondition() {
     return condition;
+  }
+
+  /** Returns the same genetic scores with a different rare condition. */
+  public StatBlock withCondition(GeneticCondition replacement) {
+    return new StatBlock(new EnumMap<>(scores), Objects.requireNonNull(replacement));
   }
 
   public CompoundTag save() {

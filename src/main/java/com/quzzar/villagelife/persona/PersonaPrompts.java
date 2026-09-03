@@ -96,6 +96,8 @@ final class PersonaPrompts {
                 traits.add("a true giant, towering over everyone");
             } else if (condition == GeneticCondition.DWARFISM) {
                 traits.add("remarkably tiny");
+            } else if (condition == GeneticCondition.HETEROCHROMIA) {
+                traits.add("has two differently colored eyes");
             }
 
             // Contradictory pairs get reconciled into one phrase; handing a
@@ -125,7 +127,7 @@ final class PersonaPrompts {
                 if (reconciled.contains(stat)) {
                     continue;
                 }
-                if (stat == Stat.SIZE && condition != GeneticCondition.NONE) {
+                if (stat == Stat.SIZE && condition.changesBodySize()) {
                     continue;
                 }
                 int score = stats.get(stat);

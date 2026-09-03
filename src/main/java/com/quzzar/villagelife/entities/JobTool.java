@@ -19,6 +19,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.FishingRodItem;
 import net.minecraft.world.item.HoeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -37,7 +38,7 @@ import net.minecraft.world.item.TieredItem;
  * of the kind the village stores can spare (the ordinary gear pass), then one
  * made from what the stores hold, in the fundamentals the recipes are written
  * in: the head alone, three pieces for an axe or a pickaxe, two for a hoe, two
- * planks for a bow. Sticks and string are waived (Aaron, 2026-09-02: "a pickaxe
+ * planks for a bow or a fishing rod. Sticks and string are waived (Aaron, 2026-09-02: "a pickaxe
  * is just three cobblestone", "a bow is two planks"), the way the recipes waive
  * the saw between logs and planks, and a log pays for planks at the recipes'
  * own rate of four with the rounding lost ({@code Materials}).
@@ -59,7 +60,11 @@ public enum JobTool {
   AXE(AxeItem.class, Items.STONE_AXE, 3, 0),
   PICKAXE(PickaxeItem.class, Items.STONE_PICKAXE, 3, 0),
   HOE(HoeItem.class, Items.STONE_HOE, 2, 0),
-  BOW(BowItem.class, Items.BOW, 0, 2);
+  BOW(BowItem.class, Items.BOW, 0, 2),
+  // An untiered tool like the bow, made again from two planks at the recipes'
+  // own rate. A fishing rod is really two planks and two string; the string is
+  // waived the way the bow's is (Aaron, 2026-09-02: "a bow is two planks").
+  ROD(FishingRodItem.class, Items.FISHING_ROD, 0, 2);
 
   /** Planks one log stands in for, the recipes' own rate. */
   private static final int PLANKS_PER_LOG = 4;
@@ -86,6 +91,7 @@ public enum JobTool {
       case MINER -> PICKAXE;
       case FARMER -> HOE;
       case HUNTER -> BOW;
+      case FISHER -> ROD;
       default -> null;
     };
   }
@@ -191,7 +197,7 @@ public enum JobTool {
   /**
    * Every registered tool of this kind whose tier says what it is made of,
    * best tier first: faster to dig with, then longer-lived. An untiered kind
-   * (the bow) offers only its plain item.
+   * (the bow, the rod) offers only its plain item.
    */
   private List<Item> candidatesBestFirst() {
     List<Item> out = new ArrayList<>();

@@ -1141,6 +1141,23 @@ public class Village {
   }
 
   /**
+   * The village's claimed footprint as an x/z block-space box (Y flattened to
+   * zero; only x/z carry meaning), or null before anything is claimed. The same
+   * claim the wall ring wraps, so the lumberjack can sweep the whole town for
+   * wild trees rather than only the ground around the lodge ({@code ChopStep}).
+   * Backed by the cached claim bounds, recomputed only when the claim grows
+   * ({@link #ensureClaimBounds}), so this is O(1) between builds.
+   */
+  @Nullable
+  public BoundingBox getClaimFootprint() {
+    ensureClaimBounds();
+    if (claimGrid.isEmpty()) {
+      return null;
+    }
+    return new BoundingBox(claimMinX, 0, claimMinZ, claimMaxX, 0, claimMaxZ);
+  }
+
+  /**
    * The ring the wall follows: the claim's bounding box pushed out by padding and
    * walked as one continuous loop, so the builder treads it without backtracking.
    * Y is left at zero; each column's real height is read from the surface when it

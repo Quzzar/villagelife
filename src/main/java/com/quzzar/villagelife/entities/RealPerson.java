@@ -73,6 +73,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.MarketStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HuntStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FetchStep;
+import com.quzzar.villagelife.entities.ai.goals.work.FishCookStep;
 import com.quzzar.villagelife.entities.ai.goals.work.FishStep;
 import com.quzzar.villagelife.entities.ai.goals.work.HerdStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PathStep;
@@ -186,9 +187,9 @@ public class RealPerson extends Person {
 
   /**
    * Marks a wandering merchant ({@link Occupation#WANDERING_MERCHANT}). Synced
-   * because the client renderer needs it: it draws the trader skin pool and
-   * drops the nameplate while the merchant is invisible at night. The home
-   * village and virtual ledger it trades from are server-only
+   * because the client renderer needs it: it selects the singleton trader
+   * wardrobe and drops the nameplate while the merchant is invisible at night.
+   * The home village and virtual ledger it trades from are server-only
    * ({@link #sourceVillageUuid}, {@link #wanderingStock}).
    */
   private static final EntityDataAccessor<Boolean> WANDERING_MERCHANT = SynchedEntityData.defineId(RealPerson.class,
@@ -1835,6 +1836,15 @@ public class RealPerson extends Person {
         // (JobTool), never re-granted.
         kit(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
         break;
+      case FISHER:
+        // A plain rod, like the hunter's bow: enough to work with until the
+        // bedtime gear pass finds a better or enchanted one (EquipmentUpgrade
+        // scores an enchanted rod above a plain one, so a pole a player hands
+        // over is picked up, same as an upgraded bow). A rod given away or worn
+        // out is replaced at bedtime from stores or made from two planks
+        // (JobTool.ROD), never re-granted.
+        kit(EquipmentSlot.MAINHAND, new ItemStack(Items.FISHING_ROD));
+        break;
       case MINER:
         kit(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_PICKAXE));
         break;
@@ -2439,11 +2449,13 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
           new PlantStep()));
       // The planted stand above is the reliable job. This lower-priority pass
-      // also clears nearby woodland, about three times as often and farther out
-      // than a guard (a roll of two in five every five seconds, twenty blocks
-      // out); level with strolling for the reason given at the guard's.
+      // keeps the whole town clear: in the stand's regrowth lulls it sweeps the
+      // entire village claim (plus a margin past the wall) for a wild tree,
+      // walks to it and fells it, so the streets across the village stay open
+      // rather than only the ground by the lodge (a roll of two in five every
+      // five seconds). Level with strolling for the reason given at the guard's.
       this.goalSelector.addGoal(5, new WorkLoopGoal<>(this,
-          new ChopStep(20, 0.4F, 100)));
+          new ChopStep(16, 0.4F, 100, true)));
       this.goalSelector.addGoal(8, new WorkLoopGoal<>(this, new CraftStep(
           new ItemStack(Items.STRIPPED_OAK_LOG, 4),
           new ItemStack(Items.OAK_PLANKS, 16),
@@ -2593,7 +2605,13 @@ public class RealPerson extends Person {
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new HuntStep()));
     }
     if (getOccupation() == Occupation.FISHER) {
+      // Draws fish from the water beside the fishery (FishStep), roasts a batch
+      // of the catch at the village fire (FishCookStep, above fishing so a batch
+      // is cooked before the next cast), and carries a full pack home. The day's
+      // fish that never reach a haul or a cooking batch stow to the food stores
+      // at bedtime (stowPackAndRestock), so the catch feeds the village either way.
       this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new HaulStep()));
+      this.goalSelector.addGoal(3, new WorkLoopGoal<>(this, new FishCookStep()));
       this.goalSelector.addGoal(4, new WorkLoopGoal<>(this, new FishStep()));
     }
     if (getOccupation() == Occupation.HERDER) {

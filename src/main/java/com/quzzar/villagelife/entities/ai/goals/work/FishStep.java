@@ -23,13 +23,25 @@ import net.minecraft.world.level.block.Blocks;
  * -- waiting -- does not fit a target-and-verb like the others. So the target is
  * simply the fishing spot (the station, once there is water beside it) and the
  * "act" is time passing: one catch per interval, held as long as the water and
- * the daylight last. Fish land in the fisher's pack and a {@link HaulStep} at
- * higher priority carries a full one back, exactly as the miner's ore does.
+ * the daylight last. Fish land in the fisher's pack; a {@link FishCookStep} at
+ * higher priority roasts a batch of the catch at the village fire, and a
+ * {@link HaulStep} carries a full pack back, exactly as the miner's ore does.
+ * The fisher works with a fishing rod (kit and {@link com.quzzar.villagelife.entities.JobTool}),
+ * though the catch does not depend on the rod: it is the mark of the trade and
+ * the thing a better or enchanted pole upgrades, as the hunter's bow is.
  */
 public final class FishStep implements BlockWorkStep {
 
-  /** How far around the station to look for water to fish. */
-  private static final int SEARCH = 4;
+  /**
+   * How far around the station, horizontally, to look for water to fish. The
+   * fishery's own pool sits a few blocks off the station, so this comfortably
+   * covers it with room to spare, and a fisher whose pool is dry works any
+   * water source near the post too (Aaron: his pool, or any water nearby).
+   */
+  private static final int SEARCH = 6;
+
+  /** How far above and below the station water counts: the pool sits a step down. */
+  private static final int DEPTH = 2;
 
   @Override
   @Nullable
@@ -72,8 +84,8 @@ public final class FishStep implements BlockWorkStep {
   }
 
   private boolean waterNear(RealPerson person, BlockPos station) {
-    for (BlockPos p : BlockPos.betweenClosed(station.offset(-SEARCH, -1, -SEARCH),
-        station.offset(SEARCH, 1, SEARCH))) {
+    for (BlockPos p : BlockPos.betweenClosed(station.offset(-SEARCH, -DEPTH, -SEARCH),
+        station.offset(SEARCH, DEPTH, SEARCH))) {
       if (person.level().getBlockState(p).is(Blocks.WATER)) {
         return true;
       }

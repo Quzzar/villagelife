@@ -1,19 +1,14 @@
 package com.quzzar.villagelife.client.renderer;
 
-import java.util.List;
-
 import javax.annotation.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.appearance.BodyModel;
+import com.quzzar.villagelife.client.appearance.PersonAppearanceTextures;
 import com.quzzar.villagelife.client.models.PersonModel;
-import com.quzzar.villagelife.entities.Gender;
 import com.quzzar.villagelife.entities.Person;
-import com.quzzar.villagelife.entities.PersonSkins;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.events.PersonClientEvents;
-
-import net.minecraft.client.resources.DefaultPlayerSkin;
 
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -30,7 +25,7 @@ import net.minecraft.world.item.UseAnim;
 
 public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Person>> {
 
-    /** The two body geometries, chosen per person by gender in {@link #render}. */
+    /** The two body geometries, chosen from the person's appearance recipe in {@link #render}. */
     private final PersonModel wideModel;
     private final PersonModel slimModel;
 
@@ -54,19 +49,12 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
     }
 
     /**
-     * The body geometry this person renders on, keyed off the same gender the skin pool
-     * uses so body and skin agree: women get the slim (Alex) model, men the wide (Steve)
-     * model. The nonbinary, and plain Persons that carry no gender, get a stable seeded
-     * pick off the skin variant so a given villager always renders the same body.
+     * Uses the same deterministic recipe input as the compositor so the selected skin
+     * and the arm geometry can never disagree.
      */
     private PersonModel bodyModelFor(Person entity) {
-        Gender gender = (entity instanceof RealPerson realPerson) ? realPerson.getGender() : Gender.NONBINARY;
-        boolean slim = switch (gender) {
-            case MALE -> false;
-            case FEMALE -> true;
-            case NONBINARY -> (entity.getSkinVariant() & 1) == 1;
-        };
-        return slim ? this.slimModel : this.wideModel;
+        BodyModel model = PersonAppearanceTextures.INSTANCE.modelFor(entity);
+        return model == BodyModel.SLIM ? this.slimModel : this.wideModel;
     }
 
     /**
@@ -332,33 +320,14 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
 
     @Override
     protected void scale(Person entitylivingbaseIn, PoseStack matrixStackIn, float partialTickTime) {
-        matrixStackIn.scale(0.9375F, 0.9375F, 0.9375F);
+        float lifeStageScale = entitylivingbaseIn.isBaby() ? 0.5F : 1.0F;
+        float scale = 0.9375F * lifeStageScale;
+        matrixStackIn.scale(scale, scale, scale);
     }
 
     @Nullable
     @Override
     public ResourceLocation getTextureLocation(Person entity) {
-        // Draw from the villager's OWN-gender pool. The variant is a wide gender-agnostic
-        // index (rolled before gender is known); map it in with index % poolSize so a man
-        // draws a man's skin, a woman a woman's.
-        Gender gender = (entity instanceof RealPerson realPerson) ? realPerson.getGender() : Gender.NONBINARY;
-        // A wandering merchant draws from the curated trader pool, by gender, so it
-        // wears the merchant's robe rather than an ordinary villager's skin.
-        boolean merchant = entity instanceof RealPerson rp && rp.isWanderingMerchant();
-        List<String> pool = merchant ? PersonSkins.merchantForGender(gender) : PersonSkins.forGender(gender);
-        // A pool can be empty before its skins are added; fall back to any populated pool
-        // so a villager never renders the missing-texture checkerboard.
-        if (pool.isEmpty()) {
-            for (Gender alt : Gender.values()) {
-                List<String> altPool = PersonSkins.forGender(alt);
-                if (!altPool.isEmpty()) { pool = altPool; break; }
-            }
-        }
-        if (pool.isEmpty()) {
-            return DefaultPlayerSkin.getDefaultTexture();
-        }
-        String hash = pool.get(Math.floorMod(entity.getSkinVariant(), pool.size()));
-        return ResourceLocation.fromNamespaceAndPath(Villagelife.MODID,
-                "textures/entity/person/" + hash + ".png");
+        return PersonAppearanceTextures.INSTANCE.textureFor(entity);
     }
 }

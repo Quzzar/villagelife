@@ -43,12 +43,16 @@ import net.minecraft.world.entity.ai.goal.Goal;
  */
 public class WorkLoopGoal<T> extends Goal {
 
+  /** A moving target stays fresh without retrying the same failed route every tick. */
+  private static final int NAVIGATION_REFRESH_TICKS = 10;
+
   private final RealPerson person;
   private final WorkStep<T> step;
   private final ApproachWatch approach;
 
   private T target;
   private int nextSelectTick;
+  private int nextNavigationTick;
   private int ticksInReach;
 
   public WorkLoopGoal(RealPerson person, WorkStep<T> step) {
@@ -83,6 +87,7 @@ public class WorkLoopGoal<T> extends Goal {
   @Override
   public final void start() {
     this.ticksInReach = 0;
+    this.nextNavigationTick = this.person.tickCount;
     this.approach.begin();
     if (this.target != null) {
       this.person.noteActivity(this.step.activity());
@@ -116,7 +121,10 @@ public class WorkLoopGoal<T> extends Goal {
       this.person.noteActivity(this.step.activity());
     }
 
-    // Asked fresh each tick: a target that walks away has to be followed.
+    // Its position is asked fresh each tick, so arrival and progress follow a
+    // moving target. Route searches are slower: re-planning twice a second is
+    // responsive enough for a walking animal and prevents an unreachable
+    // block from consuming one full A* search every tick.
     BlockPos where = this.step.positionOf(this.target);
     this.ticksInReach++;
 
@@ -128,8 +136,11 @@ public class WorkLoopGoal<T> extends Goal {
         release();
         return;
       }
-      this.person.getNavigation().moveTo(
-          where.getX() + 0.5D, where.getY(), where.getZ() + 0.5D, this.step.speed());
+      if (this.person.tickCount >= this.nextNavigationTick) {
+        this.nextNavigationTick = this.person.tickCount + NAVIGATION_REFRESH_TICKS;
+        this.person.getNavigation().moveTo(
+            where.getX() + 0.5D, where.getY(), where.getZ() + 0.5D, this.step.speed());
+      }
       // Most work happens on arrival. Laying a path happens on the way.
       if (!this.step.actWhileTravelling()) {
         return;

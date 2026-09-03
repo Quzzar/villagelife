@@ -16,6 +16,9 @@ import com.google.common.collect.Maps;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.compat.AccessoryCompat;
+import com.quzzar.villagelife.entities.genetics.AppearanceGenes;
+import com.quzzar.villagelife.entities.genetics.GeneticCondition;
+import com.quzzar.villagelife.entities.genetics.PigmentGene;
 import com.quzzar.villagelife.entities.genetics.StatBlock;
 import com.quzzar.villagelife.entities.genetics.StatProjection;
 import com.quzzar.villagelife.other.PersonLootTables;
@@ -103,25 +106,33 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       -0.25D, AttributeModifier.Operation.ADD_VALUE);
 
   /**
-   * Skins are gender-specific pools of content-hash-named textures, listed per gender in
-   * {@link PersonSkins}. A villager draws from the pool matching its gender, so a man
-   * never wears a dress nor a woman a beard. The pools and their {@code <hash>.png} files
-   * are regenerated together by {@code scratchpad/build_skins.py}.
+   * Stable salt for deterministic appearance and occupation wardrobe choices. The old
+   * NBT key remains {@code SkinVariant} so existing worlds keep each person's look.
    */
-  public static int skinCountFor(Gender gender) {
-    return PersonSkins.forGender(gender).size();
-  }
+  public static final int APPEARANCE_SEED_BOUND = 100_003;
 
-  /**
-   * The skin variant is rolled at spawn BEFORE the gender is known (finalizeSpawn sets
-   * the skin; the identity roll sets gender afterward), so it is stored as a wide
-   * gender-agnostic index and the renderer maps it into the villager's own-gender pool
-   * as {@code index % poolSize}. A large prime range keeps that modulo close to even.
-   */
-  public static final int SKIN_INDEX_RANGE = 100_003;
-
-  private static final EntityDataAccessor<Integer> SKIN_VARIANT = SynchedEntityData.defineId(Person.class,
+  private static final EntityDataAccessor<Integer> APPEARANCE_SEED = SynchedEntityData.defineId(Person.class,
       EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> SKIN_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> HAIR_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> EYE_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> ALTERNATE_EYE_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> SKIN_PIGMENT_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> HAIR_PIGMENT_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> EYE_PIGMENT_GENE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
+  private static final EntityDataAccessor<Integer> ALTERNATE_EYE_PIGMENT_GENE = SynchedEntityData.defineId(
+      Person.class, EntityDataSerializers.INT);
+  private static final EntityDataAccessor<String> GENETIC_CONDITION = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.STRING);
+  private static final EntityDataAccessor<Boolean> CHILD = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.BOOLEAN);
   private static final EntityDataAccessor<Boolean> RUNNING_TO_EAT = SynchedEntityData.defineId(Person.class,
       EntityDataSerializers.BOOLEAN);
   private static final EntityDataAccessor<Boolean> INTERRUPTED = SynchedEntityData.defineId(Person.class,
@@ -181,17 +192,20 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
 
     if (!world.isClientSide) {
       this.statBlock = StatBlock.roll(this.getRandom());
+      this.syncGeneticCondition(this.statBlock.getCondition());
+      this.setAppearanceGenes(AppearanceGenes.roll(this.getRandom()));
       StatProjection.apply(this, this.statBlock);
       this.setHealth(this.getMaxHealth());
     }
 
     ((GroundPathNavigation) this.getNavigation()).setCanOpenDoors(true);
-    // Four times the pathfinder's node budget. A villager's follow range of 20
-    // caps a search at 320 nodes, under half a vanilla villager's, and that ran
-    // out on open ground before it found the way round a house to its door
-    // (the level-3 house at Wildflower Downs, door away from the village: its
-    // people stopped against the back wall). A search is made once per leg and
-    // throttled by the navigation, so this costs per path, not per tick.
+    // Four times the pathfinder's node budget. Construction fixes the base at
+    // 320 nodes from the default follow range, so this permits about 1,280
+    // expansions. PersonPathNavigation separately gives routes a 48-block
+    // horizon; the budget remains their hard work ceiling. That was enough to
+    // find the way round the level-3 house at Wildflower Downs, whose door
+    // faced away from the village. Searches are throttled by navigation, so
+    // this costs per path, not per tick.
     this.getNavigation().setMaxVisitedNodesMultiplier(4.0F);
   }
 
@@ -212,7 +226,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   public SpawnGroupData finalizeSpawn(ServerLevelAccessor worldIn, DifficultyInstance difficultyIn,
       MobSpawnType reason, @Nullable SpawnGroupData spawnDataIn) {
     this.setPersistenceRequired();
-    this.setSkinVariant(this.random.nextInt(SKIN_INDEX_RANGE));
+    this.setAppearanceSeed(this.random.nextInt(APPEARANCE_SEED_BOUND));
     return super.finalizeSpawn(worldIn, difficultyIn, reason, spawnDataIn);
   }
 
@@ -282,12 +296,16 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   public void readAdditionalSaveData(CompoundTag compound) {
     super.readAdditionalSaveData(compound);
     if (compound.contains("SkinVariant")) {
-      this.setSkinVariant(compound.getInt("SkinVariant"));
+      this.setAppearanceSeed(compound.getInt("SkinVariant"));
     } else {
-      // Saved before skins were rolled at all. Give them a face now rather than leaving
-      // every pre-existing villager wearing skin 0.
-      this.setSkinVariant(this.random.nextInt(SKIN_INDEX_RANGE));
+      this.setAppearanceSeed(this.random.nextInt(APPEARANCE_SEED_BOUND));
     }
+    if (compound.contains("AppearanceGenes")) {
+      this.setAppearanceGenes(AppearanceGenes.load(compound.getCompound("AppearanceGenes")));
+    } else {
+      this.setAppearanceGenes(AppearanceGenes.fromLegacySeed(this.getAppearanceSeed()));
+    }
+    this.setBaby(compound.getBoolean("IsBaby"));
     this.guiOpen = compound.getBoolean("GuiOpen");
     this.immobile = compound.getBoolean("Immobile");
     this.setEating(compound.getBoolean("Eating"));
@@ -328,6 +346,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       this.statBlock = StatBlock.load(compound.getCompound("StatBlock"));
     }
     if (!this.level().isClientSide && this.statBlock != null) {
+      this.syncGeneticCondition(this.statBlock.getCondition());
       // Re-project on every load: recomputes each gene modifier from the saved
       // scores, so weight rebalances reach existing villagers automatically.
       StatProjection.apply(this, this.statBlock);
@@ -345,7 +364,9 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     if (this.statBlock != null) {
       compound.put("StatBlock", this.statBlock.save());
     }
-    compound.putInt("SkinVariant", this.getSkinVariant());
+    compound.putInt("SkinVariant", this.getAppearanceSeed());
+    compound.put("AppearanceGenes", this.getAppearanceGenes().save());
+    compound.putBoolean("IsBaby", this.isBaby());
     compound.putInt("ShieldCooldown", this.shieldCoolDown);
     compound.putBoolean("GuiOpen", this.guiOpen);
     compound.putBoolean("Immobile", this.immobile);
@@ -482,7 +503,8 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
 
   @Override
   protected EntityDimensions getDefaultDimensions(Pose poseIn) {
-    return SIZE_BY_POSE.getOrDefault(poseIn, EntityDimensions.scalable(0.6F, 1.95F).withEyeHeight(1.62F));
+    return SIZE_BY_POSE.getOrDefault(poseIn, EntityDimensions.scalable(0.6F, 1.95F).withEyeHeight(1.62F))
+        .scale(this.getAgeScale());
   }
 
   @Override
@@ -544,7 +566,17 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   @Override
   protected void defineSynchedData(SynchedEntityData.Builder builder) {
     super.defineSynchedData(builder);
-    builder.define(SKIN_VARIANT, 0);
+    builder.define(APPEARANCE_SEED, 0);
+    builder.define(SKIN_GENE, 0);
+    builder.define(HAIR_GENE, 0);
+    builder.define(EYE_GENE, 0);
+    builder.define(ALTERNATE_EYE_GENE, 0);
+    builder.define(SKIN_PIGMENT_GENE, 0);
+    builder.define(HAIR_PIGMENT_GENE, 0);
+    builder.define(EYE_PIGMENT_GENE, 0);
+    builder.define(ALTERNATE_EYE_PIGMENT_GENE, 0);
+    builder.define(GENETIC_CONDITION, GeneticCondition.NONE.name());
+    builder.define(CHILD, false);
     builder.define(DATA_CHARGING_STATE, false);
     builder.define(EATING, false);
     builder.define(RUNNING_TO_EAT, false);
@@ -586,16 +618,84 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     return null;
   }
 
-  public int getSkinVariant() {
-    return this.entityData.get(SKIN_VARIANT);
+  public int getAppearanceSeed() {
+    return this.entityData.get(APPEARANCE_SEED);
+  }
+
+  public void setAppearanceSeed(int seed) {
+    this.entityData.set(APPEARANCE_SEED, Math.floorMod(seed, APPEARANCE_SEED_BOUND));
+  }
+
+  public AppearanceGenes getAppearanceGenes() {
+    return new AppearanceGenes(
+        this.entityData.get(SKIN_GENE),
+        this.entityData.get(HAIR_GENE),
+        this.entityData.get(EYE_GENE),
+        this.entityData.get(ALTERNATE_EYE_GENE),
+        new PigmentGene(this.entityData.get(SKIN_PIGMENT_GENE)),
+        new PigmentGene(this.entityData.get(HAIR_PIGMENT_GENE)),
+        new PigmentGene(this.entityData.get(EYE_PIGMENT_GENE)),
+        new PigmentGene(this.entityData.get(ALTERNATE_EYE_PIGMENT_GENE)));
+  }
+
+  /** Assigns a founder's rolled genes or a child's recombined parental genes. */
+  public void setAppearanceGenes(AppearanceGenes genes) {
+    this.entityData.set(SKIN_GENE, genes.skin());
+    this.entityData.set(HAIR_GENE, genes.hair());
+    this.entityData.set(EYE_GENE, genes.eyes());
+    this.entityData.set(ALTERNATE_EYE_GENE, genes.alternateEyes());
+    this.entityData.set(SKIN_PIGMENT_GENE, genes.skinPigment().packed());
+    this.entityData.set(HAIR_PIGMENT_GENE, genes.hairPigment().packed());
+    this.entityData.set(EYE_PIGMENT_GENE, genes.eyePigment().packed());
+    this.entityData.set(ALTERNATE_EYE_PIGMENT_GENE, genes.alternateEyePigment().packed());
+  }
+
+  public GeneticCondition getGeneticCondition() {
+    return GeneticCondition.byName(this.entityData.get(GENETIC_CONDITION));
+  }
+
+  private void syncGeneticCondition(GeneticCondition condition) {
+    this.entityData.set(GENETIC_CONDITION, condition.name());
   }
 
   /**
-   * Sets which skin this person wears. The value is wrapped into the available range so a
-   * variant saved by a build with a larger skin pool can never point at a missing texture.
+   * Replaces the stored rare condition and immediately reapplies its mechanical
+   * projection. Used by development tooling to inspect every condition on one
+   * otherwise unchanged person.
    */
-  public void setSkinVariant(int variant) {
-    this.entityData.set(SKIN_VARIANT, Math.floorMod(variant, SKIN_INDEX_RANGE));
+  public void replaceGeneticCondition(GeneticCondition condition) {
+    if (this.level().isClientSide) {
+      throw new IllegalStateException("Genetic conditions can only be replaced on the server");
+    }
+    if (this.statBlock == null) {
+      throw new IllegalStateException("Cannot replace a genetic condition without a stat block");
+    }
+    this.statBlock = this.statBlock.withCondition(condition);
+    this.syncGeneticCondition(condition);
+    StatProjection.apply(this, this.statBlock);
+    this.setHealth(Math.min(this.getHealth(), this.getMaxHealth()));
+    this.refreshDimensions();
+  }
+
+  @Override
+  public boolean isBaby() {
+    return this.entityData.get(CHILD);
+  }
+
+  @Override
+  public void setBaby(boolean baby) {
+    if (this.entityData.get(CHILD) != baby) {
+      this.entityData.set(CHILD, baby);
+      this.refreshDimensions();
+    }
+  }
+
+  @Override
+  public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+    super.onSyncedDataUpdated(key);
+    if (CHILD.equals(key)) {
+      this.refreshDimensions();
+    }
   }
 
   @Override

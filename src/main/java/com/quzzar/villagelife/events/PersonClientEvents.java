@@ -2,6 +2,7 @@ package com.quzzar.villagelife.events;
 
 import com.quzzar.villagelife.PersonEntityType;
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.client.appearance.PersonAppearanceTextures;
 import com.quzzar.villagelife.client.gui.GuardInventoryScreen;
 import com.quzzar.villagelife.client.models.PersonArmorModel;
 import com.quzzar.villagelife.client.models.PersonModel;
@@ -15,6 +16,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 
 @EventBusSubscriber(value = Dist.CLIENT, modid = Villagelife.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class PersonClientEvents {
@@ -46,5 +48,10 @@ public class PersonClientEvents {
         event.register(VillagelifeMenus.PERSON_MENU.get(), GuardInventoryScreen::new);
         event.register(VillagelifeMenus.MARKET.get(),
                 com.quzzar.villagelife.client.gui.PersonChatScreen::new);
+    }
+
+    @SubscribeEvent
+    public static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(PersonAppearanceTextures.INSTANCE);
     }
 }

@@ -4,11 +4,10 @@ import net.minecraft.util.RandomSource;
 
 /**
  * Rare heritable conditions. At most one per person, rolled once at stat
- * generation. Each condition's physical consequences are a fixed set of
- * attribute adjustments applied by {@link StatProjection} on top of the normal
- * stat-driven modifiers, so a giant is a giant regardless of their rolled Size
- * score (though the two stack: a high-Size giant is the tallest thing in the
- * village).
+ * generation. Mechanical conditions project through {@link StatProjection};
+ * visual conditions can instead affect the derived appearance recipe. A giant
+ * remains a giant regardless of their rolled Size score (though the two stack:
+ * a high-Size giant is the tallest thing in the village).
  */
 public enum GeneticCondition {
 
@@ -16,10 +15,13 @@ public enum GeneticCondition {
   NONE(0.0F),
 
   /** Towering build: much larger, tougher, a little slower. */
-  GIGANTISM(0.005F),
+  GIGANTISM(0.01F),
 
   /** Diminutive build: much smaller and frailer, quick on their feet. */
-  DWARFISM(0.005F);
+  DWARFISM(0.01F),
+
+  /** Two differently colored irises, with no mechanical stat effect. */
+  HETEROCHROMIA(0.01F);
 
   private final float chance;
 
@@ -29,6 +31,10 @@ public enum GeneticCondition {
 
   public float getChance() {
     return chance;
+  }
+
+  public boolean changesBodySize() {
+    return this == GIGANTISM || this == DWARFISM;
   }
 
   /**

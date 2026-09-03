@@ -128,21 +128,22 @@ projection through the Pathfinder 2e precedent that Perception is WIS-based.
 ## Rare genetic conditions
 
 Beyond the smooth stat curve, a person can carry at most one rare condition, rolled once
-at generation (`GeneticCondition`). Conditions are fixed attribute adjustments layered on
-top of the stat projection, so they stack with the rolled Size score: a high-Size giant is
-the tallest thing in the village.
+at generation (`GeneticCondition`). Mechanical conditions are fixed attribute adjustments
+layered on top of the stat projection; visual conditions can instead alter the derived
+appearance recipe.
 
 | Condition | Chance | Effects |
 | --- | --- | --- |
-| Gigantism | 0.5% | Scale +20%, max health +20%, knockback resistance +0.2, speed -8% |
-| Dwarfism | 0.5% | Scale -15%, max health -10%, attack damage -10%, speed +5% |
+| Gigantism | 1% | Scale +20%, max health +20%, knockback resistance +0.2, speed -8% |
+| Dwarfism | 1% | Scale -15%, max health -10%, attack damage -10%, speed +5% |
+| Heterochromia | 1% | No stat effect; left and right eyes use different inherited pigments and compatible source geometry |
 
 The scale swings are deliberately modest: a giant reads as a tall adult (about six-fifths
 height) and a dwarf as a short one (about four-fifths), not an ogre or a child. The other
 effects carry the drama.
 
-The enum is the extension point: future conditions (visual ones like albinism or
-heterochromia, temperament ones) are new entries plus their effect rows, nothing more.
+The condition name is persisted and synced. Heterochromia is consumed by the client appearance
+recipe and included in persona descriptions; albinism remains a future visual condition.
 Unknown condition names in old save data degrade to none.
 
 ## Lifecycle
@@ -152,10 +153,15 @@ Unknown condition names in old save data degrade to none.
 2. **Projection**: scores project through the matrix into permanent attribute modifiers.
    Projection is idempotent: each modifier has a stable id (`villagelife:gene/<stat>`)
    and is recomputed and replaced, never stacked. It reruns on every load.
-3. **Inheritance** (future, with the family system): children roll each score near the
+3. **Inheritance** (future, with the family gameplay system): children roll each score near the
    parents' average with a small mutation spread; conditions become heritable with a
-   boosted chance when a parent carries one. Virtues inherit the same way. Scores stay
-   the only thing inherited; modifiers are always recomputed.
+   boosted chance when a parent carries one. Virtues inherit the same way. Mechanical
+   modifiers are always recomputed. Appearance has a separate implemented `AppearanceGenes`
+   recombination seam. Skin pattern, hairstyle, eye structure, and alternate-eye structure are
+   inherited independently from either parent. Skin, hair, eye, and alternate-eye color each
+   carry two diploid loci (pigment depth plus warmth/hue); a child receives one allele per locus
+   from each parent and expresses the midpoint. The future child-creation path must call both
+   inheritance systems.
 
 ## Open questions (not yet decided)
 

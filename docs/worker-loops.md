@@ -410,9 +410,9 @@ own cook tick would finish it. What counts as cookable is read from the vanilla
 `CampfireCookingRecipe` set, so it is broader than the butcher's six hand-listed meats and
 modded food comes along for free. The roasting itself is one helper, `CampfireRoast`
 (2026-09-02), shared with the roaming wanderer's camp on the road (`CampStep`,
-[population-and-labor.md](population-and-labor.md)): where the raw food comes from before the
-pack and where the cooked food goes after it is each step's business; how a campfire roasts
-it is written once.
+[population-and-labor.md](population-and-labor.md)) and the fisher cooking their own catch
+(`FishCookStep`): where the raw food comes from before the pack and where the cooked food goes
+after it is each step's business; how a campfire roasts it is written once.
 
 This is deliberately scoped to idle campers as an early-camp bridge. A young camp has no
 butchery, so raw meat a hunter brings home would sit uncooked; once a butchery exists its
@@ -420,6 +420,13 @@ butchery, so raw meat a hunter brings home would sit uncooked; once a butchery e
 fireside quietly matters less with no explicit hand-off. It sits at the bottom of the idle
 priority order, below defence, eating and sleep, and its `select` returns nothing when the
 stores hold no raw food, so an idle camper with nothing to cook just wanders as before.
+
+The fisher is the one worker who cooks off the same helper without being idle. The catch is
+their own, so `FishCookStep` draws raw from the fisher's pack rather than the stores, lets it
+build to a batch worth the walk to the fire, and cooks it down before the next cast, above
+`FishStep` in priority so the batch is seen through first. The cooked fish then rides home in
+the pack and stows to the food stores at bedtime, which is how a lone fishery feeds a village
+that has no bakery or butchery yet.
 
 ## Roaming, fixed, and the shape in between
 

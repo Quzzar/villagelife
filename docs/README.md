@@ -52,8 +52,11 @@ in it, and update it in the same change that moves what it describes.
   that connect them, and which biomes can support which. Proposed, not yet decided.
 - [appearance.md](appearance.md): why villagers use the player model and not the vanilla
   villager model, the wide/slim model split by gender, and the client-side runtime skin
-  compositor that bakes a villager's look from layered genetic parts (skin tone, hair,
-  eyes) seeded per person and ready for the genetics system.
+  compositor that bakes a villager's look from inherited skin, hair, and eye structures,
+  continuous pigment genes, and occupation- or life-stage-driven clothing.
+- [appearance-wardrobes.md](appearance-wardrobes.md): the occupational clothing catalog,
+  current role coverage, implementation gaps, and the separation between inherited appearance
+  and replaceable job clothing.
 - [site-selection.md](site-selection.md): how a village finds somewhere to build. Site cost
   instead of site validity, how far villagers may reshape ground (surface yes, shape never),
   the builder's prepare phase, and the runtime budget that keeps site search off the tick.

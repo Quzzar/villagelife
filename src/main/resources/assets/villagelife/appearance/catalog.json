@@ -1,0 +1,6237 @@
+[
+  {
+    "slug": "stormy",
+    "label": "Stormy",
+    "model": "slim",
+    "disabledParts": [
+      "clothing"
+    ],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      716,
+      717,
+      718,
+      719,
+      776,
+      777,
+      778,
+      779,
+      780,
+      781,
+      782,
+      783,
+      840,
+      841,
+      842,
+      845,
+      846,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f7dedc",
+        "#ecc1bd",
+        "#e8a5a0",
+        "#edb8b4",
+        "#eec9c6",
+        "#f2cbc8",
+        "#f2cfcc",
+        "#f5cfc9"
+      ],
+      "hair": [
+        "#7a5956",
+        "#7b5956",
+        "#886461",
+        "#896461",
+        "#896462",
+        "#8a6461",
+        "#8a6462",
+        "#906866",
+        "#916865",
+        "#98706e",
+        "#99706c",
+        "#99706d",
+        "#997270",
+        "#997371",
+        "#a17a7a",
+        "#a17b7a",
+        "#aa8685",
+        "#aa8686",
+        "#b29392"
+      ],
+      "eyeLeft": [
+        "#92a4b1"
+      ],
+      "eyeRight": [
+        "#b6bec5"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "rhinestone-skies",
+    "label": "Rhinestone Skies",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "LEADER",
+        "MERCHANT"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      842,
+      845,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#d89d89",
+        "#b97a6f",
+        "#ae6967",
+        "#c29386",
+        "#d29686"
+      ],
+      "hair": [
+        "#3a181a",
+        "#4f2826",
+        "#552f2b",
+        "#5e3631",
+        "#693630",
+        "#6a3d34",
+        "#703d33",
+        "#774437",
+        "#7a4335",
+        "#8d513b",
+        "#935139",
+        "#b2673e",
+        "#bc6c3e"
+      ],
+      "eyeLeft": [
+        "#e2ac9a",
+        "#b89186"
+      ],
+      "eyeRight": [
+        "#b89186",
+        "#e2ac9a"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "0cdfd6b4876d5556",
+    "label": "Silver Scout",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD",
+        "HUNTER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#fdc29f",
+        "#febe95",
+        "#fec7a3",
+        "#fdc7a3",
+        "#fec7a8",
+        "#ffcaa8",
+        "#fdc7a8",
+        "#ffc49e",
+        "#febe94",
+        "#ffc198",
+        "#ffcdad",
+        "#ffc4a1",
+        "#fdbe99",
+        "#ffb88f",
+        "#ffbe94",
+        "#fec4a3",
+        "#febb91",
+        "#ffc19c",
+        "#feb58a",
+        "#ffb385",
+        "#ffbb8f",
+        "#ffb58a",
+        "#ffb588",
+        "#fcc19e",
+        "#ffc7a3",
+        "#ffc59f",
+        "#ffc5a2",
+        "#fec8a8",
+        "#ffc8a6",
+        "#ffc299",
+        "#fec5a4",
+        "#febf96",
+        "#ffc8a4",
+        "#febe99",
+        "#ffbf93",
+        "#fdbc93",
+        "#ffc8a7",
+        "#fec8a9",
+        "#ffbf96",
+        "#ffbc8e",
+        "#ffb98b",
+        "#fdbc90",
+        "#fbc3a2",
+        "#fac9ad",
+        "#fcc29f",
+        "#fbc5a6",
+        "#fbc6a7",
+        "#f5c4a8",
+        "#fac2a1",
+        "#fac8ab",
+        "#fbc19f"
+      ],
+      "hair": [
+        "#dcb194",
+        "#dbb194",
+        "#d7ab8f",
+        "#c69b84",
+        "#c39883",
+        "#daae90",
+        "#cda58a",
+        "#d1a88d",
+        "#c79a84",
+        "#b28976",
+        "#c39884",
+        "#c39e85",
+        "#b28f79",
+        "#b08f79",
+        "#c09c82",
+        "#cea68c",
+        "#d4ab8f",
+        "#d7ab90",
+        "#b08676",
+        "#d5ab8f",
+        "#a48671",
+        "#ad8c76",
+        "#c59f85",
+        "#c29d84",
+        "#c19c83",
+        "#987c69",
+        "#ab8b76",
+        "#deb190",
+        "#af8e78",
+        "#c39d84",
+        "#d6ac90",
+        "#b18f78",
+        "#9f816d",
+        "#c39881",
+        "#b28876",
+        "#c39882",
+        "#dcb18f",
+        "#a1826f",
+        "#d3aa8e",
+        "#c49e85",
+        "#b5927b",
+        "#dab193",
+        "#b18676",
+        "#c7a087",
+        "#a78773",
+        "#cea68b",
+        "#ae8d77",
+        "#c69884",
+        "#c9a289",
+        "#987b68",
+        "#d0a88d",
+        "#d0a78c",
+        "#c49d85",
+        "#ae8879",
+        "#ab8577",
+        "#ae887a",
+        "#bb967f",
+        "#b5917b",
+        "#b4927a",
+        "#b29087",
+        "#af8e83",
+        "#bd987f",
+        "#c7a187",
+        "#cda58b",
+        "#c6a087",
+        "#c79884",
+        "#997c6c",
+        "#b18776",
+        "#b38977",
+        "#9a7c6c",
+        "#ad8879",
+        "#a68672",
+        "#c59f86",
+        "#b8957e",
+        "#c59884",
+        "#a1826e",
+        "#bf9a81",
+        "#d4a98e",
+        "#bc987f",
+        "#c29c83",
+        "#cca48a",
+        "#d2a98e",
+        "#c8a187",
+        "#cda68a",
+        "#ab8677",
+        "#ac8778",
+        "#9a7c6e",
+        "#a0816e",
+        "#caa489",
+        "#c49f86",
+        "#c6a086",
+        "#d0a88c",
+        "#cea68a",
+        "#9a7d6a",
+        "#c8a087",
+        "#cca489",
+        "#cfa78c",
+        "#cba48a",
+        "#d3a88d",
+        "#9a7c6f",
+        "#997c6d",
+        "#9b7d70",
+        "#b5927c",
+        "#c29d83",
+        "#b8957d",
+        "#cca58b",
+        "#cba489",
+        "#ba957e",
+        "#c9a288",
+        "#b9957e",
+        "#9f816e",
+        "#9f826e",
+        "#c8a188",
+        "#cfa68c",
+        "#987c6a"
+      ],
+      "eyeLeft": [
+        "#464c61"
+      ],
+      "eyeRight": [
+        "#464c61"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "103533ea10e053d1",
+    "label": "Whitebutton Tailor",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "WANDERER",
+        "TANNER",
+        "MERCHANT",
+        "BUILDER",
+        "LIBRARIAN"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#e4b8a1",
+        "#d6a08c",
+        "#d69982",
+        "#d7a796",
+        "#deb098",
+        "#deb39d",
+        "#e7baa3"
+      ],
+      "hair": [
+        "#312621",
+        "#3e3028",
+        "#3a2e27",
+        "#3c2a20"
+      ],
+      "eyeLeft": [
+        "#000000",
+        "#242424"
+      ],
+      "eyeRight": [
+        "#000000",
+        "#242424"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "125303e14f05cddd",
+    "label": "Ash Duelist",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD",
+        "LEADER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      717,
+      718,
+      719,
+      904,
+      906,
+      907,
+      908,
+      909,
+      911,
+      968,
+      969,
+      970,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#76544b",
+        "#74524b",
+        "#764d44",
+        "#6f463e",
+        "#5e3830",
+        "#71544e",
+        "#785951",
+        "#74554d",
+        "#72443c",
+        "#7b544a",
+        "#6a514b",
+        "#7e564d",
+        "#5b342e",
+        "#6a4139",
+        "#896359",
+        "#754d44",
+        "#886359"
+      ],
+      "hair": [
+        "#28201b",
+        "#2c241d",
+        "#3c3029",
+        "#231c17",
+        "#1f1914",
+        "#16110f",
+        "#211915",
+        "#251d19",
+        "#191310",
+        "#1c1612",
+        "#312823",
+        "#2f2620",
+        "#000000",
+        "#1e1612",
+        "#1d1613",
+        "#18130f",
+        "#1b1611",
+        "#1e1814",
+        "#352922",
+        "#40332b",
+        "#1b1612",
+        "#2a231b",
+        "#3f342c",
+        "#191410",
+        "#5e3830",
+        "#15100d",
+        "#2b221c",
+        "#28211b",
+        "#1a1310",
+        "#251d18",
+        "#251e1a",
+        "#2c241f",
+        "#281f1a",
+        "#322721",
+        "#322722",
+        "#241c17",
+        "#221a16",
+        "#312722",
+        "#28201a",
+        "#362d27",
+        "#473a31",
+        "#1b1511",
+        "#564335",
+        "#4d4037",
+        "#554438",
+        "#392d26",
+        "#382c25",
+        "#2c231d",
+        "#181310",
+        "#2f251e",
+        "#312721",
+        "#1f1913",
+        "#2d251f",
+        "#1a1613",
+        "#201b17",
+        "#1c1714",
+        "#221b17",
+        "#151210",
+        "#171310",
+        "#241b17",
+        "#3d312a",
+        "#2e251e",
+        "#1e1714",
+        "#201a17",
+        "#201a18",
+        "#211a17",
+        "#161210"
+      ],
+      "eyeLeft": [
+        "#211d1c"
+      ],
+      "eyeRight": [
+        "#211d1c"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "140c20f502e10214",
+    "label": "Crimson Raider",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD",
+        "HUNTER",
+        "WANDERER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-11",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      648,
+      649,
+      650,
+      653,
+      654,
+      655,
+      840,
+      842,
+      843,
+      844,
+      845,
+      847,
+      904,
+      905,
+      906,
+      909,
+      910,
+      911,
+      968,
+      969,
+      970,
+      971,
+      972,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          11
+        ],
+        [
+          10,
+          11
+        ]
+      ],
+      "right": [
+        [
+          13,
+          11
+        ],
+        [
+          14,
+          11
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#d4ae92",
+        "#ab6861",
+        "#bf8a78",
+        "#995742",
+        "#a4625b",
+        "#8c6d4d"
+      ],
+      "hair": [
+        "#601515",
+        "#732621",
+        "#873d30",
+        "#601c1c",
+        "#732d2a",
+        "#50200f",
+        "#592615",
+        "#5d2918",
+        "#683420",
+        "#6c4222",
+        "#5f3a1e",
+        "#3f2310",
+        "#56361e",
+        "#422713",
+        "#5e3b21",
+        "#4c2d15",
+        "#5c371c",
+        "#492810",
+        "#6e4424",
+        "#5d3618",
+        "#482d18"
+      ],
+      "eyeLeft": [
+        "#212121"
+      ],
+      "eyeRight": [
+        "#212121"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "1b5bf0a455707cd3",
+    "label": "Frost Paladin",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911,
+      968,
+      969,
+      970,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f3dac5",
+        "#e9c2a1",
+        "#ffcdab",
+        "#ffe0c6",
+        "#ffe7d0",
+        "#efd2ba",
+        "#f5e0cd",
+        "#f8e8da",
+        "#f3d8c1",
+        "#f0d0b4",
+        "#f2d5bd",
+        "#f2d3b7",
+        "#f6e0cd",
+        "#f3d8c0",
+        "#f1d0b3",
+        "#f5ddc8",
+        "#f9ebde",
+        "#f4dbc4",
+        "#f3d5bc",
+        "#f8e8d9",
+        "#f7e3d1",
+        "#f8e5d5"
+      ],
+      "hair": [
+        "#d9b78b",
+        "#e5c193",
+        "#ceae84",
+        "#c2a47c",
+        "#edc898",
+        "#eac5a5",
+        "#e6ba94",
+        "#e9c2a1",
+        "#e7bd99",
+        "#e8bf9d",
+        "#edcdb2",
+        "#ebc7aa"
+      ],
+      "eyeLeft": [
+        "#517e94",
+        "#69a2bf"
+      ],
+      "eyeRight": [
+        "#517e94",
+        "#69a2bf"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "2f847dda631427c7",
+    "label": "Winecap Trader",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "MERCHANT",
+        "WANDERER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      716,
+      717,
+      718,
+      719,
+      776,
+      783,
+      840,
+      847,
+      904,
+      911
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f1d9bd",
+        "#dbc6b1",
+        "#f5ddc6",
+        "#f6e2cc",
+        "#f5dfc9",
+        "#f1d7c0",
+        "#f4dac5",
+        "#f5dec7",
+        "#f2d8c1",
+        "#e6d2bc",
+        "#ecd0bb",
+        "#f1d6c1",
+        "#f4dbc4",
+        "#f4dac3",
+        "#edd2bd",
+        "#e9cfb9",
+        "#e7cfb9",
+        "#efd5bf",
+        "#f1d5bf",
+        "#efd4bc",
+        "#ead0bc",
+        "#e7cfba",
+        "#f6e3cc",
+        "#f4dbc3",
+        "#f6e9d3",
+        "#f7edd8",
+        "#f5e0c6",
+        "#f3dabe",
+        "#f1d1b4",
+        "#f6e3cd",
+        "#f6e5d0",
+        "#f2d2b9",
+        "#f2d5bb",
+        "#f1cfb4",
+        "#efcfb6",
+        "#f2d1b8",
+        "#f2d3ba",
+        "#f3d6bb",
+        "#f3dbbf",
+        "#f3d8bb",
+        "#f2d0b4",
+        "#f1d0b2",
+        "#f3d3bb"
+      ],
+      "hair": [
+        "#af9883",
+        "#c5ac93",
+        "#bea58f",
+        "#b79e88",
+        "#a8927e"
+      ],
+      "eyeLeft": [
+        "#4d453e",
+        "#353e3a",
+        "#87a69a"
+      ],
+      "eyeRight": [
+        "#353e3a",
+        "#4d453e",
+        "#87a69a"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "30b3a864c0ad2e29",
+    "label": "Winter Courier",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "WANDERER",
+        "HUNTER",
+        "LUMBERJACK"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      718,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f0d1c5",
+        "#ebbea2",
+        "#edcbb7",
+        "#f0d9c5",
+        "#f4dcc8",
+        "#edd0c0",
+        "#eccab6",
+        "#efd8c4",
+        "#eccaac"
+      ],
+      "hair": [
+        "#b39078",
+        "#c09a81",
+        "#a88570",
+        "#a2786c",
+        "#8d655e",
+        "#a3806c",
+        "#95675f",
+        "#cba588",
+        "#ac8272",
+        "#a2726c",
+        "#ab7c73",
+        "#976b63",
+        "#d7b091",
+        "#cba587",
+        "#ab8573",
+        "#a3816d",
+        "#b39079",
+        "#c09a82",
+        "#a47870",
+        "#9d755c",
+        "#b98b83",
+        "#a58069"
+      ],
+      "eyeLeft": [
+        "#9bb2bf"
+      ],
+      "eyeRight": [
+        "#9bb2bf"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "37f365f44d705e97",
+    "label": "Tawny Ranger",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "HUNTER",
+        "LUMBERJACK",
+        "WANDERER",
+        "HERDER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      716,
+      717,
+      718,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f5ddc4",
+        "#f1d0ae",
+        "#edc698",
+        "#d8c09a",
+        "#dac8a6"
+      ],
+      "hair": [
+        "#574c3d",
+        "#473e32",
+        "#655948",
+        "#766553",
+        "#665947",
+        "#6f614e",
+        "#635645",
+        "#5d5141",
+        "#605443",
+        "#776553",
+        "#695c4a",
+        "#726450",
+        "#6d5e4c",
+        "#776552",
+        "#766652",
+        "#393127",
+        "#625645",
+        "#5c5041"
+      ],
+      "eyeLeft": [
+        "#9bacba",
+        "#25587a",
+        "#4090c5"
+      ],
+      "eyeRight": [
+        "#25587a",
+        "#9bacba",
+        "#4090c5"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "39fd5d563b516852",
+    "label": "Copper Squire",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#fff0d6",
+        "#ffdfc2",
+        "#faccb4",
+        "#ffdac7",
+        "#ffd6c2",
+        "#fffbed"
+      ],
+      "hair": [
+        "#bd6238",
+        "#b85c32",
+        "#c76c42",
+        "#bd5f33",
+        "#b3562b",
+        "#bf6339",
+        "#c77048",
+        "#c27351",
+        "#c77242",
+        "#d1815c",
+        "#bd643b",
+        "#b85325",
+        "#db7e48",
+        "#cc764e",
+        "#bf6e3f",
+        "#d17339",
+        "#bf7b5e",
+        "#b35b32",
+        "#c26d46",
+        "#c27d55",
+        "#b86b3f",
+        "#d17743",
+        "#d4733b"
+      ],
+      "eyeLeft": [
+        "#787777",
+        "#7a3f20",
+        "#f78e59"
+      ],
+      "eyeRight": [
+        "#7a3f20",
+        "#787777",
+        "#f78e59"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "3b10b4b73dde6740",
+    "label": "Chainmail Elder",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD",
+        "WANDERER",
+        "HUNTER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-11-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      653,
+      654,
+      655,
+      712,
+      719,
+      776,
+      783,
+      840,
+      847,
+      904,
+      906,
+      907,
+      908,
+      909,
+      911,
+      968,
+      969,
+      970,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          11
+        ],
+        [
+          10,
+          11
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          11
+        ],
+        [
+          14,
+          11
+        ],
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#fee8d9",
+        "#fbd0bd",
+        "#fde0d5",
+        "#fff5f2",
+        "#f8b5a7",
+        "#f8b8a7"
+      ],
+      "hair": [
+        "#aeaeae",
+        "#b9b9b9",
+        "#cdcdcd",
+        "#9d9d9d",
+        "#9e9fa0",
+        "#acacac",
+        "#c8c8c8",
+        "#a99990"
+      ],
+      "eyeLeft": [
+        "#405a64",
+        "#7dafc6"
+      ],
+      "eyeRight": [
+        "#405a64",
+        "#7dafc6"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "3d8d01ae490eea89",
+    "label": "Meadow Steward",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FARMER",
+        "HERDER",
+        "LEADER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      654,
+      655,
+      713,
+      714,
+      717,
+      718,
+      904,
+      906,
+      907,
+      908,
+      909,
+      911,
+      968,
+      969,
+      970,
+      971,
+      972,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#ffc38f",
+        "#f7b479",
+        "#e6a66e",
+        "#f5b882",
+        "#f7c079",
+        "#eba263",
+        "#edad74"
+      ],
+      "hair": [
+        "#9e7f36",
+        "#9c7b33",
+        "#a88436",
+        "#876c2e",
+        "#856a2c",
+        "#ad8d42",
+        "#a88739",
+        "#a68331"
+      ],
+      "eyeLeft": [
+        "#314254"
+      ],
+      "eyeRight": [
+        "#314254"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "41fdc3f9556e2c85",
+    "label": "Forge Warden",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BLACKSMITH",
+        "MINER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      590,
+      591,
+      648,
+      655,
+      712,
+      713,
+      714,
+      717,
+      718,
+      719,
+      776,
+      783,
+      843,
+      844,
+      904,
+      906,
+      909,
+      911,
+      968,
+      969,
+      970,
+      971,
+      972,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#ceaa89",
+        "#c69d79",
+        "#c69d78",
+        "#ceaa88",
+        "#d6b79b",
+        "#c39065"
+      ],
+      "hair": [
+        "#1f1f1f",
+        "#2c2c2c",
+        "#121212",
+        "#393939"
+      ],
+      "eyeLeft": [
+        "#1d3922"
+      ],
+      "eyeRight": [
+        "#1d3922"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "44bbdbe8bfc5e173",
+    "label": "Cinder Stalker",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "HUNTER",
+        "WANDERER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      654,
+      655,
+      712,
+      719,
+      776,
+      783
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ],
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ],
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#fed1a2",
+        "#fdca93",
+        "#ffcd97",
+        "#fccd9a",
+        "#f9cfa2",
+        "#fad3a9",
+        "#fcc892",
+        "#ffd1a0",
+        "#fdc58a",
+        "#ffcf9b",
+        "#ffc180",
+        "#fccf9e",
+        "#fcd1a3",
+        "#fdd3a5",
+        "#fcc68c",
+        "#facb98",
+        "#fbd0a1"
+      ],
+      "hair": [
+        "#000000",
+        "#141414",
+        "#262626",
+        "#191919",
+        "#1d1d1d",
+        "#0c0c0c",
+        "#272727",
+        "#252525",
+        "#1b1b1b",
+        "#2e2e2e",
+        "#100000",
+        "#150000",
+        "#160000",
+        "#1b0000",
+        "#1f0000",
+        "#210000"
+      ],
+      "eyeLeft": [
+        "#291500"
+      ],
+      "eyeRight": [
+        "#291500"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "4d453b021f57d875",
+    "label": "Steel Page",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      589,
+      590,
+      591,
+      648,
+      655,
+      713,
+      714,
+      717,
+      718
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#e8bda2",
+        "#d6ab90",
+        "#e3b191",
+        "#dba584",
+        "#f0c6af",
+        "#f2cfba"
+      ],
+      "hair": [
+        "#8a5a3a",
+        "#734930",
+        "#7e5135"
+      ],
+      "eyeLeft": [
+        "#344d2e"
+      ],
+      "eyeRight": [
+        "#2e4d4c"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "4f21f0aea4c4df26",
+    "label": "Blueband Weaver",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "TANNER",
+        "MERCHANT"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      717,
+      718,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f2c8b8",
+        "#ebbdad",
+        "#e1ab98"
+      ],
+      "hair": [
+        "#7c533d",
+        "#8e5e45",
+        "#9f694d",
+        "#ae7657",
+        "#5a3d2d",
+        "#7b533d",
+        "#5d3f39",
+        "#4d342f"
+      ],
+      "eyeLeft": [
+        "#658a66",
+        "#5a7b5b"
+      ],
+      "eyeRight": [
+        "#658a66",
+        "#5a7b5b"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "4f3caecc3bcbd4b3",
+    "label": "Redcloak Mercenary",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD",
+        "WANDERER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      717,
+      718,
+      719,
+      776,
+      840,
+      904,
+      906,
+      907,
+      908,
+      909,
+      911,
+      968,
+      969,
+      970,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#ffc7aa",
+        "#f1bba1",
+        "#e0ad97",
+        "#d6a590",
+        "#ebb69d",
+        "#d9a791",
+        "#e3b098",
+        "#f7c0a5",
+        "#fdc5a9",
+        "#e5b29a",
+        "#dfac95",
+        "#e5b199",
+        "#e4aa8a",
+        "#dea586",
+        "#cab8ab",
+        "#ddac95"
+      ],
+      "hair": [
+        "#261d1a",
+        "#2c221e",
+        "#322722",
+        "#201816",
+        "#382c26",
+        "#3e312a",
+        "#35201d",
+        "#2c2020",
+        "#2b201f",
+        "#2b1f1b",
+        "#28201f",
+        "#271e1b",
+        "#312522",
+        "#241a17",
+        "#302520",
+        "#2b1f1c",
+        "#2a1e1a",
+        "#322622",
+        "#352821",
+        "#362925",
+        "#3d2e29",
+        "#1f1613",
+        "#201f1c",
+        "#332820",
+        "#342a20",
+        "#302620",
+        "#322720",
+        "#3a2f25",
+        "#392e24",
+        "#3b3126",
+        "#2d2218",
+        "#493e34",
+        "#483d33",
+        "#43382e"
+      ],
+      "eyeLeft": [
+        "#587d99"
+      ],
+      "eyeRight": [
+        "#587d99"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "53c47f41f4843651",
+    "label": "River Ranger",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "HUNTER",
+        "FISHER",
+        "WANDERER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      654,
+      655,
+      712,
+      719,
+      776,
+      783
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f2c18c",
+        "#f1c07c",
+        "#f1c282",
+        "#f2c285",
+        "#f3c68a",
+        "#f4c68f",
+        "#f2c186",
+        "#f0c180",
+        "#f4c997",
+        "#f6ca98",
+        "#f1c187",
+        "#f2c084",
+        "#f0bf81",
+        "#f1c08b",
+        "#f2c28f",
+        "#f3c590",
+        "#f0bf83",
+        "#f1c17f",
+        "#f1c186",
+        "#f1c183",
+        "#f3c388",
+        "#f0c17f",
+        "#f2c181",
+        "#f1c07e",
+        "#f1c281",
+        "#f2c282",
+        "#f1c284",
+        "#f2c38c",
+        "#f2c384",
+        "#efbf81",
+        "#f0bf82",
+        "#f2c082",
+        "#f1c07f",
+        "#f2c07e",
+        "#f3c386",
+        "#f3c387",
+        "#f2c289",
+        "#f2c385",
+        "#f3c38a",
+        "#f1c07d",
+        "#f4c78a",
+        "#f4c68c",
+        "#f2c185",
+        "#f3c182",
+        "#f2c17d",
+        "#f2c17c",
+        "#f2c182",
+        "#f3c385",
+        "#f4c387",
+        "#f1c180",
+        "#f3c285",
+        "#edbd7c",
+        "#efbf7e",
+        "#f1c082",
+        "#f3c286",
+        "#f1c081",
+        "#f1c184",
+        "#f3c284",
+        "#f3c280",
+        "#f2c081",
+        "#f2c180",
+        "#f2c284",
+        "#f2c17f",
+        "#f1c181",
+        "#f2c283",
+        "#f1c17e",
+        "#f1c384",
+        "#f1c17d",
+        "#f2c383"
+      ],
+      "hair": [
+        "#593720",
+        "#4e301c",
+        "#57361f",
+        "#462b19",
+        "#653f24",
+        "#56351f",
+        "#50321d",
+        "#5c3921",
+        "#4a2e1a",
+        "#4d301c",
+        "#53341e",
+        "#51321d",
+        "#4b2f1b",
+        "#492d1a",
+        "#54341e",
+        "#472c19",
+        "#5f3b22",
+        "#5a3820",
+        "#452b18",
+        "#4b2e1a",
+        "#563520",
+        "#4c301b",
+        "#4c2f1c",
+        "#52331e",
+        "#583721",
+        "#4f311d",
+        "#623d23",
+        "#4d301b",
+        "#56361f",
+        "#50321c",
+        "#663f24",
+        "#633d23",
+        "#4c2e1b",
+        "#58351f",
+        "#55351f",
+        "#603b22",
+        "#5d3921",
+        "#4e301d",
+        "#4e2f1c",
+        "#4b2f1c",
+        "#4c2f1d",
+        "#573820",
+        "#5c3a21",
+        "#57351f",
+        "#4b2e1d",
+        "#4f301c",
+        "#462c1c",
+        "#53321e",
+        "#593620",
+        "#4d311e",
+        "#402817",
+        "#492e1a",
+        "#53331f",
+        "#56361e",
+        "#51331d",
+        "#55351d",
+        "#472d19",
+        "#58371f",
+        "#4e311c",
+        "#4c2f1b",
+        "#50301d",
+        "#482b16",
+        "#4b2d1a",
+        "#4d301a",
+        "#50321e",
+        "#53351f",
+        "#593821",
+        "#583620",
+        "#583720",
+        "#53331e",
+        "#613d23",
+        "#5e3b21",
+        "#684025",
+        "#523c3b",
+        "#5b453d",
+        "#574139",
+        "#58433f",
+        "#533c3b",
+        "#5e463e",
+        "#59433b",
+        "#533f38",
+        "#533d34"
+      ],
+      "eyeLeft": [
+        "#0069d2",
+        "#0077ee"
+      ],
+      "eyeRight": [
+        "#0069d2",
+        "#0077ee"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "60de360ad6f920b5",
+    "label": "Tavern Keeper",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "INNKEEPER",
+        "BREWER",
+        "MERCHANT",
+        "BUTCHER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      651,
+      655,
+      713,
+      714,
+      717,
+      718,
+      906,
+      907,
+      908,
+      909,
+      971,
+      972
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f8cb9f",
+        "#e6b98d",
+        "#f2c69d",
+        "#e8be96",
+        "#d7cab0"
+      ],
+      "hair": [
+        "#4a230b",
+        "#5e2d0e",
+        "#421f05",
+        "#4c2306",
+        "#391a04",
+        "#472105"
+      ],
+      "eyeLeft": [
+        "#111111"
+      ],
+      "eyeRight": [
+        "#111111"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "79e429f5a1d75052",
+    "label": "Harbor Artisan",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FISHER",
+        "MERCHANT",
+        "QUARTERMASTER",
+        "BUILDER",
+        "MASON"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f2d6c8",
+        "#e7c1b3",
+        "#f7e4db",
+        "#ddaf9f",
+        "#eee6e4",
+        "#e1d5d2"
+      ],
+      "hair": [
+        "#3e302e",
+        "#362826",
+        "#2a1f1d",
+        "#483b37",
+        "#524440",
+        "#251d1d",
+        "#232c38",
+        "#1f2733",
+        "#1b222d",
+        "#2c3744"
+      ],
+      "eyeLeft": [
+        "#9399ac"
+      ],
+      "eyeRight": [
+        "#9399ac"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "7a4ccdc1295f53d9",
+    "label": "Holly Healer",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "CLERIC"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      716,
+      717,
+      718,
+      719,
+      776,
+      777,
+      782,
+      783,
+      840,
+      841,
+      842,
+      845,
+      846,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#e7c9bf",
+        "#d5b7ad",
+        "#dbc1b7",
+        "#e1c5bb",
+        "#e6cfc6",
+        "#e6c5bc",
+        "#e3cdc4",
+        "#e1cac2",
+        "#eccdc3"
+      ],
+      "hair": [
+        "#5b2023",
+        "#612526",
+        "#662828",
+        "#6b2b29",
+        "#712d2b",
+        "#6e2c2a",
+        "#742e2c"
+      ],
+      "eyeLeft": [
+        "#3f453f"
+      ],
+      "eyeRight": [
+        "#3f453f"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "898da1514048e8fb",
+    "label": "Olive Seamstress",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "TANNER",
+        "INNKEEPER",
+        "BAKER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      841,
+      842,
+      845,
+      846,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#d9a07a",
+        "#d68368",
+        "#ddaf88",
+        "#f3c494",
+        "#cc6d5d",
+        "#e3b99e",
+        "#e0b794",
+        "#e4bfa1",
+        "#de9a85",
+        "#f3c493",
+        "#e0b793",
+        "#ddaf87",
+        "#de9b86",
+        "#d68468"
+      ],
+      "hair": [
+        "#5d463d",
+        "#4e3a33",
+        "#765e4d",
+        "#836855",
+        "#6d5446",
+        "#3f2f29",
+        "#92745f",
+        "#5d483c"
+      ],
+      "eyeLeft": [
+        "#c67b74"
+      ],
+      "eyeRight": [
+        "#c67b74"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "a1c611001ee708ed",
+    "label": "Copper Herbalist",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "CLERIC",
+        "FARMER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#fff0d6",
+        "#ffdfc2",
+        "#faccb4",
+        "#ffdac7",
+        "#ffd6c2",
+        "#fffbed",
+        "#f2e4cb",
+        "#f7f0d5",
+        "#fcf9dc"
+      ],
+      "hair": [
+        "#bd6238",
+        "#b85c32",
+        "#c76c42",
+        "#ad5a33",
+        "#b86233",
+        "#bd5f33",
+        "#b3562b",
+        "#bf6339",
+        "#c77048",
+        "#c27351",
+        "#c77242",
+        "#d1815c",
+        "#bd643b",
+        "#b85325",
+        "#db7e48",
+        "#cc764e",
+        "#bf6e3f",
+        "#d17339",
+        "#bf7b5e",
+        "#b35b32",
+        "#c46735",
+        "#c26d46",
+        "#c27d55",
+        "#b86b3f",
+        "#d17743",
+        "#d4733b",
+        "#ba673a",
+        "#d57f4a",
+        "#c36f49",
+        "#cf6d38"
+      ],
+      "eyeLeft": [
+        "#787777",
+        "#7a3f20",
+        "#f78e59"
+      ],
+      "eyeRight": [
+        "#7a3f20",
+        "#787777",
+        "#f78e59"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "b89b7cac69be5259",
+    "label": "Village Clerk",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "LIBRARIAN",
+        "QUARTERMASTER",
+        "LEADER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#f7d7c8",
+        "#da9485",
+        "#d8c9c2",
+        "#dfd2cc",
+        "#e5ddd8",
+        "#efecea",
+        "#eaa192",
+        "#edb29e",
+        "#f0bbaa",
+        "#f0cbb8",
+        "#f8e3d7",
+        "#c88b7d",
+        "#e2a38f",
+        "#df9489",
+        "#e2b67a"
+      ],
+      "hair": [
+        "#423935",
+        "#51433e",
+        "#473c39",
+        "#584943",
+        "#5d4c45",
+        "#50423d",
+        "#574842"
+      ],
+      "eyeLeft": [
+        "#b19285",
+        "#493027",
+        "#775f56"
+      ],
+      "eyeRight": [
+        "#493027",
+        "#b19285",
+        "#775f56"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "c32cab00da430830",
+    "label": "Midnight Smith",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BLACKSMITH"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-11",
+    "frontHairOcclusion": [
+      520,
+      523,
+      524,
+      527,
+      648,
+      649,
+      650,
+      653,
+      654,
+      655,
+      840,
+      842,
+      843,
+      844,
+      845,
+      847,
+      904,
+      906,
+      909,
+      911,
+      968,
+      969,
+      970,
+      971,
+      972,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          11
+        ],
+        [
+          10,
+          11
+        ]
+      ],
+      "right": [
+        [
+          13,
+          11
+        ],
+        [
+          14,
+          11
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#b99169",
+        "#987654",
+        "#967757",
+        "#a8825d",
+        "#ba936c",
+        "#b48d66",
+        "#cb9f73",
+        "#be946a",
+        "#e0b07f",
+        "#d5a677",
+        "#997858",
+        "#b08a63",
+        "#b58f68",
+        "#c79c71",
+        "#d4a77b",
+        "#aa8560",
+        "#bf966c",
+        "#a47d56",
+        "#946f4b",
+        "#cd9c6b",
+        "#b88c60",
+        "#ab8158",
+        "#d0a070",
+        "#d6a87a",
+        "#876849",
+        "#9f7850",
+        "#8c6946",
+        "#a88058",
+        "#be9063",
+        "#a17c57",
+        "#9b7854",
+        "#a57f59",
+        "#937250"
+      ],
+      "hair": [
+        "#010101",
+        "#050505",
+        "#090909",
+        "#161515",
+        "#111010",
+        "#080808",
+        "#080707",
+        "#0d0c0c",
+        "#0a0a0a",
+        "#0b0b0b",
+        "#060606",
+        "#0e0e0e",
+        "#141414",
+        "#0d0d0d",
+        "#121212",
+        "#131313",
+        "#0f0f0f",
+        "#141313",
+        "#1a1919",
+        "#030202",
+        "#121111",
+        "#040404",
+        "#000000",
+        "#030303",
+        "#1f1e1e",
+        "#1d1c1c",
+        "#1c1b1b",
+        "#090c13",
+        "#0d121c",
+        "#101621",
+        "#040405",
+        "#0c101a",
+        "#090a0b",
+        "#070809",
+        "#070a0f",
+        "#06070a",
+        "#0b0c0e",
+        "#0a0b0d",
+        "#060708",
+        "#0d0e11",
+        "#131417",
+        "#0f1113",
+        "#0e0f11",
+        "#0d0f12",
+        "#0c0d0f",
+        "#111317",
+        "#16171b",
+        "#141518",
+        "#17191f",
+        "#1d1f24",
+        "#1a1c20",
+        "#13151a",
+        "#191b1f",
+        "#15161a",
+        "#101216"
+      ],
+      "eyeLeft": [
+        "#0d1e2e"
+      ],
+      "eyeRight": [
+        "#0d1e2e"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "c52853050b8e175a",
+    "label": "Azure Dancer",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "INNKEEPER",
+        "MERCHANT"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#fdd3ab",
+        "#fbcca4",
+        "#fbc494",
+        "#f9b986",
+        "#fbc697",
+        "#fcc497",
+        "#fbc798",
+        "#fbc595",
+        "#fbc596",
+        "#fcc495",
+        "#fcc89e",
+        "#fbcda3",
+        "#fbcea4",
+        "#fccfa5",
+        "#fccba2",
+        "#fcc99e",
+        "#fdd5ae",
+        "#fdd7af",
+        "#fcd3ab",
+        "#fccca4",
+        "#fbd0ae",
+        "#fcd1ab",
+        "#fcd1ae",
+        "#fbcba1",
+        "#fccda2",
+        "#fccea2",
+        "#fcd3ae",
+        "#fcd5af",
+        "#fcd4ac",
+        "#fcd1aa",
+        "#fdd5b4",
+        "#fbcfab",
+        "#fccfa9",
+        "#fccfaa",
+        "#fcd1a9",
+        "#fdd3ad",
+        "#fcd5b0",
+        "#fbc79b",
+        "#fbcca5",
+        "#fcd3ac",
+        "#fbcaa2",
+        "#fbc89d",
+        "#fdd3aa",
+        "#fcd2a9",
+        "#fcd4af",
+        "#fbca9f",
+        "#fcc8a0",
+        "#fbcca1",
+        "#fdd5ad",
+        "#fdd5b0",
+        "#fddcb8",
+        "#fcd5b1",
+        "#fbcba0",
+        "#fac49b",
+        "#f9bb8f",
+        "#fac498",
+        "#f9bd8f",
+        "#fac89e",
+        "#fac595",
+        "#fdd2a6",
+        "#fbc79f",
+        "#fac299",
+        "#fbcaa1",
+        "#fac494",
+        "#fdd2ab",
+        "#fbc99f",
+        "#fcd1a8",
+        "#fac89d",
+        "#fdd2a8",
+        "#f9bd8e",
+        "#fac59e",
+        "#fbc89e",
+        "#fbc99e",
+        "#fbc79a",
+        "#fac396",
+        "#fbc9a3",
+        "#fdd0a7",
+        "#fdd4ac",
+        "#fdd3a9",
+        "#fcd1a7",
+        "#fdd0a9",
+        "#fbc9a2",
+        "#fcd1ac",
+        "#fcd1a5",
+        "#fac39a",
+        "#f9c193",
+        "#fac39b",
+        "#fbc8a1",
+        "#fdd3af",
+        "#fdd4ae",
+        "#fdd6b0",
+        "#fdd8b2",
+        "#fdd0ab",
+        "#fbc9a1",
+        "#f8bd92",
+        "#f8be91",
+        "#fbcb9d",
+        "#fdd1a6",
+        "#fed7ae",
+        "#fed9b4",
+        "#fdd1ac",
+        "#fbc59d",
+        "#fac298",
+        "#fac59c",
+        "#fcd2ab",
+        "#fcd0a9",
+        "#fdd1a9",
+        "#f9be94",
+        "#fac59a",
+        "#fac798",
+        "#fbc89b",
+        "#fdd5ab",
+        "#fdd1a8",
+        "#fac79c",
+        "#f9be8e",
+        "#fac496",
+        "#fac79b",
+        "#fcd1a6",
+        "#fbca9d",
+        "#fcd0a4",
+        "#fbc99d",
+        "#fac497",
+        "#f9c296",
+        "#f9bf92",
+        "#f8bd90",
+        "#f8bb8b",
+        "#f8be90",
+        "#f9c396",
+        "#fac597",
+        "#fbc89c",
+        "#fdd3ac",
+        "#fed5af",
+        "#fdd9b0",
+        "#fdd6ac",
+        "#fdd2aa",
+        "#fbc99b",
+        "#fbc59c",
+        "#fbc8a0",
+        "#fdd1ab",
+        "#fdd2ac",
+        "#fbcaa4",
+        "#fac9a1",
+        "#fbcba4",
+        "#fac495",
+        "#f9bc8c",
+        "#f8bd93",
+        "#f9bf95",
+        "#f9ba8b",
+        "#fbc397",
+        "#fed8b8",
+        "#ffddbf",
+        "#ffdeb8",
+        "#fed8b0",
+        "#f9c49b",
+        "#f9bf8f",
+        "#fdd1a7",
+        "#fdd2a9",
+        "#fbc79e",
+        "#fcd0a7",
+        "#f8be8d",
+        "#fbceab",
+        "#fbcdaa",
+        "#fccea6",
+        "#f9c59b",
+        "#fccfa7",
+        "#f8c197",
+        "#f8c19c",
+        "#f9c5a1",
+        "#fac59b",
+        "#fccfac",
+        "#fcceaa",
+        "#fccfaf",
+        "#fdd6b6",
+        "#fdd4ad",
+        "#fcd2aa",
+        "#fcd6b3",
+        "#f8c297",
+        "#fccfad",
+        "#fcd3ad",
+        "#f8c398",
+        "#fed5ab",
+        "#f7ba93",
+        "#f8c19b",
+        "#f7bb91",
+        "#f8c198",
+        "#fac49a",
+        "#fac294",
+        "#fac69e",
+        "#fbcaa0",
+        "#fbcdac",
+        "#fdd5ac",
+        "#fcd1b1",
+        "#fbc69d",
+        "#fdd2ad",
+        "#fdd3ae",
+        "#fed7b4",
+        "#f8bf8e",
+        "#f9c596",
+        "#fcd2a8",
+        "#fcd3aa",
+        "#fdd6ae",
+        "#fdcfaa",
+        "#fcd3a8",
+        "#fcd2a7",
+        "#f7ba91",
+        "#f9be8f",
+        "#f8bd8b",
+        "#f9bd91",
+        "#fac198",
+        "#fac699",
+        "#fbca9e",
+        "#fbcb9f",
+        "#fbca9c",
+        "#fac596",
+        "#f7bb96",
+        "#f9bb90",
+        "#f9bc8e",
+        "#f9be90",
+        "#f8bb90",
+        "#fac49c",
+        "#fbc7a0",
+        "#fcca9e",
+        "#f9bc91",
+        "#fac296",
+        "#fbc79c",
+        "#fdd2ae",
+        "#fdd0a6",
+        "#fdd1ad"
+      ],
+      "hair": [
+        "#c58d65",
+        "#ce9d70",
+        "#d4a777",
+        "#d8af7e",
+        "#ddb986",
+        "#e6b265",
+        "#d9b07e",
+        "#ddba86",
+        "#bd8259"
+      ],
+      "eyeLeft": [
+        "#568022"
+      ],
+      "eyeRight": [
+        "#568022"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "d0c52fd5e54a1d9e",
+    "label": "Jade Mystic",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "CLERIC",
+        "LIBRARIAN"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      654,
+      655,
+      712,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      840,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#b38b7e",
+        "#a47f74",
+        "#b3806f",
+        "#b88472",
+        "#a97969",
+        "#855f52",
+        "#a27464",
+        "#9f9a95"
+      ],
+      "hair": [
+        "#181818",
+        "#1c1c1c",
+        "#151515",
+        "#171717",
+        "#1a1a1a",
+        "#1f1f1f",
+        "#212121",
+        "#1e1e1e",
+        "#202020",
+        "#0f0f0f",
+        "#191919",
+        "#222222",
+        "#1b1b1b",
+        "#1d1d1d",
+        "#161616",
+        "#131313",
+        "#141414",
+        "#232323",
+        "#000000"
+      ],
+      "eyeLeft": [
+        "#ababab"
+      ],
+      "eyeRight": [
+        "#b9b9b9"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "d6efb68ea0d6fd1e",
+    "label": "Woodland Farmer",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FARMER",
+        "HERDER",
+        "LUMBERJACK"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      653,
+      654,
+      655,
+      712,
+      713,
+      719,
+      777,
+      778,
+      781,
+      782
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#facc91",
+        "#f5c689",
+        "#e4b48c",
+        "#ebbf9a",
+        "#e2b087",
+        "#f3c39c",
+        "#f2bc91",
+        "#deb695",
+        "#f3bf96",
+        "#f2ba8c",
+        "#e5b791",
+        "#f8c59b",
+        "#f1ba8e",
+        "#ebbf9c",
+        "#dcaf8b",
+        "#e7b48b",
+        "#f6c195",
+        "#eebd96",
+        "#f3c59f",
+        "#ebb990",
+        "#e5b187",
+        "#e3b794",
+        "#eec29f",
+        "#e0b08a",
+        "#e1ae85",
+        "#e4b58f",
+        "#e6bc9a",
+        "#f5c399",
+        "#edbb93",
+        "#e5b28a",
+        "#e3b189",
+        "#e7b993",
+        "#dbab85",
+        "#e8b388",
+        "#f2bd92",
+        "#ecba92",
+        "#e3b58f",
+        "#f0c39f",
+        "#efc19c",
+        "#e4bd9d",
+        "#f7be8e",
+        "#efbf99",
+        "#e7b38a",
+        "#edbd7e",
+        "#e3bc9c",
+        "#dfb696",
+        "#f1c19a",
+        "#eebe97",
+        "#efbd94",
+        "#edb88d",
+        "#e6b690",
+        "#ddab83",
+        "#f2c6a2",
+        "#edb88e",
+        "#ecbf9b",
+        "#efbd95",
+        "#ebba94",
+        "#e5bb9a",
+        "#ecc2a0",
+        "#f5c49c",
+        "#e7b185",
+        "#f8c69d",
+        "#fac79e",
+        "#edb98f",
+        "#e8bc98",
+        "#f1c39e",
+        "#f5bd8e",
+        "#eaba92",
+        "#efb688",
+        "#f7c297",
+        "#f3c6a2",
+        "#edba8f"
+      ],
+      "hair": [
+        "#533e27",
+        "#644b2f",
+        "#765837",
+        "#42311f",
+        "#86653f"
+      ],
+      "eyeLeft": [
+        "#36642f",
+        "#2d5327"
+      ],
+      "eyeRight": [
+        "#36642f",
+        "#2d5327"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "de0fe96cd98e19a0",
+    "label": "Redsteel Knight",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      655,
+      713,
+      714,
+      717,
+      718,
+      840,
+      841,
+      844,
+      907,
+      908,
+      968,
+      974
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#a27b5d",
+        "#90694b",
+        "#a27c5d",
+        "#b89375",
+        "#a17b5c",
+        "#b09077",
+        "#826c5a",
+        "#b79274",
+        "#88745b",
+        "#876e59",
+        "#967c67",
+        "#a1896c",
+        "#b2895f",
+        "#a07a53",
+        "#b89376"
+      ],
+      "hair": [
+        "#50392a",
+        "#2f2117",
+        "#6c4d39",
+        "#402d20",
+        "#604934",
+        "#352f29",
+        "#483f38",
+        "#523e2d",
+        "#231811",
+        "#37271c",
+        "#2a2520",
+        "#27231e",
+        "#483828",
+        "#574635",
+        "#503d2c",
+        "#674d43",
+        "#5a4e3e",
+        "#614c36",
+        "#35291d",
+        "#4d3d2f",
+        "#463c32",
+        "#5c4632",
+        "#735337"
+      ],
+      "eyeLeft": [
+        "#090a10"
+      ],
+      "eyeRight": [
+        "#090a10"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "f276a973570b1d2e",
+    "label": "Snowsteel Guard",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "GUARD"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      653,
+      654,
+      655,
+      713,
+      719,
+      776,
+      777,
+      778,
+      781,
+      782,
+      783,
+      905,
+      906,
+      907,
+      908,
+      909,
+      910,
+      968,
+      969,
+      970,
+      973,
+      974,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#ac8878",
+        "#9a7666",
+        "#b6998a",
+        "#ae8e7e",
+        "#99725f",
+        "#a68371",
+        "#a78170",
+        "#9d7866",
+        "#a47b69",
+        "#bb9d90",
+        "#a07c6d",
+        "#997363",
+        "#b3968a",
+        "#b8998b",
+        "#b89788",
+        "#ad8f82"
+      ],
+      "hair": [
+        "#40241b",
+        "#3d221a",
+        "#361e17",
+        "#5b3b30",
+        "#44251a",
+        "#5a392d",
+        "#553428",
+        "#4b2f25",
+        "#5e3526",
+        "#553225",
+        "#523124",
+        "#382119",
+        "#5d382a",
+        "#6d402f",
+        "#392018",
+        "#512e22",
+        "#4f2f23",
+        "#341d16",
+        "#43261b",
+        "#392017",
+        "#3e2319",
+        "#341d15",
+        "#6d3f2f",
+        "#402317",
+        "#71402e",
+        "#814a36",
+        "#3a2016",
+        "#512c1e",
+        "#784432",
+        "#855240",
+        "#5e3323",
+        "#7e4e3c",
+        "#684133"
+      ],
+      "eyeLeft": [
+        "#10290c"
+      ],
+      "eyeRight": [
+        "#10290c"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "f4f67ce2493f7711",
+    "label": "Canvas Porter",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BUILDER",
+        "MASON",
+        "QUARTERMASTER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      652,
+      653,
+      655,
+      712,
+      719,
+      777,
+      778,
+      781,
+      782
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#ffe8d4",
+        "#fce3d0",
+        "#fbdfc9",
+        "#fde7d5",
+        "#ffe4cc",
+        "#ffe6d1"
+      ],
+      "hair": [
+        "#6a4e42",
+        "#60483e",
+        "#6f5246",
+        "#7a5a4d",
+        "#6b5044",
+        "#75574a",
+        "#5c443a"
+      ],
+      "eyeLeft": [
+        "#619fa0"
+      ],
+      "eyeRight": [
+        "#619fa0"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "f96a2086fe254e12",
+    "label": "Harvest Baker",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "male",
+      "skin": "nonbinary",
+      "clothing": "male",
+      "hair": "male",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BAKER",
+        "INNKEEPER",
+        "BUTCHER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      655,
+      712,
+      713,
+      714,
+      717,
+      718,
+      719,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          8,
+          12
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ],
+        [
+          15,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#eab99c",
+        "#d5a387",
+        "#d8a490",
+        "#d9a490",
+        "#dda992",
+        "#cc9b87",
+        "#e1ac95",
+        "#edb49e",
+        "#d8a48f",
+        "#fdc1ab",
+        "#d7a68a",
+        "#eebea3",
+        "#ebbca1",
+        "#ea967d",
+        "#ea967e",
+        "#e0b194",
+        "#ce9e82",
+        "#d7a589",
+        "#e2b396",
+        "#dfae90",
+        "#e9b19b",
+        "#eeb49f",
+        "#cf9c89",
+        "#e4ae9a",
+        "#cb9b88",
+        "#f5baa6"
+      ],
+      "hair": [
+        "#443117",
+        "#4a3518",
+        "#412e15",
+        "#4e381a",
+        "#4f3a1e",
+        "#4a361c",
+        "#46341b",
+        "#493314",
+        "#533c1b",
+        "#584121",
+        "#39250b",
+        "#3f2a0c",
+        "#36230a",
+        "#462e10",
+        "#5a3e15",
+        "#533e20",
+        "#3d2d1c",
+        "#332517",
+        "#432d0e",
+        "#443012"
+      ],
+      "eyeLeft": [
+        "#06232c"
+      ],
+      "eyeRight": [
+        "#06232c"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "fc5539659be64faa",
+    "label": "Ivory Scribe",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "LIBRARIAN",
+        "QUARTERMASTER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      590,
+      591,
+      648,
+      655,
+      713,
+      714,
+      717,
+      718,
+      719
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#eac2a9",
+        "#e2baa0",
+        "#e4c0a8",
+        "#e8c0a7",
+        "#edd3c3",
+        "#e3bda4",
+        "#eec7b0",
+        "#e9c2a9",
+        "#e1ab9f",
+        "#d5ae95",
+        "#e2b99f",
+        "#ebc6af",
+        "#ecc8b0",
+        "#eac4aa",
+        "#e1b09f",
+        "#e5bca2",
+        "#eac3aa",
+        "#e2b99e",
+        "#e8bda4",
+        "#eac0a6",
+        "#e1b89f",
+        "#e7bcb2",
+        "#ecc0a7",
+        "#edc5a2",
+        "#e8c2a0",
+        "#ebc5ad",
+        "#e9c29e"
+      ],
+      "hair": [
+        "#2c1f1a",
+        "#2f201c",
+        "#342620",
+        "#31221d",
+        "#33251f",
+        "#32231e",
+        "#31231d",
+        "#33241e",
+        "#30231d",
+        "#352620",
+        "#382822",
+        "#2c1e1a",
+        "#31221e",
+        "#382923",
+        "#2d1f1b",
+        "#362721",
+        "#392822",
+        "#3b2a23",
+        "#372721",
+        "#2e211b",
+        "#372722",
+        "#392823",
+        "#352520",
+        "#3b2924",
+        "#33231e",
+        "#3a2a24",
+        "#3b2a24",
+        "#32241e",
+        "#392923",
+        "#30231e",
+        "#2b1e19",
+        "#372822",
+        "#34251f",
+        "#32231d",
+        "#30221d",
+        "#2e211c",
+        "#2e201c",
+        "#392924",
+        "#2c1e1b",
+        "#291d19",
+        "#2f221d",
+        "#30211d",
+        "#30221c",
+        "#30211c",
+        "#2f221c",
+        "#342520",
+        "#362620",
+        "#34241f",
+        "#362621",
+        "#34241e",
+        "#2d201b",
+        "#31241e",
+        "#3c2a25",
+        "#352721",
+        "#392a24",
+        "#30221e",
+        "#2f211d",
+        "#32231f",
+        "#3c2b24",
+        "#35251f",
+        "#3a2923",
+        "#382823",
+        "#3d2b26",
+        "#33241f",
+        "#3a2924",
+        "#3d2c26",
+        "#382721"
+      ],
+      "eyeLeft": [
+        "#5d3c27"
+      ],
+      "eyeRight": [
+        "#5d3c27"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "fcd9bd053a34702e",
+    "label": "Sapphire Envoy",
+    "model": "wide",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "nonbinary",
+      "skin": "nonbinary",
+      "clothing": "nonbinary",
+      "hair": "nonbinary",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "LEADER",
+        "MERCHANT",
+        "QUARTERMASTER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-13-14",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      650,
+      651,
+      652,
+      653,
+      654,
+      655,
+      712,
+      713,
+      714,
+      715,
+      716,
+      717,
+      718,
+      719,
+      776,
+      777,
+      778,
+      779,
+      781,
+      782,
+      783,
+      840,
+      847
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          13
+        ],
+        [
+          10,
+          13
+        ],
+        [
+          9,
+          14
+        ],
+        [
+          10,
+          14
+        ]
+      ],
+      "right": [
+        [
+          13,
+          13
+        ],
+        [
+          14,
+          13
+        ],
+        [
+          13,
+          14
+        ],
+        [
+          14,
+          14
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#be917a",
+        "#b7866d",
+        "#c19384",
+        "#c4927a",
+        "#b6846d",
+        "#bf927d",
+        "#c49a87",
+        "#b88670",
+        "#ba8873",
+        "#bb8c77",
+        "#c69d8c",
+        "#bd8f7a",
+        "#bf927c",
+        "#ba8772",
+        "#bb8c78",
+        "#c09482",
+        "#c29885",
+        "#bd907a",
+        "#bc8a76",
+        "#bd8e7a",
+        "#c19381",
+        "#c29785",
+        "#c49986",
+        "#c29684"
+      ],
+      "hair": [
+        "#211f1e",
+        "#272626",
+        "#2e2c2a",
+        "#141212",
+        "#462020"
+      ],
+      "eyeLeft": [
+        "#7d7978",
+        "#6a3f1b",
+        "#563112"
+      ],
+      "eyeRight": [
+        "#6a3f1b",
+        "#7d7978",
+        "#563112"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "mara-the-dyer",
+    "label": "Mara the Dyer",
+    "model": "slim",
+    "disabledParts": [],
+    "genderCategories": {
+      "source": "female",
+      "skin": "nonbinary",
+      "clothing": "female",
+      "hair": "female",
+      "eyes": "nonbinary",
+      "eyeLeft": "nonbinary",
+      "eyeRight": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "TANNER",
+        "BAKER",
+        "INNKEEPER",
+        "MERCHANT",
+        "BREWER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "faceProfile": "eye-y-12",
+    "frontHairOcclusion": [
+      520,
+      521,
+      522,
+      523,
+      524,
+      525,
+      526,
+      527,
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      648,
+      649,
+      651,
+      652,
+      655,
+      712,
+      713,
+      714,
+      717,
+      718,
+      719,
+      776,
+      783,
+      840,
+      847,
+      904,
+      911,
+      968,
+      975
+    ],
+    "eyes": {
+      "left": [
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ],
+      "right": [
+        [
+          13,
+          12
+        ],
+        [
+          14,
+          12
+        ]
+      ]
+    },
+    "pigmentColors": {
+      "skin": [
+        "#b87554",
+        "#8e513a"
+      ],
+      "hair": [
+        "#3a271f",
+        "#241813"
+      ],
+      "eyeLeft": [
+        "#7fb6b2"
+      ],
+      "eyeRight": [
+        "#7fb6b2"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "skin.png": {},
+      "clothing.png": {},
+      "hair.png": {},
+      "eyes-left.png": {},
+      "eyes-right.png": {}
+    }
+  },
+  {
+    "slug": "trader-guy-3-clothing",
+    "label": "Trader Guy 3 Clothing",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "WANDERING_MERCHANT"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": true,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "coal-dust-miner",
+    "label": "Coal-Dust Miner",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "MINER",
+        "MASON",
+        "BUILDER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "deep-shaft-worker",
+    "label": "Deep-Shaft Worker",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "MINER",
+        "MASON",
+        "BUILDER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "stone-yard-cutter",
+    "label": "Stone-Yard Cutter",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "MINER",
+        "MASON",
+        "BUILDER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "village-smith-apron",
+    "label": "Village Smith Apron",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BLACKSMITH"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "foundry-apron",
+    "label": "Foundry Apron",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BLACKSMITH"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "fieldhand-tunic",
+    "label": "Fieldhand Tunic",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FARMER",
+        "HERDER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "shepherds-coat",
+    "label": "Shepherd's Coat",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FARMER",
+        "HERDER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "parish-cleric",
+    "label": "Parish Cleric",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "CLERIC"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "travelling-healer",
+    "label": "Travelling Healer",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "CLERIC"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "river-fisher-oilskin",
+    "label": "River Fisher Oilskin",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FISHER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "dock-fishmonger",
+    "label": "Dock Fishmonger",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "FISHER",
+        "BUTCHER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "smokehouse-butcher",
+    "label": "Smokehouse Butcher",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BUTCHER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "bakehouse-apron",
+    "label": "Bakehouse Apron",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BAKER",
+        "BUTCHER",
+        "INNKEEPER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "guild-baker",
+    "label": "Guild Baker",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BAKER",
+        "INNKEEPER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "archive-librarian",
+    "label": "Archive Librarian",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "LIBRARIAN"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "field-scholar",
+    "label": "Field Scholar",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "LIBRARIAN"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "bark-tanner-apron",
+    "label": "Bark Tanner Apron",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "TANNER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "leather-currier",
+    "label": "Leather Currier",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "TANNER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "cellar-brewer",
+    "label": "Cellar Brewer",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BREWER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "guild-brewer",
+    "label": "Guild Brewer",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [
+        "BREWER"
+      ],
+      "lifeStages": [
+        "adult"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "playday-smock",
+    "label": "Playday Smock",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "patchwork-child-tunic",
+    "label": "Patchwork Child Tunic",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "young-apprentice",
+    "label": "Young Apprentice",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "winter-child-coat",
+    "label": "Winter Child Coat",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "nonbinary"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "sunday-child-tunic",
+    "label": "Sunday Child Tunic",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "male"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "pages-doublet",
+    "label": "Page's Doublet",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "male"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "market-day-pinafore",
+    "label": "Market-Day Pinafore",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "female"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  },
+  {
+    "slug": "festival-child-dress",
+    "label": "Festival Child Dress",
+    "model": "universal",
+    "disabledParts": [],
+    "genderCategories": {
+      "clothing": "female"
+    },
+    "clothingProfile": {
+      "occupations": [],
+      "lifeStages": [
+        "child"
+      ]
+    },
+    "headwearOccludesHair": false,
+    "files": {
+      "clothing.png": {}
+    }
+  }
+]

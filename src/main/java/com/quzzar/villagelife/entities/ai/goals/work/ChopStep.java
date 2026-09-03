@@ -11,6 +11,7 @@ import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.TreeFelling;
+import com.quzzar.villagelife.village.Village;
 
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -22,6 +23,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
@@ -75,6 +77,15 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
   /** Vertical reach of the bounded woodland scan around a worker's post. */
   private static final int WOODLAND_VERTICAL_RADIUS = 8;
 
+  /**
+   * The most a village-wide sweep reaches from the claim centre, so a very large
+   * town caps the per-scan work rather than reading a quarter-million blocks at
+   * once. Beyond it the far corners wait for the lumberjack to drift their way,
+   * as they did before. Generous: the pass only runs in the stand's regrowth
+   * lulls, not every tick.
+   */
+  private static final int VILLAGE_SCAN_CAP = 64;
+
   /** Beside the trunk or under it: arm's length across the ground, squared. */
   private static final double HORIZONTAL_REACH_SQR = 6.0D;
 
@@ -99,6 +110,13 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
   private final int woodlandRadius;
   private final float woodlandChance;
   private final int woodlandScanTicks;
+  /**
+   * Village-wide: the lumberjack's pass, centred on the whole claim rather than
+   * a bubble around the worker, so a wild tree anywhere in town is walked to and
+   * felled and the streets stay clear, not only the ground by the lodge. Off is
+   * the guard's pass: a bounded ring around wherever they patrol.
+   */
+  private final boolean villageWide;
 
   private final ShortageWatch dry = new ShortageWatch();
 
@@ -108,20 +126,32 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
 
   /** The lumberjack's planted stand: deterministic, renewable primary work. */
   public ChopStep() {
-    this(0, 0.0F, 20);
+    this(0, 0.0F, 20, false);
+  }
+
+  /** A bounded idle woodland pass around the worker (the guard's), off the claim. */
+  public ChopStep(int woodlandRadius, float woodlandChance, int woodlandScanTicks) {
+    this(woodlandRadius, woodlandChance, woodlandScanTicks, false);
   }
 
   /**
-   * A bounded idle woodland pass shared by lumberjacks and guards.
+   * An idle woodland pass. With {@code villageWide} the scan is the whole
+   * village claim plus {@code woodlandRadius} of margin past its edge (the
+   * lumberjack, keeping the town clear); without it the scan is a box of
+   * {@code woodlandRadius} around wherever the worker stands (the guard, or the
+   * lumberjack before a claim exists).
    *
-   * @param woodlandRadius    horizontal distance from where the worker stands
+   * @param woodlandRadius    village-wide: margin past the claim edge; otherwise
+   *                          the box's half-width around the worker
    * @param woodlandChance    chance that a scan elects to fell one tree
    * @param woodlandScanTicks ticks between scans while idle
+   * @param villageWide       sweep the whole claim rather than a bubble
    */
-  public ChopStep(int woodlandRadius, float woodlandChance, int woodlandScanTicks) {
+  public ChopStep(int woodlandRadius, float woodlandChance, int woodlandScanTicks, boolean villageWide) {
     this.woodlandRadius = woodlandRadius;
     this.woodlandChance = woodlandChance;
     this.woodlandScanTicks = woodlandScanTicks;
+    this.villageWide = villageWide;
   }
 
   @Override
@@ -131,13 +161,14 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
       return null;
     }
     if (this.woodlandRadius > 0) {
-      // The idle pass sweeps around wherever the worker is standing, not a
-      // fixed post, so as a guard patrols or a lumberjack roams they clear the
-      // natural trees ringing the village rather than only those at one spot.
+      // The guard's pass sweeps a bubble around wherever they patrol; the
+      // lumberjack's sweeps the whole village claim, so a wild tree anywhere in
+      // town is walked to and felled rather than only those near one spot.
       if (person.isInventoryFull() || person.getRandom().nextFloat() >= this.woodlandChance) {
         return null;
       }
-      return findWoodlandTree(person, level, person.blockPosition());
+      Scan scan = woodlandScan(person);
+      return findWoodlandTree(person, level, scan.center(), scan.radius());
     }
     BlockPos post = LocationManager.getJobLocation(person);
     if (post == BlockPos.ZERO) {
@@ -311,6 +342,34 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
     }
   }
 
+  /** A place to scan around and how far out from it: see {@link #woodlandScan}. */
+  private record Scan(BlockPos center, int radius) {
+  }
+
+  /**
+   * Where this pass looks and how far. The lumberjack's village-wide pass is
+   * centred on the whole claim (its centre, out to its half-span plus a margin,
+   * capped at {@link #VILLAGE_SCAN_CAP}) so every street is swept; the guard's,
+   * and the lumberjack's before a claim exists, is a bubble around the worker.
+   * The claim carries no height, so the sweep sits at the worker's own Y and
+   * leans on the vertical reach for the rest: village ground is graded near
+   * level.
+   */
+  private Scan woodlandScan(RealPerson person) {
+    if (this.villageWide) {
+      Village village = person.getVillage();
+      BoundingBox claim = village == null ? null : village.getClaimFootprint();
+      if (claim != null) {
+        int centerX = (claim.minX() + claim.maxX()) / 2;
+        int centerZ = (claim.minZ() + claim.maxZ()) / 2;
+        int half = Math.max((claim.maxX() - claim.minX()) / 2, (claim.maxZ() - claim.minZ()) / 2);
+        int radius = Math.min(half + this.woodlandRadius, VILLAGE_SCAN_CAP);
+        return new Scan(new BlockPos(centerX, person.blockPosition().getY(), centerZ), radius);
+      }
+    }
+    return new Scan(person.blockPosition(), this.woodlandRadius);
+  }
+
   /**
    * Reservoir-samples a fellable tree with a natural canopy that the worker
    * can walk up to, and returns its base and the spot to cut it from. Each
@@ -319,15 +378,15 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
    * tree in the box asks.
    */
   @Nullable
-  private Cut findWoodlandTree(RealPerson person, ServerLevel level, BlockPos around) {
+  private Cut findWoodlandTree(RealPerson person, ServerLevel level, BlockPos around, int radius) {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     Long2LongOpenHashMap baseOf = new Long2LongOpenHashMap();
     Long2ObjectOpenHashMap<BlockPos> standOf = new Long2ObjectOpenHashMap<>();
     Cut found = null;
     int seen = 0;
-    for (int x = -this.woodlandRadius; x <= this.woodlandRadius; ++x) {
+    for (int x = -radius; x <= radius; ++x) {
       for (int y = -WOODLAND_VERTICAL_RADIUS; y <= WOODLAND_VERTICAL_RADIUS; ++y) {
-        for (int z = -this.woodlandRadius; z <= this.woodlandRadius; ++z) {
+        for (int z = -radius; z <= radius; ++z) {
           cursor.setWithOffset(around, x, y, z);
           if (!TreeFelling.isFellableLog(level, cursor)) {
             continue;
