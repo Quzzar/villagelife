@@ -55,6 +55,26 @@ final class MineTopology {
     return cells;
   }
 
+  /**
+   * Places inside the already-planned ramp from which a missing floor support
+   * can be laid. Candidates may be beside the gap or one block above it on the
+   * preceding stair, but never below the ramp or farther down the unfinished
+   * shaft. A cave floor beneath the bridge is therefore not mistaken for safe
+   * footing.
+   */
+  static List<BlockPos> floorStandCandidates(BlockPos floorCell) {
+    List<BlockPos> candidates = new ArrayList<>();
+    candidates.add(floorCell.above());
+    for (Direction direction : Direction.Plane.HORIZONTAL) {
+      candidates.add(floorCell.relative(direction));
+      candidates.add(floorCell.above().relative(direction));
+    }
+    return candidates.stream()
+        .filter(MineTopology::isRamp)
+        .filter(candidate -> candidate.getZ() <= floorCell.getZ())
+        .toList();
+  }
+
   /** The five-cell-high descending shaft, capped below the surface structure. */
   static boolean isRamp(BlockPos local) {
     return MineShaft.withinCorridor(local)

@@ -59,6 +59,21 @@ class MineTopologyTest {
   }
 
   @Test
+  void floorBridgeNeverUsesTheCaveBelowOrTheUnfinishedRampAhead() {
+    BlockPos missingWalkCell = new BlockPos(0, -24, 22);
+
+    var candidates = MineTopology.floorStandCandidates(missingWalkCell);
+
+    assertTrue(candidates.contains(new BlockPos(0, -23, 21)),
+        "the preceding stair is valid bridge footing");
+    assertTrue(candidates.stream().allMatch(MineTopology::isRamp));
+    assertTrue(candidates.stream().allMatch(candidate -> candidate.getZ() <= missingWalkCell.getZ()));
+    assertTrue(candidates.stream().noneMatch(
+        candidate -> candidate.getY() < MineTopology.floorY(candidate.getZ())),
+        "a natural cave floor below the ramp must never become a bridge stand");
+  }
+
+  @Test
   void offsetStepBesideFloodedRampCellIsExteriorLining() {
     BlockPos floodedRampCell = new BlockPos(-2, -3, 5);
     BlockPos offsetLeak = new BlockPos(-2, -3, 6);

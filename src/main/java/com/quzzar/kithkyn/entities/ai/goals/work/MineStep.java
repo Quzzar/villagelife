@@ -318,7 +318,9 @@ public final class MineStep implements BlockWorkStep {
         resetShaft();
         return null;
       }
-      BlockPos stand = standToMine(person, footingAt);
+      BlockPos stand = this.placeFloor
+          ? standToLayFloor(person, mouth, rotation, this.offset)
+          : standToMine(person, footingAt);
       if (stand == null) {
         // The swept face has no reachable footing: a fresh mine with nothing dug to
         // stand in yet, or a face across an undug gap. Recover from the entrance
@@ -374,7 +376,7 @@ public final class MineStep implements BlockWorkStep {
       // Otherwise the miner sees valid stone but rejects it forever while the
       // missing bridge work sits later in the cursor order.
       if (columnBottom(local) && needsSeal(level, world.below())) {
-        BlockPos floorStand = standToMine(person, world);
+        BlockPos floorStand = standToLayFloor(person, mouth, rotation, local);
         if (floorStand != null) {
           this.offset = local;
           this.block = here;
@@ -802,6 +804,33 @@ public final class MineStep implements BlockWorkStep {
       double dist = candidate.distSqr(person.blockPosition());
       if (dist < bestDist) {
         bestDist = dist;
+        best = candidate;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Existing ramp footing from which the miner can bridge a missing floor.
+   * The general mining stand search deliberately reaches below a face so a
+   * miner can work high walls and ceilings. That is unsafe for a floor gap: in
+   * a cavern it selected the cave floor beneath the planned ramp, sent the
+   * miner over the edge, and triggered rescue on every retry. Floor placement
+   * stays on the built side of the ramp instead.
+   */
+  @Nullable
+  private BlockPos standToLayFloor(RealPerson person, BlockPos mouth, Rotation rotation,
+      BlockPos localFloorCell) {
+    BlockPos best = null;
+    double bestDist = Double.MAX_VALUE;
+    for (BlockPos local : MineTopology.floorStandCandidates(localFloorCell)) {
+      BlockPos candidate = mouth.offset(local.rotate(rotation));
+      if (!standable(person.level(), candidate)) {
+        continue;
+      }
+      double distance = candidate.distSqr(person.blockPosition());
+      if (distance < bestDist) {
+        bestDist = distance;
         best = candidate;
       }
     }
