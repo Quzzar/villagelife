@@ -1862,7 +1862,14 @@ public class RealPerson extends Person {
   }
 
   public void tpToHome() {
-    this.moveTo(LocationManager.getVillageCenter(this), 0.0F, 0.0F);
+    if (this.getVillage() == null) {
+      return;
+    }
+    BlockPos target = LocationManager.getVillageCenter(this);
+    if (target.equals(BlockPos.ZERO)) {
+      return;
+    }
+    this.moveTo(target, 0.0F, 0.0F);
     // TODO, or to follow leader if has one
   }
 

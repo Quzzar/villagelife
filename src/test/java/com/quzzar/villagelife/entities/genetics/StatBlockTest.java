@@ -1,5 +1,6 @@
 package com.quzzar.villagelife.entities.genetics;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.EnumMap;
@@ -9,7 +10,45 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.nbt.CompoundTag;
+
 class StatBlockTest {
+
+  @Test
+  void savedGenomeRoundTripsEveryScoreAndCondition() {
+    EnumMap<Stat, Integer> scores = new EnumMap<>(Stat.class);
+    int score = Stat.MIN;
+    for (Stat stat : Stat.values()) {
+      scores.put(stat, score++);
+    }
+    StatBlock original = StatBlock.ofScores(scores, GeneticCondition.HETEROCHROMIA);
+
+    StatBlock restored = StatBlock.load(original.save());
+
+    for (Stat stat : Stat.values()) {
+      assertEquals(original.get(stat), restored.get(stat), stat.name());
+    }
+    assertEquals(GeneticCondition.HETEROCHROMIA, restored.getCondition());
+  }
+
+  @Test
+  void staleOrHandEditedGenomeLoadsWithSafeDefaults() {
+    CompoundTag saved = new CompoundTag();
+    saved.putInt(Stat.SIZE.getNbtKey(), 99);
+    saved.putInt(Stat.STRENGTH.getNbtKey(), -99);
+    saved.putString("Condition", "REMOVED_CONDITION");
+
+    StatBlock restored = StatBlock.load(saved);
+
+    assertEquals(Stat.MAX, restored.get(Stat.SIZE));
+    assertEquals(Stat.MIN, restored.get(Stat.STRENGTH));
+    for (Stat stat : Stat.values()) {
+      if (stat != Stat.SIZE && stat != Stat.STRENGTH) {
+        assertEquals(Stat.AVERAGE, restored.get(stat), stat.name());
+      }
+    }
+    assertEquals(GeneticCondition.NONE, restored.getCondition());
+  }
 
   @Test
   void parentalScoresDominateTheFreshPopulationComponent() {
