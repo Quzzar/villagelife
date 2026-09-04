@@ -77,8 +77,14 @@ public final class WallStep implements BlockWorkStep {
     // Top up below the low-water line so no column stalls mid-height, then walk
     // the ring with what is carried. A part-load with nothing left in the
     // chests is still walked out: it may finish a short column.
+    long column = wall.nextColumn();
+    int[] range = WallRaiser.currentSegmentRange(person.level(), wall);
+    int missing = range == null ? 0 : WallRaiser.missingHeights(person.level(),
+        BlockPos.getX(column), BlockPos.getZ(column), range, wall.getTier(), wall.isGate(column))
+        .size();
+    int itemsNeeded = Math.ceilDiv(Math.max(0, missing - this.credit), WallTier.BLOCKS_PER_ITEM);
     int carried = PackLogistics.carried(person, wall.getTier().material());
-    if (carried < LOW_WATER) {
+    if (itemsNeeded > 0 && carried < LOW_WATER) {
       BlockPos source = PackLogistics.chestHolding(person, village,
           List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)));
       if (source != null) {
@@ -86,10 +92,9 @@ public final class WallStep implements BlockWorkStep {
         return source;
       }
     }
-    if (carried <= 0) {
+    if (carried < itemsNeeded) {
       return null;
     }
-    long column = wall.nextColumn();
     this.targetedWallColumn = column;
     return standFor(person, village, column);
   }
@@ -236,23 +241,12 @@ public final class WallStep implements BlockWorkStep {
     int z = BlockPos.getZ(column);
     WallTier tier = wall.getTier();
     boolean gate = wall.isGate(column);
-    int base;
-    int floor;
-    if (wall.hasGround()) {
-      int liveGround = WallRaiser.surfaceY(level, x, z);
-      wall.lowerCurrentGround(liveGround);
-      int i = wall.currentIndex();
-      base = wall.groundAt(i);
-      floor = Math.min(base, wall.seamFloor(i));
-    } else {
-      base = WallRaiser.surfaceY(level, x, z); // a wall saved before the ground profile existed
-      floor = base;
-    }
-    int[] range = WallRaiser.segmentRange(level, x, z, tier, gate, base, floor);
+    int[] range = WallRaiser.currentSegmentRange(level, wall);
     if (range == null) {
       return true; // nothing to place here; treat the column as done
     }
-    int count = range[1] - range[0] + 1;
+    List<Integer> missing = WallRaiser.missingHeights(level, x, z, range, tier, gate);
+    int count = missing.size();
     int owed = Math.max(0, count - credit);
     int items = Math.ceilDiv(owed, WallTier.BLOCKS_PER_ITEM);
 
@@ -269,7 +263,7 @@ public final class WallStep implements BlockWorkStep {
     Materials.take(person.personMainInv, tier.material(), items);
     credit += items * WallTier.BLOCKS_PER_ITEM - count;
 
-    WallRaiser.place(level, x, z, range, tier);
+    WallRaiser.place(level, x, z, missing, tier);
     if (gate) {
       BlockPos centre = village.getTownCenter() == null ? new BlockPos(x, 0, z)
           : BlockPos.of(village.getTownCenter().getCenterLocation());

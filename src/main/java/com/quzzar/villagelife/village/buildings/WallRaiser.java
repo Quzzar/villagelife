@@ -2,6 +2,7 @@ package com.quzzar.villagelife.village.buildings;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import com.quzzar.villagelife.savedata.PlacedBlockStore;
 
@@ -84,9 +85,9 @@ public final class WallRaiser {
    * null when there is nothing to place. {@code base} is the column's own ground and
    * {@code floor} the seam floor from its neighbours. The run reaches from that floor
    * up to a tier's height above the ground, crenellating the stone with a merlon on
-   * alternate columns, and seats its foot over any void below the floor. A gate fills
-   * solid like any column; the caller stamps the door over the two courses at
-   * {@code base}, so the doorway is flanked and capped by solid wall rather than air.
+   * alternate columns, and seats its foot over any void below the floor. A gate leaves
+   * its two doorway courses at {@code base} to the caller, so it can install the door
+   * directly while the surrounding column remains solid.
    */
   public static int[] segmentRange(Level level, int x, int z, WallTier tier, boolean gate,
       int base, int floor) {
@@ -103,10 +104,70 @@ public final class WallRaiser {
     return hi < lo ? null : new int[] {lo, hi, base};
   }
 
-  /** Places a segment's blocks over its range; returns how many were placed. */
-  public static int place(Level level, int x, int z, int[] range, WallTier tier) {
+  /** Resolves the current project's live segment geometry, including old-save correction. */
+  public static int[] currentSegmentRange(Level level, WallProject wall) {
+    long column = wall.nextColumn();
+    int x = BlockPos.getX(column);
+    int z = BlockPos.getZ(column);
+    int base;
+    int floor;
+    if (wall.hasGround()) {
+      wall.lowerCurrentGround(surfaceY(level, x, z));
+      int index = wall.currentIndex();
+      base = wall.groundAt(index);
+      floor = Math.min(base, wall.seamFloor(index));
+    } else {
+      base = surfaceY(level, x, z);
+      floor = base;
+    }
+    return segmentRange(level, x, z, wall.getTier(), wall.isGate(column), base, floor);
+  }
+
+  /**
+   * Planned heights that still need a wall block. Any collidable block already
+   * closes that part of the barrier and is preserved. A stone upgrade replaces
+   * only village-owned wooden wall blocks, not natural or player construction.
+   * Doorway cells are omitted because {@link #placeGateDoor} fills them.
+   */
+  public static List<Integer> missingHeights(Level level, int x, int z, int[] range,
+      WallTier tier, boolean gate) {
+    PlacedBlockStore placed = level instanceof ServerLevel serverLevel
+        ? PlacedBlockStore.get(serverLevel)
+        : null;
+    return WallOccupancy.missingHeights(range[0], range[1], y -> {
+      if (gate && (y == range[2] || y == range[2] + 1)) {
+        return true;
+      }
+      BlockPos pos = new BlockPos(x, y, z);
+      BlockState state = level.getBlockState(pos);
+      boolean hasCollision = !state.getCollisionShape(level, pos).isEmpty();
+      boolean replacesPreviousTier = isVillageWoodBeingUpgraded(placed, pos, state, tier);
+      return WallOccupancy.isSatisfied(hasCollision, replacesPreviousTier);
+    });
+  }
+
+  /** Exact number of wall-material blocks the current world still needs. */
+  public static int requiredBlocks(Level level, List<Long> ring, Set<Long> gates,
+      List<Integer> ground, WallTier tier) {
+    int required = 0;
+    for (int i = 0; i < ring.size(); i++) {
+      long column = ring.get(i);
+      int x = BlockPos.getX(column);
+      int z = BlockPos.getZ(column);
+      boolean gate = gates.contains(column);
+      int base = ground.get(i);
+      int[] range = segmentRange(level, x, z, tier, gate, base, seamFloor(ground, i));
+      if (range != null) {
+        required += missingHeights(level, x, z, range, tier, gate).size();
+      }
+    }
+    return required;
+  }
+
+  /** Places only the missing blocks in a segment; returns how many were placed. */
+  public static int place(Level level, int x, int z, List<Integer> missing, WallTier tier) {
     BlockState state = tier.block().defaultBlockState();
-    for (int y = range[0]; y <= range[1]; y++) {
+    for (int y : missing) {
       BlockPos pos = new BlockPos(x, y, z);
       level.setBlock(pos, state, 3);
       // The wall is the village's: the wood tier's logs must never read as trees.
@@ -114,7 +175,16 @@ public final class WallRaiser {
         PlacedBlockStore.get(serverLevel).markVillagePlaced(pos);
       }
     }
-    return range[1] - range[0] + 1;
+    return missing.size();
+  }
+
+  /** Whether a stone project should replace this block from the prior wooden tier. */
+  private static boolean isVillageWoodBeingUpgraded(PlacedBlockStore placed, BlockPos pos,
+      BlockState state, WallTier tier) {
+    return tier == WallTier.STONE
+        && state.is(WallTier.WOOD.block())
+        && placed != null
+        && placed.isVillagePlaced(pos);
   }
 
   /**

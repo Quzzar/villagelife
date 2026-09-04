@@ -135,7 +135,11 @@ Concrete choices the code now makes, all one line to tune:
 - gateways: one at the midpoint of each edge, a wooden door below a lintel that faces the town
   so it opens inward, which villagers open and close as they path,
 - material: one palette per tier (oak log, stone brick), not varied by biome; the wood tier is
-  paid for by any log ([building-spec.md](building-spec.md), `Materials`) and placed as oak.
+  paid for by any log ([building-spec.md](building-spec.md), `Materials`) and placed as oak;
+  planned cells that already contain a collidable block count as closed, remain untouched, and
+  cost nothing. Air, fluids, vegetation and other passable cells are the holes a builder fills.
+  The deliberate stone upgrade is the sole material-sensitive case: it replaces village-owned
+  palisade logs while still preserving unrelated solid construction.
 - terrain and access: the surface sampler looks through trees, brush and recorded placed blocks
   to the sturdy terrain beneath, and the builder asks the navigator for another interior foothold
   when the nearest one is blocked. A genuinely unreachable segment is deferred and revisited after

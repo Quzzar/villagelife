@@ -31,6 +31,7 @@ import com.quzzar.villagelife.village.buildings.LocationValidator;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.WallProject;
+import com.quzzar.villagelife.village.buildings.WallRaiser;
 import com.quzzar.villagelife.village.buildings.WallTier;
 import com.quzzar.villagelife.village.buildings.UrbanPlanner;
 import com.quzzar.villagelife.village.buildings.VillageStyle;
@@ -1076,19 +1077,23 @@ public class Village {
     if (wallProject != null && tier == wallProject.getTier().next()) {
       ring = wallProject.getRing(); // an upgrade re-walks the standing ring
       gates = wallProject.getGates();
-      ground = wallProject.getGround(); // and its captured ground, not the wall now standing there
+      // Prefer its captured ground, not the standing wall. Very old saves have
+      // no profile, so reconstruct one through the placed palisade instead.
+      ground = wallProject.hasGround()
+          ? wallProject.getGround()
+          : WallRaiser.groundProfile(level, ring);
     } else {
       ring = traceWallRing(WALL_PADDING);
       gates = wallGates(WALL_PADDING);
-      ground = com.quzzar.villagelife.village.buildings.WallRaiser.groundProfile(level, ring);
+      ground = WallRaiser.groundProfile(level, ring);
     }
     if (ring.isEmpty()) {
       return false;
     }
-    // A rough bill, a course or two of slack per column for the slopes it steps
-    // down, at the tier's rate of blocks per item. The exact draw happens
-    // column by column as it builds.
-    int estimate = Math.ceilDiv(ring.size() * (tier.height() + 2), WallTier.BLOCKS_PER_ITEM);
+    // Existing collidable blocks already satisfy the barrier, so affordability
+    // is based on the exact open cells that the builder will actually fill.
+    int requiredBlocks = WallRaiser.requiredBlocks(level, ring, gates, ground, tier);
+    int estimate = Math.ceilDiv(requiredBlocks, WallTier.BLOCKS_PER_ITEM);
     if (com.quzzar.villagelife.village.buildings.Materials.counted(stockTally(), tier.material()) < estimate) {
       maybeLogShortage(new ItemStack(tier.material(), estimate));
       return false;
@@ -1115,21 +1120,21 @@ public class Village {
       return 0;
     }
     List<Integer> ground =
-        com.quzzar.villagelife.village.buildings.WallRaiser.groundProfile(level, ring);
+        WallRaiser.groundProfile(level, ring);
     for (int i = 0; i < ring.size(); i++) {
       long column = ring.get(i);
       int x = BlockPos.getX(column);
       int z = BlockPos.getZ(column);
       boolean gate = gates.contains(column);
       int base = ground.get(i);
-      int floor = com.quzzar.villagelife.village.buildings.WallRaiser.seamFloor(ground, i);
-      int[] range = com.quzzar.villagelife.village.buildings.WallRaiser
-          .segmentRange(level, x, z, tier, gate, base, floor);
+      int floor = WallRaiser.seamFloor(ground, i);
+      int[] range = WallRaiser.segmentRange(level, x, z, tier, gate, base, floor);
       if (range != null) {
-        com.quzzar.villagelife.village.buildings.WallRaiser.place(level, x, z, range, tier);
+        List<Integer> missing = WallRaiser.missingHeights(level, x, z, range, tier, gate);
+        WallRaiser.place(level, x, z, missing, tier);
         if (gate && getTownCenter() != null) {
-          com.quzzar.villagelife.village.buildings.WallRaiser.placeGateDoor(level, x, z, range[2],
-              com.quzzar.villagelife.village.buildings.WallRaiser.gateFacing(x, z,
+          WallRaiser.placeGateDoor(level, x, z, range[2],
+              WallRaiser.gateFacing(x, z,
                   BlockPos.of(getTownCenter().getCenterLocation())));
         }
       }

@@ -42,7 +42,7 @@ public enum WallTier {
     return this.block;
   }
 
-  /** The item a segment costs, one per block placed, pulled from village stores. */
+  /** The item a segment costs at {@link #BLOCKS_PER_ITEM}, pulled from village stores. */
   public Item material() {
     return this.material;
   }
