@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.HealthRecoveryPolicy;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -38,7 +39,8 @@ public class PersonEatFoodGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    if (person.getHealth() >= person.getMaxHealth() / 3 || !person.hasMeal()) {
+    if (!HealthRecoveryPolicy.isBadlyHurt(person.getHealth(), person.getMaxHealth())
+        || !person.hasMeal()) {
       return false;
     }
     return (!person.isRunningToEat() && person.isEating())

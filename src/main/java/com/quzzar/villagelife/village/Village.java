@@ -543,7 +543,7 @@ public class Village {
 
   /**
    * The campfire's world position for a freshly planned centre, mirroring
-   * {@link #gatheringPointPos()} but reading the struct we hold rather than the
+   * {@link #getCampfirePosition()} but reading the struct we hold rather than the
    * registered town centre (which is not added until after levelling).
    */
   private BlockPos campfireWorldPos(InstantBuildStructure centerStruct, BuildingInfo centerInfo,
@@ -688,16 +688,16 @@ public class Village {
 
   /** Places the gathering-point campfire if the datapack defines one and the block isn't there yet. */
   private void placeCampfireIfMissing() {
-    BlockPos fire = gatheringPointPos();
+    BlockPos fire = getCampfirePosition();
     if (fire != null && level != null && !level.getBlockState(fire).is(Blocks.CAMPFIRE)) {
       level.setBlock(fire, Blocks.CAMPFIRE.defaultBlockState(), 3);
       com.quzzar.villagelife.savedata.PlacedBlockStore.get(level).markVillagePlaced(fire);
     }
   }
 
-  /** The datapack-defined gathering point of the town center in world coordinates, or null. */
+  /** The datapack-defined campfire position of the town center in world coordinates, or null. */
   @javax.annotation.Nullable
-  private BlockPos gatheringPointPos() {
+  public BlockPos getCampfirePosition() {
     Building townCenter = getTownCenter();
     if (townCenter == null || townCenter.getInfo() == null) {
       return null;
@@ -722,7 +722,7 @@ public class Village {
    * would burn them alive: it did, once.
    */
   public BlockPos getGatheringPoint() {
-    BlockPos fire = gatheringPointPos();
+    BlockPos fire = getCampfirePosition();
     if (fire != null && level != null) {
       return standingSpotBeside(fire);
     }
@@ -737,7 +737,7 @@ public class Village {
    */
   @javax.annotation.Nullable
   public BlockPos getCampfire() {
-    BlockPos fire = gatheringPointPos();
+    BlockPos fire = getCampfirePosition();
     if (fire == null || level == null) {
       return null;
     }

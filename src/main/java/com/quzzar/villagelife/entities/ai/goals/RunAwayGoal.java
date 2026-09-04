@@ -4,6 +4,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.HealthRecoveryPolicy;
 import com.quzzar.villagelife.village.LocationManager;
 
 import net.minecraft.core.BlockPos;
@@ -28,7 +29,9 @@ public class RunAwayGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if(person.getHealth() >= person.getMaxHealth() / 3){ return false; }
+        if (!HealthRecoveryPolicy.isBadlyHurt(person.getHealth(), person.getMaxHealth())) {
+            return false;
+        }
 
         setRunToLocation();
         return runToLocation != BlockPos.ZERO;

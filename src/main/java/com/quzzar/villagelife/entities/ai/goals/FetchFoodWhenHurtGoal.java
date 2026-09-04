@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.HealthRecoveryPolicy;
 import com.quzzar.villagelife.entities.ai.goals.work.PackLogistics;
 import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.Village;
@@ -50,7 +51,7 @@ public class FetchFoodWhenHurtGoal extends Goal {
 
   @Override
   public boolean canUse() {
-    if (person.getHealth() >= person.getMaxHealth() / 3 || person.hasMeal()
+    if (!HealthRecoveryPolicy.isBadlyHurt(person.getHealth(), person.getMaxHealth()) || person.hasMeal()
         || person.getTarget() != null || person.isAggressive() || person.getVillage() == null) {
       return false;
     }

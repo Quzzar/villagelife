@@ -85,6 +85,7 @@ import com.quzzar.villagelife.entities.ai.goals.work.FetchBonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.work.PlantStep;
 import com.quzzar.villagelife.entities.ai.goals.work.StashBonemealStep;
 import com.quzzar.villagelife.entities.ai.goals.ArmorerRepairPersonArmorGoal;
+import com.quzzar.villagelife.entities.ai.goals.CampfireRecoveryGoal;
 import com.quzzar.villagelife.entities.ai.goals.ReturnBackToVillageGoal;
 import com.quzzar.villagelife.entities.ai.goals.RunAwayGoal;
 import com.quzzar.villagelife.entities.ai.goals.PersonEatFoodGoal;
@@ -101,6 +102,7 @@ import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.SlowToAngerGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
+import com.quzzar.villagelife.entities.ai.HealthRecoveryPolicy;
 import com.quzzar.villagelife.entities.ai.SelfDefensePolicy;
 import com.quzzar.villagelife.other.EquipmentUpgrade;
 
@@ -234,6 +236,9 @@ public class RealPerson extends Person {
   private static final int SAPLING_PACK_TARGET = 4;
 
   public int callToBedCoolDown = 0;
+
+  /** First game tick at which this person may recover at a village campfire again. */
+  private long campfireRecoveryAvailableAt;
 
   /**
    * A wandering merchant's home village (server-only; empty for everyone
@@ -597,6 +602,7 @@ public class RealPerson extends Person {
     setStringIfPresent(compound, "Gender", GENDER);
 
     this.callToBedCoolDown = compound.getInt("CallToBedCooldown");
+    this.campfireRecoveryAvailableAt = compound.getLong("CampfireRecoveryAvailableAt");
     this.camp = compound.contains("Camp") ? BlockPos.of(compound.getLong("Camp")) : null;
 
     this.entityData.set(WANDERING_MERCHANT, compound.getBoolean("WanderingMerchant"));
@@ -648,6 +654,7 @@ public class RealPerson extends Person {
     compound.putString("Gender", this.entityData.get(GENDER));
 
     compound.putInt("CallToBedCooldown", this.callToBedCoolDown);
+    compound.putLong("CampfireRecoveryAvailableAt", this.campfireRecoveryAvailableAt);
     if (camp != null) {
       compound.putLong("Camp", camp.asLong());
     }
@@ -1197,6 +1204,22 @@ public class RealPerson extends Person {
     clearGoals(this.goalSelector);
     clearGoals(this.targetSelector);
     this.registerGoals();
+  }
+
+  /** Whether health, food, and the persisted cooldown permit campfire recovery. */
+  public boolean shouldSeekCampfireRecovery() {
+    return HealthRecoveryPolicy.shouldSeekCampfire(
+        this.getHealth(),
+        this.getMaxHealth(),
+        this.hasMeal(),
+        this.level().getGameTime(),
+        this.campfireRecoveryAvailableAt);
+  }
+
+  /** Begin the one-minute cooldown after a successful campfire interaction. */
+  public void startCampfireRecoveryCooldown() {
+    this.campfireRecoveryAvailableAt = HealthRecoveryPolicy.nextCampfireUse(
+        this.level().getGameTime());
   }
 
   /**
@@ -2359,6 +2382,10 @@ public class RealPerson extends Person {
     // A hurt villager with nothing to eat goes and gets some, from the stores
     // or their own chest, before any work; the eating goal takes over on arrival.
     this.goalSelector.addGoal(1, new com.quzzar.villagelife.entities.ai.goals.FetchFoodWhenHurtGoal(this));
+    // If there is no meal to fetch, a resident already near the village fire
+    // may use its smaller, cooldown-limited recovery instead. Priority 2 keeps
+    // food and fleeing ahead of it while still pulling them off ordinary work.
+    this.goalSelector.addGoal(2, new CampfireRecoveryGoal(this));
     this.goalSelector.addGoal(1, new com.quzzar.villagelife.entities.ai.goals.VillageTravelGoal(this));
     this.goalSelector.addGoal(3, new com.quzzar.villagelife.entities.ai.goals.PauseForConversationGoal(this));
 

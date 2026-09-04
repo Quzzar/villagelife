@@ -13,19 +13,23 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Ambient wandering. Employed people drift between their job, bed, and the
- * village center; IDLE people loiter at the campfire, Stronghold-style — they
+ * village center; idle people loiter at the campfire, Stronghold-style. They
  * hang around the gathering point waiting for a job, and get pulled back when
- * they drift too far, instead of wandering off across the world.
+ * they drift too far, instead of wandering off across the world. At night,
+ * idle people without accommodation huddle in a tighter ring around the fire.
  *
  * Locations are resolved per-stroll, not cached: this goal is constructed at
  * entity creation, before the person has a village, bed, or job, so anything
  * captured then is permanently stale (the old cached version was why villagers
- * ran off — every lookup fell through to "stroll anywhere", compounding).
+ * ran off: every lookup fell through to "stroll anywhere", compounding).
  */
 public class StrollAroundVillage extends RandomStrollGoal {
 
-    /** Idle people beyond this distance from the campfire walk back to it. */
-    private static final double CAMPFIRE_TETHER = 16.0D;
+    /** Idle people beyond this distance from the campfire walk back to it by day. */
+    private static final double DAY_CAMPFIRE_TETHER = 16.0D;
+
+    /** Bedless idle people stay close enough to share the campfire's safety at night. */
+    private static final double NIGHT_CAMPFIRE_TETHER = 6.0D;
 
     private final RealPerson person;
 
@@ -83,12 +87,17 @@ public class StrollAroundVillage extends RandomStrollGoal {
             return null;
         }
         Vec3 fireCenter = Vec3.atBottomCenterOf(campfire);
-        if (!campfire.closerToCenterThan(this.mob.position(), CAMPFIRE_TETHER)) {
+        boolean huddlesAtNight = person.level().isNight()
+                && LocationManager.getNightRestLocation(person).equals(BlockPos.ZERO);
+        double tether = huddlesAtNight ? NIGHT_CAMPFIRE_TETHER : DAY_CAMPFIRE_TETHER;
+        if (!campfire.closerToCenterThan(this.mob.position(), tether)) {
             Vec3 back = LandRandomPos.getPosTowards(this.mob, 10, 7, fireCenter);
             return back != null ? back : fireCenter;
         }
-        // Near the fire: small shuffles around it, never standing in the flames.
-        return LandRandomPos.getPosTowards(this.mob, 5, 3, fireCenter);
+        // The unhoused huddle at night; daytime campers have room to mill around.
+        int horizontalRange = huddlesAtNight ? 3 : 5;
+        int verticalRange = huddlesAtNight ? 2 : 3;
+        return LandRandomPos.getPosTowards(this.mob, horizontalRange, verticalRange, fireCenter);
     }
 
     @Nullable

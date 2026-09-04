@@ -25,11 +25,18 @@ Idle people are not `NITWIT`s in the old sense (a permanent do-nothing occupatio
 (`Occupation.WANDERER`), a wanderer of the village rather than an idler. Any idle person can
 become any profession the moment a slot opens.
 While idle, they stroll near the campfire, sit, chat and eat. The housed sleep in their own
-beds; an idle person without a bed stays up by the fire all night (bedless campfire dozing
+beds; an idle person without a bed stays up in a tight huddle by the fire all night, drawing
+closer than the daytime campfire crowd for safety (bedless campfire dozing
 existed once, put villagers to sleep against the lit fire, glitched endlessly, and was
 removed: nobody sleeps rough). They are civilians, and their reaction to danger comes from
 personality rather than the Wanderer title. A resolute idle resident can fight back when struck;
 a fearful one flees. They do not receive a free campfire-defense bonus or an unpaid hunting patrol.
+
+The village fire offers a small refuge to every resident, not only Wanderers. A person below
+one-third health and already within thirty blocks may walk up and interact with the lit center
+campfire for ten seconds of Regeneration I, at most once per minute. Food remains the primary
+recovery: a carried meal is eaten first, and someone without one tries the village stores before
+the fire. The cooldown belongs to the person and survives saving and job changes.
 
 Idle hands also tend the fire. An idle resident who finds raw food in the village stores takes
 it to the campfire, cooks anything a campfire can cook (read from the vanilla recipe set, so

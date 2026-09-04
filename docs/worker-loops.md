@@ -270,6 +270,19 @@ chest at home, whichever is closer, a few bites' worth into the pack, and the ea
 over. Fighters break off before they eat (`SetRunningToEatGoal`), and nobody eats while a
 hostile mob nearby is taking aim at a villager.
 
+### Recovering at the village fire
+
+Built 2026-09-04. The center campfire is a small fallback recovery point for every resident,
+independent of age or occupation. A person below one-third health, carrying no meal, and already
+within thirty blocks may walk to arm's reach, look at and interact with the lit fire, and receive
+ten seconds of Regeneration I (`CampfireRecoveryGoal`). Eating stays at priority 0. With no meal
+in hand, fetching one from a village or personal chest remains at priority 1 while the fire sits
+at priority 2, so food and fleeing both stay ahead of it. The campfire supplements food rather
+than replacing it. This is a personal need, not a work loop, and danger, travel, conversation,
+sleep, a missing or doused fire, and an existing regeneration effect all prevent it from
+starting. Each person's one-minute cooldown is persisted on the entity, so changing jobs or
+reloading cannot reset it.
+
 ## The builder builds, and between builds it makes the village walkable
 
 The BUILDER has two duties, not one. The first is construction: preparing a site, then
