@@ -165,10 +165,11 @@ standing at hostile, both of which words move slowly.
 Honoured for a player and for a fellow villager alike, since the two conversations are the
 same conversation: `RealPerson.pickFightWith` opens a quarrel, a minute long and never saved,
 sets the other party as the villager's target, and quarrel target goals above the grudge and
-the village verdict keep it. Between villagers the talk ends there, and the one struck answers
-in kind (`RealPerson.hurt`), so a fight takes two for its whole minute. Fighters draw what they carry; a
+the village verdict keep it. Between villagers the talk ends there. The one struck answers
+in kind only when their age and personality favor self-defense (`RealPerson.hurt`); otherwise
+they flee. Fighters draw what they carry; a
 villager with no combat occupation gets a fists-only melee goal that engages solely against
-a quarrel target, so monsters that hurt them are still answered with distance, as before.
+a quarrel target. Direct retaliation against any attacker uses the same personality policy.
 `PauseForConversationGoal` and `PanicToBedGoal` both yield while a quarrel runs, so the
 villager neither stands politely still for the chat nor flees the first blow of the fight it
 picked. The exchange logs `[fight]`, and the villager logs "picks a fight with".

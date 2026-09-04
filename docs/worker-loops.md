@@ -167,7 +167,8 @@ The three verbs hold. Three corrections came out of it:
   sleeping, fleeing, strolling and fighting; they are not worker loops and stay as they are.
   (First counted as 13: `ArmorerRepairPersonArmorGoal` and `SearchForItemsGoal` are registered on
   EVERY villager rather than gated on an occupation, so getting your armour mended and picking up
-  litter are personal needs rather than jobs.)
+  litter are personal needs rather than jobs. Wandering merchants use their smaller goal set but
+  share the same low-priority litter pickup.)
 - **`ACT` has six kinds in the code, and one is missing above.** `BREAK` (destroy a block, take
   drops), `PLACE` (put a block down, paying stock), `APPLY` (consume an item to change a target that
   survives), `CONVERT` (items to items on a timer), `CARRY` (move items between inventories), and
@@ -546,8 +547,9 @@ bedtime gear pass. Village stock is marked farmed (`FarmedStock`) and a hunter d
 as game: the tag is set on the animals a structure spawns with, inherited at birth when either
 parent carries it, and applied by the herder to whatever it tends, so a butchery pen standing
 inside a hunting ground is safe, and a wild cow the herder adopts stops being quarry. Hunters
-also fight now: the occupation weighs into both combat checks, so they defend themselves and
-take on nearby monsters with the same bow, where before a hunter fled like a baker.
+also fight now: the occupation makes them proactively take on nearby monsters with the same bow,
+while their personal aggression and protect-self virtues still decide whether a direct blow makes
+them retaliate or flee.
 
 **Built, 2026-09-02: the pen has a size, and the butcher keeps it.** Nobody used to thin a
 butchery's pen: the herder is non-lethal by design and the hunter ignores farmed stock, so a

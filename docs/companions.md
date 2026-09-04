@@ -68,7 +68,7 @@ animal to see a mob as a player (a change that would touch every tamed animal in
 game), the pet carries one small goal of its own that resolves its owner the way the
 rest of the mod resolves a villager: by UUID, through the server
 (`ServerLevel#getEntity`), exactly as a married villager finds their spouse on the
-road (`FollowSpouseGoal`). Everything else about the animal, its coat, its collar,
+road (`FollowFamilyGoal`). Everything else about the animal, its coat, its collar,
 its no-despawn, its sitting pose, is vanilla and untouched.
 
 The goal is attached where the mod already attaches goals to freshly-joined vanilla
@@ -131,7 +131,7 @@ teleport vanilla gives a player's pet that has fallen too far behind.
 - `entities/PetOrder.java`: the owner's occasional sit-or-recall decision, on the
   one-shot `decide` primitive, default no-op.
 - `entities/ai/goals/PetFollowOwnerGoal.java`: the follow, resolving the owner by
-  UUID; yields to a sitting pose; teleports when far. Modelled on `FollowSpouseGoal`.
+  UUID; yields to a sitting pose; teleports when far. Modelled on `FollowFamilyGoal`.
 - `entities/ai/goals/PetVillageTetherGoal.java`: keeps an ownerless or owner-away pet
   to its village.
 - `events/CoreEvents.java`: attaches the two goals to a marked Wolf/Cat on join, so

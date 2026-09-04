@@ -101,6 +101,7 @@ import com.quzzar.villagelife.entities.ai.goals.SleepAtNightGoal;
 import com.quzzar.villagelife.entities.ai.goals.SlowToAngerGoal;
 import com.quzzar.villagelife.entities.ai.goals.StrollAroundVillage;
 import com.quzzar.villagelife.entities.ai.goals.UnstuckPersonGoal;
+import com.quzzar.villagelife.entities.ai.SelfDefensePolicy;
 import com.quzzar.villagelife.other.EquipmentUpgrade;
 
 import net.minecraft.world.entity.ai.goal.AvoidEntityGoal;
@@ -1014,15 +1015,10 @@ public class RealPerson extends Person {
     this.awaitingAdultHome = false;
   }
 
-  /**
-   * Of a married pair on the road, the one who walks the day's heading; the other
-   * follows them ({@code FollowSpouseGoal}). A single wanderer leads themselves.
-   * The lead is the lower UUID, so both sides agree on who leads without a stored
-   * flag and the choice survives a reload.
-   */
+  /** Whether this person currently walks the family's heading rather than following. */
   public boolean isRoamLead() {
-    UUID spouseId = getSpouseId();
-    return spouseId == null || getUUID().compareTo(spouseId) <= 0;
+    RealPerson leader = loadedRoamingFamilyLeader();
+    return leader == null || leader == this;
   }
 
   /** The married partner when loaded, alive, and also roaming the road, else null. */
@@ -1036,9 +1032,38 @@ public class RealPerson extends Person {
         && spouse.isAlive() && spouse.isRoamingWanderer() ? spouse : null;
   }
 
-  /** Whether this wanderer should shadow their spouse rather than walk a heading of their own. */
-  public boolean followsSpouseOnTheRoad() {
-    return isRoamingWanderer() && !isRoamLead() && loadedRoamingSpouse() != null;
+  /** The loaded roaming adult who leads this spouse or dependent child, or this person when they lead. */
+  @Nullable
+  public RealPerson loadedRoamingFamilyLeader() {
+    if (!(level() instanceof net.minecraft.server.level.ServerLevel server)) {
+      return null;
+    }
+    List<RealPerson> adults = new ArrayList<>();
+    if (getLifeStage().isDependentlyHoused()) {
+      for (UUID parentId : getParentIds()) {
+        if (server.getEntity(parentId) instanceof RealPerson parent
+            && parent.isAlive() && parent.isRoamingWanderer()) {
+          adults.add(parent);
+          RealPerson spouse = parent.loadedRoamingSpouse();
+          if (spouse != null && !adults.contains(spouse)) {
+            adults.add(spouse);
+          }
+        }
+      }
+    } else {
+      adults.add(this);
+      RealPerson spouse = loadedRoamingSpouse();
+      if (spouse != null) {
+        adults.add(spouse);
+      }
+    }
+    return adults.stream().min(Comparator.comparing(RealPerson::getUUID)).orElse(null);
+  }
+
+  /** Whether this wanderer shadows their household leader instead of taking an independent heading. */
+  public boolean followsFamilyOnTheRoad() {
+    RealPerson leader = loadedRoamingFamilyLeader();
+    return isRoamingWanderer() && leader != null && leader != this;
   }
 
   protected void setGender(Gender gender) {
@@ -1148,6 +1173,7 @@ public class RealPerson extends Person {
     if (!current.canWork() && village != null) {
       JobClaiming.standDownForAge(village, this);
     }
+    reloadState();
   }
 
   /**
@@ -2022,6 +2048,15 @@ public class RealPerson extends Person {
     this.entityData.set(LAST_NAME, name);
   }
 
+  /** Gives a newborn the household surname chosen by their married parents. */
+  public void takeHouseholdSurname(String surname) {
+    if (surname == null || surname.isBlank()) {
+      return;
+    }
+    setLastName(surname.strip());
+    refreshDisplayName();
+  }
+
   public String getFirstName() {
     return this.entityData.get(FIRST_NAME);
   }
@@ -2116,58 +2151,27 @@ public class RealPerson extends Person {
   }
 
   public boolean doesCombat() {
-    return willInitiateCombat() || willDefendItself();
+    return willInitiateCombat() || willFightBackWhenHurt();
   }
 
+  /** Direct retaliation is temperament, not a side effect of one's occupation. */
   public boolean willDefendItself() {
-    if (willInitiateCombat()) {
-      return true;
-    } else {
-      double i = 0.0;
-      switch (getOccupation()) {
-        case WANDERER:
-          // The campfire reservoir is the settlement's last line of defence:
-          // every idle resident stands their ground when the camp is attacked.
-          i += 1.0;
-          break;
-        case GUARD:
-          i += 0.9;
-          break;
-        case HUNTER:
-          // The village's own archer does not run from a zombie: all but the
-          // meekest hunters stand and shoot (docs/worker-loops.md).
-          i += 0.9;
-          break;
-        case MINER:
-          i += 0.4;
-          break;
-        case LUMBERJACK:
-          i += 0.4;
-          break;
-        case BLACKSMITH:
-          i += 0.4;
-          break;
-        case BUILDER:
-          i += 0.2;
-          break;
-        case FARMER:
-          i += 0.2;
-          break;
-        default:
-          break;
-      }
-      i += getVirtue(Virtue.PROTECT_SELF);
-      return (i > 0.5);
-    }
+    return willFightBackWhenHurt();
+  }
+
+  public boolean willFightBackWhenHurt() {
+    return SelfDefensePolicy.fightsBack(
+        getLifeStage(), getVirtue(Virtue.AGGRESSION), getVirtue(Virtue.PROTECT_SELF));
   }
 
   public boolean willInitiateCombat() {
+    if (getLifeStage() == AgeStage.TODDLER || getLifeStage() == AgeStage.KID) {
+      return false;
+    }
     double i = 0.0;
     switch (getOccupation()) {
       case WANDERER:
-        // Idle residents do not go hunting, but they do actively clear threats
-        // from the campfire area; the target predicate below supplies the tether.
-        i += 1.0;
+        // An idle resident's response to danger is personal rather than a job duty.
         break;
       case GUARD:
         i += 0.8;
@@ -2272,7 +2276,8 @@ public class RealPerson extends Person {
     // Blows from a villager who picked a quarrel with this one are answered in
     // kind: a fight takes two, and a farmer punched by a farmer punches back
     // rather than standing there or running for bed.
-    if (hurt && source.getEntity() instanceof RealPerson attacker && attacker.isQuarrellingWith(this)
+    if (hurt && willFightBackWhenHurt()
+        && source.getEntity() instanceof RealPerson attacker && attacker.isQuarrellingWith(this)
         && !isQuarrellingWith(attacker)) {
       pickFightWith(attacker);
     }
@@ -2329,6 +2334,7 @@ public class RealPerson extends Person {
     this.goalSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.PanicGoal(this, 0.55D));
     this.goalSelector.addGoal(2, new net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal(this, 0.5D));
     this.goalSelector.addGoal(3, new net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal(this, 0.45D));
+    this.goalSelector.addGoal(8, new SearchForItemsGoal(this));
     this.goalSelector.addGoal(8, new net.minecraft.world.entity.ai.goal.LookAtPlayerGoal(this, Player.class, 8.0F));
     this.goalSelector.addGoal(8, new RandomLookAroundGoal(this));
   }
@@ -2735,10 +2741,8 @@ public class RealPerson extends Person {
         new com.quzzar.villagelife.entities.ai.goals.work.ForageChopStep()));
     this.goalSelector.addGoal(4, new WorkLoopGoal<>(this,
         new com.quzzar.villagelife.entities.ai.goals.work.CampStep()));
-    // A wanderer who left with their spouse follows them instead of walking a
-    // heading of their own; same priority as the walk, below fleeing, and the two
-    // never both apply (RealPerson.followsSpouseOnTheRoad).
-    this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.FollowSpouseGoal(this));
+    // Spouses and dependent children shadow one household leader on the road.
+    this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.FollowFamilyGoal(this));
     this.goalSelector.addGoal(6, new com.quzzar.villagelife.entities.ai.goals.RoamGoal(this));
 
     // Safe to decide at registration: every occupation change goes through
@@ -2771,6 +2775,9 @@ public class RealPerson extends Person {
     // Don't need it seems
     this.goalSelector.addGoal(8, new ReturnBackToVillageGoal(this));
 
+    // Personal litter pickup, not a job: every occupation and age reaches this
+    // low-priority goal whenever work, travel, rest, danger, and social goals
+    // leave the person free.
     this.goalSelector.addGoal(8, new SearchForItemsGoal(this));
 
     this.goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0F));

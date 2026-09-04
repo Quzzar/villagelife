@@ -3,6 +3,7 @@ package com.quzzar.villagelife.entities.ai.goals;
 import java.util.EnumSet;
 
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.entities.ai.FamilySleepPolicy;
 import com.quzzar.villagelife.village.LocationManager;
 
 import net.minecraft.core.BlockPos;
@@ -43,13 +44,15 @@ public class SleepAtNightGoal extends Goal {
     // villager is given its bed after its goals are built, so a cached location
     // was ZERO for life and the villager stood at the campfire all night
     // without ever resting (1d4523f).
-    return person.level().isNight()
+    return FamilySleepPolicy.shouldRest(
+        person.getLifeStage(), person.level().getDayTime(), person.level().isNight())
         && !LocationManager.getNightRestLocation(person).equals(BlockPos.ZERO);
   }
 
   @Override
   public boolean canContinueToUse() {
-    return person.level().isNight()
+    return FamilySleepPolicy.shouldRest(
+        person.getLifeStage(), person.level().getDayTime(), person.level().isNight())
         && !LocationManager.getNightRestLocation(person).equals(BlockPos.ZERO);
   }
 
@@ -83,15 +86,14 @@ public class SleepAtNightGoal extends Goal {
         // the bed all night.
         person.getNavigation().stop();
         person.noteSlept();
-        if (hasOwnBed) {
-          person.startSleeping(target);
-        }
+        person.startSleeping(target);
       } else if (!person.getNavigation().isInProgress()) {
         person.getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.5D);
       }
     }
 
-    if (person.level().isDay()) {
+    if (FamilySleepPolicy.shouldWake(
+        person.getLifeStage(), person.level().getDayTime(), person.level().isDay())) {
       // An unslept night is counted by the villager's own tick, not here, so
       // a night this goal never got to run still counts.
       this.stop();

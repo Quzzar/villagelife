@@ -3,18 +3,15 @@ package com.quzzar.villagelife.entities.ai.goals;
 import com.quzzar.villagelife.entities.RealPerson;
 
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.player.Player;
 
 /**
- * Retaliation with a temper that has to be earned (docs/relationships.md).
+ * Retaliation chosen by the victim's age and temperament.
  *
- * Against a monster this is vanilla {@link HurtByTargetGoal}: strike a
- * villager and they turn on you at once, alerting the neighbours. Against a
- * player it waits for a real grudge. One punch is a grievance that costs
- * opinion, not a war; only when the victim's own opinion of the player has
- * fallen past the grudge line, or the village already counts them an outright
- * threat, does the blow get answered in kind. The neighbours are alerted with
- * it, which is how a beating in the square becomes a brawl.
+ * <p>Professional guards and hunters can still seek threats through their
+ * occupation goals. This goal answers the narrower question of what a person
+ * does when struck: fight back when {@link RealPerson#willFightBackWhenHurt()}
+ * says so, otherwise leave the target unset so their panic and avoidance goals
+ * can carry them away. Toddlers therefore always flee.
  */
 public class SlowToAngerGoal extends HurtByTargetGoal {
 
@@ -31,10 +28,7 @@ public class SlowToAngerGoal extends HurtByTargetGoal {
     if (!super.canUse()) {
       return false;
     }
-    if (person.getLastHurtByMob() instanceof Player player) {
-      return person.holdsGrudgeAgainst(player) || person.villageConsidersThreat(player);
-    }
-    return true;
+    return person.willFightBackWhenHurt();
   }
 
 }

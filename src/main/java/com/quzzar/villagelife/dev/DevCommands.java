@@ -40,6 +40,7 @@ public final class DevCommands {
     event.getDispatcher().register(Commands.literal("vldev")
         .requires(source -> source.hasPermission(2))
         .then(AppearanceCommands.branch())
+        .then(FamilyCommands.branch())
         .then(EconomyCommands.branch())
         .then(PersonaCommands.branch())
         .then(RelationshipCommands.branch())

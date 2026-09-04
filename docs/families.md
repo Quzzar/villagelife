@@ -1,8 +1,10 @@
 # Families and growing up
 
-**The growth and housing lifecycle is implemented.** Child creation has one reusable service and
-the developer command exercises that same path. Automatic decisions about when a married couple
-has a child remain future gameplay; the family system does not invent a birth cadence on its own.
+**Implemented.** Married couples who share a completed home periodically decide together whether
+they want a child. A successful decision schedules a birth, the child inherits both parents'
+genetics and household surname, and the household then moves, sleeps, grows, and returns from the
+road as a family. The ordinary child-creation service and the development commands exercise the
+same inheritance path.
 
 ## The four age stages
 
@@ -32,22 +34,53 @@ new sizing model.
 ## Parentage and child creation
 
 `ChildCreationService` is the single creation seam. It uses the existing generate-before-spawn
-persona pipeline, records both parent UUIDs on the child, recombines `AppearanceGenes`, starts the
-child as a Toddler, and registers them directly in the parents' village when both parents belong
-to the same one. `/vldev appearance child <firstParent> <secondParent>` calls this service; repeated
-calls create distinct siblings.
+persona pipeline, records both parent UUIDs on the child, inherits a parent-centered `StatBlock`,
+recombines `AppearanceGenes`, starts the child as a Toddler, and registers them directly in the
+parents' village when both parents belong to the same one. Every derived attribute, including
+height and maximum health, is recalculated from the inherited stats before persona generation.
+The child takes the parents' household surname. Given name, virtues, personality, and gender are
+freshly randomized.
 
-Mechanical stat and virtue inheritance is still separate work. The current service inherits the
-implemented appearance genes and preserves parentage so those inheritance systems have one place
-to attach later.
+At birth, each parent-child relationship starts at 85 and sibling relationships start at 75, both
+with the `close family` flavor. Those edges make the family socially close immediately instead of
+waiting for ordinary relationship drift to discover a bond that is already true. Parent-child,
+full-sibling, and half-sibling pairs are ineligible for marriage at proposal, decision, and final
+wedding time. The same check rejects invalid legacy pairs from family planning.
+
+## Deciding to have a child
+
+Family planning is a persisted schedule per married pair in the village brain's `strategy` tag.
+A pair is eligible when both people are Adults, married to each other, resident in the same
+village, and sharing one completed home. The default cadence is:
+
+1. One Minecraft day after first becoming an eligible household, the village convenes them.
+2. They hold a visible, alternating conversation as themselves. The prompt includes the village
+   briefing, including population, housing, recent events, work, and food.
+3. Food and housing are context for their choice, not hard birth gates. Both spouses must
+   independently say yes.
+4. Mutual agreement schedules the birth for the next daytime. A no or an unfinished model call
+   schedules another conversation four days later.
+5. After a successful birth, the couple waits eight days before discussing another child.
+
+There is deliberately no hard family-size limit. Conversation and the post-birth cooldown provide
+the pacing. When no language model is available, no decision or birth is forced; the conversation
+is retried later.
+
+Each agreed birth has a 3% chance of twins and a 0.25% chance of triplets, leaving a 96.75% chance
+of one child. All siblings in a multiple birth share one exact inherited stat block, appearance
+gene set, and appearance seed. Their names, personalities, and social identities are still
+generated independently. The rates and all three timing intervals are advanced config values.
 
 ## Dependent housing
 
 A Toddler, Kid, or Teenager may live in either resident parent's usable home without claiming a
 bed. The building is their household anchor: they return there at night, share its personal chest,
-and count its residents as housemates. They never occupy a parent's bed; at night they rest in the
-home without entering the bed pose. If neither parent has a usable home, they have no dependent
-housing and remain by the campfire at night.
+and count its residents as housemates. They never occupy a parent's bed; they use the visible sleep
+pose on the floor near the household center. There is no reserved floor coordinate. If neither
+parent has a usable home, they have no dependent housing and remain by the campfire at night.
+
+Children retire earlier by age and wake with the household at dawn. Toddlers begin resting at
+time 11000, Kids at 12000, and Teenagers at 13000. Adults keep the ordinary Minecraft night check.
 
 Dependents do not count against the housing cap and are not included in the adult homelessness
 penalty. Toddlers and Kids are excluded from the idle labor pool. An idle Teenager is in that pool
@@ -66,8 +99,39 @@ general bed; a free live-in bed at their own workplace is also valid. If neither
 ordinary employment invariant applies: their job reopens, their occupation becomes Wanderer, and
 they return to the campfire. This is the same outcome for every adult worker whose bed is lost.
 
+## Family travel and orphans
+
+Emigration treats the resident spouse, parents, and dependent children as one departure group.
+When one adult household member leaves because village attractiveness collapsed, the nuclear
+family walks to the edge together, roams behind one stable household leader, crosses the horizon
+together, and is restored together when another village recruits them. The destination rebuilds
+their marriage and close-family relationship edges. Arrival caps count dependents correctly:
+pre-adults do not consume independent beds, and only work-eligible family members consume idle
+labor capacity.
+
+A child stays with any living resident parent and inherits that parent's usable home. If neither
+parent remains, the child is an orphaned Wanderer with no dependent home. No other household adopts
+them in this version. They continue through the ordinary age stages and, as an Adult, follow the
+same bed and employment rules as every other unhoused Wanderer.
+
+## Danger and personality
+
+Being struck and actively seeking danger are separate decisions. Guards and hunters can still
+seek threats as part of their occupation. Direct self-defense is based on the person's aggression,
+their protect-self virtue, and age. Toddlers always flee. Kids need unusually high resolve;
+Teenagers and Adults fight back when their combined resolve is positive. Anyone who does not fight
+back leaves the attacker untargeted so panic and avoidance behavior can carry them away.
+
 ## Development controls
 
 - `/vldev appearance child <firstParent> <secondParent>` creates a child through the canonical path.
 - `/vldev appearance stage <target> <toddler|kid|teenager|adult>` moves a person directly to a stage
   and restarts that stage's clock, making every transition inspectable without waiting eight days.
+- `/vldev family status <firstParent> <secondParent>` reports eligibility and the persisted next
+  conversation or birth day.
+- `/vldev family consider <firstParent> <secondParent>` starts the real visible family-planning
+  conversation immediately.
+- `/vldev family birth <firstParent> <secondParent> [singleton|twins|triplets]` creates a chosen
+  multiple birth through the canonical inheritance and persona path.
+- `/vldev family sample <firstParent> <secondParent> <count>` simulates 1 to 10,000 inherited stat
+  blocks and reports min/mean/max stats and condition counts without spawning entities.

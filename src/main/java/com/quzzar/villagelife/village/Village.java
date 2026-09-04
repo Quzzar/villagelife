@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.AgeStage;
 import com.quzzar.villagelife.entities.RealPerson;
+import com.quzzar.villagelife.relationships.FamilyKinship;
 import com.quzzar.villagelife.relationships.RelationshipPair;
 import com.quzzar.villagelife.relationships.RelationshipService;
 import com.quzzar.villagelife.village.bookkeeping.BookkeepingEvent;
@@ -252,6 +254,8 @@ public class Village {
   // True while the brain is deciding whether to wed two villagers; keeps one
   // marriage decision in flight (MarriageService), the same discipline again.
   private transient boolean marriageDecisionPending;
+  // True while one couple is discussing a child or a due birth is being generated.
+  private transient boolean familyDecisionPending;
   // True while the brain is deciding who to move onto a hungry village's empty
   // field; keeps one such decision in flight (LaborPlanner), the same again.
   private transient boolean laborDecisionPending;
@@ -1625,6 +1629,13 @@ public class Village {
       VillageProfile.end("marriage", t);
     }
 
+    int familyInterval = com.quzzar.villagelife.relationships.FamilyPlanningService.FAMILY_INTERVAL_SECONDS;
+    if ((time + Math.floorMod(id.hashCode() + 17, familyInterval)) % familyInterval == 0) {
+      long t = VillageProfile.start();
+      com.quzzar.villagelife.relationships.FamilyPlanningService.tick(this, level);
+      VillageProfile.end("family planning", t);
+    }
+
     // A hungry village with an empty field and no one spare asks the brain to
     // move a worker onto it, phase-staggered like the build decision because
     // the verdict is an LLM call (docs/population-and-labor.md).
@@ -1862,27 +1873,22 @@ public class Village {
     var wanderers = VillageManager.get(level).getWanderers();
     RealPerson returning = wanderers.draw(level, road);
     if (returning != null) {
-      if (returning.hasSpouse()) {
-        RealPerson partner = roomForArrivals(2)
-            ? wanderers.drawPartner(level, road, returning.getSpouseId())
-            : null;
-        if (partner == null) {
-          // No room for the pair, or their partner is not on the road: put them
-          // back rather than bring one half of a married couple in alone.
-          wanderers.bank(returning, level.getGameTime());
-          return;
+      List<RealPerson> family = new ArrayList<>();
+      family.add(returning);
+      family.addAll(wanderers.drawFamilyMembers(level, road, returning));
+      if (!roomForArrivals(family)) {
+        for (RealPerson member : family) {
+          wanderers.bank(member, level.getGameTime());
+          member.discard();
         }
-        admitReturning(returning, fire, deadline);
-        admitReturning(partner, fire, deadline);
-        rememberMarriage(returning, partner);
-        Villagelife.LOGGER.info(
-            "the married couple '{}' and '{}' came in off the road to village '{}' together",
-            returning.getFullName(), partner.getFullName(), name);
         return;
       }
-      admitReturning(returning, fire, deadline);
-      Villagelife.LOGGER.info("'{}' came in off the road to village '{}' and is walking to the fire",
-          returning.getFullName(), name);
+      for (RealPerson member : family) {
+        admitReturning(member, fire, deadline);
+      }
+      rememberFamilyMarriages(family);
+      Villagelife.LOGGER.info("the household [{}] came in off the road to village '{}' together",
+          family.stream().map(RealPerson::getFullName).toList(), name);
       return;
     }
 
@@ -1912,30 +1918,49 @@ public class Village {
         .orElse(null);
   }
 
-  /**
-   * Brings a nearby roaming wanderer in, as a couple when they are married and
-   * their spouse is here to come too. Returns false without admitting anyone when
-   * a married wanderer cannot join as a couple right now (their spouse is not a
-   * loaded roaming wanderer, or there is no room for both), leaving them to the
-   * road. The family unit is never split (docs/marriage.md).
-   */
+  /** Brings a nearby roaming household in as one unit, or leaves all of them on the road. */
   private boolean admitArrival(RealPerson wanderer, BlockPos fire, long deadline) {
-    if (wanderer.hasSpouse()) {
-      RealPerson spouse = wanderer.loadedRoamingSpouse();
-      if (spouse == null || !roomForArrivals(2)) {
-        return false;
-      }
-      admitNearby(wanderer, fire, deadline);
-      admitNearby(spouse, fire, deadline);
-      rememberMarriage(wanderer, spouse);
-      Villagelife.LOGGER.info("the married couple '{}' and '{}' were drawn to village '{}' together",
-          wanderer.getFullName(), spouse.getFullName(), name);
-      return true;
+    List<RealPerson> family = loadedRoamingFamily(wanderer);
+    if (!roomForArrivals(family)) {
+      return false;
     }
-    admitNearby(wanderer, fire, deadline);
-    Villagelife.LOGGER.info("'{}' the wanderer was drawn to village '{}' and is coming to join",
-        wanderer.getFullName(), name);
+    for (RealPerson member : family) {
+      admitNearby(member, fire, deadline);
+    }
+    rememberFamilyMarriages(family);
+    Villagelife.LOGGER.info("the roaming household [{}] was drawn to village '{}' together",
+        family.stream().map(RealPerson::getFullName).toList(), name);
     return true;
+  }
+
+  private List<RealPerson> loadedRoamingFamily(RealPerson anchor) {
+    int radius = com.quzzar.villagelife.configuration.VillagelifeConfig.WandererRecruitRadius;
+    net.minecraft.world.phys.AABB search = new net.minecraft.world.phys.AABB(anchor.blockPosition())
+        .inflate(radius, 64, radius);
+    List<RealPerson> roaming = level.getEntitiesOfClass(RealPerson.class, search,
+        person -> person.isAlive() && person.isRoamingWanderer() && !person.isWanderingMerchant());
+    LinkedHashSet<RealPerson> family = new LinkedHashSet<>();
+    family.add(anchor);
+    boolean changed;
+    do {
+      changed = false;
+      Set<UUID> ids = family.stream().map(RealPerson::getUUID).collect(java.util.stream.Collectors.toSet());
+      for (RealPerson candidate : roaming) {
+        if (family.contains(candidate)) {
+          continue;
+        }
+        boolean spouse = candidate.getSpouseId() != null && ids.contains(candidate.getSpouseId())
+            || family.stream().anyMatch(member -> candidate.getUUID().equals(member.getSpouseId()));
+        boolean dependent = candidate.getLifeStage().isDependentlyHoused()
+            && candidate.getParentIds().stream().anyMatch(ids::contains);
+        boolean parent = family.stream().anyMatch(member -> member.getLifeStage().isDependentlyHoused()
+            && member.getParentIds().contains(candidate.getUUID()));
+        if (spouse || dependent || parent) {
+          changed |= family.add(candidate);
+        }
+      }
+    } while (changed);
+    return List.copyOf(family);
   }
 
   /** Signs a nearby wanderer (already in the world) up for this village and sets them walking to the fire. */
@@ -1955,17 +1980,54 @@ public class Village {
     pendingArrivals.add(new PendingTraveler(wanderer.getUUID(), deadline, fire.asLong()));
   }
 
-  /**
-   * Whether the village can seat {@code count} more newcomers under both caps a
-   * single arrival is held to: total population against beds plus the idle
-   * reservoir, and the reservoir alone. A married couple asks this for two, so it
-   * only joins where it can be housed together (docs/marriage.md, the double bed).
-   */
-  private boolean roomForArrivals(int count) {
-    int futurePopulation = housingDemandCount() + pendingArrivals.size();
+  /** Whether both population caps can take every work-eligible member of this household. */
+  private boolean roomForArrivals(List<RealPerson> family) {
+    int housingDemand = (int) family.stream()
+        .filter(person -> !person.getLifeStage().isDependentlyHoused()).count();
+    int idleDemand = (int) family.stream().filter(person -> person.getLifeStage().canWork()).count();
+    int pendingHousingDemand = 0;
+    int pendingIdleDemand = 0;
+    for (PendingTraveler arrival : pendingArrivals) {
+      if (level.getEntity(arrival.personId()) instanceof RealPerson person) {
+        if (!person.getLifeStage().isDependentlyHoused()) {
+          pendingHousingDemand++;
+        }
+        if (person.getLifeStage().canWork()) {
+          pendingIdleDemand++;
+        }
+      }
+    }
+    int futurePopulation = housingDemandCount() + pendingHousingDemand;
     int totalBeds = bedAssignments.size() + unassignedBeds.size();
-    return futurePopulation + count <= totalBeds + idleCap()
-        && idleCount() + pendingArrivals.size() + count <= idleCap();
+    return futurePopulation + housingDemand <= totalBeds + idleCap()
+        && idleCount() + pendingIdleDemand + idleDemand <= idleCap();
+  }
+
+  private void rememberFamilyMarriages(List<RealPerson> family) {
+    Set<UUID> ids = family.stream().map(RealPerson::getUUID).collect(java.util.stream.Collectors.toSet());
+    for (RealPerson member : family) {
+      UUID spouseId = member.getSpouseId();
+      if (spouseId == null || member.getUUID().compareTo(spouseId) >= 0 || !ids.contains(spouseId)) {
+        continue;
+      }
+      RealPerson spouse = family.stream().filter(person -> person.getUUID().equals(spouseId)).findFirst().orElse(null);
+      if (spouse != null) {
+        rememberMarriage(member, spouse);
+      }
+    }
+    for (int first = 0; first < family.size(); first++) {
+      for (int second = first + 1; second < family.size(); second++) {
+        RealPerson a = family.get(first);
+        RealPerson b = family.get(second);
+        if (!FamilyKinship.areCloseFamily(a, b)) {
+          continue;
+        }
+        boolean parentChild = a.getParentIds().contains(b.getUUID())
+            || b.getParentIds().contains(a.getUUID());
+        putRelationship(RelationshipPair.create(
+            a.getUUID(), b.getUUID(), parentChild ? 85 : 75, 0, 0, false, "close family"));
+      }
+    }
   }
 
   /**
@@ -2016,34 +2078,32 @@ public class Village {
 
   @Nullable
   private RealPerson tryEmigration() {
-    // Idle people give up on the village first, then the employed abandon their
-    // jobs. A married villager never leaves alone: they go WITH their spouse, and
-    // only when the village can spare BOTH without falling below its floor
-    // (docs/marriage.md, the family unit). A married person who cannot take their
-    // spouse right now - unaffordable, or the spouse is already mid-departure - is
-    // passed over for someone who can leave, rather than splitting the couple.
+    // Idle adults give up first, then employed adults. A spouse and every
+    // dependent child form one departure group, so emigration never strands a
+    // child or splits a married household.
     int floor = com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation;
     RealPerson leaver = null;
-    RealPerson leaverSpouse = null;
+    List<RealPerson> departingFamily = List.of();
     for (UUID id : people) {
       if (isPending(id) || !(level.getEntity(id) instanceof RealPerson person)) {
         continue;
       }
-      if (person.getLifeStage() != AgeStage.ADULT || hasDependentChild(id)) {
-        continue; // children never emigrate alone, and a resident parent does not abandon them
+      if (person.getLifeStage() != AgeStage.ADULT) {
+        continue;
       }
-      RealPerson spouse = residentSpouse(person);
-      if (spouse != null && (isPending(spouse.getUUID()) || people.size() - 2 < floor)) {
-        continue; // the couple cannot afford to leave together right now
+      List<RealPerson> family = residentFamily(person);
+      if (family.stream().anyMatch(member -> isPending(member.getUUID()))
+          || people.size() - family.size() < floor) {
+        continue;
       }
       if (!jobAssignments.containsKey(id)) {
-        leaver = person; // an idle leaver is taken outright
-        leaverSpouse = spouse;
+        leaver = person;
+        departingFamily = family;
         break;
       }
       if (leaver == null) {
-        leaver = person; // else keep the first eligible employed one as a fallback
-        leaverSpouse = spouse;
+        leaver = person;
+        departingFamily = family;
       }
     }
     if (leaver == null) {
@@ -2057,14 +2117,14 @@ public class Village {
       exit = BlockPos.of(getTownCenter().getCenterLocation())
           .offset(com.quzzar.villagelife.configuration.VillagelifeConfig.ArrivalEdgeMinDistance, 0, 0);
     }
-    sendOff(leaver, exit, deadline);
-    if (leaverSpouse != null) {
-      sendOff(leaverSpouse, exit, deadline);
-      Villagelife.LOGGER.info(
-          "the married couple '{}' and '{}' are leaving village '{}' together (attractiveness collapsed)",
-          leaver.getFullName(), leaverSpouse.getFullName(), name);
-    } else {
+    for (RealPerson member : departingFamily) {
+      sendOff(member, exit, deadline);
+    }
+    if (departingFamily.size() == 1) {
       Villagelife.LOGGER.info("'{}' is leaving village '{}' (attractiveness collapsed)", leaver.getFullName(), name);
+    } else {
+      Villagelife.LOGGER.info("the household [{}] is leaving village '{}' together (attractiveness collapsed)",
+          departingFamily.stream().map(RealPerson::getFullName).toList(), name);
     }
     return leaver;
   }
@@ -2089,21 +2149,41 @@ public class Village {
     return level.getEntity(spouseId) instanceof RealPerson spouse ? spouse : null;
   }
 
+  /** The loaded resident spouse, parents, and dependent children connected to this adult. */
+  private List<RealPerson> residentFamily(RealPerson anchor) {
+    LinkedHashSet<RealPerson> family = new LinkedHashSet<>();
+    family.add(anchor);
+    boolean changed;
+    do {
+      changed = false;
+      for (RealPerson member : List.copyOf(family)) {
+        RealPerson spouse = residentSpouse(member);
+        if (spouse != null) {
+          changed |= family.add(spouse);
+        }
+        if (member.getLifeStage().isDependentlyHoused()) {
+          for (UUID parentId : member.getParentIds()) {
+            if (people.contains(parentId) && level.getEntity(parentId) instanceof RealPerson parent) {
+              changed |= family.add(parent);
+            }
+          }
+        }
+      }
+      Set<UUID> familyIds = family.stream().map(RealPerson::getUUID).collect(java.util.stream.Collectors.toSet());
+      for (UUID residentId : people) {
+        RealPerson resident = getPerson(level, residentId);
+        if (resident != null && resident.getLifeStage().isDependentlyHoused()
+            && resident.getParentIds().stream().anyMatch(familyIds::contains)) {
+          changed |= family.add(resident);
+        }
+      }
+    } while (changed);
+    return List.copyOf(family);
+  }
+
   private boolean isPending(UUID person) {
     return pendingArrivals.stream().anyMatch(p -> p.personId().equals(person))
         || pendingDepartures.stream().anyMatch(p -> p.personId().equals(person));
-  }
-
-  /** Whether this resident is still housing at least one pre-adult child. */
-  private boolean hasDependentChild(UUID parentId) {
-    for (UUID residentId : people) {
-      RealPerson resident = getPerson(level, residentId);
-      if (resident != null && resident.getLifeStage().isDependentlyHoused()
-          && resident.getParentIds().contains(parentId)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** Every bed the village knows of, taken or free. */
@@ -2253,10 +2333,16 @@ public class Village {
         person.reloadState();
         iterator.remove();
         // The world holds only so many wanderers on foot (#59): past the cap, a
-        // leaver passes beyond the horizon from the edge instead of walking there.
-        if (loadedWandererCount() > com.quzzar.villagelife.configuration.VillagelifeConfig.WandererCap) {
-          Villagelife.LOGGER.info("'{}' left '{}' with too many already on the roads nearby", person.getFullName(), name);
-          person.crossHorizon();
+        // whole household passes beyond the horizon from the edge instead of
+        // splitting one member into the pool while the others remain loaded.
+        if (!hasPendingDepartingFamilyMember(person)
+            && loadedWandererCount() > com.quzzar.villagelife.configuration.VillagelifeConfig.WandererCap) {
+          List<RealPerson> family = loadedRoamingFamily(person);
+          Villagelife.LOGGER.info("the household [{}] left '{}' with too many already on the roads nearby",
+              family.stream().map(RealPerson::getFullName).toList(), name);
+          for (RealPerson member : family) {
+            member.crossHorizon();
+          }
         } else {
           Villagelife.LOGGER.info("'{}' left '{}' and set out {}", person.getFullName(), name,
               person.roamHeadingName());
@@ -2265,6 +2351,19 @@ public class Village {
         person.setTravelTarget(exit);
       }
     }
+  }
+
+  /** Whether another member of this person's nuclear family is still walking to the same exit. */
+  private boolean hasPendingDepartingFamilyMember(RealPerson person) {
+    for (PendingTraveler pending : pendingDepartures) {
+      if (level.getEntity(pending.personId()) instanceof RealPerson other
+          && (person.getUUID().equals(other.getSpouseId())
+              || other.getUUID().equals(person.getSpouseId())
+              || FamilyKinship.areCloseFamily(person, other))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** The walker reached the fire: they are population now, and they take a bed if one is free. */
@@ -2399,6 +2498,14 @@ public class Village {
 
   public void setMarriageDecisionPending(boolean pending) {
     this.marriageDecisionPending = pending;
+  }
+
+  public boolean isFamilyDecisionPending() {
+    return familyDecisionPending;
+  }
+
+  public void setFamilyDecisionPending(boolean pending) {
+    this.familyDecisionPending = pending;
   }
 
   /** True while a brain verdict on moving a worker to a hungry village's field is in flight (LaborPlanner). */

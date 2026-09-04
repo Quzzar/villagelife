@@ -32,6 +32,8 @@ import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.genetics.AppearanceGenes;
 import com.quzzar.villagelife.entities.genetics.GeneticCondition;
 import com.quzzar.villagelife.entities.genetics.PigmentGene;
+import com.quzzar.villagelife.entities.genetics.Stat;
+import com.quzzar.villagelife.entities.genetics.StatBlock;
 import com.quzzar.villagelife.relationships.ChildCreationService;
 import com.quzzar.villagelife.village.Occupation;
 
@@ -157,6 +159,7 @@ public final class AppearanceCommands {
       AppearanceInputs inputs = inputs(person);
       SkinRecipe recipe = AppearanceRecipeFactory.create(catalog, inputs);
       AppearanceGenes genes = person.getAppearanceGenes();
+      StatBlock stats = person.getStatBlock();
       List<String> failures = AppearanceRecipeAudit.validate(catalog, inputs, recipe);
       String output = person.getFullName()
           + " — appearance " + (failures.isEmpty() ? "PASS" : "FAIL")
@@ -168,6 +171,7 @@ public final class AppearanceCommands {
           + "\n  expression: " + recipe.expression().name().toLowerCase(Locale.ROOT)
           + ", " + recipe.model().name().toLowerCase(Locale.ROOT)
           + ", seed " + person.getAppearanceSeed()
+          + "\n  stats: " + (stats == null ? "unavailable" : describeStats(stats))
           + "\n  structure: skin " + describe(catalog, recipe.skin())
           + "; hair " + describe(catalog, recipe.hair())
           + "\n  eyes: left " + describe(catalog, recipe.leftEye())
@@ -370,9 +374,9 @@ public final class AppearanceCommands {
     }
     ChildCreationService.applyInheritance(child, firstParent, secondParent);
     source.sendSuccess(() -> Component.literal(
-        "Applied inherited appearance from " + firstParent.getFullName() + " and "
+        "Applied inherited appearance and stats from " + firstParent.getFullName() + " and "
             + secondParent.getFullName() + " to " + child.getFullName()
-            + "; the target is now using child geometry and commonwear. Their rare condition stayed unchanged."), true);
+            + "; the target is now a Toddler using child geometry and commonwear."), true);
     return 1;
   }
 
@@ -416,7 +420,8 @@ public final class AppearanceCommands {
           RealPerson child = attempt.spawned().get();
           String summary = "Spawned " + child.getFullName() + ", a child of "
               + firstParent.getFullName() + " and " + secondParent.getFullName()
-              + (familyVillage == null ? "." : " in " + familyVillage.getName() + ".");
+              + (familyVillage == null ? "." : " in " + familyVillage.getName() + ".")
+              + " Stats: " + describeStats(child.getStatBlock()) + ".";
           Villagelife.LOGGER.info("[appearance child] {}", summary);
           source.sendSuccess(() -> Component.literal(summary), true);
         });
@@ -533,6 +538,14 @@ public final class AppearanceCommands {
         occupation,
         wardrobeStage(person, occupation),
         person.getGeneticCondition());
+  }
+
+  private static String describeStats(StatBlock stats) {
+    List<String> values = new ArrayList<>();
+    for (Stat stat : Stat.values()) {
+      values.add(stat.name().toLowerCase(Locale.ROOT) + " " + stats.get(stat));
+    }
+    return String.join(", ", values);
   }
 
   private static LifeStage wardrobeStage(RealPerson person, Occupation occupation) {

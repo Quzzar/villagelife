@@ -103,6 +103,10 @@ public final class MarriageService {
 
   /** The single, present villager this person is most fond of, if the bond is strong both ways. */
   private static UUID strongestEligiblePartner(Village village, ServerLevel level, UUID id) {
+    RealPerson person = village.getPerson(level, id);
+    if (person == null) {
+      return null;
+    }
     UUID best = null;
     int bestValue = Integer.MIN_VALUE;
     for (RelationshipPair pair : village.relationshipsOf(id)) {
@@ -115,7 +119,8 @@ public final class MarriageService {
       }
       RealPerson other = village.getPerson(level, otherId);
       if (other == null || other.getLifeStage() != AgeStage.ADULT
-          || other.getMarriageStatus() != MarriageStatus.SINGLE) {
+          || other.getMarriageStatus() != MarriageStatus.SINGLE
+          || FamilyKinship.areCloseFamily(person, other)) {
         continue;
       }
       if (pair.value() > bestValue) {
@@ -146,7 +151,8 @@ public final class MarriageService {
     RealPerson b = village.getPerson(level, couple[1]);
     if (a == null || b == null
         || a.getLifeStage() != AgeStage.ADULT
-        || b.getLifeStage() != AgeStage.ADULT) {
+        || b.getLifeStage() != AgeStage.ADULT
+        || FamilyKinship.areCloseFamily(a, b)) {
       return;
     }
     String situation = decisionSituation(village, a, b, village.getRelationship(couple[0], couple[1]));
@@ -196,7 +202,8 @@ public final class MarriageService {
         || a.getLifeStage() != AgeStage.ADULT
         || b.getLifeStage() != AgeStage.ADULT
         || a.getMarriageStatus() != MarriageStatus.SINGLE
-        || b.getMarriageStatus() != MarriageStatus.SINGLE) {
+        || b.getMarriageStatus() != MarriageStatus.SINGLE
+        || FamilyKinship.areCloseFamily(a, b)) {
       village.setMarriageDecisionPending(false);
       return;
     }
@@ -230,7 +237,8 @@ public final class MarriageService {
           || pa.getLifeStage() != AgeStage.ADULT
           || pb.getLifeStage() != AgeStage.ADULT
           || pa.getMarriageStatus() != MarriageStatus.SINGLE
-          || pb.getMarriageStatus() != MarriageStatus.SINGLE) {
+          || pb.getMarriageStatus() != MarriageStatus.SINGLE
+          || FamilyKinship.areCloseFamily(pa, pb)) {
         continue;
       }
       return a.compareTo(b) <= 0 ? new UUID[] {a, b} : new UUID[] {b, a};
@@ -274,7 +282,8 @@ public final class MarriageService {
         || a.getLifeStage() != AgeStage.ADULT
         || b.getLifeStage() != AgeStage.ADULT
         || a.getMarriageStatus() != MarriageStatus.SINGLE
-        || b.getMarriageStatus() != MarriageStatus.SINGLE) {
+        || b.getMarriageStatus() != MarriageStatus.SINGLE
+        || FamilyKinship.areCloseFamily(a, b)) {
       return;
     }
     String surname = chosenSurname != null && !chosenSurname.isBlank() ? chosenSurname : hyphenate(a, b);

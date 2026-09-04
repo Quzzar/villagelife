@@ -27,10 +27,9 @@ become any profession the moment a slot opens.
 While idle, they stroll near the campfire, sit, chat and eat. The housed sleep in their own
 beds; an idle person without a bed stays up by the fire all night (bedless campfire dozing
 existed once, put villagers to sleep against the lit fire, glitched endlessly, and was
-removed: nobody sleeps rough). They are civilians, but not helpless ones: every idle resident
-defends themselves and joins in against ordinary hostile monsters within sixteen blocks of the
-campfire. They do not pursue creepers or Endermen, and the campfire tether makes this local
-defence rather than an unpaid hunting patrol.
+removed: nobody sleeps rough). They are civilians, and their reaction to danger comes from
+personality rather than the Wanderer title. A resolute idle resident can fight back when struck;
+a fearful one flees. They do not receive a free campfire-defense bonus or an unpaid hunting patrol.
 
 Idle hands also tend the fire. An idle resident who finds raw food in the village stores takes
 it to the campfire, cooks anything a campfire can cook (read from the vanilla recipe set, so
@@ -39,6 +38,15 @@ of the farmer's idle composter chain: a light, early-camp source of prepared foo
 building, and one that quietly matters less once a butchery exists to cook at scale
 (`entities/ai/goals/work/CookStep`). It is the lowest-priority thing an idle person does, so
 defence, eating and sleep always pull them off it.
+
+Ground-item pickup is personal behavior, not labor. Every person, including every age,
+occupation, roaming wanderer, and wandering merchant, occasionally looks for the nearest visible
+dropped item within eight blocks and walks over to pocket it when their pack has room. The pickup
+goal is deliberately low priority: work, village travel, danger, conversation, sleep, and other
+purposeful movement all outrank it. Once a free person chooses an item, however, they continue the
+short walk rather than abandoning it on the next random check. Awake people may tidy at night;
+sleeping people do not wake for litter. Player-thrown pickups continue to create only a personal
+memory, never an automatic gift or village-attractiveness event.
 
 ## What caps the reservoir
 
@@ -226,6 +234,13 @@ morning (the floor's other, growth-side half is above: below the floor the villa
 back to it). `/vldev village emigrate` ignores the floor, so the road can still be watched from
 a small village.
 
+An emigrating adult takes their resident spouse and dependent children. The floor is tested
+against the complete departure group, so no spouse or child is stranded to satisfy a one-person
+calculation. Dependents travel without consuming a bed or pre-work idle slot when another village
+considers admitting the household. If a child's parents die instead, the child remains an unhoused
+Wanderer and grows normally; adoption is not part of this version. See
+[families.md](families.md).
+
 The road (**implemented**, reshaped 2026-09-02): at the edge a leaver becomes a **roaming
 wanderer**, a real person with no village (`RealPerson.isRoamingWanderer`), and stays one
 until a village takes them in. They walk a heading every day: the day they leave, straight
@@ -389,6 +404,11 @@ All of these belong in config, not constants buried in `Village`:
 | Wanderer pool cap | People the world remembers on the road | 64 |
 | Base beds | Beds the village center itself provides | 4, from its building definition, not config |
 | Days per child stage | Time spent as Toddler, Kid, and Teenager | 8 days each |
+| First family talk delay | Days an eligible housed couple waits before first discussing a child | 1 day |
+| Family talk retry | Days after no decision or "not now" before asking again | 4 days |
+| Family birth cooldown | Days after a successful birth before asking again | 8 days |
+| Twin birth chance | Chance an agreed birth produces identical twins | 3% |
+| Triplet birth chance | Chance an agreed birth produces identical triplets | 0.25% |
 
 ## Open questions (not yet decided)
 

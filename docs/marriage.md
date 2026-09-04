@@ -40,8 +40,10 @@ is handed.
   tunable; the live web is what settles it.
 - Each villager proposes only to the **one** villager they are most fond of, so no
   one asks two people at once.
-- Any two eligible **Adults** may marry. There is no gender rule; Toddler, Kid,
-  and Teenager stages never propose or appear in a marriage decision.
+- Any two eligible, unrelated **Adults** may marry. There is no gender rule; Toddler, Kid,
+  and Teenager stages never propose or appear in a marriage decision. A parent and child,
+  full siblings, and half-siblings are rejected at proposal selection, mutual-proposal
+  selection, naming, and the final wedding guard.
 
 Proposals live in the brain's `strategy` tag beside the build requests and the
 goal (`MarriageProposals`), age out after 1800 village-seconds, and are cleared
@@ -70,6 +72,9 @@ A wedding (`MarriageService.wed`):
 eligibility check reads; the pair edge is the fact. The spouse is derived from the
 edge wherever it is needed (a villager's chat briefing tells them who they are
 married to), never stored twice.
+
+Once the couple shares a completed home, the family-planning loop in
+[families.md](families.md) becomes eligible. Their children take the household surname.
 
 ## The couple names itself
 
@@ -115,6 +120,15 @@ home's `personal_containers` belong to whoever sleeps there
 ([PersonalChest](../src/main/java/com/quzzar/villagelife/village/PersonalChest.java)),
 so co-assigning both beds makes the cottage chest theirs together, and each already
 reads the other as a housemate.
+
+## The household travels together
+
+Attractiveness-driven emigration never splits a resident nuclear family. The selected adult,
+their resident spouse, and all dependent children leave together when the population floor can
+spare the whole group. On the road they follow one household leader, and the horizon pool restores
+the complete family when another village draws one member back. Their marriage and close-family
+edges are rebuilt at the destination. See [families.md](families.md) and
+[population-and-labor.md](population-and-labor.md).
 
 ## The couple's cottage
 

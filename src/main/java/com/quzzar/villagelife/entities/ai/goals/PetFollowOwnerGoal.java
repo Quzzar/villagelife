@@ -12,7 +12,7 @@ import net.minecraft.world.entity.ai.goal.Goal;
  * A companion pet heeling to its villager owner. Vanilla's own owner-follow only
  * ever resolves a player as owner ({@code TamableAnimal.getOwner()}), so a pet
  * belonging to a villager would never follow anyone; this supplies that half, the
- * same shape as {@link FollowSpouseGoal} shadowing a spouse on the road.
+ * same shape as {@link FollowFamilyGoal} keeping a household together on the road.
  *
  * <p>It closes the gap once the pet has fallen behind and yields the moment it is
  * back at heel, so the pet can mill about its owner (its own vanilla RandomStroll)

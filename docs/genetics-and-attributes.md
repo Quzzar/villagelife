@@ -35,6 +35,25 @@ hard floor 3 and ceiling 18. The scale is the point: it is instantly legible to 
 compact to store and inherit, and every point off 10 converts to a small percentage in the
 projection below.
 
+## Stat inheritance
+
+A child does not receive a fresh unrelated stat block. Each score starts from the midpoint of
+both parents, then blends in a smaller fresh 3d6 population roll. `Size` uses an 80% parental
+weight and every other score uses 70%. This keeps siblings visibly related while preserving
+ordinary sibling variation and regression toward the population mean. Values remain clamped to
+3-18.
+
+The 80% Size weight is informed by the estimate that inherited DNA variation explains roughly
+80% of human height variation, but it is deliberately a gameplay model rather than a literal
+interpretation of population heritability. Heritability is a population statistic, not a promise
+that a particular child's height is 80% predetermined. See
+[MedlinePlus on height](https://medlineplus.gov/genetics/understanding/traits/height/) and
+[MedlinePlus on heritability](https://medlineplus.gov/genetics/understanding/inheritance/heritability/).
+
+Health, scale, speed, damage, and the other Minecraft attributes are never inherited separately.
+They are recomputed from the inherited scores through the projection matrix. This prevents Size
+from being inherited once as a score and again as a final scale modifier.
+
 ## Why a stat layer instead of per-attribute genes
 
 One stat feeds several Minecraft attributes, and one Minecraft attribute is fed by several
@@ -132,37 +151,57 @@ at generation (`GeneticCondition`). Mechanical conditions are fixed attribute ad
 layered on top of the stat projection; visual conditions can instead alter the derived
 appearance recipe.
 
-| Condition | Chance | Effects |
-| --- | --- | --- |
-| Gigantism | 1% | Scale +20%, max health +20%, knockback resistance +0.2, speed -8% |
-| Dwarfism | 1% | Scale -15%, max health -10%, attack damage -10%, speed +5% |
-| Heterochromia | 1% | No stat effect; left and right eyes use different inherited pigments and compatible source geometry |
+| Condition | Founder chance | One affected parent | Two affected parents | Effects |
+| --- | ---: | ---: | ---: | --- |
+| Gigantism | 1% | 12.5% | 18.75% | Scale +20%, max health +20%, knockback resistance +0.2, speed -8% |
+| Dwarfism | 1% | 50% | 66.7% of represented live births | Scale -15%, max health -10%, attack damage -10%, speed +5% |
+| Heterochromia | 1% | 50% | 75% | No stat effect; left and right eyes use different inherited pigments and compatible source geometry |
 
 The scale swings are deliberately modest: a giant reads as a tall adult (about six-fifths
 height) and a dwarf as a short one (about four-fifths), not an ogre or a child. The other
 effects carry the drama.
 
+These percentages map the broad game labels onto explicit clinical models:
+
+- The saved `DWARFISM` condition models achondroplasia because generic dwarfism has no single
+  inheritance rule. Achondroplasia is autosomal dominant: one affected and one average-stature
+  parent have a 50% affected-child chance. Two affected parents have 25% average stature, 50%
+  achondroplasia, and 25% homozygous achondroplasia, which is life-limiting. The game does not
+  simulate nonviable births, so its spawned-child pool conditions the represented outcomes to
+  2/3 affected and 1/3 unaffected. See
+  [GeneReviews](https://www.ncbi.nlm.nih.gov/books/NBK1152/).
+- The saved `GIGANTISM` condition models an AIP-related familial pituitary predisposition rather
+  than claiming all gigantism is directly inherited. Familial isolated pituitary adenoma is
+  autosomal dominant but only 20-30% penetrant. The game uses the 25% midpoint, producing 12.5%
+  expression from one affected parent and 18.75% from two. See
+  [MedlinePlus Genetics](https://medlineplus.gov/genetics/condition/familial-isolated-pituitary-adenoma/).
+- A parent's `HETEROCHROMIA` represents the congenital familial form, for which autosomal-dominant
+  inheritance has been reported. One affected parent therefore gives 50% and two give 75%. The
+  1% founder chance also covers the many sporadic and developmental cases. See
+  [NCBI Bookshelf](https://www.ncbi.nlm.nih.gov/books/NBK574499/).
+
 The condition name is persisted and synced. Heterochromia is consumed by the client appearance
-recipe and included in persona descriptions; albinism remains a future visual condition.
-Unknown condition names in old save data degrade to none.
+recipe and included in persona descriptions; albinism remains a future visual condition. Unknown
+condition names in old save data degrade to none. The save format intentionally retains at most
+one condition per person. If separate inheritance rolls express more than one, one is selected
+uniformly rather than stacking effects the current entity model cannot represent.
 
 ## Lifecycle
 
 1. **Generation**: a first-generation villager rolls 3d6 per score (bell curve, 3-18,
-   mean 10.5), then the rare-condition roll.
+   mean 10.5), then the 1%-per-condition founder roll.
 2. **Projection**: scores project through the matrix into permanent attribute modifiers.
    Projection is idempotent: each modifier has a stable id (`villagelife:gene/<stat>`)
    and is recomputed and replaced, never stacked. It reruns on every load.
-3. **Mechanical inheritance** (future): children will roll each score near the
-   parents' average with a small mutation spread; conditions become heritable with a
-   boosted chance when a parent carries one. Virtues inherit the same way. Mechanical
-   modifiers are always recomputed. Parentage and the growth lifecycle now exist, and appearance
-   has a separate implemented `AppearanceGenes`
-   recombination seam. Skin pattern, hairstyle, eye structure, and alternate-eye structure are
-   inherited independently from either parent. Skin, hair, eye, and alternate-eye color each
-   carry two diploid loci (pigment depth plus warmth/hue); a child receives one allele per locus
-   from each parent and expresses the midpoint. `ChildCreationService` already calls appearance
-   inheritance; mechanical stat and virtue inheritance must join that same seam when decided.
+3. **Inheritance**: `ChildCreationService` creates the child's StatBlock from both parents and
+   immediately reprojects every Minecraft attribute. It separately recombines `AppearanceGenes`:
+   skin pattern, hairstyle, eye structure, and alternate-eye structure are inherited independently
+   from either parent. Skin, hair, eye, and alternate-eye color each carry two diploid loci
+   (pigment depth plus warmth/hue); a child receives one allele per locus from each parent and
+   expresses the midpoint. Virtues and their derived personality remain freshly randomized, as do
+   gender and given name; the surname comes from the parents' household. Twins and triplets reuse
+   one exact inherited stat block, appearance gene set, and appearance seed for the whole birth,
+   while each child still receives an independently generated name and personality.
 
 ## Open questions (not yet decided)
 

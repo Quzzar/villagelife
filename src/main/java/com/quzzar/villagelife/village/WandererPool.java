@@ -11,6 +11,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.configuration.VillagelifeConfig;
+import com.quzzar.villagelife.entities.AgeStage;
 import com.quzzar.villagelife.entities.RealPerson;
 
 import net.minecraft.core.BlockPos;
@@ -100,56 +101,104 @@ public final class WandererPool {
     while (!entries.isEmpty()) {
       Entry entry = entries.remove(0);
       onChange.run();
-      try {
-        Entity entity = EntityType.create(entry.person(), level).orElse(null);
-        if (entity instanceof RealPerson person) {
-          person.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
-              level.random.nextFloat() * 360F, 0F);
-          return person;
-        }
-        Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
-            entry.name());
-      } catch (RuntimeException e) {
-        Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
-            entry.name(), e);
+      RealPerson restored = restore(level, pos, entry);
+      if (restored != null) {
+        return restored;
       }
     }
     return null;
   }
 
-  /**
-   * Draws a specific banked wanderer back by their UUID: the partner of a married
-   * wanderer already drawn, so a couple that crossed the horizon together returns
-   * together (docs/marriage.md, the family unit). Null when no entry with that id
-   * is on the road, in which case the caller keeps the pair together some other
-   * way rather than bringing one half in alone.
-   */
+  /** Draws every banked spouse, parent, dependent child, and dependent sibling of an anchor. */
+  public List<RealPerson> drawFamilyMembers(ServerLevel level, BlockPos pos, RealPerson anchor) {
+    ArrayList<RealPerson> family = new ArrayList<>();
+    family.add(anchor);
+    boolean changed;
+    do {
+      changed = false;
+      for (int index = 0; index < entries.size(); index++) {
+        Entry entry = entries.get(index);
+        if (!relatesToFamily(entry.person(), family)) {
+          continue;
+        }
+        entries.remove(index--);
+        onChange.run();
+        RealPerson restored = restore(level, pos, entry);
+        if (restored != null) {
+          family.add(restored);
+          changed = true;
+        }
+      }
+    } while (changed);
+    return List.copyOf(family.subList(1, family.size()));
+  }
+
+  private static boolean relatesToFamily(CompoundTag tag, List<RealPerson> family) {
+    if (!tag.hasUUID("UUID")) {
+      return false;
+    }
+    UUID candidateId = tag.getUUID("UUID");
+    UUID candidateSpouse = parseUuid(tag.getString("SpouseUUID"));
+    List<UUID> candidateParents = parentIds(tag);
+    AgeStage candidateStage = tag.contains("AgeStage")
+        ? AgeStage.byName(tag.getString("AgeStage"))
+        : tag.getBoolean("IsBaby") ? AgeStage.KID : AgeStage.ADULT;
+    for (RealPerson member : family) {
+      if (candidateId.equals(member.getSpouseId())
+          || member.getUUID().equals(candidateSpouse)) {
+        return true;
+      }
+      if (candidateStage.isDependentlyHoused() && candidateParents.contains(member.getUUID())) {
+        return true;
+      }
+      if (member.getLifeStage().isDependentlyHoused()
+          && member.getParentIds().contains(candidateId)) {
+        return true;
+      }
+      if (candidateStage.isDependentlyHoused() && member.getLifeStage().isDependentlyHoused()
+          && candidateParents.stream().anyMatch(member.getParentIds()::contains)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static List<UUID> parentIds(CompoundTag tag) {
+    ArrayList<UUID> parents = new ArrayList<>(2);
+    UUID first = parseUuid(tag.getString("FirstParentUUID"));
+    UUID second = parseUuid(tag.getString("SecondParentUUID"));
+    if (first != null) {
+      parents.add(first);
+    }
+    if (second != null) {
+      parents.add(second);
+    }
+    return parents;
+  }
+
   @Nullable
-  public RealPerson drawPartner(ServerLevel level, BlockPos pos, @Nullable UUID partnerId) {
-    if (partnerId == null) {
+  private static UUID parseUuid(String value) {
+    try {
+      return value == null || value.isBlank() ? null : UUID.fromString(value);
+    } catch (IllegalArgumentException invalid) {
       return null;
     }
-    for (int i = 0; i < entries.size(); i++) {
-      CompoundTag tag = entries.get(i).person();
-      if (!tag.hasUUID("UUID") || !partnerId.equals(tag.getUUID("UUID"))) {
-        continue;
+  }
+
+  @Nullable
+  private static RealPerson restore(ServerLevel level, BlockPos pos, Entry entry) {
+    try {
+      Entity entity = EntityType.create(entry.person(), level).orElse(null);
+      if (entity instanceof RealPerson person) {
+        person.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
+            level.random.nextFloat() * 360F, 0F);
+        return person;
       }
-      Entry entry = entries.remove(i);
-      onChange.run();
-      try {
-        Entity entity = EntityType.create(entry.person(), level).orElse(null);
-        if (entity instanceof RealPerson person) {
-          person.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
-              level.random.nextFloat() * 360F, 0F);
-          return person;
-        }
-        Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
-            entry.name());
-      } catch (RuntimeException e) {
-        Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
-            entry.name(), e);
-      }
-      return null;
+      Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
+          entry.name());
+    } catch (RuntimeException error) {
+      Villagelife.LOGGER.error("'{}' could not be restored from beyond the horizon and is lost",
+          entry.name(), error);
     }
     return null;
   }

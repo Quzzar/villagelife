@@ -244,10 +244,10 @@ rendering classes, so it runs on an integrated or dedicated server.
 | --- | --- |
 | `/vldev appearance audit` | Background-audit the built-in catalog, all 208 packaged 64x64 PNG layers, and 2,112 deterministic recipes across every gender, occupation, life stage, and condition. |
 | `/vldev appearance audit <targets>` | Validate live villagers, including recipe contracts, NBT round-trip stability, and agreement between stored and synced conditions. |
-| `/vldev appearance show <target>` | Print the selected structures, garment, model, expression, raw pigment alleles, expressed percentages, and final two-shade RGB colors. |
+| `/vldev appearance show <target>` | Print mechanical stats plus the selected structures, garment, model, expression, raw pigment alleles, expressed percentages, and final two-shade RGB colors. |
 | `/vldev appearance reroll <target>` | Roll a new appearance seed and founder appearance genes without changing occupation or condition. |
-| `/vldev appearance inherit <child> <firstParent> <secondParent>` | Recombine the two parents' appearance genes onto the target, record its parentage, and make it a Toddler. |
-| `/vldev appearance child <firstParent> <secondParent>` | Run `ChildCreationService` once to create a new Toddler near the parents with recombined appearance genes and persistent parentage. Same-village parents register the child as a resident. Repeating the command produces distinct siblings. |
+| `/vldev appearance inherit <child> <firstParent> <secondParent>` | Recombine both parents' mechanical and appearance genes onto the target, record its parentage, and make it a Toddler. |
+| `/vldev appearance child <firstParent> <secondParent>` | Run `ChildCreationService` once to create a new Toddler near the parents with inherited mechanical stats, recombined appearance genes, and persistent parentage. Same-village parents register the child as a resident. Repeating the command produces distinct siblings. |
 | `/vldev appearance pigment <target> <skin\|hair\|eyes\|alternate-eyes> <depth> <warmth>` | Set a homozygous 0–255 pigment pair for exact visual boundary testing. For eyes, the second value is hue. |
 | `/vldev appearance condition <target> <none\|gigantism\|dwarfism\|heterochromia>` | Replace and persist the condition, then reapply visual and mechanical projections. |
 | `/vldev appearance stage <target> <toddler\|kid\|teenager\|adult>` | Switch the physical/social stage immediately and restart that stage's growth clock. |
@@ -293,8 +293,6 @@ binary alpha.
   own UV; deferred in favor of wide/slim.
 - **Higher-resolution parts** (128x128 for finer faces/eyes) — possible since this is our
   own entity texture, not a player skin; v1 stays 64x64 to reuse the existing art scale.
-- **Autonomous births and mechanical inheritance** — the canonical child-creation seam exists;
-  marriage still needs a decided birth cadence, and stat/virtue inheritance still needs its model.
 - **Albinism** — add curated compatible assets or a deliberate palette transform before adding
   the condition; do not recolor the current full-color layers blindly.
 - **Face, facial hair, and skin marks** as swap/overlay dimensions — after v1.

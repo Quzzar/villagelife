@@ -98,6 +98,13 @@ public class VillagelifeConfig {
     public static int WandererCap;
     public static int WandererPoolCap;
 
+    // --- families (advanced) ---
+    public static int FamilyFirstTalkDelayDays;
+    public static int FamilyTalkRetryDays;
+    public static int FamilyBirthCooldownDays;
+    public static double TwinBirthChance;
+    public static double TripletBirthChance;
+
     // --- labor (advanced) ---
     public static double JobSwapThreshold;
     public static int JobSwapIntervalSeconds;
@@ -168,6 +175,13 @@ public class VillagelifeConfig {
         WandererRecruitRadius = ADVANCED.WandererRecruitRadius.get();
         WandererCap = ADVANCED.WandererCap.get();
         WandererPoolCap = ADVANCED.WandererPoolCap.get();
+
+        // families
+        FamilyFirstTalkDelayDays = ADVANCED.FamilyFirstTalkDelayDays.get();
+        FamilyTalkRetryDays = ADVANCED.FamilyTalkRetryDays.get();
+        FamilyBirthCooldownDays = ADVANCED.FamilyBirthCooldownDays.get();
+        TwinBirthChance = ADVANCED.TwinBirthChance.get();
+        TripletBirthChance = ADVANCED.TripletBirthChance.get();
 
         // labor
         JobSwapThreshold = ADVANCED.JobSwapThreshold.get();
@@ -279,6 +293,13 @@ public class VillagelifeConfig {
         public final ModConfigSpec.IntValue WandererCap;
         public final ModConfigSpec.IntValue WandererPoolCap;
 
+        // families
+        public final ModConfigSpec.IntValue FamilyFirstTalkDelayDays;
+        public final ModConfigSpec.IntValue FamilyTalkRetryDays;
+        public final ModConfigSpec.IntValue FamilyBirthCooldownDays;
+        public final ModConfigSpec.DoubleValue TwinBirthChance;
+        public final ModConfigSpec.DoubleValue TripletBirthChance;
+
         // labor
         public final ModConfigSpec.DoubleValue JobSwapThreshold;
         public final ModConfigSpec.IntValue JobSwapIntervalSeconds;
@@ -343,6 +364,16 @@ public class VillagelifeConfig {
             WandererRecruitRadius = builder.comment("How far (blocks) a growing village looks for an existing wanderer to recruit before spawning a new arrival.").translation(Villagelife.MODID + ".config.WandererRecruitRadius").defineInRange("Wanderer recruit radius", 128, 16, 512);
             WandererCap = builder.comment("Loaded wanderers the world keeps on foot. Past the cap, a leaver reaching the village edge passes beyond the horizon at once instead of walking there.").translation(Villagelife.MODID + ".config.WandererCap").defineInRange("Wanderer cap", 8, 0, 256);
             WandererPoolCap = builder.comment("Most people the world remembers on the road beyond the horizon. Past it the longest-gone is forgotten; 0 forgets everyone the moment they cross.").translation(Villagelife.MODID + ".config.WandererPoolCap").defineInRange("Wanderer pool cap", 64, 0, 1024);
+
+            builder.pop();
+
+            builder.comment("Families: when married couples revisit having children and how often multiple births occur.").push("families");
+
+            FamilyFirstTalkDelayDays = builder.comment("Minecraft days a newly housed married couple lives together before their first family-planning conversation.").translation(Villagelife.MODID + ".config.FamilyFirstTalkDelayDays").defineInRange("First family talk delay days", 1, 0, 365);
+            FamilyTalkRetryDays = builder.comment("Minecraft days before a couple who said not now, or whose conversation could not finish, discusses children again.").translation(Villagelife.MODID + ".config.FamilyTalkRetryDays").defineInRange("Family talk retry days", 4, 1, 365);
+            FamilyBirthCooldownDays = builder.comment("Minecraft days after a birth before the parents can discuss having another child.").translation(Villagelife.MODID + ".config.FamilyBirthCooldownDays").defineInRange("Family birth cooldown days", 8, 1, 365);
+            TwinBirthChance = builder.comment("Chance that an agreed birth produces identical twins. Triplets are rolled separately first.").translation(Villagelife.MODID + ".config.TwinBirthChance").defineInRange("Twin birth chance", 0.03D, 0.0D, 0.5D);
+            TripletBirthChance = builder.comment("Chance that an agreed birth produces identical triplets.").translation(Villagelife.MODID + ".config.TripletBirthChance").defineInRange("Triplet birth chance", 0.0025D, 0.0D, 0.1D);
 
             builder.pop();
 

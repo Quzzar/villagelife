@@ -3,6 +3,7 @@ package com.quzzar.villagelife.entities;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -193,7 +194,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     this.setPersistenceRequired();
 
     if (!world.isClientSide) {
-      this.statBlock = StatBlock.roll(this.getRandom());
+      this.statBlock = StatBlock.roll(this.getRandom()::nextLong);
       this.syncGeneticCondition(this.statBlock.getCondition());
       this.setAppearanceGenes(AppearanceGenes.roll(this.getRandom()));
       StatProjection.apply(this, this.statBlock);
@@ -222,6 +223,17 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
 
   public StatBlock getStatBlock() {
     return statBlock;
+  }
+
+  /** Replaces the stored mechanical genome and reapplies every derived attribute. */
+  public void setStatBlock(StatBlock replacement) {
+    if (this.level().isClientSide) {
+      throw new IllegalStateException("Stat blocks can only be replaced on the server");
+    }
+    this.statBlock = Objects.requireNonNull(replacement);
+    this.syncGeneticCondition(replacement.getCondition());
+    StatProjection.apply(this, replacement);
+    this.refreshDimensions();
   }
 
   @Override
@@ -688,11 +700,8 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     if (this.statBlock == null) {
       throw new IllegalStateException("Cannot replace a genetic condition without a stat block");
     }
-    this.statBlock = this.statBlock.withCondition(condition);
-    this.syncGeneticCondition(condition);
-    StatProjection.apply(this, this.statBlock);
+    this.setStatBlock(this.statBlock.withCondition(condition));
     this.setHealth(Math.min(this.getHealth(), this.getMaxHealth()));
-    this.refreshDimensions();
   }
 
   @Override
