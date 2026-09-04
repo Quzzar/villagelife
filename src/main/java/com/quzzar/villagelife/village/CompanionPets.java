@@ -25,7 +25,6 @@ import net.minecraft.world.entity.animal.WolfVariant;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -314,18 +313,22 @@ public final class CompanionPets {
   }
 
   /**
-   * The nearest companion pet this villager owns within {@code radius}, or null.
-   * The owner-to-pet lookup, kept here beside the pet-to-owner one so both ends
-   * of the bond resolve in the same home. Mirrors {@code HerdStep.select}: scan a
-   * box, keep only what passes the ownership predicate, take the nearest.
+   * The nearest loaded companion pet this villager owns, or null. The lookup is
+   * deliberately not proximity-gated: a pet ordered to stay must remain
+   * recallable after its owner walks away. Unloaded chunks are not forced open.
    */
-  public static TamableAnimal findOwnedPet(RealPerson owner, double radius) {
-    AABB box = owner.getBoundingBox().inflate(radius);
+  public static TamableAnimal findLoadedOwnedPet(RealPerson owner) {
+    if (!(owner.level() instanceof ServerLevel serverLevel)
+        || readSet(owner.getPersistentData(), PET_SPECIES_OWNED_KEY).isEmpty()) {
+      return null;
+    }
     TamableAnimal nearest = null;
     double best = Double.MAX_VALUE;
-    for (TamableAnimal pet : owner.level().getEntitiesOfClass(TamableAnimal.class, box,
-        candidate -> candidate.isAlive() && isCompanionPet(candidate)
-            && ownerUuid(candidate).map(id -> id.equals(owner.getUUID())).orElse(false))) {
+    for (Entity entity : serverLevel.getAllEntities()) {
+      if (!(entity instanceof TamableAnimal pet) || !pet.isAlive() || !isCompanionPet(pet)
+          || !ownerUuid(pet).map(id -> id.equals(owner.getUUID())).orElse(false)) {
+        continue;
+      }
       double distance = owner.distanceToSqr(pet);
       if (distance < best) {
         best = distance;

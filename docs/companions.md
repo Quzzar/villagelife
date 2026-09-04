@@ -104,9 +104,16 @@ villager's own call, not a rule's and not a player's: now and then the owner's b
 weighs whether to settle their pet or call it back, through the one-shot `decide`
 primitive the craft and job decisions use (`PetOrder`; [llm-brain.md](llm-brain.md)).
 A hunter can settle their dog while they work and call it back when they leave. The
-ask goes out at most once a day, and only once a pet is actually near, so it is a
-quiet, occasional thing rather than a fidget; and silence leaves the pet exactly as
-it is, so a mute model never moves an animal on its own.
+ask goes out at most once a day and requires only that the pet be loaded in the
+owner's dimension. It has no proximity gate, since an owner who walks away must
+still be able to call back a pet told to stay. The daily limit keeps it a quiet,
+occasional thing rather than a fidget; and silence leaves the pet exactly as it is,
+so a mute model never moves an animal on its own.
+
+The choice gives the owner a reason in either direction. Sitting can keep a pet safe
+when the present spot is suitable, especially at home. Following keeps the pet close,
+gives owner and companion time together, and strengthens their bond. These are
+considerations for the owner's personality to weigh, not rules that force a posture.
 
 Sitting reuses vanilla's own ordered-to-sit state, so the animal stays put and the
 follow goal yields to it. Recalling clears it, and if the animal is far off when

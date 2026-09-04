@@ -1682,9 +1682,9 @@ public class RealPerson extends Person {
    * Once a day, a pet owner puts it to their own brain whether to sit their
    * companion down and have it stay, or call it back to their heel: their choice,
    * through the shared decide() primitive, not a rule (PetOrder). Silence leaves
-   * the pet as it is. The day-gate is only claimed once a pet is actually nearby,
-   * so a day the pet was off following its own nose can still bring the ask later
-   * when it returns.
+   * the pet as it is. The day-gate is only claimed once the pet is loaded, with no
+   * proximity requirement: a companion told to stay remains recallable after its
+   * owner walks away.
    */
   private void maybeOrderPet() {
     // The situation opener (CraftOffer.identityLead) names the speaker's village,
@@ -1697,7 +1697,7 @@ public class RealPerson extends Person {
     if (this.petOrderDay == day) {
       return;
     }
-    TamableAnimal pet = CompanionPets.findOwnedPet(this, 16.0D);
+    TamableAnimal pet = CompanionPets.findLoadedOwnedPet(this);
     if (pet == null) {
       return;
     }
@@ -1710,7 +1710,9 @@ public class RealPerson extends Person {
         ? "Your " + pet.getName().getString() + " is sitting where you left it."
         : "Your " + pet.getName().getString() + " is at your heel.";
     String situation = CraftOffer.identityLead(this) + activity + " " + posture
-        + " Decide whether to change that, and give your reason in a few words.";
+        + " Having your companion sit and stay can keep them safe when this is a good place to rest, "
+        + "especially at home. Having them follow keeps them close, gives you time together, and strengthens your bond. "
+        + "Decide whether to change what they are doing, and give your reason in a few words.";
     PetOrder.offer(this, pet, situation);
   }
 
