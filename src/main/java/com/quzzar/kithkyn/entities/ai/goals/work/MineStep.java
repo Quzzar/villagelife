@@ -321,10 +321,9 @@ public final class MineStep implements BlockWorkStep {
       BlockPos stand = standToMine(person, footingAt);
       if (stand == null) {
         // The swept face has no reachable footing: a fresh mine with nothing dug to
-        // stand in yet, or a face across an undug gap. Rather than stand idle, carve
-        // toward it - mine the nearest corridor cell the miner CAN stand beside,
-        // opening the shaft a block at a time from where he already is until the
-        // swept face comes within reach.
+        // stand in yet, or a face across an undug gap. Recover from the entrance
+        // toward it, laying any reachable missing floor before carving the next
+        // solid cell, until the swept face comes within reach.
         BlockPos frontierStand = carveFrontier(person, mouth, rotation);
         if (frontierStand != null) {
           return frontierStand;
@@ -352,84 +351,62 @@ public final class MineStep implements BlockWorkStep {
   }
 
   /**
-   * The nearest corridor cell to the miner that is solid, diggable, and has a
-   * reachable place to stand beside it. When the swept face cannot be reached - a
-   * fresh mine with no foothold dug yet, or a face across an undug gap - this
-   * hands the miner a block he can actually work, so the shaft is carved outward
-   * from where he already stands rather than the miner standing idle at a face he
-   * cannot get to. Null when nothing diggable is within reach. Points the cursor
-   * at the chosen cell so {@link #act} breaks it, and returns the stand to work
-   * it from.
+   * Recover a rejected ramp face by scanning the planned corridor from its
+   * entrance to that face. The first reachable floor gap is bridged; otherwise
+   * the first reachable solid cell is carved. This depends on the shaft and its
+   * existing footing, not on where an idle miner wandered.
    */
   @Nullable
   private BlockPos carveFrontier(RealPerson person, BlockPos mouth, Rotation rotation) {
     Level level = person.level();
-    BlockPos anchor = person.blockPosition();
-    BlockPos anchorLocal = anchor.subtract(mouth).rotate(inverse(rotation));
-    BlockPos bestLocal = null;
-    BlockPos bestStand = null;
-    double bestDist = Double.MAX_VALUE;
-    int reach = 4;
-    for (int dz = -reach; dz <= reach; dz++) {
-      for (int dy = -reach; dy <= reach; dy++) {
-        for (int dx = -reach; dx <= reach; dx++) {
-          BlockPos local = anchorLocal.offset(dx, dy, dz);
-          if (!inShaft(local)) {
-            continue;
-          }
-          BlockPos world = mouth.offset(local.rotate(rotation));
-          Block here = level.getBlockState(world).getBlock();
-          if (here == Blocks.AIR || here == Blocks.WATER || here == Blocks.LAVA
-              || here == Blocks.BEDROCK || isLight(level, world)) {
-            continue;
-          }
-          BlockPos frontierStand = standToMine(person, world);
-          if (frontierStand == null) {
-            continue;
-          }
-          double dist = world.distSqr(anchor);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestLocal = local;
-            bestStand = frontierStand;
-          }
+    int throughZ = this.offset.getZ();
+    // Walk the planned ramp from its entrance toward the rejected face. The
+    // former four-block cube followed the miner, so once an idle miner wandered
+    // back to the surface it never intersected a deep shaft and work vanished.
+    // Entrance-first ordering finds the first solid cell that existing footing
+    // can reach, then the ordinary mine waypoints bring the miner back down.
+    for (BlockPos local : MineTopology.rampCellsThrough(throughZ)) {
+      BlockPos world = mouth.offset(local.rotate(rotation));
+      Block here = level.getBlockState(world).getBlock();
+      // The diagonal sweep can encounter an upper block several columns ahead
+      // before it reaches the bottom row of an intervening cave. If that upper
+      // face has no footing, advance the earliest reachable floor edge first.
+      // Otherwise the miner sees valid stone but rejects it forever while the
+      // missing bridge work sits later in the cursor order.
+      if (columnBottom(local) && needsSeal(level, world.below())) {
+        BlockPos floorStand = standToMine(person, world);
+        if (floorStand != null) {
+          this.offset = local;
+          this.block = here;
+          this.placeFloor = true;
+          this.placeTorch = false;
+          this.bailWater = false;
+          this.placeSeal = false;
+          return floorStand;
         }
       }
+      if (here == Blocks.AIR || here == Blocks.WATER || here == Blocks.LAVA
+          || here == Blocks.BEDROCK || isLight(level, world)) {
+        continue;
+      }
+      if (level instanceof ServerLevel serverLevel
+          && PlacedBlockStore.get(serverLevel).isVillagePlaced(world)
+          && holdsBackFlood(serverLevel, mouth, rotation, local)) {
+        continue;
+      }
+      BlockPos frontierStand = standToMine(person, world);
+      if (frontierStand == null) {
+        continue;
+      }
+      this.offset = local;
+      this.block = here;
+      this.placeFloor = false;
+      this.placeTorch = false;
+      this.bailWater = false;
+      this.placeSeal = false;
+      return frontierStand;
     }
-    if (bestLocal == null) {
-      return null;
-    }
-    this.offset = bestLocal;
-    this.block = level.getBlockState(mouth.offset(bestLocal.rotate(rotation))).getBlock();
-    this.placeFloor = false;
-    this.placeTorch = false;
-    this.bailWater = false;
-    this.placeSeal = false;
-    return bestStand;
-  }
-
-  /**
-   * Whether a cell in the mine's local frame lies inside the shaft's dug
-   * cross-section - the volume the sweep drives: {@link #RADIUS} to each side of
-   * the centre line, from the entrance inward, and the five-tall span standing on
-   * the ramp floor at that column, never at or above the mouth. Keeps
-   * {@link #carveFrontier} from cutting a hole out through the wall of the shaft,
-   * or UP into the mine's own surface: the corridor is {@code y <= -1}
-   * (MineShaft.withinCorridor), and everything at the mouth's level and above is
-   * structure - the cobblestone rim at local y 0, the acacia headframe and fence
-   * at y 1 and up. Without the {@code -1} cap the five-tall span reaches to y +3
-   * near the entrance, so a carveFrontier fired once the top of the shaft was
-   * already open found the rim and fence as the nearest solid cells and quarried
-   * the mouth away, cobblestone and fence and all (Aaron, twice). With the cap this
-   * is exactly {@link #onRamp}, the volume the sweep actually drives.
-   */
-  private boolean inShaft(BlockPos local) {
-    if (Math.abs(local.getX()) > RADIUS || local.getZ() < -(RADIUS - 1)) {
-      return false;
-    }
-    int floorY = local.getZ() < 0 ? -1 : -(local.getZ() + 2);
-    int top = Math.min(floorY + 4, -1);
-    return local.getY() >= floorY && local.getY() <= top;
+    return null;
   }
 
   /**

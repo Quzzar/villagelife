@@ -1,8 +1,10 @@
 package com.quzzar.kithkyn.entities.ai.goals.work;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -32,6 +34,25 @@ final class MineTopology {
   /** The walk-cell Y shared by a ramp column and any rib cut from it. */
   static int floorY(int z) {
     return z < 0 ? -1 : -(z + 2);
+  }
+
+  /**
+   * Ramp cells in entrance-first order through a selected face. A stalled
+   * frontier search is about the shaft's progress, never the worker's current
+   * position: an idle miner is free to wander without making deep work disappear.
+   */
+  static List<BlockPos> rampCellsThrough(int lastZ) {
+    List<BlockPos> cells = new ArrayList<>();
+    for (int z = -(MineShaft.RADIUS - 1); z <= lastZ; z++) {
+      int floor = floorY(z);
+      int ceiling = Math.min(floor + 4, -1);
+      for (int y = floor; y <= ceiling; y++) {
+        for (int x = -MineShaft.RADIUS; x <= MineShaft.RADIUS; x++) {
+          cells.add(new BlockPos(x, y, z));
+        }
+      }
+    }
+    return cells;
   }
 
   /** The five-cell-high descending shaft, capped below the surface structure. */

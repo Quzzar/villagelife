@@ -44,6 +44,21 @@ class MineTopologyTest {
   }
 
   @Test
+  void frontierRecoveryScansTheWholeRampIndependentOfWorkerPosition() {
+    BlockPos deepRejectedFace = new BlockPos(1, -23, 24);
+
+    var candidates = MineTopology.rampCellsThrough(deepRejectedFace.getZ());
+
+    BlockPos firstMissingFloorCell = new BlockPos(-2, -24, 22);
+    assertEquals(new BlockPos(-2, -1, -1), candidates.getFirst());
+    assertTrue(candidates.contains(deepRejectedFace));
+    assertTrue(candidates.stream().allMatch(MineTopology::isRamp));
+    assertTrue(candidates.stream().noneMatch(cell -> cell.getZ() > deepRejectedFace.getZ()));
+    assertTrue(candidates.indexOf(firstMissingFloorCell) < candidates.indexOf(deepRejectedFace),
+        "floor gaps must be considered before an unreachable upper face farther down the ramp");
+  }
+
+  @Test
   void offsetStepBesideFloodedRampCellIsExteriorLining() {
     BlockPos floodedRampCell = new BlockPos(-2, -3, 5);
     BlockPos offsetLeak = new BlockPos(-2, -3, 6);
