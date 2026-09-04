@@ -115,6 +115,13 @@ public final class PersonPathNavigation extends GroundPathNavigation {
   @Nullable
   public Path createPath(BlockPos pos, int accuracy) {
     if (this.mob instanceof RealPerson person && person.getVillage() != null) {
+      if (MineShaft.belowExcavation(person.getVillage(), this.mob.blockPosition())) {
+        Kithkyn.LOGGER.info(
+            "[mine] {} fell below the planned shaft and has been brought back to the village center",
+            person.getFullName());
+        person.tpToHome();
+        return null;
+      }
       BlockPos hop = MineShaft.waypoint(person.getVillage(), this.mob.blockPosition(), pos);
       if (hop != null) {
         return super.createPath(hop, accuracy);

@@ -34,6 +34,16 @@ class MineTopologyTest {
   }
 
   @Test
+  void aFallFarBelowTheRampIsNotNavigableMineInterior() {
+    BlockPos rampFloor = new BlockPos(0, -7, 5);
+    BlockPos fallenIntoCave = new BlockPos(0, -29, 5);
+
+    assertTrue(MineShaft.withinExcavation(rampFloor));
+    assertFalse(MineShaft.withinExcavation(fallenIntoCave));
+    assertTrue(MineShaft.belowExcavation(fallenIntoCave));
+  }
+
+  @Test
   void offsetStepBesideFloodedRampCellIsExteriorLining() {
     BlockPos floodedRampCell = new BlockPos(-2, -3, 5);
     BlockPos offsetLeak = new BlockPos(-2, -3, 6);

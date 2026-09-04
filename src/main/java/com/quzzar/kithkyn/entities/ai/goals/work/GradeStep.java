@@ -39,6 +39,7 @@ import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
 
@@ -165,6 +166,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
     private Kind kind;
     private BlockPos pos;
+    private BlockPos travelPos;
     @Nullable
     private Planned column;
     @Nullable
@@ -184,6 +186,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     private void set(Kind kind, BlockPos pos, @Nullable Planned column) {
       this.kind = kind;
       this.pos = pos;
+      this.travelPos = pos;
       this.column = column;
       this.fillWith = null;
       this.ticks = 0;
@@ -236,7 +239,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
   @Override
   public BlockPos positionOf(Job job) {
-    return job.pos;
+    return job.travelPos;
   }
 
   @Override
@@ -346,11 +349,16 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
         if (job.passedOver.contains(spot.asLong()) || !mayCover(level, spot)) {
           continue;
         }
+        BlockPos stand = safePlacementStand(level, job, spot, from);
+        if (stand == null) {
+          continue;
+        }
         if (coverFillInHand == null) {
           coverFillWanted = true;
           continue;
         }
         job.set(Kind.COVER, spot, column);
+        job.travelPos = stand;
         job.fillWith = coverFillInHand;
         this.dry.foundWork(person);
         return true;
@@ -369,11 +377,16 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       if (job.passedOver.contains(spot.asLong()) || !withinBudget(graded, column, 1) || !mayFill(level, spot)) {
         continue;
       }
+      BlockPos stand = safePlacementStand(level, job, spot, from);
+      if (stand == null) {
+        continue;
+      }
       if (fillInHand == null) {
         fillWanted = true;
         continue;
       }
       job.set(Kind.FILL, spot, column);
+      job.travelPos = stand;
       job.fillWith = fillInHand;
       this.dry.foundWork(person);
       return true;
@@ -436,6 +449,60 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   private static boolean withinBudget(GradedColumnStore graded, Planned column, int delta) {
     int original = graded.originalHeight(column.x, column.z, column.height);
     return withinBudget(original, column.height, delta, column.apron);
+  }
+
+  /**
+   * A fill is approached from finished neighbouring ground, never from another
+   * column that still needs to rise. Working from the latter is what led a
+   * builder down into a deep depression and then removed the only route back
+   * out as the surrounding columns filled.
+   */
+  @Nullable
+  private static BlockPos safePlacementStand(ServerLevel level, Job job, BlockPos spot, BlockPos from) {
+    BlockPos best = null;
+    double bestDistance = Double.MAX_VALUE;
+    for (Direction side : Direction.Plane.HORIZONTAL) {
+      int x = spot.getX() + side.getStepX();
+      int z = spot.getZ() + side.getStepZ();
+      int topY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+      BlockPos feet = new BlockPos(x, topY + 1, z);
+      boolean unfinished = unfinishedColumn(job, x, z);
+      if (!safePlacementLevel(spot.getY(), feet.getY(), unfinished)
+          || !standable(level, feet)) {
+        continue;
+      }
+      double distance = feet.distSqr(from);
+      if (distance < bestDistance) {
+        best = feet;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  /** Pure height and plan rule kept visible to the regression test. */
+  static boolean safePlacementLevel(int workY, int standY, boolean standColumnUnfinished) {
+    return !standColumnUnfinished && Math.abs(standY - workY) <= 2;
+  }
+
+  /** Whether the neighbouring column is itself still part of this grading job. */
+  private static boolean unfinishedColumn(Job job, int x, int z) {
+    for (Planned column : job.plan) {
+      if (column.x == x && column.z == z && !column.done()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Two clear body cells over a sturdy, dry block. */
+  private static boolean standable(ServerLevel level, BlockPos feet) {
+    BlockPos ground = feet.below();
+    BlockState support = level.getBlockState(ground);
+    return support.getFluidState().isEmpty()
+        && support.isFaceSturdy(level, ground, Direction.UP)
+        && level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+        && level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty();
   }
 
   /** Pure form kept visible to the regression tests. */

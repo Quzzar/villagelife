@@ -74,9 +74,12 @@ public final class MineShaft {
    * MineStep digs to it, and the navigator reads it.
    */
   public static boolean withinCorridor(BlockPos local) {
+    int floorY = local.getZ() < 0 ? -1 : -(local.getZ() + 2);
+    int topY = Math.min(floorY + 4, -1);
     return Math.abs(local.getX()) <= RADIUS
-        && local.getY() <= -1
-        && local.getZ() >= -(RADIUS - 1);
+        && local.getZ() >= -(RADIUS - 1)
+        && local.getY() >= floorY
+        && local.getY() <= topY;
   }
 
   /** A work or standing cell in one of the shaft's planned prospecting ribs. */
@@ -96,6 +99,27 @@ public final class MineShaft {
   /** Every position navigation should treat as belonging to this mine. */
   public static boolean withinExcavation(BlockPos local) {
     return withinCorridor(local) || withinRib(local);
+  }
+
+  /**
+   * Whether the feet have fallen beneath the planned ramp or a rib. Such a
+   * position is horizontally inside the mine, but no longer connected to its
+   * navigable volume; aiming at the ramp from there produces a waypoint
+   * directly overhead.
+   */
+  public static boolean belowExcavation(BlockPos local) {
+    int z = local.getZ();
+    int floorY = z < 0 ? -1 : -(z + 2);
+    boolean belowRamp = Math.abs(local.getX()) <= RADIUS
+        && z >= -(RADIUS - 1)
+        && local.getY() < floorY;
+    int ax = Math.abs(local.getX());
+    boolean belowRib = z >= RIB_MIN_LINE
+        && z % RIB_PITCH == 0
+        && ax >= RADIUS + 1
+        && ax <= RADIUS + RIB_LENGTH
+        && local.getY() < floorY;
+    return belowRamp || belowRib;
   }
 
   /** Every shaft in the village: one per miner station of every mine standing. */
@@ -133,6 +157,16 @@ public final class MineShaft {
       }
     }
     return null;
+  }
+
+  /** Whether a world position has fallen below any planned shaft in this village. */
+  public static boolean belowExcavation(Village village, BlockPos world) {
+    for (MineShaft shaft : of(village)) {
+      if (belowExcavation(shaft.local(world))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Nullable

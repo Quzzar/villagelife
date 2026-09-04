@@ -403,11 +403,14 @@ one stable earth block per mouth column and works from a sturdy rim inward. Sand
 remain valid supported fill but are not used for a cover because they would fall through; when
 the pack has no stable earth, the builder fetches it from a village chest by hand or reports
 the ordinary shortage. Once the cap exists, the next survey sees it as normal ground and may
-grade it within the usual limits. A cut must leave a dry, full-height standing surface
-immediately beneath the removed block. Thin earth over air, water, or a block without that supporting face is left
-intact, including an earlier hole cover. The builder checks this during the dig as well as
-when choosing the target: removing one block must not expose a cave floor several blocks
-below the planned surface.
+grade it within the usual limits. Both a fill and a cover must be approached from a finished,
+sturdy neighbouring column no more than two blocks from the work height; a column that is still
+scheduled to rise is not a foothold. This prevents a builder from walking to the bottom of a
+depression and sealing their own route out while filling it. A cut must leave a dry, full-height
+standing surface immediately beneath the removed block. Thin earth over air, water, or a block
+without that supporting face is left intact, including an earlier hole cover. The builder checks
+this during the dig as well as when choosing the target: removing one block must not expose a cave
+floor several blocks below the planned surface.
 
 **Built, 2026-09-03: a building is only built if you can get into it.** Two rules keep the
 gentle general grade from leaving a building stranded, since a butchery on a slope with a
@@ -585,8 +588,11 @@ the ramp, a hop of eight columns at a time (`village/buildings/MineShaft`, which
 definition of the corridor's shape that `MineStep` digs to): in, the mouth first and then down the
 walk cells; out, up the walk cells to the mouth; between two points of one shaft, straight when they
 are within a hop. It sits under `moveTo`, so every goal gets it, the miner's descent, the haul to the
-storehouse, the walk to bed. The stranded teleport stays as the last resort, for a villager in a cave
-the ramp does not reach.
+storehouse, the walk to bed. That corridor definition is bounded vertically to the ramp floor and its
+five-block headroom; a person far below it is no longer mistaken for a valid ramp occupant. If a route
+request finds a villager below that planned excavation, they are returned immediately to the village
+center rather than spending multiple nights aiming at an overhead waypoint. The ordinary stranded
+teleport remains the broader last resort for a cave or obstruction the ramp does not reach.
 
 **The hunter is bounded roaming, not a chase.** It works a hunting ground rather than pursuing
 animals wherever they wander. Pure roaming would walk a hunter arbitrarily far into danger, and

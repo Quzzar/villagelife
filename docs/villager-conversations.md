@@ -132,21 +132,23 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
 
 ## Taking leave (2026-09-02)
 
-A villager ends a conversation when they mean to, not when a counter says so. The reply may
-carry `"done": true` alongside `say`, `give`, `opinion` and `fight`; the rules tell the
-villager what it means (you have said what you have to say, the farewell goes in `say` on that
-same reply, most replies are not the last one) and the model decides. There is no budget of
-lines and no clock on the talk: the first version closed every villager-to-villager talk after
-four or six lines, and Aaron called a line budget dumb, let them talk until they want to stop,
-and if they go on a tangent and yap, so be it.
+A villager ordinarily ends a conversation when they mean to. The reply may carry `"done": true`
+alongside `say`, `give`, `opinion` and `fight`; the rules tell the villager what it means (you
+have said what you have to say, the farewell goes in `say` on that same reply, most replies are
+not the last one) and the model decides. The driver does not impose a short conversational
+script, but it does recognize a talk that has stopped progressing: each speaker's content words
+are compared with that speaker's recent lines, and six consecutive paraphrase-like turns close
+the exchange. A 48-turn hard ceiling remains behind that semantic check. This keeps ordinary
+long conversations intact while preventing two workers from losing whole days to an LLM loop.
 
 Honoured for a player and for a fellow villager alike. With a player, the reply packet carries
 the flag, the screen shows the farewell, and ten seconds later it closes itself
 (`PersonChatScreen`), which sends the ordinary close packet, so the session is summarized into
 memory exactly as if the player had closed it; a further reply without the flag in that window
 cancels the close, and the player may always reopen. Between villagers the driver finishes the
-talk on the spot, with the same summaries. The other ends still stand, all of them safety rather
-than budget: the per-turn session timeout (a busy lane), drifting out of range, death, a fight
+talk on the spot, with the same summaries. The other ends still stand as safety boundaries: the
+semantic stagnation check, the 48-turn backstop, the per-turn session timeout (a busy lane),
+drifting out of range, death, a fight
 picked, or a reply the model could not give. One consequence to know about: conversations run
 one at a time server-wide (`MAX_ACTIVE`), so a long talk holds the village's gossip lane for as
 long as it lasts. The log lines are `takes their leave of` under `[chat]` for a player and

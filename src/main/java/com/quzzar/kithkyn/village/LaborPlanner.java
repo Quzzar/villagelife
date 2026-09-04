@@ -28,12 +28,13 @@ import net.minecraft.server.level.ServerLevel;
  * newcomer who would farm (docs/population-and-labor.md): a deadlock a hungry
  * village cannot break on its own.
  *
- * <p>On a slow tick, then: if food is below target, a food-producing post
- * stands open with its building up, and there is no idle hand to take it, the
- * brain is shown the shortage and the crew and picks who moves to the field, or
- * that no one should. It decides WHO the same way it decides what to build:
- * the facts are laid out and the model chooses, no ranking of its own (Aaron,
- * 2026-09-02). Only loaded workers can be moved, since a reassignment rebuilds
+ * <p>During the midnight rebalance window, then: if food is below target, a
+ * food-producing post stands open with its building up, and there is no idle
+ * hand to take it, the brain is shown the shortage and the crew and picks who
+ * moves to the field, or that no one should. It decides WHO the same way it
+ * decides what to build: the facts are laid out and the model chooses, no
+ * ranking of its own (Aaron, 2026-09-02). Only loaded workers can be moved,
+ * since a reassignment awakens them, brings them to the campfire, and rebuilds
  * their goals in the world. One decision is in flight per village, like the
  * build planner and the marriage verdict, and a village whose brain leaves the
  * crew as it is sits the question out a while rather than asking it every pass.
@@ -76,6 +77,9 @@ public final class LaborPlanner {
    * nothing.
    */
   public static void tick(Village village, ServerLevel level) {
+    if (!JobClaiming.isMidnightRebalanceTime(level.getDayTime())) {
+      return;
+    }
     if (village.isLaborDecisionPending() || level.getServer() == null || !LlmService.get().isReady()) {
       return;
     }
@@ -217,6 +221,9 @@ public final class LaborPlanner {
   private static void apply(Village village, ServerLevel level, List<UUID> crewIds, String field,
       Optional<LlmDecision> result, Throwable error) {
     village.setLaborDecisionPending(false);
+    if (!JobClaiming.isMidnightRebalanceTime(level.getDayTime())) {
+      return;
+    }
     if (error != null) {
       Kithkyn.LOGGER.error("[labor] '{}' could not decide who to put on the field", village.getName(), error);
       return;
@@ -245,6 +252,7 @@ public final class LaborPlanner {
     if (vacated == null) {
       return;
     }
+    JobClaiming.prepareForJobChange(village, worker);
     village.assignJob(worker.getUUID(), post);
     JobClaiming.startJob(village, worker, post);
     JobClaiming.markCooldown(village, worker.getUUID(), level.getGameTime());

@@ -37,10 +37,10 @@ import net.minecraft.server.level.ServerPlayer;
  * player's screen honours), when either party dies or drifts out of range, when
  * a turn takes longer than the session timeout (the background LLM lane is busy;
  * the pair returns to their lives rather than standing frozen), when one answers
- * words with blows, or when the model has nothing to say. There is no budget of
- * lines and no clock on the talk itself (Aaron, 2026-09-02: let them talk until
- * they want to stop, and if they yap, so be it); {@link Exchange#maxTurns()} is
- * a backstop only, never reached in an ordinary talk. Every end closes the same
+ * words with blows, when the model has nothing to say, or when six consecutive
+ * turns paraphrase the speakers' own recent lines. There is no short scripted
+ * line budget; {@link Exchange#maxTurns()} is a 48-turn hard backstop after the
+ * semantic loop check. Every end closes the same
  * way a screen-close does: one summary each, so the talk becomes a memory.
  *
  * <p>Turns ride the background LLM lane (LlmService.submitBackgroundChat), so
@@ -83,11 +83,10 @@ public final class VillagerConversation {
   private static final int MAX_ACTIVE = 1;
 
   /**
-   * A backstop ceiling on turns, so a pair the model never lets finish still
-   * stops one day. A real talk ends long before this on {@code done}, drift, or
-   * the session timeout; there is deliberately no shorter budget of lines.
+   * Hard backstop after the semantic loop breaker: enough room for a substantial
+   * conversation, but never enough for two workers to lose whole days to one.
    */
-  private static final int SAFETY_TURN_CAP = 400;
+  private static final int SAFETY_TURN_CAP = 48;
 
   /**
    * Minimum quiet time between conversation STARTS, server-wide. The
@@ -219,6 +218,7 @@ public final class VillagerConversation {
 
     private final RealPerson initiator;
     private final RealPerson partner;
+    private final ConversationStagnation stagnation = new ConversationStagnation(2);
 
     private Exchange(RealPerson initiator, RealPerson partner) {
       this.initiator = initiator;
@@ -279,6 +279,13 @@ public final class VillagerConversation {
               // reply, and the farewell has just been spoken.
               if (reply.done()) {
                 Kithkyn.LOGGER.info("[villager chat] {} takes their leave of {}",
+                    speaker.getFullName(), listener.getFullName());
+                turn.complete(Dialogue.Turn.leave(reply.say()));
+                return;
+              }
+              if (this.stagnation.record(speakerIndex, reply.say())) {
+                Kithkyn.LOGGER.info(
+                    "[villager chat] {} and {} part after their conversation stopped making progress",
                     speaker.getFullName(), listener.getFullName());
                 turn.complete(Dialogue.Turn.leave(reply.say()));
                 return;

@@ -315,28 +315,33 @@ A workplace building finishing construction registers its work stations as open
   to the aptitude best, and one such decision is in flight per village at a time (the
   project planner's discipline, `JobClaiming` + `Village.jobDecisionPending`). This is the
   first job-facing consumer of the LLM brain; see [llm-brain.md](llm-brain.md).
-- A slow-tick **swap pass** reorganizes only when the improvement clears the configured
-  threshold (default 3 points on the 3-18 scale): a markedly better housed idle candidate
-  takes over a job (the displaced worker returns to the pool and remembers it in their personal
-  log), or one beneficial two-worker exchange per pass. A per-person cooldown (default 2
-  game days) prevents churn. The swap pass stays **purely rule-based**: reorganization is a
-  mechanical aptitude optimization, and only the initial claim of a contested post is
-  handed to the model.
+- A slow-tick **swap pass**, gated to the center of the night (17,000-18,999 day ticks),
+  reorganizes only when the improvement clears the configured threshold (default 3 points on
+  the 3-18 scale): a markedly better housed idle candidate takes over a job (the displaced
+  worker returns to the pool and remembers it in their personal log), or one beneficial
+  two-worker exchange per pass. Everyone involved is awakened, has their old route cancelled,
+  and is moved directly to the safe standing spot beside the campfire before the new occupation
+  and workplace route are installed. A per-person cooldown (default 2 game days) prevents churn.
+  The swap pass stays **purely rule-based**: reorganization is a mechanical aptitude
+  optimization, and only the initial claim of a contested post is handed to the model.
 - **Reprioritizing to a shortage** (`LaborPlanner`). Claiming and the swap pass both work
   from the idle pool; neither ever takes a settled worker off a job the village can spare and
   moves them to one it cannot. So a village that raised a farm but never grew a farmer starves
   beside it, and the starving is itself what stops it drawing the newcomer who would farm: a
-  deadlock it cannot break from inside. On a slow tick, then, a village that is **short of
+  deadlock it cannot break from inside. During the midnight window, then, a village that is
+  **short of
   food** (stored food below the per-capita target that `VillageAttractiveness` reads) with a
   **food post open** (farmer, fisher, or hunter), its building standing, and **no one idle**
   to take it, asks the brain who to move onto the field, or whether to leave the crew be. The
   facts are laid out and the model chooses, the same way it picks a build; competence is not
-  consulted here, because need, not aptitude, is the point. Only loaded workers can be moved
-  (a reassignment rebuilds their goals in the world), one decision is in flight per village
-  (`Village.laborDecisionPending`), and a brain that leaves the crew as it is sits the
-  question out a while before it is asked again. **The last builder is off the table while a
-  build is in progress** (2026-09-03): the crew offered to the field never includes a village's
-  only builder when a construction project stands, since moving them leaves no one to finish it,
+  consulted here, because need, not aptitude, is the point. This request and its applied result
+  are both gated to the same midnight window as aptitude swaps. Only loaded workers can be moved;
+  a reassignment awakens the worker, cancels the old route, moves them to the campfire, and
+  rebuilds their goals in the world. One decision is in flight per village
+  (`Village.laborDecisionPending`), and a brain that leaves the crew as it is sits the question
+  out a while before it is asked again. **The last builder is off the table while a build is in
+  progress** (2026-09-03): the crew offered to the field never includes a village's only builder
+  when a construction project stands, since moving them leaves no one to finish it,
   the build stalls, and the village sits stuck on it, never advancing to houses (a farm that
   hung half-built with its builder gone to the field, while every villager's briefing kept
   saying "building a farm"). A second builder, if there is one, may still move.

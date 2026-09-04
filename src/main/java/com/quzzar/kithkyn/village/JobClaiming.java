@@ -27,9 +27,10 @@ import net.minecraft.server.level.ServerLevel;
 /**
  * Job placement and reorganization for the campfire model (campfire map #18,
  * upgraded by #38): each open job is filled from the idle campfire pool by
- * aptitude ({@link JobAptitudes}, FIFO as the tiebreaker), and a slow-tick swap
- * pass reorganizes workers only when the improvement clears the configured
- * threshold, with a per-person cooldown so villages don't churn.
+ * aptitude ({@link JobAptitudes}, FIFO as the tiebreaker), and a midnight
+ * slow-tick swap pass reorganizes workers only when the improvement clears the
+ * configured threshold. Everyone in a real job transition is awakened and
+ * brought to the campfire first, and a per-person cooldown prevents churn.
  *
  * <p>The rules gate to competence and the model picks within it: when two or
  * more idle people are near-equally suited to an open post ({@link #PICK_DELTA}
@@ -56,6 +57,11 @@ public final class JobClaiming {
 
   private JobClaiming() {
   }
+
+  private static final long DAY_TICKS = 24_000L;
+  /** A broad center-of-night window, long enough to contain one slow swap pass. */
+  private static final long MIDNIGHT_REBALANCE_START = 17_000L;
+  private static final long MIDNIGHT_REBALANCE_END = 19_000L;
 
   /**
    * How close in aptitude two people must be to count as near-equally suited, on
@@ -575,7 +581,7 @@ public final class JobClaiming {
     person.reloadState();
   }
 
-  // --- The swap pass (#38): threshold-gated reorganization on a slow tick ---
+  // --- The swap pass (#38): threshold-gated reorganization around midnight ---
 
   /** Phase-staggered per village, so many villages don't all scan on one tick. */
   private static boolean isSlowTick(Village village, ServerLevel level) {
@@ -585,7 +591,7 @@ public final class JobClaiming {
   }
 
   private static void maybeRunSwapPass(Village village, ServerLevel level) {
-    if (!isSlowTick(village, level)) {
+    if (!isSlowTick(village, level) || !isMidnightRebalanceTime(level.getDayTime())) {
       return;
     }
     double threshold = KithkynConfig.JobSwapThreshold;
@@ -640,6 +646,8 @@ public final class JobClaiming {
       if (released == null) {
         continue;
       }
+      prepareForJobChange(village, worker);
+      prepareForJobChange(village, challenger);
       village.assignJob(challenger.getUUID(), released);
       startJob(village, challenger, released);
       worker.setOccupation(Occupation.WANDERER);
@@ -687,6 +695,8 @@ public final class JobClaiming {
         if (releasedFirst == null || releasedSecond == null) {
           continue;
         }
+        prepareForJobChange(village, first);
+        prepareForJobChange(village, second);
         village.assignJob(secondId, releasedFirst);
         village.assignJob(firstId, releasedSecond);
         startJob(village, second, releasedFirst);
@@ -698,6 +708,28 @@ public final class JobClaiming {
             releasedSecond.getOccupation(), village.getName(), String.format("%.1f", exchanged - current));
         return; // one exchange per pass
       }
+    }
+  }
+
+  /** Pure clock rule kept visible to the regression test and LaborPlanner. */
+  static boolean isMidnightRebalanceTime(long dayTime) {
+    long clock = Math.floorMod(dayTime, DAY_TICKS);
+    return clock >= MIDNIGHT_REBALANCE_START && clock < MIDNIGHT_REBALANCE_END;
+  }
+
+  /**
+   * A job change begins from one physical place, regardless of where the old
+   * work left the person. Wake them, cancel the old route, and put them beside
+   * the campfire before the new occupation installs its goals and workplace
+   * target.
+   */
+  static void prepareForJobChange(Village village, RealPerson person) {
+    person.stopSleeping();
+    person.getNavigation().stop();
+    person.setTravelTarget(null);
+    BlockPos gathering = village.getGatheringPoint();
+    if (!gathering.equals(BlockPos.ZERO)) {
+      person.moveTo(gathering, person.getYRot(), person.getXRot());
     }
   }
 

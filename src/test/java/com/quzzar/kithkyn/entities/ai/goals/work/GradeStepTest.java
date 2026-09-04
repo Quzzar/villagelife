@@ -72,6 +72,13 @@ class GradeStepTest {
     assertTrue(GradeStep.withinBudget(65, 70, 1, true));
   }
 
+  @Test
+  void fillApproachMustStandOnFinishedGroundNearTheWork() {
+    assertTrue(GradeStep.safePlacementLevel(88, 89, false));
+    assertFalse(GradeStep.safePlacementLevel(88, 88, true));
+    assertFalse(GradeStep.safePlacementLevel(88, 93, false));
+  }
+
   /** Real Minecraft block states and collision shapes in a small deterministic column. */
   private record Ground(Map<BlockPos, BlockState> blocks) implements BlockGetter {
 
