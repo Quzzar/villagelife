@@ -27,7 +27,7 @@ project, but within that field the choice is entirely its own. The cap that once
 list was a crutch for a weak model; richer per-option context, including the dependency chain,
 serves a small model better than a short list did.
 
-One correction the rules make after the fact (2026-09-01, [#80](https://github.com/Quzzar/villagelife/issues/80)):
+One correction the rules make after the fact (2026-09-01, [#80](https://github.com/Quzzar/kithkyn/issues/80)):
 a save-for goal that runs its whole lifetime with its shortfall exactly as it was when named
 has proved something `outOfReach` could not see, that nobody here can get what it needs
 (`withinReach` lets a material through when some is already in store, and a fresh camp starts
@@ -111,10 +111,17 @@ a cloud provider; internet on first boot for the model download.
 - Inference runs one request at a time, either against the offline llama.cpp subprocess
   (loaded at server start with a warm-up generation, so a broken backend fails at load, not
   mid-game) or as a cloud call. Requests time out after 60s and count as "no answer".
-- `/vlbrain status | load` and the developer `ask` command exercise all of it in-game.
-- `/vldev village context [pos]` prints the exact resident briefing, collective briefing, and
+- `/kithkyn status | load` and the developer `ask` command exercise all of it in-game.
+- `/kkdev village context [pos]` prints the exact resident briefing, collective briefing, and
   vetted planning options for the nearest village, which makes a context failure inspectable
   without spending a model call.
+
+The [redevelopment choices](redevelopment.md) use the default local model as their
+acceptance target. Their arithmetic and before/during/after capacity facts come from the game,
+and a failed decision must never select demolition through a fallback. Testing must distinguish
+proposals that were never eligible, never offered, declined, or chosen but not completed, as well
+as measure whether villages dismantle and rebuild too often. These requirements are not yet
+implemented or benchmarked.
 
 ## Every call is on record
 
@@ -165,7 +172,13 @@ services, and nothing else:
   gotchas live as comments in the provider classes (Anthropic: `x-api-key`, top-level
   `system`, never send temperature; OpenAI: `max_completion_tokens`, minimal reasoning effort).
 
-The binary and the model download on first server start into `<game dir>/villagelife/`
+The provider defaults to `local`. The cloud model setting defaults to `gpt-5.6-luna`; an
+operator choosing Claude or DeepSeek must set that service's model id, or clear the value to
+use the provider's built-in default. An unknown or blank provider name leaves the LLM in
+`FAILED` and never falls back to `local`, so a typo cannot unexpectedly download or start an
+offline model.
+
+The binary and the model download on first server start into `<game dir>/kithkyn/`
 (the model under `models/`); both are cached, so later boots are offline.
 
 ### Why Llama-3.2-3B, and why Gemma stays

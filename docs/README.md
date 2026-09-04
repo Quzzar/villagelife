@@ -3,6 +3,9 @@
 The project's knowledge, one topic per file. Read the topic covering an area before working
 in it, and update it in the same change that moves what it describes.
 
+- [project-identity.md](project-identity.md): the Kithkyn name, website, repository, and the
+  deliberate break with old mod saves and namespaces.
+
 - [population-and-labor.md](population-and-labor.md): the campfire model. How villagers
   arrive, what caps the population, and how jobs get filled from the idle pool. The decided
   design the refactor is building toward.
@@ -63,6 +66,8 @@ in it, and update it in the same change that moves what it describes.
 - [site-selection.md](site-selection.md): how a village finds somewhere to build. Site cost
   instead of site validity, how far villagers may reshape ground (surface yes, shape never),
   the builder's prepare phase, and the runtime budget that keeps site search off the tick.
+- [redevelopment.md](redevelopment.md): the planned removal of specific buildings to make room
+  for construction, salvage, small-model decision facts, and benchmarks for both use and churn.
 - [building-spec.md](building-spec.md): the complete enumeration. Every variant, every level,
   its cost in build points, its special materials, and the capabilities it grants the village.
   The enumeration maps 36 categories, of which 17 survived the cut — see its "The cut"
@@ -79,11 +84,14 @@ in it, and update it in the same change that moves what it describes.
 - [structure-sourcing.md](structure-sourcing.md): where building structures can legally come
   from. License survey of vanilla, CTOV, Towns and Towers, YUNG's, and community schematic
   sites, each read from its own LICENSE file, plus the realistic paths forward.
+- [structure-review.md](structure-review.md): decisions from the walkable reference gallery,
+  including the retained watchtower, church, fishery, and desert-tavern directions, the village-biome
+  roster, villager navigation questions, and the village identity system that precedes adaptation.
 - [worker-loops.md](worker-loops.md): what a villager actually does. The three verbs a job is
   built from, roaming versus fixed, what happens when there is nothing to work on, and the
   performance budget that decides how targets get found.
 - [structure-authoring.md](structure-authoring.md): how a building's structure file gets made,
-  headlessly, with commands plus `/vldev village save-structure`. The loop the current village
+  headlessly, with commands plus `/kkdev village save-structure`. The loop the current village
   center was built with.
 - [village-loading.md](village-loading.md): keeping a village awake when no player is near. The
   two-speed village today (bookkeeping always, world frozen when unattended), what a loaded
@@ -103,7 +111,7 @@ carry the decisions; these carry the evidence behind them.
   into the A* edge weights, and a weighted A* that returns a best-so-far segment on timeout and
   never expands into unloaded chunks. The real alternative to teleport-on-stuck.
 - [research/poi-gathering-points.md](research/poi-gathering-points.md): POI types on NeoForge
-  1.21.1 for the campfire gathering point. Why a custom `villagelife:campfire` POI beats reusing
+  1.21.1 for the campfire gathering point. Why a custom `kithkyn:campfire` POI beats reusing
   `minecraft:meeting`, and what goal-based claiming costs without the Brain system.
 - [research/vanilla-structure-conversion.md](research/vanilla-structure-conversion.md): what
   vanilla village templates actually ship, how much of phase 1 they cover, and why copying them

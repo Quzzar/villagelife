@@ -1,0 +1,2 @@
+[18:03:36] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=Redevelopment verification examined=1 generated=0 refused={insufficient general beds for displaced residents=1} budgetExhausted=true ms=59.817125
+[18:05:04] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=true elapsed=144000 builds=1

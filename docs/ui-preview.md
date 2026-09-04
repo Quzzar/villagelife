@@ -17,21 +17,28 @@ Reasoning about a layout is not looking at it. If you are changing anything unde
 ## Running it
 
 ```bash
-./gradlew runClient -Puipreview=trade
-./gradlew runClient -Puipreview=chat
+./gradlew runClientJoinLocal -Puipreview=trade
+./gradlew runClientJoinLocal -Puipreview=chat
+./gradlew runClientJoinLocal -Puipreview=age-lineup
+./gradlew runClientJoinLocal -Puipreview=age-lineup-world
 ```
 
-The client boots, opens the named face of the villager screen over sample data, writes
-`run/screenshots/ui-<mode>.png`, and quits. It never loads a world, so it does not take the
-session lock and will not collide with a running dev server. Read the PNG directly.
+Start the local development server first. The preview client joins it as `Dev`, opens the named
+preview over controlled sample data, writes `run-preview/screenshots/ui-<mode>.png`, and quits.
+The separate `run-preview/` game directory keeps its config and session files away from the server.
+Read the PNG directly.
 
 Takes roughly two to four minutes, most of it client startup.
 
 ## How it works
 
-`client/gui/UiPreview.java` waits for the loading overlay to clear, opens `PersonChatScreen`
-with a fixed sample payload, lets the screen settle, then calls `Screenshot.grab` and stops
-the client.
+`client/gui/UiPreview.java` waits for the loading overlay to clear, opens the requested screen,
+lets it settle, then calls `Screenshot.grab` and stops the client. Chat and trade use a fixed
+`PersonChatScreen` payload. `age-lineup` creates four unspawned client-side people with identical
+appearance inputs, changes only their age stage, and renders them through the real entity renderer.
+`age-lineup-world` briefly spawns the same controlled stages in front of the preview player so the
+real entity attachments, name line, role line, camera perspective, and model scale are photographed
+together. The tagged entities are removed immediately after the capture.
 
 Two traps are already paid for, and both cost an hour the first time:
 
@@ -39,15 +46,15 @@ Two traps are already paid for, and both cost an hour the first time:
   the property on Gradle's own JVM. ModDevGradle forks the client as a separate process,
   which never sees it. `build.gradle` maps `-Puipreview` onto a `systemProperty` for exactly
   this reason. Use `-P`, not `-D`.
-- **Do not wait for `TitleScreen`.** A first launch shows accessibility onboarding first, and
-  a harness that waits for a title screen that never arrives will sit at 3% CPU forever
-  looking like a hang. Wait for the overlay to clear instead.
+- **Wait for the joined world.** Screens need a player inventory and entity previews need a client
+  level. Waiting at the title screen cannot exercise either real path.
 
 ## Sample data, not live data
 
-The payload is authored to contain the awkward cases: a long item name, a two-digit stack, a
-column with fewer rows than its neighbour. A live village shows whatever it happens to hold
-that minute, which is usually the easy case, and the easy case is not what breaks layouts.
+The screen payload is authored to contain the awkward cases: a long item name, a two-digit stack,
+and a column with fewer rows than its neighbour. The age lineup holds appearance and attributes
+constant so stage geometry is the only visual variable. A live village shows whatever it happens
+to hold that minute, which is usually the easy case, and the easy case is not what breaks layouts.
 
 Add a case here whenever a layout bug gets through, so the next screenshot would have caught it.
 

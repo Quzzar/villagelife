@@ -48,7 +48,7 @@ so melon and pumpkin need a fruiting lane the farmer will leave alone. Podzol is
 — it is valid ground for fruit and is the one dirt-family block absent from `TILLABLES`.
 
 `upgrades_from` is live: a village offers an upgrade of something it owns alongside new
-buildings, rebuilds it in place, and keeps the building's identity so its workers keep their
+buildings, rebuilds it on site, and keeps the building's identity so its workers keep their
 jobs — see [How upgrading works](#how-upgrading-works). Several
 shipped files contradict the rules below (a level-1 church granting ENCHANTING alone, a
 watchtower with two guard stations, a storehouse with eleven containers). The footprint
@@ -122,20 +122,21 @@ phases 3 and 4 in particular as a record of what would fit, to be cut freely.
 
 ```
 house_desert_1        cottage, desert variant
-house_desert_2        upgraded in place to a house
+house_desert_2        upgraded on site to a house
 blacksmith_plains_3   foundry
 mill_watermill_1      variant is a name, not a family, where the shape differs
 ```
 
-The structure file at `data/villagelife/structure/<id>.nbt` shares the id exactly, so a definition
+The structure file at `data/kithkyn/structure/<id>.nbt` shares the id exactly, so a definition
 and its structure are never out of step.
 
 **This supersedes the `house_wood_s` sketch in [village-tiers.md](village-tiers.md).** That form
 encoded material and size; this one encodes variant and level, which is what the two axes actually
 are.
 
-Levels are never built from scratch. A level-2 building exists only by upgrading a level-1 one, so
-a village always wears its history.
+Levels describe the completed building, not the route used to reach it. A village may either
+upgrade a compatible lower-level building on site or construct the higher level on a separate
+site. The village prefers reuse when it fits because that route is cheaper.
 
 ## Cost, and space
 
@@ -145,6 +146,14 @@ These are two separate questions and the spec keeps them separate.
 already uses. Nothing abstract, no points, no derived unit. The recipes below are the plains
 variant of each building, and since 2026-09-01 every other variant's as well: a building costs
 the same whatever family it is built in.
+
+**Each recipe describes its completed structure.** Reusing the exact building named by
+`upgrades_from` pays only the positive material increase from predecessor to target. Constructing
+that level on a new site follows the chain and combines the level-1 recipe with each calculated
+upgrade cost: fresh level 2 pays level 1 plus its upgrade, and fresh level 3 pays level 1 plus both
+upgrades. A decrease between recipes never becomes a rebate; shipped blacksmith and watchtower
+definitions contain such decreases, so fresh cost must be derived from the chain rather than copied
+blindly from the target.
 
 **Every building is now priced.** The recipes in the tables below are the original
 sketch; what actually ships is derived from each structure's own block count, and
@@ -198,7 +207,7 @@ one that nearly can, is [site-selection.md](site-selection.md).
 ### Variants are a look, not a recipe
 
 **A variant is a family's shape of the same building** (decided 2026-09-01, superseding
-[#50](https://github.com/Quzzar/villagelife/issues/50), which had made variants competing
+[#50](https://github.com/Quzzar/kithkyn/issues/50), which had made variants competing
 recipes). Every variant of a category and level costs the same recipe, the plains one, in
 generic wood and stone. Which variant a village raises is settled once, at founding, by the
 biome it stands in ([buildings.md](buildings.md), "Regional variants and biomes"), and kept
@@ -278,7 +287,7 @@ village's claim, read together, and nothing is abstracted or tracked in parallel
 is satisfiable when those chests hold those items.
 
 **One pool for planning; real walking for work** (decided on
-[#49](https://github.com/Quzzar/villagelife/issues/49)). The union above is what the brain
+[#49](https://github.com/Quzzar/kithkyn/issues/49)). The union above is what the brain
 counts when it asks "can we afford this", so affordability is simple and cannot deadlock on
 geography. Workers do not get that luxury: a villager who needs an input walks to the
 nearest container that actually holds it and carries it back, and a villager with output in
@@ -323,22 +332,37 @@ unwitnessed theft genuinely costs nothing, because nobody knows. A witnessed one
 recorded by the witness as a fact, and how much they hold it against you is their own
 judgement on reflection; it reaches the rest of the village only as gossip through the
 relationship web, not as an instant village-wide verdict. The consequences are detailed in
-[#64](https://github.com/Quzzar/villagelife/issues/64).
+[#64](https://github.com/Quzzar/kithkyn/issues/64).
 
 ### How upgrading works
 
-Decided on [#56](https://github.com/Quzzar/villagelife/issues/56). A level above 1 is only
-ever reached by upgrading; nothing is built fresh at level 2.
+Decided on [#56](https://github.com/Quzzar/kithkyn/issues/56), then extended on 2026-09-04.
+`upgrades_from` defines a cheaper reuse path, not the only way a higher level can exist. When a
+compatible predecessor fits, the planner prefers the on-site upgrade. When it does not fit or
+does not exist, the village may build the target level on a separate site at the cost of the base
+building plus every upgrade through that level.
 
-**Rebuilt block by block on the same origin.** An upgrade is ordinary construction with the
-new template over the old, using the machinery that already builds everything else, so you
-watch it happen. Footprints grow between levels, so the larger footprint is fit-checked at
-upgrade time with the site-preparation scorer; no room means the upgrade is refused and the
-level-1 building simply stands. Nothing is reserved in advance.
+**Rebuilt block by block around the old footprint.** An upgrade is ordinary construction with
+the new template over the old, using the machinery that already builds everything else, so you
+watch it happen. It keeps the standing building's orientation, but the new origin may slide in
+either horizontal direction. Every translated position in which the larger footprint fully
+contains the old footprint is checked. The least ground work wins, with the most centred
+extension breaking a tie. This is a rebuild within the same parcel rather than preservation of
+each old block: the containing rule ensures the new template replaces the whole old footprint
+and leaves no fragment behind. It lets a house grow west when its east side is blocked. The same
+one-block lane is still required around every other building.
+
+The mine is the exception. Its shaft is runtime geometry below the saved template, so moving the
+headframe would strand the old shaft. A mine upgrade retains its exact origin and uses the fresh
+higher-level path elsewhere when that authored expansion direction is blocked.
+
+If no containing position works, that reuse path is refused and the lower-level building simply
+stands. The higher level may still be planned elsewhere at its full combined cost. Nothing is
+reserved in advance.
 
 **The chest is emptied into the rest of the village before work starts.** Contents are
 carried out to other village containers, which the one-pool decision on
-[#49](https://github.com/Quzzar/villagelife/issues/49) already makes the natural move.
+[#49](https://github.com/Quzzar/kithkyn/issues/49) already makes the natural move.
 Nothing is ever destroyed. If the village genuinely has nowhere to put it, that is a storage
 shortage and the upgrade waits rather than proceeding.
 
@@ -359,12 +383,15 @@ stations, count what is represented across booked and open assignments, and regi
 missing ones. Run it after any upgrade and after any datapack reload, which fixes the same
 bug in its other guise: an author editing a definition on a live world.
 
-**Demolition does not exist.** Buildings go up and improve; nothing chooses to remove one.
-That is deliberately deferred until villages actually run out of space.
+**Redevelopment can remove specific blocking buildings as part of a named construction project.**
+The game calculates the placement, consequences and salvage, then the model chooses. Net
+materials and a viable transition must be secured before removal. The saved demolition phase
+feeds into ordinary preparation and construction. See [redevelopment.md](redevelopment.md)
+for safeguards, accounting and benchmarks for useful adoption and excessive rebuilding.
 
 ### What a capability is at runtime
 
-Decided on [#55](https://github.com/Quzzar/villagelife/issues/55).
+Decided on [#55](https://github.com/Quzzar/kithkyn/issues/55).
 
 **Derived, never stored.** A village's capabilities are simply the set of strings granted by
 the buildings currently standing, recomputed whenever a building is added or lost. Nothing
@@ -422,11 +449,11 @@ Three capabilities need more than one building:
 
 ### How a conditional grant is declared
 
-**Implemented** as of [#68](https://github.com/Quzzar/villagelife/issues/68). `grants` is a
+**Implemented** as of [#68](https://github.com/Quzzar/kithkyn/issues/68). `grants` is a
 list of capability strings; `grants_if` is a list of objects naming a capability plus
 `requires_capability` and/or `requires_supply`. `VillageCapabilities.resolve` walks the
 standing buildings, takes everything unconditional, then re-evaluates the conditional ones
-until a pass adds nothing. `/vldev village capabilities` prints the resolved set and what
+until a pass adds nothing. `/kkdev village capabilities` prints the resolved set and what
 each building contributes, marking conditional grants as granted or withheld with the
 requirement that decides it.
 
@@ -462,7 +489,7 @@ simply never grant, which is the correct and quiet failure.
 
 ## The cut
 
-Decided on [#57](https://github.com/Quzzar/villagelife/issues/57). The catalogue below is
+Decided on [#57](https://github.com/Quzzar/kithkyn/issues/57). The catalogue below is
 **22 categories**, down from 36. The filters were the ticket's own: a category needs a work
 loop describable in one sentence, must not be another category wearing a different hat, and
 must not exist solely to feed something else. Stronghold, the stated model, shipped roughly
@@ -503,7 +530,7 @@ categories. It needs regenerating against the 21 (it still enumerates the cut `k
 
 ## Beds belong to houses
 
-Decided on [#61](https://github.com/Quzzar/villagelife/issues/61). **A workplace never
+Decided on [#61](https://github.com/Quzzar/kithkyn/issues/61). **A workplace never
 contains a bed.** Blacksmiths smith; houses house. The one exception is `village_center`,
 because a camp is people sleeping around a fire before there are any houses, so the centre
 carries the starting beds and nobody minds that a station shares the building.
@@ -544,9 +571,11 @@ Founding building, placed free. Four beds, one chest, a campfire and a bell outs
 village on the shared server has ever upgraded its centre (checked against Wildflower Downs'
 logs, 2026-09-02). The planner used to add a second reason, filtering the entire
 `village_center` category as founding-only, which would have hidden a level-2 centre even
-once one shipped; it now filters only a fresh level-1 centre, so a `village_center_<family>_2`
-with `upgrades_from` is offered like any other upgrade. When one is authored it should keep
-its `gathering_point` at the level-1's local offset, or the campfire moves with the upgrade.
+once one shipped; it now permits an on-site `village_center_<family>_2` upgrade while still
+forbidding a second centre on a fresh site. When one is authored it should keep its
+`gathering_point` at the level-1's local offset. The planner may translate the containing parcel
+a few blocks to make the larger footprint fit, in which case the campfire moves with the hall
+and the paths are laid again to its new world position.
 
 #### `house`
 
@@ -730,7 +759,7 @@ is not. A tanner cultivates a herd that stays put; a hunter roams after animals
 that do not, so the hunter's building is somewhere to return to rather than
 somewhere to stand all day.
 
-The lit campfire is safe despite `VillagelifePoiTypes` registering a POI over lit
+The lit campfire is safe despite `KithkynPoiTypes` registering a POI over lit
 campfire states: the village reads its gathering point from the town centre's own
 `gathering_point` field, and nothing consumes that POI.
 
@@ -924,7 +953,7 @@ Pairs with `wall`. Same phase, same blocker.
 > `weaver`, and all of Phase 4). It needs regenerating against the 21 survivors; until then
 > the per-category tables above are authoritative, not this list.
 
-Every `.nbt` this catalog needs, at `data/villagelife/structure/<id>.nbt`.
+Every `.nbt` this catalog needs, at `data/kithkyn/structure/<id>.nbt`.
 
 | Set | What it buys | Structures |
 | --- | --- | --- |
@@ -941,7 +970,7 @@ is large. Two things make it tractable:
 - **The minimum playable set is 11 structures.** One level-1 plains building per phase 1 category.
   That alone gives a village that founds itself, feeds itself, houses its people, gathers wood and
   stone and ore, and posts a watch. Everything past it is variety and depth, not viability.
-- **Vanilla cannot be copied, only referenced.** [Research on conversion](https://github.com/Quzzar/villagelife/issues/53)
+- **Vanilla cannot be copied, only referenced.** [Research on conversion](https://github.com/Quzzar/kithkyn/issues/53)
   found the EULA forbids redistributing Mojang `.nbt` files in our jar, modified or not. Loading
   them at runtime by `ResourceLocation` is legal and is the only route. Coverage is also thinner
   than this doc first claimed: 27 to 30 of the phase 1 files, all level 1, and 22 of our categories
@@ -1068,4 +1097,3 @@ gatehouse_desert_2            gatehouse_desert_3
   existing datapack costs, which were themselves untuned. Nothing here has been played.
 - **Do wall and gatehouse belong in this file at all**, or do they wait for site-selection and get
   their own treatment as linear structures.
-

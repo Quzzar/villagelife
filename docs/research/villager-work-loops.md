@@ -1,9 +1,9 @@
 # How other mods drive villager work loops
 
-Research for [issue #52](https://github.com/Quzzar/villagelife/issues/52), feeding the decision in
-[What a worker actually does (#48)](https://github.com/Quzzar/villagelife/issues/48) and, secondarily,
-[Where a building output goes (#49)](https://github.com/Quzzar/villagelife/issues/49). Part of the
-[building and village progression map (#47)](https://github.com/Quzzar/villagelife/issues/47).
+Research for [issue #52](https://github.com/Quzzar/kithkyn/issues/52), feeding the decision in
+[What a worker actually does (#48)](https://github.com/Quzzar/kithkyn/issues/48) and, secondarily,
+[Where a building output goes (#49)](https://github.com/Quzzar/kithkyn/issues/49). Part of the
+[building and village progression map (#47)](https://github.com/Quzzar/kithkyn/issues/47).
 
 Four mods have already solved the problem this project is about to solve: a villager doing real work
 on real blocks inside a village economy. This is what they did, what it cost them, and which parts

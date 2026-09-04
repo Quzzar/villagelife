@@ -1,0 +1,12 @@
+[17:51:57] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] COMMITTED plan=3f5b8e18-87e2-4463-bc50-7a4deef58e82 blocks=182 builder=Ada Shannon
+[17:51:57] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=0 phase=DEMOLISHING remaining=182 blocker=
+[17:52:06] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=1200 phase=DEMOLISHING remaining=123 blocker=
+[17:52:36] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=2400 phase=DEMOLISHING remaining=63 blocker=
+[17:52:39] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=3600 phase=DEMOLISHING remaining=3 blocker=
+[17:52:42] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=4800 phase=PREPARING remaining=0 blocker=
+[17:52:44] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=6000 phase=IN_PROGRESS_WORKING remaining=0 blocker=
+[17:52:49] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=7200 phase=IN_PROGRESS_WORKING remaining=0 blocker=
+[17:53:01] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=8400 phase=IN_PROGRESS_WORKING remaining=0 blocker=
+[17:53:21] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=9600 phase=IN_PROGRESS_WORKING remaining=0 blocker=
+[17:53:25] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] elapsed=10800 phase=COMPLETE remaining=0 blocker=
+[17:53:26] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-execution] PASS elapsedTicks=11559 farmsRemaining=1 investment=36 logs, 48 cobblestone

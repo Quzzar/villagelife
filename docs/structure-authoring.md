@@ -23,18 +23,18 @@ commands. This is the loop the current `village_center_plains_1` was built with.
    **A build script's own success count proves nothing.** Failed setblocks come back as
    ordinary command output, not as errors a naive filter catches. Verify the world, then
    verify the capture (step 7).
-3. **Capture it**: `/vldev village save-structure <from> <to> <name>`, where the two
+3. **Capture it**: `/kkdev village save-structure <from> <to> <name>`, where the two
    positions are opposite corners INCLUSIVE. The file lands in
-   `<world>/generated/villagelife/structures/<name>.nbt`. Entities are deliberately not
+   `<world>/generated/kithkyn/structures/<name>.nbt`. Entities are deliberately not
    captured; the existing legacy structures carry broken item frames precisely because
    entities were baked in.
-4. **Ship it**: copy that file to `src/main/resources/data/villagelife/structure/<name>.nbt`.
+4. **Ship it**: copy that file to `src/main/resources/data/kithkyn/structure/<name>.nbt`.
    The id in the building JSON's `structure` field, the file name, and the `.nbt` name are
    all the same string, so a definition and its structure can never drift apart.
 5. **Write the definition** JSON beside it, with positions RELATIVE to the structure
    origin (the corner you passed as `from`). Beds, work stations, containers, personal containers (a home's own chest, the rule in
    [building-spec.md](building-spec.md)), and the gathering point are all origin offsets.
-6. **Look at it**: `/vldev village gallery <pos>` places every loaded definition on labelled
+6. **Look at it**: `/kkdev village gallery <pos>` places every loaded definition on labelled
    plinths. `/reload` picks up JSON edits without a restart; a new `.nbt` needs a restart.
 7. **Verify the palette**, always, before shipping. The decompressed NBT contains every
    block id as plain text, so a raw string search answers "did this block actually make
@@ -97,19 +97,23 @@ step above the ground on purpose.
 
 ## Deriving a level from a shipped structure
 
-A level above 1 is rebuilt on the level-1's origin corner, in its orientation
-([building-spec.md](building-spec.md), "How upgrading works"), so it can only grow toward local
-+X or +Z, and every level-1 cell the level-2 keeps must sit at the same local coordinates. Where
-a level is the level-1 developed rather than a different building, author it as a script over the
-level-1 file instead of by hand. `tools/structure/mine-level-2.py` writes the level-2 mine in all
-five families from the five level-1 files: the layout is written once, in the plains file's own
+A level above 1 is rebuilt in the level-1's orientation. At runtime the new footprint may be
+translated to any position that fully contains the old one
+([building-spec.md](building-spec.md), "How upgrading works"), so an ordinary building can grow
+in any horizontal world direction even though its authored local footprint still grows toward
++X or +Z. This re-seats the whole template within the old parcel; it does not preserve old cells
+one for one. A structure with important runtime geometry outside its template needs an explicit
+exception. Mines retain the exact origin because their shafts are dug below the file. Where a
+level is the level-1 developed rather than a different building, author it as
+a script over the level-1 file instead of by hand. `tools/structure/mine-level-2.py` writes the
+level-2 mine in all five families from the five level-1 files: the layout is written once, in the plains file's own
 blockstates, and each family's blocks come from the block-for-block mapping between
 `mine_plains_1` and `mine_<family>_1` at the same position, so no family is authored twice and a
 change to a level-1 file is carried into its level 2 by re-running the script. It refuses a block
 the level-1 palette lacks. Run it from `tools/structure/`:
 
 ```
-python3 mine-level-2.py ../../src/main/resources/data/villagelife/structure
+python3 mine-level-2.py ../../src/main/resources/data/kithkyn/structure
 ```
 
 then `validate.py` over the output, as for anything else. What no script checks is the shaft:

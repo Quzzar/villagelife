@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues (`github.com/Quzzar/villagelife`).
+Issues and specs for this repo live as GitHub issues (`github.com/Quzzar/kithkyn`).
 Use the `gh` CLI for all operations.
 
 ## Conventions

@@ -85,7 +85,7 @@ def build_variant(source, subs):
 
 def main(structure_dir):
     buildings_dir = os.path.normpath(os.path.join(
-        structure_dir, "..", "villagelife", "buildings"))
+        structure_dir, "..", "kithkyn", "buildings"))
     plains_nbt = os.path.join(structure_dir, "couple_cottage_plains_1.nbt")
     plains_json = os.path.join(buildings_dir, "couple_cottage_plains_1.json")
     source = read(plains_nbt)
@@ -107,5 +107,5 @@ def main(structure_dir):
 
 if __name__ == "__main__":
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "..", "..", "src", "main", "resources", "data", "villagelife", "structure")
+                               "..", "..", "src", "main", "resources", "data", "kithkyn", "structure")
     main(os.path.normpath(sys.argv[1] if len(sys.argv) > 1 else default_dir))

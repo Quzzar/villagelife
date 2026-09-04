@@ -6,8 +6,8 @@ design replaces. There is no verb enum, no job-definition datapack, no per-job t
 the "nothing to work on" contract is not wired at any work goal (a lumberjack with no trees
 simply wanders, silently). Treat every present-tense sentence below as intent.
 
-Resolves [What a worker actually does](https://github.com/Quzzar/villagelife/issues/48)
-on the [building and village progression map](https://github.com/Quzzar/villagelife/issues/47).
+Resolves [What a worker actually does](https://github.com/Quzzar/kithkyn/issues/48)
+on the [building and village progression map](https://github.com/Quzzar/kithkyn/issues/47).
 This is the layer everything in [building-spec.md](building-spec.md) sits on: the catalog says a
 lumberjack gives `LOGS`, and this says how.
 
@@ -61,8 +61,8 @@ sat in a miner's barrel at home while the next miner stood at a flooded shaft. W
 `took N ... from their chest at home for tomorrow's work` in the log.
 
 **Nothing is conjured after the starting kit** (decided 2026-09-02). Taking a job is the one
-moment the mark of a trade appears from nothing: a stone axe, pickaxe or hoe, or a plain bow for
-the trades that work with a tool, or a token for the rest, a builder's crafting table, a
+moment the mark of a trade appears from nothing: a stone axe, sword, pickaxe or hoe, a plain bow,
+or a crossbow for the trades that work with a tool, or a token for the rest, a builder's crafting table, a
 quartermaster's ledger, a librarian's book, a blacksmith's ingot, a cleric's potions
 (`RealPerson.issueStartingKit`, from `JobClaiming.startJob`; the tokens are named in one place,
 `entities/SignatureGear`). It used to re-run on every state reload, which put a fresh stone axe over
@@ -76,8 +76,9 @@ conjured (decided 2026-09-03): a village that cannot spare one has the want logg
 without. A hand bare at bedtime is filled the way a player would fill it
 (`entities/JobTool`): the best tool of the job's kind the stores can spare, else one made from what
 the stores hold, in the fundamentals the recipes are written in: three cobblestone for an axe or
-pickaxe, two for a hoe, two planks of any wood for a bow, a log standing in for four planks with
-the rounding lost, and the best tier the stores have the makings of before the least: the
+pickaxe, two for a sword or hoe, two planks of any wood for a bow, three for a crossbow, a log
+standing in for four planks with the rounding lost, and the best tier the stores have the makings
+of before the least: the
 candidates are every registered tool of the kind, vanilla or modded, best tier first, and each
 one's head material is what its tier repairs with (stone is any cobblestone kind, iron three
 ingots, diamond three diamonds, a modded copper pickaxe three of whatever its author repairs it
@@ -207,7 +208,7 @@ path-layer finished a route by calling `stop()` from inside `tick()`, which ends
 the builder holding the movement flag until nightfall.
 
 **Prior art agrees, twice.** All four surveyed mods converge on acquire, travel, act, deposit
-([research](https://github.com/Quzzar/villagelife/issues/52)). More usefully, Millenaire's own
+([research](https://github.com/Quzzar/kithkyn/issues/52)). More usefully, Millenaire's own
 9.0 rewrite collapsed 53 goal classes into 25 plus **one data-driven goal covering 405 work types
 through 20 handlers**. Same author, same problem, a decade apart, moving toward data. Class per
 job is the thing that loses.
@@ -293,6 +294,22 @@ not planned or designed. They wear in along the routes a builder actually walks,
 why they thicken between the buildings the village has most of and never appear at all in a
 village that has only just been founded.
 
+Construction spends time on changes, not on the volume of the structure file. Structure files
+describe their complete cuboid and therefore contain many air cells. An air cell already empty,
+or any other authored state already present, advances immediately; a real placement still takes
+the builder's ordinary swing. During an upgrade, an authored air cell occupied by an old wall is
+a real change and is removed visibly. This keeps build time proportional to work the player can
+see instead of making a small open building spend twenty minutes placing nothing.
+
+For development observation, `/kkdev village timelapse start <builds> [max-days] [pos]` advances
+Minecraft's real logical ticks until the nearest village finishes the requested number of
+buildings. It does not stamp structures or simulate worker output. Movement, gathering, terrain
+grading, path wear, construction, day and night, and the full post-build cooldown all run through
+their ordinary loops. Tick-sprinting pauses while any village has a brain decision in flight, so
+the accelerated calendar cannot outrun a wall-clock answer. `status` reports the current phase and
+`stop` ends the run early. Tick-sprinting is server-wide, so this belongs in an isolated development
+world when the rest of the world's passage of time matters.
+
 This is deliberately the low-priority half of the job: a village with something to build is
 always building it, and a village with nothing to build is tidying itself. It also means
 paths are the visible sign of a village that has caught up with its own plans.
@@ -301,7 +318,7 @@ paths are the visible sign of a village that has caught up with its own plans.
 alone a village with materials to spare builds without pause, so the tidying half almost never
 ran and the ground between spread-out buildings stayed rough and unwalkable. Now a village
 waits a fixed spell after finishing any building before it starts the next
-(`VillagelifeConfig.BuildCooldownDays`, two game days by default; the timer rides in the save's
+(`KithkynConfig.BuildCooldownDays`, two game days by default; the timer rides in the save's
 `Village.ActiveProjects` slot, stamped when a building completes and read to gate the start of
 the next in `Village.checkCurrentProject`). Through the cooldown the builder has no project, so
 the grading and path work below is what fills it: the near ground is smoothed, which lets later
@@ -342,24 +359,30 @@ cut of this) chased a target that moved with each block and left dips on steep g
 strings many blocks together (the loop's target moves, like the cleric's patient), which is
 what keeps path-laying from twitching the builder toward a random building between blocks.
 
-Where each column should end up comes from one reading of the whole area (`GradingSurvey`):
+Where each column should end up comes from the stable, original surface of the whole area
+(`GradingSurvey`):
 the buildings' footprints plus an eight-block margin, capped at 96 blocks across. Ground the
 village has claimed stands at its building's plane and is fixed; natural rock (the
-`villagelife:firm_ground` tag: stone, terracotta, sandstone, ice) is fixed too, being both the
-shape of the land and beyond a builder's hands; soft ground (the `villagelife:gradeable` tag:
+`kithkyn:firm_ground` tag: stone, terracotta, sandstone, ice) is fixed too, being both the
+shape of the land and beyond a builder's hands; soft ground (the `kithkyn:gradeable` tag:
 dirt, grass, sand, gravel, clay) moves; everything else is not ground at all: water, trees,
 anything a village or player built, and any block neither tag names. Rock used to be
 "whatever is left", and the first live swamp village taught why that is wrong: a mangrove's
 stilt roots read as a rock ledge four blocks up, and the builder set about raising the mud
 around every tree toward them. Neighbours that differ by more
 than four blocks are not connected: a cliff is a feature. Each movable column is aimed at the
-middle of the one-step envelope over the ground, clamped to what the fixed columns allow, so a
-slope is spread rather than pushed uphill or down and the graded ground actually meets a
-building's floor. The rule that keeps this to the surface of the land and not its shape
+middle of the one-step envelope over that original ground, with exact half-block ties rounded
+up, then clamped to what the fixed columns allow. Path correction raises the low side first and
+cuts the high side only when the low side has exhausted its allowance. A cut is also refused
+when it would create a new strict local minimum. Together those rules spread a slope with a
+slight fill bias instead of drilling one-block pits. The rule that keeps this to the surface of
+the land and not its shape
 ([site-selection.md](site-selection.md)) is enforced against a per-level record of every graded
-column's original height (`GradedColumnStore`): no column ever stands more than three blocks
-from where it started, and none is moved back across its own starting height, so grading always
-ends. Ownership is the felling rule's neighbour ([block-ownership.md](block-ownership.md)): a
+column's original height (`GradedColumnStore`): every replan uses that same reference, so an
+interruption cannot ratchet a target farther down, and no column ever stands more than three
+blocks from where it started. A later pass may refill an earlier partial cut when the stable
+target calls for it. Ownership is the felling rule's neighbour
+([block-ownership.md](block-ownership.md)): a
 village-placed block is never cut and nothing under one is; a player's placed dirt is graded
 like any other, and its record is dropped when it is dug.
 
@@ -380,7 +403,11 @@ one stable earth block per mouth column and works from a sturdy rim inward. Sand
 remain valid supported fill but are not used for a cover because they would fall through; when
 the pack has no stable earth, the builder fetches it from a village chest by hand or reports
 the ordinary shortage. Once the cap exists, the next survey sees it as normal ground and may
-grade it within the usual limits.
+grade it within the usual limits. A cut must leave a dry, full-height standing surface
+immediately beneath the removed block. Thin earth over air, water, or a block without that supporting face is left
+intact, including an earlier hole cover. The builder checks this during the dig as well as
+when choosing the target: removing one block must not expose a cave floor several blocks
+below the planned surface.
 
 **Built, 2026-09-03: a building is only built if you can get into it.** Two rules keep the
 gentle general grade from leaving a building stranded, since a butchery on a slope with a
@@ -473,25 +500,37 @@ that has no bakery or butchery yet.
 **Roaming by default, fixed where a job is simpler that way.** Per job, not global.
 
 The miner is neither: it sweeps a pattern outward and downward from its work station, digging a
-real shaft, treating lava and water and bedrock and wrong-tool as obstacles. A miner holding a
-bucket keeps the shaft dry instead of abandoning it at a leak. A flooded stretch of the ramp is
-work she walks down to, and standing at it she bails the whole connected pocket at once: every
-flooded ramp cell is cleared and every liquid source off the ramp, wall, floor or ceiling, is
-plugged with cobblestone from her own mined stock, so an aquifer becomes a cobbled tube. (Clearing
-one cell at a time from wherever she happened to stand, which is what this did first, lost the race
-to the water flowing back between picks and read as a miner ignoring her bucket.) Water and lava
-stop the shaft only when the miner has no bucket. The bucket is a tool, never filled or
-consumed; bedrock and wrong-tool still stop it outright. When the shaft opens into a cave the miner
-does not stand down at the mouth: it completes the shaft's missing floor, one cobblestone (from its
-own mined stock) under each ramp cell that opens into void, laid standing on the floor already
-there, edge by edge, and drives the shaft on into the stone beyond. The pack is the budget, and the
-bedtime restock refills it: the miner carries the day's cobblestone from bed, topped up to
-thirty-two from the stores alongside the torches and the bucket (`RealPerson.goToBed`), rather than
-a fetch trip mid-shaft. Ember Hill showed why it must be bedtime, not a trip: the founding
+real shaft, treating lava and water and bedrock and wrong-tool as obstacles. Air and fluid at the
+shaft's outer floor, walls, or ceiling are sealing work first. The miner closes those reachable
+breaches one block at a time before clearing any liquid. Only once the flooded pocket's boundary
+is sound does a bucket-holder walk down and bail the whole connected interior at once. The bucket
+moves into the off hand before that act, swings from the off hand, remains visible for a short
+beat, and then returns to the pack. It is a reusable tool, never filled or consumed. Sealing itself
+does not require the bucket, so a miner without one still makes the lining safe and only then
+reports that the enclosed water or lava is blocking progress. If a later break exposes a fresh
+breach, the next audit seals it before another bucket act.
+
+The mine interior is the descending ramp plus every planned prospecting rib. A rib entrance is an
+intentional doorway through the ramp wall, so the lining pass never fills it back in. A flooded
+pocket is followed through both ramp and rib cells, and every six-direction transition from that
+interior to air or fluid outside it is a breach. This includes the offset front and back faces made
+by the diagonal ramp, not only the floor, side walls, and ceiling. If a breach cannot currently be
+reached, the pocket remains blocked instead of being declared sealed and repeatedly bucket-cleared.
+An unreachable breach is an obstacle, not seal work: the ramp switches to its ordinary rib-mining
+fallback instead of repeatedly selecting a place the miner cannot stand.
+
+Mine supports are a family, not exact cobblestone. Any placeable dirt-family block, natural stone,
+cobbled stone, or sandstone can pay for a floor, wall, ceiling, or vein plug, and the actual block
+consumed is the one placed. When the shaft opens into a cave the miner does not stand down at the
+mouth: it completes the shaft's missing floor under each ramp cell that opens into air or liquid,
+laid standing on the floor already there, edge by edge, and drives the shaft on into the stone
+beyond. The pack is the budget, and the bedtime restock refills it: the miner carries up to
+thirty-two mixed support blocks from bed alongside the torches and bucket (`RealPerson.goToBed`),
+rather than a fetch trip mid-shaft. Ember Hill showed why it must be bedtime, not a trip: the founding
 storehouse there was a barrel the mine shaft could not walk to at all, so a physical fetch stranded
 the miner at the mouth while the bedtime pull, which reaches village stores abstractly like the
 torches do, made his tools without trouble. A miner who spends the pack out at a cave's edge with
-the stores empty too logs it and stands down, so a cavern too large for the village's stone ends the
+the stores empty too logs it and stands down, so a cavern too large for the village's supports ends the
 shaft, not one too large for a pack. (The sweep used to skip the hole when the pack was empty and
 aim at a face across the void that nothing could stand at, then fall back to the mouth as the target
 and dig that face from the doorstep; a floorless cell is now the work whatever the pack holds, and
@@ -507,14 +546,15 @@ pass. Ore is taken from the shaft's own walls, floor and ceiling around the mine
 full width from either side, and followed into the rock only through the holes she opened, never
 out into a cave. And ore that a shaft or cave wall exposes is not left in the rock: the miner pulls the vein,
 capped so a rich seam is a detour and not a second career, and plugs the holes back up with
-cobblestone so the wall ends solid. **That pattern with deviation is probably what roaming really
+whatever dirt or stone support she carries so the wall ends solid. **That pattern with deviation is probably what roaming really
 is** for most jobs, and the model has to be able to express it. Keep the excavation as it stands;
 the miner floors a cave rather than exploring it and works the veins its own shaft exposes, while a
 prospector that roams to find caves and hunt veins is a better story still deliberately left as fog.
 
 **The ramp fans out when it can go no deeper** (2026-09-03). The descent is always tried first,
-and only when the ramp is genuinely stopped, at bedrock or at lava or water the miner has no bucket
-for, does she stop driving it down. Rather than stand down at a dead end she cuts short horizontal
+and only when the ramp is genuinely stopped, at bedrock, at lava or water the miner has no bucket
+for, or at a flooded pocket whose remaining breach cannot be reached, does she stop driving it down.
+Rather than stand down at a dead end she cuts short horizontal
 ribs straight out of the ramp, a branch mine: one block wide, three tall, at most eight blocks out
 to each side, on a fixed grid every four columns from the bottom of the ramp up, so three solid
 columns sit between cuts. She works them deepest-first. The ore a rib wall exposes is not a new
@@ -523,10 +563,14 @@ now reads a rib cell as dug space and scans the rock around wherever the miner s
 corridor's fixed width, so out in a rib she still sees what she has exposed. A cut rib is lit with a
 single wall torch near its mouth, whose fourteen light covers the whole hop. A rib that meets liquid,
 bedrock or a cave simply stops there; it is a prospect cut, not a second shaft, so it never bails or
-floors or bores on the way the ramp does. The one number that matters is the eight-block reach: a rib
+floors or bores on the way the ramp does. Each rib and the descending ramp advance as independent
+fronts: water at one cut cannot hold the opposite cut, another depth, or the ramp itself. They share
+navigation, not a blocked state. The one number that matters is the eight-block reach: a rib
 is kept to a single pathfinder hop precisely so `MineShaft` needs no waypoints of its own for it. From
 the far end of a rib the ordinary pathfinder reaches back onto the ramp on its own, and the ramp's own
-hop-by-hop waypoints carry the miner the rest of the way out; a longer rib would strand her the way a
+hop-by-hop waypoints carry the miner the rest of the way out. Rib cells count as part of the mine for
+that routing decision; otherwise a target four blocks along a branch looks like an outside destination
+and the shaft navigator sends the miner back up the ramp. A longer rib would strand her the way a
 deep face once stranded her over the shaft. That the pathfinder hands her back onto the ramp is the
 live-verify item, not a proof. When every rib off the ramp is cut, the mine is worked out and the
 miner stands down.
@@ -552,7 +596,7 @@ renewable.
 
 **Built, 2026-08-31: the hunter shoots, and the pen is not game.** Hunting is done with a bow
 at range, walking closer only when something blocks the shot. The baseline bow arrives with the
-job, like the guard's stone sword, and plain arrows are never counted: that is the second place
+job, like a wall gate guard's stone sword, and plain arrows are never counted: that is the second place
 the mod invents matter, bounded the same way the structure-block exception is. Special arrows
 stay physical and finite: tipped or spectral arrows in the hunter's hands or pack are loosed
 first and genuinely consumed, and a better bow in the stores is picked up by the ordinary
@@ -676,7 +720,8 @@ else is exact.
 
 Both roles run the same `ChopStep`. A worker strikes one log for a chop's worth of ticks, and
 when it gives the whole connected tree comes down at once through `TreeFelling` (shared with
-building placement, [site-selection.md](site-selection.md)): a bounded flood fill over its logs,
+building placement and a finished wall's tree-line cleanup, [site-selection.md](site-selection.md)):
+a bounded flood fill over its logs,
 all of it into the pack, with the leaves left to decay on their own. Two guards keep the axe off
 anything but a wild tree. A candidate must have a natural canopy nearby, leaves whose
 `persistent` flag is false, which a building's timber and a player's placed leaves never carry.
@@ -685,9 +730,14 @@ a player placed. The village's own claim deliberately does not protect trees: a 
 in a forest starts with claimed ground full of them, and the canopy test is what tells a tree
 from a building. So a wild tree overhanging a roof drops its own wood and spares the building's.
 
-The guard carries a stone axe rather than a stone sword, keeping the apple ration in the other
-hand, and upgrades through the village's axe supply at bedtime; an axe given away or lost is
-replaced from that supply or made from three cobblestone, never conjured (`JobTool`).
+An ordinary patrol guard carries a stone axe, keeping the ration or shield in the other hand, and
+upgrades through the village's axe supply at bedtime. A completed wall specializes the same
+occupation by station: the two base posts at each gate carry swords, and the elevated gate and
+watchtower posts carry crossbows. Each draws upgrades of its own weapon kind from village stores,
+uses special arrows before the infinite plain fallback, shares the guard's armor, shield, ration,
+and offhand-eating behavior, and returns to its assigned wall post after combat (`JobTool`,
+`WallGuardPostGoal`, [walls.md](walls.md)). A lost basic weapon is replaced from physical stock or
+made from the documented simplified materials, never conjured.
 
 ## When there is nothing to work on
 
@@ -784,7 +834,7 @@ wood is in reach" number for free.
 
 **Measured, and the answer is that we were budgeting the wrong thing.**
 
-[The benchmark](https://github.com/Quzzar/villagelife/issues/62) ran, and per-worker cost is not
+[The benchmark](https://github.com/Quzzar/kithkyn/issues/62) ran, and per-worker cost is not
 where the risk is:
 
 | | Cost |
@@ -830,7 +880,7 @@ build target's recipe and what is in the chests.
 
 **This is a ranking, not a new scan.** The worker still walks its own per-worker scan and
 still respects the same budget; needed materials simply sort first among the candidates it
-already found. That matters given [the benchmark](https://github.com/Quzzar/villagelife/issues/62):
+already found. That matters given [the benchmark](https://github.com/Quzzar/kithkyn/issues/62):
 village ticking dominates and workers are cheap, so a preference order costs nothing worth
 measuring, while a second village-level "who needs what" index would land squarely on the
 expensive half.
@@ -859,7 +909,7 @@ the rewrite, because the ranking it encodes is the same ranking `SELECT` will wa
 
 ## Reviewing what gets built
 
-`/vldev village gallery [pos]` places every loaded building definition on labelled plinths, grouped
+`/kkdev village gallery [pos]` places every loaded building definition on labelled plinths, grouped
 by category and level, so a whole catalog can be walked end to end. Built for reviewing candidate
 structures ([structure-sourcing.md](structure-sourcing.md)) and checking content passes.
 
@@ -919,7 +969,7 @@ Whenever the quartermaster settles in to mind a stocked storehouse, they redraw 
 there is none yet, if the storehouse has changed size, or if the shelves hold goods the plan
 never placed. One dialogue at a time and at most one a day, so a day's new arrivals are planned
 together and a model that cannot converge is not asked again every quiet spell. A settled plan
-is stored, and the next quiet moment shelves to it in person. `/vldev llm plan <quartermaster>`
+is stored, and the next quiet moment shelves to it in person. `/kkdev llm plan <quartermaster>`
 runs the same dialogue on demand, prints the result and the quartermaster's note, and applies
 it at once; watch the `[quartermaster]` log lines for the round-by-round convergence.
 
@@ -931,9 +981,9 @@ it at once; watch the `[quartermaster]` log lines for the round-by-round converg
 
 ## Still open
 
-- **Resource depletion** ([#54](https://github.com/Quzzar/villagelife/issues/54)): trees replant,
+- **Resource depletion** ([#54](https://github.com/Quzzar/kithkyn/issues/54)): trees replant,
   ore does not. What a mined-out village does, and whether the mine is allowed to be a fiction.
-- **Where output goes** ([#49](https://github.com/Quzzar/villagelife/issues/49)): per-building
+- **Where output goes** ([#49](https://github.com/Quzzar/kithkyn/issues/49)): per-building
   chests or one pool. Note the research found a third answer neither option covered: MineColonies
   uses a **priority ladder** where the worker's own building resolves above the warehouse, and the
   player is last.
@@ -943,7 +993,7 @@ it at once; watch the `[quartermaster]` log lines for the round-by-round converg
 
 ## Depletion, range, and what the land looks like afterwards
 
-Decided on [#54](https://github.com/Quzzar/villagelife/issues/54). Workers harvest real
+Decided on [#54](https://github.com/Quzzar/kithkyn/issues/54). Workers harvest real
 blocks, so a village genuinely consumes its surroundings, and these are the rules that stop
 that ending badly.
 

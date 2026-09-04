@@ -1,7 +1,7 @@
 # Structure tooling
 
 The pipeline that turns a raw schematic or Litematica capture into a
-`villagelife` structure `.nbt` the datapack can place. Dev tooling, not mod
+`kithkyn` structure `.nbt` the datapack can place. Dev tooling, not mod
 code — it lives outside `src/` and is never shipped in the jar.
 
 **Licensing:** the source→licence position for every structure set (which are

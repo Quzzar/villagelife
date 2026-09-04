@@ -19,7 +19,7 @@ const PARTS_DIR = path.join(
   "main",
   "resources",
   "assets",
-  "villagelife",
+  "kithkyn",
   "textures",
   "entity",
   "person",
@@ -31,7 +31,7 @@ const CATALOG_PATH = path.join(
   "main",
   "resources",
   "assets",
-  "villagelife",
+  "kithkyn",
   "appearance",
   "catalog.json",
 );

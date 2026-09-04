@@ -1,0 +1,72 @@
+[
+  {
+    "elapsedTicks": 1,
+    "builds": 0,
+    "population": 6,
+    "buildings": 8,
+    "project": "none",
+    "stock": "384 logs, 384 dirt, 384 cooked beef, 384 cobblestone, 48 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a camp. 6 residents; 5 hold jobs; 1 work-eligible resident has no post. 6 independent beds total; 1 general bed free; 0 free live-in beds are reserved to their workplaces; 1 adult resident needs independent housing. There are no pre-adults awaiting family housing. 1 adult resident is already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x1, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x1, farmer x2, guard x1. Conditions and capacity allow newcomers, though each arrival is still a chance. Food stores stand at 64.0 items per person. "
+  },
+  {
+    "elapsedTicks": 24000,
+    "builds": 0,
+    "population": 10,
+    "buildings": 8,
+    "project": "none",
+    "stock": "320 logs, 3 wheat, 352 dirt, 96 planks, 378 cooked beef, 376 cobblestone, 48 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a hamlet. 10 residents; 6 hold jobs; 4 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x1, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x1, farmer x2. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 37.8 items per person. Trouble your workers currently report: your builder Ada Shannon, since today: \"I have no crafting table to keep at hand\"; your quartermaster Harriet Villalobos-Mcdaniel, since today: \"I have no book and quill to keep at hand\"; your lumberjack Lavinia Reynolds, since today: \"I cannot get to the trees.\". "
+  },
+  {
+    "elapsedTicks": 48000,
+    "builds": 0,
+    "population": 10,
+    "buildings": 8,
+    "project": "none",
+    "stock": "266 logs, 12 wheat, 320 dirt, 176 planks, 378 cooked beef, 376 cobblestone, 52 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a hamlet. 10 residents; 6 hold jobs; 4 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x1, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x1, farmer x2. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 37.8 items per person. Trouble your workers currently report: your builder Ada Shannon, for 1 day: \"I have no crafting table to keep at hand\"; your quartermaster Harriet Villalobos-Mcdaniel, for 1 day: \"I have no book and quill to keep at hand\"; your lumberjack Lavinia Reynolds, since today: \"I cannot get to my stand, to replant it.\". "
+  },
+  {
+    "elapsedTicks": 72000,
+    "builds": 0,
+    "population": 10,
+    "buildings": 8,
+    "project": "none",
+    "stock": "265 logs, 20 wheat, 288 dirt, 256 planks, 378 cooked beef, 1 oak sapling, 376 cobblestone, 52 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a hamlet. 10 residents; 6 hold jobs; 4 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x1, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x1, farmer x2. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 37.8 items per person. Trouble your workers currently report: your builder Ada Shannon, for 2 days: \"I have no crafting table to keep at hand\"; your quartermaster Harriet Villalobos-Mcdaniel, for 2 days: \"I have no book and quill to keep at hand\"; your lumberjack Lavinia Reynolds, since today: \"My stand is bare and I have no sapling to plant on it; there is no wood to cut until I find one.\". "
+  },
+  {
+    "elapsedTicks": 96000,
+    "builds": 0,
+    "population": 10,
+    "buildings": 8,
+    "project": "none",
+    "stock": "221 logs, 20 wheat, 256 dirt, 528 planks, 378 cooked beef, 376 cobblestone, 52 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a hamlet. 10 residents; 6 hold jobs; 4 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x1, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x1, farmer x2. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 37.8 items per person. Trouble your workers currently report: your builder Ada Shannon, for 3 days: \"I have no crafting table to keep at hand\"; your quartermaster Harriet Villalobos-Mcdaniel, for 3 days: \"I have no book and quill to keep at hand\"; your lumberjack Lavinia Reynolds, since today: \"I cannot get to my workbench.\". "
+  },
+  {
+    "elapsedTicks": 120000,
+    "builds": 0,
+    "population": 10,
+    "buildings": 8,
+    "project": "house_plains_3:IN_PROGRESS_WORKING",
+    "stock": "126 logs, 30 wheat, 224 dirt, 528 planks, 378 cooked beef, 238 cobblestone, 52 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a hamlet. 10 residents; 6 hold jobs; 4 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x1, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x1, farmer x2, guard x16. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 37.8 items per person. Trouble your workers currently report: your builder Ada Shannon-Travis, for 4 days: \"I have no crafting table to keep at hand\"; your quartermaster Harriet Villalobos-Mcdaniel, for 4 days: \"I have no book and quill to keep at hand\"; your lumberjack Lavinia Reynolds, since today: \"I cannot get to the trees.\". "
+  },
+  {
+    "elapsedTicks": 144000,
+    "builds": 1,
+    "population": 14,
+    "buildings": 9,
+    "project": "none",
+    "stock": "110 logs, 37 wheat, 173 dirt, 608 planks, 354 cooked beef, 238 cobblestone, 52 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Redevelopment verification, a hamlet. 14 residents; 10 hold jobs; 4 work-eligible residents have no post. 10 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x3, house x2, lumberjack x1, mine x1, storehouse x1, village center x1. Open work: builder x2, farmer x2, guard x12. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 25.3 items per person. Trouble your workers currently report: your builder Ada Shannon-Travis, for 5 days: \"I have no crafting table to keep at hand\"; your quartermaster Harriet Villalobos-Mcdaniel, for 5 days: \"I have no book and quill to keep at hand\"; your lumberjack Seraphina Golden, since today: \"The tree at my stand is felled; I have no wood to cut until it grows back.\". "
+  }
+]

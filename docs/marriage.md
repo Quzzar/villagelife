@@ -117,7 +117,7 @@ On the cottage's completion (`Village.addBuilding` → `MarriageService.onHomeBu
 both spouses are moved into its two beds (`Village.houseCouple`), freeing whatever
 single beds they held back to the pool. Their **shared chest needs no code**: a
 home's `personal_containers` belong to whoever sleeps there
-([PersonalChest](../src/main/java/com/quzzar/villagelife/village/PersonalChest.java)),
+([PersonalChest](../src/main/java/com/quzzar/kithkyn/village/PersonalChest.java)),
 so co-assigning both beds makes the cottage chest theirs together, and each already
 reads the other as a housemate.
 
@@ -146,7 +146,7 @@ definition's `beds` array expects.
 
 It was authored the way the repo's structures are meant to be
 ([structure-authoring.md](structure-authoring.md)): built by hand in-world, then
-captured with `/vldev village save-structure`, and copied into `resources/`. On the
+captured with `/kkdev village save-structure`, and copied into `resources/`. On the
 bottom layer, every cell that is not floor or garden is left as nothing (captured as
 structure-void, absent from the file), so placing the cottage on real ground lays
 its floor without carving a pit where the footprint has no floor. It is checked with
@@ -175,5 +175,5 @@ way `mine-level-2.py` maps its variants, or hand-built per biome.
   real shortfall so it stalls honestly.
 - `chat/PersonChatContext#spouseLine`: a married villager's own knowledge of who
   they are wed to, derived from the edge.
-- `src/main/resources/data/villagelife/villagelife/buildings/couple_cottage_plains_1.json`
-  and its `.nbt`; hand-built in-world and captured with `/vldev village save-structure`.
+- `src/main/resources/data/kithkyn/kithkyn/buildings/couple_cottage_plains_1.json`
+  and its `.nbt`; hand-built in-world and captured with `/kkdev village save-structure`.

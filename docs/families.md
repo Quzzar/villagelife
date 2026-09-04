@@ -13,23 +13,26 @@ automatically after the configured number of Minecraft days per stage (8 by defa
 cycle). Time is measured from a persisted game-time stamp, so unloading a child does not pause
 their growth.
 
-| Stage | Stage multiplier | Approximate display height | Entity height | Work | Visible role | Clothing |
-| --- | ---: | ---: | ---: | --- | --- | --- |
-| Toddler | 1.13 | 1.13 m | 1.20 m | No | Toddler | Child commonwear |
-| Kid | 1.44 | 1.44 m | 1.51 m | No | Kid | Child commonwear |
-| Teenager | 1.74 | 1.74 m | 1.82 m | Yes | Teenager while idle; occupation while employed | Commonwear while idle; occupation clothing while employed |
-| Adult | 1.00 | 1.88 m | 1.95 m | Yes | Normal title/occupation | Occupation clothing |
+| Stage | Geometry | Model scale | Approximate display height | Entity height | Work | Visible role | Clothing |
+| --- | --- | ---: | ---: | ---: | --- | --- | --- |
+| Toddler | Young player | 1.05 | 1.05 m | 1.13 m | No | Toddler | Child commonwear |
+| Kid | Young player | 1.33 | 1.33 m | 1.41 m | No | Kid | Child commonwear |
+| Teenager | Adult player | 0.93 | 1.74 m | 1.81 m | Yes | Teenager while idle; occupation while employed | Commonwear while idle; occupation clothing while employed |
+| Adult | Adult player | 1.00 | 1.88 m | 1.95 m | Yes | Normal title/occupation | Occupation clothing |
 
 These are reference heights before the person's Size gene and dwarfism/gigantism modify them.
-The pre-adult values are multipliers over Minecraft's nominal one-block young player model, not
-direct meter heights. They compensate for that naturally smaller model and then compose with the
-person's Size gene and dwarfism/gigantism. Entity and nameplate height use the resulting relative
-display height plus the same 0.074-block model-to-bounds clearance used by an adult; Minecraft adds
-its normal fixed 0.5-block nameplate lift after that. Toddler, Kid, and Teenager label stacks then
-receive the same presentation-only 0.10-block lift for a little extra head clearance. This moves the
-name, role, and speech bubble together without changing the rendered body or collision dimensions.
-Old saves carrying only `IsBaby` migrate into Kid, preserving their pre-adult life stage under the
-new sizing model.
+Toddler and Kid values are multipliers over Minecraft's nominal one-block young player model, not
+direct meter heights. Teenagers use the normal adult player geometry at 0.93 scale, avoiding the
+large head and shortened limbs of Minecraft's young-model transform while remaining visibly smaller
+than an Adult. A Kid's 1.33 scale offsets the young model's 0.75 head transform, giving Kids the
+same absolute head size as Adults; Toddlers remain smaller in both body and head. Every stage then
+composes with the person's Size gene and dwarfism/gigantism. Entity
+and nameplate height use the resulting relative display height plus the same 0.074-block
+model-to-bounds clearance used by an Adult; Minecraft adds its normal fixed 0.5-block nameplate lift
+after that. Toddler, Kid, and Teenager label stacks receive the same presentation-only 0.10-block
+lift for a little extra head clearance. This moves the name, role, and speech bubble together without
+changing the rendered body or collision dimensions. Old saves carrying only `IsBaby` migrate into
+Kid, preserving their pre-adult life stage under the new sizing model.
 
 ## Parentage and child creation
 
@@ -124,14 +127,14 @@ back leaves the attacker untargeted so panic and avoidance behavior can carry th
 
 ## Development controls
 
-- `/vldev appearance child <firstParent> <secondParent>` creates a child through the canonical path.
-- `/vldev appearance stage <target> <toddler|kid|teenager|adult>` moves a person directly to a stage
+- `/kkdev appearance child <firstParent> <secondParent>` creates a child through the canonical path.
+- `/kkdev appearance stage <target> <toddler|kid|teenager|adult>` moves a person directly to a stage
   and restarts that stage's clock, making every transition inspectable without waiting eight days.
-- `/vldev family status <firstParent> <secondParent>` reports eligibility and the persisted next
+- `/kkdev family status <firstParent> <secondParent>` reports eligibility and the persisted next
   conversation or birth day.
-- `/vldev family consider <firstParent> <secondParent>` starts the real visible family-planning
+- `/kkdev family consider <firstParent> <secondParent>` starts the real visible family-planning
   conversation immediately.
-- `/vldev family birth <firstParent> <secondParent> [singleton|twins|triplets]` creates a chosen
+- `/kkdev family birth <firstParent> <secondParent> [singleton|twins|triplets]` creates a chosen
   multiple birth through the canonical inheritance and persona path.
-- `/vldev family sample <firstParent> <secondParent> <count>` simulates 1 to 10,000 inherited stat
+- `/kkdev family sample <firstParent> <secondParent> <count>` simulates 1 to 10,000 inherited stat
   blocks and reports min/mean/max stats and condition counts without spawning entities.

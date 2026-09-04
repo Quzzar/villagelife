@@ -14,14 +14,14 @@ a camp holds 4 people *because its center has 4 beds*, not because a rule says c
 hold 4). This mirrors Stronghold, whose settlements grow continuously with no rank
 gates; the tier is the narrator's word for what the village has become.
 
-Tiers are datapack content, like buildings: JSON at `data/<namespace>/villagelife/tiers/`,
+Tiers are datapack content, like buildings: JSON at `data/<namespace>/kithkyn/tiers/`,
 loaded by a `SimpleJsonResourceReloadListener` exactly like `BuildingDefinitionLoader`.
 Addons can extend the ladder upward (metropolis and beyond) or rebalance thresholds by
 overriding files — no Java changes.
 
 ## Tier definition format
 
-`data/villagelife/villagelife/tiers/camp.json`:
+`data/kithkyn/kithkyn/tiers/camp.json`:
 
 ```json
 {
@@ -31,7 +31,7 @@ overriding files — no Java changes.
 }
 ```
 
-`data/villagelife/villagelife/tiers/hamlet.json`:
+`data/kithkyn/kithkyn/tiers/hamlet.json`:
 
 ```json
 {
@@ -62,8 +62,8 @@ overriding files — no Java changes.
   [population-and-labor.md](population-and-labor.md), owned by the tier: a camp attracts
   a couple of drifters to its fire, a city a crowd. This is the one knob a tier carries,
   and it shapes *inflow pacing*, never what can be built.
-- The tier id is the file id (`villagelife:camp`). The translation key is always derived as
-  `villagelife.tier.<path>`; there is no `display_name` field in the codec.
+- The tier id is the file id (`kithkyn:camp`). The translation key is always derived as
+  `kithkyn.tier.<path>`; there is no `display_name` field in the codec.
 - Attractiveness needs no explicit role here: it already governs whether population
   grows at all, so a starving village never reaches city numbers. The gate is implicit.
 
@@ -108,17 +108,20 @@ building rules):
 - `"category"`: groups variants — five house designs all declare `"category": "house"`.
   Variants differ in `cost` (a stone house for wood-poor villages); the brain picks
   among affordable ones.
-- `"upgrades_from"`: names a building this one replaces in place; its `cost` is then the
-  upgrade cost.
+- `"upgrades_from"`: names a building this one can replace on site. Its upgrade price is the
+  positive increase from the predecessor's recipe. Constructing this level fresh combines the
+  level-1 recipe with every calculated upgrade price in the chain.
 
-### Wide is cheap, tall is for the cramped
+### Separate buildings and on-site development
 
-The cost math is tuned so that **building wide (another small building) is generally
-cheaper than building tall (upgrading in place)**. A village with open land sprawls.
-Upgrading exists for when the resources are there but the space is not — hemmed in by a
-ravine, the sea, or its own walls, a village pours its wealth into making the same
-buildings bigger. A cramped valley village with one enormous ever-growing house is an
-emergent story the math permits on purpose, not a failure mode.
+The planner prefers an on-site upgrade when its larger footprint fits around the old one,
+because reusing the standing structure pays only the positive recipe increase. The larger
+footprint may slide to extend in whichever horizontal direction has room while retaining the
+old footprint and orientation. If no such extension can fit, the
+higher level remains available as a separate building on another site, but it costs the level-1
+recipe plus every upgrade increase through the target. Another lower-level building remains a
+distinct, usually cheaper way to add capacity. The layout and the village's means decide which
+shape its history takes.
 
 ### The three progression axes
 

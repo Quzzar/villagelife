@@ -19,7 +19,7 @@ per-item. Whatever we do involves either asking authors directly or building our
 
 | Source | Content | License | Can we adapt it? |
 | --- | --- | --- | --- |
-| **Vanilla Minecraft** | 483 village templates, 5 biome families | Minecraft EULA | **No copy, reference only.** Loading by `ResourceLocation` at runtime is legal; shipping the `.nbt` is not. See [the research](https://github.com/Quzzar/villagelife/issues/53). |
+| **Vanilla Minecraft** | 483 village templates, 5 biome families | Minecraft EULA | **No copy, reference only.** Loading by `ResourceLocation` at runtime is legal; shipping the `.nbt` is not. See [the research](https://github.com/Quzzar/kithkyn/issues/53). |
 | **ChoiceTheorem's Overhauled Village** | 23 village variants, 14 pillager outposts | **CC BY-NC-ND 4.0** | **No.** NoDerivatives forbids distributing an adapted version, and converting to our format is exactly that. Needs the author's direct permission. |
 | **Towns and Towers** | 837 structures, villages and outposts | **CC BY-NC-ND 4.0** (see below) | **No.** Modrinth's license field says ShareAlike; the bundled LICENSE file says NoDerivatives and forbids changes beyond config. |
 | **Better Villages** (jTorleon) | Houses in plains, snow, savanna, desert, taiga | All Rights Reserved | **No.** Needs the author's direct permission. |
@@ -33,7 +33,7 @@ per-item. Whatever we do involves either asking authors directly or building our
 Settled by the research ticket. Covers 27 to 30 of the 81 phase 1 files, all level 1, and 22
 of our categories have no vanilla equivalent at all. Also: not one of the 152 vanilla house
 templates contains both a bed and a work station, which is its own open question
-([#61](https://github.com/Quzzar/villagelife/issues/61)).
+([#61](https://github.com/Quzzar/kithkyn/issues/61)).
 
 ### CTOV: the best fit, and the one we cannot touch
 
@@ -86,7 +86,7 @@ and not realistic at catalog scale.
 ## The realistic paths
 
 1. **Ask.** CTOV and Better Villages are both single-author projects with contact channels. A
-   specific written grant for villagelife is the highest-value outcome and costs a message.
+   specific written grant for kithkyn is the highest-value outcome and costs a message.
 2. **Adopt Towns and Towers** and accept CC BY-NC-SA on derived structures. Available today,
    and it makes a licensing decision for the project.
 3. **Build our own**, seeded by YUNG's LGPL content where categories match, and by vanilla
@@ -106,7 +106,7 @@ This is worth building regardless of sourcing, because it also serves the conten
 future structure review. It needs no third-party assets: it works on whatever definitions are
 loaded, which today is the nine we already have.
 
-**Built and verified:** `/vldev village gallery [pos]` (`StructureGallery.java`) places every loaded
+**Built and verified:** `/kkdev village gallery [pos]` (`StructureGallery.java`) places every loaded
 definition on labelled plinths, grouped by category, then variant, then level. Signs carry the id,
 the level, and the bed and job counts. It skips any definition whose structure file is missing and
 reports how many it placed.
@@ -155,7 +155,7 @@ every village ever built. It never logged anywhere anyone was looking.
 
 Strip or re-place those entities when re-authoring. It is a content bug, not a placement bug.
 
-## Settled: villagelife is never commercial
+## Settled: kithkyn is never commercial
 
 **Decided (Aaron): the mod is free to the public, permanently.** That removes the NonCommercial
 obstacle from every source here.
@@ -174,7 +174,7 @@ That leaves exactly two paths, and they are not really alternatives:
 1. **Ask.** CTOV and Towns and Towers are both small-team projects with contact channels, and a
    specific written grant costs a message. This is the only route to reusing existing work.
 2. **Build our own.** Which is now more attractive than it was, because the tooling landed anyway:
-   `/vldev village gallery` reviews a whole catalog at a glance, and `/vldev village save-structure`
+   `/kkdev village gallery` reviews a whole catalog at a glance, and `/kkdev village save-structure`
    captures a build in-world into a structure file. Together those are a content pipeline, and
    they turn "author 173 structures" from a wall into a repeatable process.
 

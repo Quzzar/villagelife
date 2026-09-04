@@ -10,7 +10,7 @@ for the `DeferredRegister` idiom, cross-checked against `DeferredRegister.java` 
 
 ## TL;DR and recommendation
 
-**Register a custom POI type (`villagelife:campfire`) over the vanilla campfire's
+**Register a custom POI type (`kithkyn:campfire`) over the vanilla campfire's
 blockstates. Do not reuse `minecraft:meeting`. Goal-based claiming is viable and clean —
 the POI system has no dependency on the Brain system — but the mob then owns all the
 bookkeeping the villager class does (release on death, revalidate on use, give up on
@@ -82,7 +82,7 @@ confirmed in `net.neoforged.neoforge.registries.DeferredRegister`):
 
 ```java
 public static final DeferredRegister<PoiType> POI_TYPES =
-    DeferredRegister.create(Registries.POINT_OF_INTEREST_TYPE, Villagelife.MODID);
+    DeferredRegister.create(Registries.POINT_OF_INTEREST_TYPE, Kithkyn.MODID);
 
 public static final DeferredHolder<PoiType, PoiType> CAMPFIRE_POI =
     POI_TYPES.register("campfire", () -> new PoiType(
@@ -109,7 +109,7 @@ one POI type, and a collision is a hard `IllegalStateException` at registration 
 interest types %s and %s both list %s in their blockstates..."). Vanilla campfires are *not*
 a vanilla POI (checked the full `PoiTypes.bootstrap` list), so claiming them is safe — unless
 another installed mod claims campfire states too, which would crash at startup. That is the
-one compat risk of building on the vanilla block; a custom villagelife campfire block would
+one compat risk of building on the vanilla block; a custom kithkyn campfire block would
 remove it.
 
 ### Which campfire states to include
@@ -315,7 +315,7 @@ All in `net.minecraft.world.entity.ai.behavior.VillagerGoalPackages` unless note
    whose type is in `#minecraft:village` (data tag = `#minecraft:acquirable_job_site` +
    `minecraft:home` + `minecraft:meeting`); `DistanceTracker`/`sectionsToVillage` spread
    "village-ness" 6 sections out from those, feeding `VillageBoundRandomStroll` /
-   `GoToClosestVillage`. Adding `villagelife:campfire` to that tag (datapack:
+   `GoToClosestVillage`. Adding `kithkyn:campfire` to that tag (datapack:
    `data/minecraft/tags/point_of_interest_type/village.json`) would make occupied campfires
    count as village centers for all those vanilla mechanics — powerful, deliberate choice;
    leave it out until wanted. (Requires occupancy, i.e. actually using tickets.)
@@ -352,7 +352,7 @@ socialize-with-neighbor, gated on our idle state instead of a schedule activity.
   independently; a crash can leak or double-grant tickets. Design for drift (§5), don't
   assume the ticket ledger is exact.
 - **`maxTickets`/`validRange` are frozen at registration.** Registry entries are built
-  before server configs load, so the idle cap from `villagelife-common.toml` cannot be the
+  before server configs load, so the idle cap from `kithkyn-common.toml` cannot be the
   ticket count. Enforce configurable caps in Village logic.
 - **Main thread only.** Don't touch `PoiManager` from worldgen or other threads; vanilla's
   own block-change hook defers via `getServer().execute`.

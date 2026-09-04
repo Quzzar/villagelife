@@ -9,7 +9,7 @@ present-tense sentence below as intent.
 
 A village runs at two speeds, and only one of them survives the player walking away.
 
-Every second, [`VillageManagerSaveData.tick`](../src/main/java/com/quzzar/villagelife/savedata/VillageManagerSaveData.java)
+Every second, [`VillageManagerSaveData.tick`](../src/main/java/com/quzzar/kithkyn/savedata/VillageManagerSaveData.java)
 calls `Village.update` for every village in the world, loaded or not. That call does the
 village's **bookkeeping**: attractiveness, relationship drift, reflection, the marriage and
 labor verdicts, tiering, the population math. All of it is cheap in-memory work that never
@@ -127,13 +127,13 @@ grow unattended and is accepted.
 ## Where it lives
 
 - **Config.** One enum in the `general` group of
-  [`VillagelifeConfig`](../src/main/java/com/quzzar/villagelife/configuration/VillagelifeConfig.java):
+  [`KithkynConfig`](../src/main/java/com/quzzar/kithkyn/configuration/KithkynConfig.java):
   `VillageLoading` = `OFF` / `ALL` / `HYBRID`, default `HYBRID`, baked into a static mirror
   like every other value. The values live in
-  [`VillageLoadingMode`](../src/main/java/com/quzzar/villagelife/configuration/VillageLoadingMode.java).
+  [`VillageLoadingMode`](../src/main/java/com/quzzar/kithkyn/configuration/VillageLoadingMode.java).
   The six-day grace window is a constant on the loader, not a config field.
 - **The ticket.**
-  [`VillageChunkLoader`](../src/main/java/com/quzzar/villagelife/village/VillageChunkLoader.java)
+  [`VillageChunkLoader`](../src/main/java/com/quzzar/kithkyn/village/VillageChunkLoader.java)
   owns one NeoForge `TicketController` (registered from the mod constructor), holding tickets
   keyed per village (a UUID derived from its id) and requested with ticking so entities run.
   On world load a validation callback drops every saved ticket, and the per-second reconcile

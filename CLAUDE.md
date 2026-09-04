@@ -1,4 +1,4 @@
-# Villagelife
+# Kithkyn
 
 <!-- quzzar-skills:start -->
 ## Agent skills
@@ -27,13 +27,13 @@ looked at it rendered.
 
 - Package manager: Gradle 8.9 wrapper (`./gradlew`), ModDevGradle 1.0.21
 - Backend / runtime: NeoForge 21.1.72 mod for Minecraft 1.21.1, Java 21 toolchain
-- Test: none yet (`./gradlew check` runs no tests)
+- Test: JUnit 5 (`./gradlew test`; also included in `./gradlew check`)
 - Typecheck: `./gradlew compileJava`
 <!-- quzzar-skills:end -->
 
 ### Issue tracker
 
-Issues live in GitHub Issues (`Quzzar/villagelife`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues (`Quzzar/kithkyn`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -45,7 +45,7 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root, created lazil
 
 A NeoForge mod for Minecraft 1.21.1: autonomous AI villagers that build and develop their
 own villages. Java 21, Gradle (`./gradlew build`, `./gradlew runClient` to launch a dev
-client). Mod id `villagelife`, package `com.quzzar.villagelife`.
+client). Mod id `kithkyn`, package `com.quzzar.kithkyn`.
 
 The codebase is mid-refactor: it is being modernized, and its mechanics are being brought in
 line with the decided designs in `docs/`.
@@ -70,7 +70,7 @@ what the refactor is fixing.
   placement and construction), `village/bookkeeping/` (event log feeding village mood).
 - `entities/`: the `Person`/`RealPerson` entity and its AI goals under `entities/ai/goals/`.
 - `savedata/`: world save persistence (`VillageManagerSaveData`, codec/NBT format).
-- `src/main/resources/data/villagelife/villagelife/buildings/`: datapack JSON building
+- `src/main/resources/data/kithkyn/kithkyn/buildings/`: datapack JSON building
   definitions consumed by `village/buildings/`.
 - `client/`: renderers, models, GUI.
 - `networking/`, `events/`, `configuration/`: the usual mod plumbing.

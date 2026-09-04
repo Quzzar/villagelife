@@ -55,11 +55,9 @@ neoForge {
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
 
-            // UI preview: ./gradlew runClient -Puipreview=trade photographs the
-            // villager screen and quits (see client/gui/UiPreview.java). It must
-            // be forwarded explicitly, because -D lands on Gradle's own JVM and
-            // never reaches the forked client.
-            systemProperty 'villagelife.uipreview', (findProperty('uipreview') ?: '')
+            // UI preview flags are also wired here for configuration parity,
+            // but previews need a player and run through clientJoinLocal below.
+            systemProperty 'kithkyn.uipreview', (findProperty('uipreview') ?: '')
         }
 
         // Boots straight onto the local dev server: the headless test loop uses this to put
@@ -70,7 +68,7 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             // The UI preview needs a real player now that the screen is a
             // container, so it runs on the join-local configuration.
-            systemProperty 'villagelife.uipreview', (findProperty('uipreview') ?: '')
+            systemProperty 'kithkyn.uipreview', (findProperty('uipreview') ?: '')
             // Its OWN game directory. Sharing run/ with a live dev server puts
             // two processes on one config file, and they correct each other's
             // corrections forever: the client never finishes connecting and the
@@ -78,7 +76,7 @@ neoForge {
             gameDirectory = project.file('run-preview')
             // Drives a real trade end to end and asserts what it cost, so
             // trading bugs stop being found by handing the game back to Aaron.
-            systemProperty 'villagelife.uitest', (findProperty('uitest') ?: '')
+            systemProperty 'kithkyn.uitest', (findProperty('uitest') ?: '')
         }
 
         server {

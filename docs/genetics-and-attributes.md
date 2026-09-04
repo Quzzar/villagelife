@@ -70,7 +70,7 @@ stats. That many-to-many projection is deliberate:
 ## The projection matrix
 
 Each Minecraft attribute's genetic modifier is the sum of its listed contributions, applied
-as permanent modifiers with stable ids of the form `villagelife:gene/<stat>` — one per
+as permanent modifiers with stable ids of the form `kithkyn:gene/<stat>` — one per
 contributing STAT, so an attribute fed by two stats carries two modifiers. Most use
 `ADD_MULTIPLIED_BASE`; knockback resistance, oxygen bonus and attack knockback use
 `ADD_VALUE`, because a percentage of zero is zero. Starting weights: a **major**
@@ -109,7 +109,7 @@ would be wrong. They project onto our own systems instead:
 
 | Stat | Consumers |
 | --- | --- |
-| INT | Learning/skill growth (future), work speed on skilled crafts (custom `villagelife:work_speed` attribute when a goal reads it) |
+| INT | Learning/skill growth (future), work speed on skilled crafts (custom `kithkyn:work_speed` attribute when a goal reads it) |
 | WIS | Awareness: its one numeric projection is follow range. (`RunAwayGoal` does NOT read stats; its thresholds are hardcoded, so "flees earlier" is not implemented.) |
 | CHA | Trading prices, gift reception, reputation and marriage systems |
 
@@ -191,7 +191,7 @@ uniformly rather than stacking effects the current entity model cannot represent
 1. **Generation**: a first-generation villager rolls 3d6 per score (bell curve, 3-18,
    mean 10.5), then the 1%-per-condition founder roll.
 2. **Projection**: scores project through the matrix into permanent attribute modifiers.
-   Projection is idempotent: each modifier has a stable id (`villagelife:gene/<stat>`)
+   Projection is idempotent: each modifier has a stable id (`kithkyn:gene/<stat>`)
    and is recomputed and replaced, never stacked. It reruns on every load.
 3. **Inheritance**: `ChildCreationService` creates the child's StatBlock from both parents and
    immediately reprojects every Minecraft attribute. It separately recombines `AppearanceGenes`:

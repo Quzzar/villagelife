@@ -39,7 +39,7 @@ equivalent.
    A\* with heuristic factor 1.5, has a hard expansion budget, returns a best-known partial path,
    and searches a `PathNavigationRegion` that substitutes empty chunks rather than loading them.
    Reimplementing those parts would add machinery without adding the missing capability.
-3. **The first Villagelife change is smaller:** retain the stock `PathFinder` and our existing
+3. **The first Kithkyn change is smaller:** retain the stock `PathFinder` and our existing
    `PersonNodeEvaluator`, decouple route lookahead from the genetically varied `FOLLOW_RANGE`, and
    measure the resulting searches at debug log level. The route window is now at least 48 blocks,
    still capped at roughly 1,280 expanded nodes and still unable to load chunks.

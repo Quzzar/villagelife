@@ -1,12 +1,12 @@
 # Site selection and ground clearing
 
-**Cost model implemented; preparation work not yet.** [village-tiers.md](village-tiers.md)
-names space as a first-class build constraint and defers the design to its own doc. This
-is that doc. It covers how a site is found, whether villagers may reshape the ground to
-make one, and what that costs at runtime.
+[village-tiers.md](village-tiers.md) names space as a first-class build constraint and
+defers the design to its own doc. This is that doc. It covers how a site is found, how
+local placement decisions form streets and blocks, whether villagers may reshape the
+ground to make a site, and what that costs at runtime.
 
 Implementation state: **the prepare phase is built** as of
-[#69](https://github.com/Quzzar/villagelife/issues/69). `SitePreparation.planWork` returns
+[#69](https://github.com/Quzzar/kithkyn/issues/69). `SitePreparation.planWork` returns
 the actual positions to break and to fill, a project carries that work in its own persisted
 queues, and the BUILDER performs it as the first phase of construction: one block per swing,
 cleared blocks going into village storage rather than onto the ground, fill paid for out of
@@ -27,26 +27,32 @@ nine-elevation loop, so a search reads roughly a ninth of the blocks it used to,
 candidates in unloaded chunks are skipped before any scan rather than being scored as
 impossible one at a time.
 
-The planner takes ground that needs work: the nearest ground the building fits on wins, free
-or preparable, cost deciding only among neighbours. Heightmap-first screening and a
-systematic sweep are built (2026-09-01, "Where a village looks" below), and a refused search
-now leaves the village knowing where its room ran out ("What the village knows when it finds
-nothing"). Still unbuilt from the sections below: the resumable budgeted search and the site
-cache.
+The planner takes ground that needs work. It first tries edge-aligned frontage slots beside
+completed buildings, with one clear block between footprints as a shared lane. A corner or
+row that continues more existing frontage wins, then frontage beside an already worn path,
+then preparation cost and distance. If no frontage slot works, the nearest-first terrain
+sweep is the fallback. Heightmap-first screening is built, and a refused search leaves the
+village knowing where its room ran out. Still unbuilt: the resumable budgeted search and the
+site cache.
 
-**Where a village looks.** One nearest-first sweep, in `LocationValidator`. The village once
-threw a handful of random candidates at a square ring and took the first free one, which is
-what put buildings a long way from the fire: open ground far out is free, near ground is
-often claimed or wants a little levelling, so the random roll kept reaching past the village
-for the first empty patch it hit (2026-09-02, Aaron: "it'll just chuck some of these
-buildings really far away"). Now the sweep walks a grid outward from the fire, nearest first,
-and takes the closest ground the building will sit on. A village fills in a tidy ring around
-its centre, and the ring is not drawn but discovered: the sweep steps over ground too steep
-to level and slots too tight to hold the footprint, so it molds itself to whatever terrain
-the village grew in. The sweep reaches 32 blocks past the ring (never beyond 96); the ring's
-outer edge still grows with the village, one search radius plus another for every four
-buildings, and never shrinks to nothing, so a young village with a zero-count radius still
-has somewhere to look. Candidates stand off the centre rather than starting on it.
+**Where a village looks.** `LocationValidator` starts from buildings, then falls back to a
+nearest-first sweep. The village once threw a handful of random candidates at a square ring
+and took the first free one, which put buildings a long way from the fire: open ground far
+out is free, while near ground is often claimed or wants a little levelling.
+
+The planner now enumerates the beginnings, centres and ends of each completed footprint's
+four edges. It puts the candidate one lane away in every offered rotation, then prefers a
+site that lines more than one edge because that is natural infill. Repeating this local
+relationship produces rows, narrow streets and small courtyards without forcing the village
+onto a global grid. Later growth starts by asking how it relates to the town already standing,
+not only how far it is from the fire.
+
+When none of those exact slots fits, the sweep walks a grid outward from the fire, nearest
+first, and takes the best ground in a short distance band. It steps over ground too steep to
+level and slots too tight to hold the footprint, so the fallback molds itself to the terrain.
+The sweep reaches 32 blocks past the ring (never beyond 96); the ring's outer edge grows with
+the village, one search radius plus another for every four buildings, and never shrinks to
+nothing. Candidates stand off the centre rather than starting on it.
 
 Every candidate is tried in each rotation the caller offers (the planner offers all four),
 and the facing that fits the slot is the one kept: a long building turns to fit a gap its
@@ -54,17 +60,22 @@ other facing could not, and among equally free facings the pick is random, which
 village's variety of orientation comes from now that placement no longer scatters. A clear
 gap of `MIN_GAP` blocks is held between a new footprint and everything already claimed, so
 lanes stay walkable and the cluster reads as planned rather than piled; a candidate whose
-footprint, grown by that gap, touches a claim is passed over.
+footprint, grown by that gap, touches a claim is passed over. A worn dirt path is public
+space: a building may line it and gains a placement preference for doing so, but may not
+cover it.
 
 Before any candidate is scored, the heights of the whole search square are read once from the
 chunk heightmaps (`MOTION_BLOCKING_NO_LEAVES`, the real ground under a canopy) into a grid,
 so every candidate's flatness is arithmetic: its plane is the height most of its columns
 share, and ground with more than one column in eight past the per-column budget, or averaging
 past the levelling budget across the rest, is refused without a block scan. A few tall columns
-are let through because a tree reads as a tall column and is cleared, not levelled. Only
-survivors get the volume scan. The nearest usable ground wins: the first candidate that is
-free or preparable settles a band, the sweep reads 8 blocks further out, and the cheapest in
-that band is taken, free outright. Taking the cheapest ground in the whole reach (2026-09-02)
+are let through because a tree reads as a tall column and is cleared, not levelled; one outlier
+is always allowed through even on a small footprint. The exact scan also uses that allowance for
+a compact low corner, but not for high ground or a broad depression. Only
+survivors get the volume scan. In the fallback, the first candidate that is free or
+preparable settles a band and the sweep reads 8 blocks further out. Relationship to claimed
+edges and paths breaks up the old first-grid-point behavior, followed by preparation cost
+and distance. Taking the cheapest ground in the whole reach (2026-09-02)
 put Wildflower Downs' lumberjack 90 blocks from its fire, 78 blocks of work there against 211
 within 50; a village that sprawls has a wall ring it cannot afford and ground it cannot finish
 grading. The grid's stride is 2, fine enough to pack the ring in snugly, and a footprint is
@@ -79,7 +90,9 @@ is near, and asking the brain to choose would spend a model call on an answer no
 could act on, so an unwatched village waits rather than planning.
 
 Every search leaves one debug line saying what it saw: how many candidates were scored, how
-many sat on claimed ground, how many were in unloaded chunks. A search that skips every
+many sat on claimed ground, how many covered a path, and how many were in unloaded chunks.
+The selected site's claimed frontage, adjacent sides, path frontage and preparation cost are
+logged too. A search that skips every
 candidate before scoring is otherwise indistinguishable from one where every site was
 genuinely bad, and that ambiguity hid the zero-radius bug above for as long as it existed.
 
@@ -97,7 +110,7 @@ is going up can say that nothing 9 by 11 or larger has found ground within about
 of the fire and that the nearest thing to a site was 18 blocks east. The sentence ends with
 the rule, that villagers level ground only lightly and never reshape a hill, and says
 nothing about what to do: building smaller, waiting, or a player levelling the slope by hand
-are the reader's calls. `/vldev village place` with no position records a refusal the same way
+are the reader's calls. `/kkdev village place` with no position records a refusal the same way
 a real project does, which is the on-demand way to see the sentence; giving it a position
 forces the building onto that exact spot instead, bypassing the search, so authoring a
 schematic in-world is never blocked by the room the planner would refuse. That division of
@@ -105,17 +118,16 @@ labour is deliberate. The village holds the
 surface-not-shape line; a player is free to break it, and a slope they level is found on the
 next search once the refusal expires. The refusal is logged at INFO with the same sentence.
 
-Earlier slice: `SitePreparation.score` prices any candidate
+`SitePreparation.score` prices any candidate
 footprint in blocks moved (clear, cut, fill, or impossible) using the
-`villagelife:clearable` whitelist tag, the per-column and average levelling budgets below,
+`kithkyn:clearable` whitelist tag, the per-column and average levelling budgets below,
 the block-entity and claim protections, and the never-scan-unloaded rule. The planner's
-site search uses it gated on cost zero, so behavior is unchanged until the builder's
-prepare phase exists; rejected candidates log their price at debug, and
-`/vldev village score-site <pos> <sizeX> <sizeZ>` prints any site's bill, and
-`/vldev village start-project <building> <pos>` begins a real project on ground you choose,
-which is the only way to watch preparation run: a village's own search always prefers a free
-site, so in ordinary terrain it never picks ground that needs clearing. The resumable
-budgeted search, the site cache, and the prepare phase itself are later slices.
+site search accepts free and preparable sites within those budgets; rejected candidates log
+their price at debug, and
+`/kkdev village score-site <pos> <sizeX> <sizeZ>` prints any site's bill, and
+`/kkdev village start-project <building> <pos>` begins a real project on ground you choose,
+which is the direct way to watch preparation run. The resumable budgeted search and the site
+cache are later slices.
 
 ## The problem this replaced
 
@@ -163,17 +175,21 @@ Three tiers of preparation, and the third one does not exist.
 | **1. Level** | Cut solid terrain above the build plane and fill below it, within a budget | Within budget |
 | **2. Excavate** | Remove a hill, fill a ravine, drain a lake | **Never** |
 
-The budget for tier 1 is a per-column average, not a total: roughly 1.5 blocks of cut or fill
-averaged across the footprint, with a per-column maximum of 3. A site needing more is not a
-site. Fill consumes dirt or the local ground material from village storage, so levelling a
-slope is a real expense the brain can weigh against building somewhere else.
+The budget for tier 1 is a per-column average, not a total: roughly 1.5 blocks off the build
+plane averaged across the footprint, with an ordinary per-column maximum of 3. One compact
+low depression may reach 6 blocks below the plane: at most one such column per eight footprint
+columns (with one allowed even on a smaller footprint), and no connected patch more than three
+blocks across either axis. That makes a dipped corner fillable without letting half a footprint,
+a trench, high ground, or a ravine become a site. Fill is placed from the bottom up and consumes
+dirt or the local ground material from village storage, so levelling a slope is a real expense
+the brain can weigh against building somewhere else.
 
 The rule this encodes:
 
 > **A village changes the surface of the land, never its shape.**
 
 **That rule governs the surface, and only the surface** (decided on
-[#54](https://github.com/Quzzar/villagelife/issues/54)). Underground is the miner's
+[#54](https://github.com/Quzzar/kithkyn/issues/54)). Underground is the miner's
 business: a mine may sink shafts and drive tunnels as deep and as far as it likes, because
 nobody is looking at the skyline from down there. One sentence covers both halves — do not
 reshape what people see, dig what you like beneath it.
@@ -187,7 +203,7 @@ its valley into a plateau over a hundred hours of unattended simulation.
 Site preparation removes blocks. Getting this wrong once, on a player's house, poisons the
 whole mod. The rule is a whitelist, not a blacklist:
 
-- **Only blocks matching the `villagelife:clearable` block tag may be removed.** Natural
+- **Only blocks matching the `kithkyn:clearable` block tag may be removed.** Natural
   terrain and vegetation. Anything not in the tag makes the site invalid rather than
   becoming a target.
 - Never break a block entity, ever. Not chests, not spawners, not signs.
@@ -232,7 +248,7 @@ level. So the moment a building is added to the village (`Village.addBuilding`, 
 building's floor and brings every fellable tree it meets down whole, under the same canopy and
 ownership guards the lumberjack's axe uses ([block-ownership.md](block-ownership.md)), which is
 also what keeps it off the building's own timber. That covers every way a building arrives:
-founding, `/vldev village place`, the builder finishing a project, and an upgrade. The wood
+founding, `/kkdev village place`, the builder finishing a project, and an upgrade. The wood
 goes to village storage like any clearing yield; what will not fit drops where the tree stood.
 A canopy with no log over the footprint is left alone: a tree beside a house is scenery, not
 an obstruction.
@@ -280,9 +296,7 @@ room sentence above rather than as a silent gap in its options.
 
 - **Does the preparation yield count toward the building's cost**, or just land in storage as
   ordinary income? Counting it makes forested sites feel cleverer; not counting it is simpler.
-- **Do roads and paths exist?** Once sites are scored, connecting them is the obvious next
-  thing, and it is a different problem (linear, not footprint) that `wall` shares.
-- **How is player-placed detected**, if at all. The `villagelife:clearable` tag is a good
+- **How is player-placed detected**, if at all. The `kithkyn:clearable` tag is a good
   approximation and needs no bookkeeping, but a player's dirt hut is made of clearable blocks.
 - **Should tier 1 levelling be visible over time**, with the builder actually digging, or
   applied in the same block-by-block pass the structure already uses.

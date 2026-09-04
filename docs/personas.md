@@ -4,7 +4,7 @@
 2-3 sentence third-person character blurb plus one observable-habit quirk line, generated
 by the in-game LLM (see [llm-brain.md](llm-brain.md)) from the villager's rolled identity.
 Design history and decision detail live on the
-[persona pipeline wayfinder map](https://github.com/Quzzar/villagelife/issues/1);
+[persona pipeline wayfinder map](https://github.com/Quzzar/kithkyn/issues/1);
 this doc is the operational summary.
 
 ## The contract
@@ -37,16 +37,16 @@ discards the rolled person entirely (a "skipped arrival"). Consequences:
 
 ## Code map
 
-All in `persona/` (plus one registration line in `entities/VillagelifeAttachments.java`):
+All in `persona/` (plus one registration line in `entities/KithkynAttachments.java`):
 
 | Class | Role |
 | --- | --- |
-| `PersonaData` | The attachment payload (`villagelife:persona`): blurb, quirk, model, timing, prompt version |
+| `PersonaData` | The attachment payload (`kithkyn:persona`): blurb, quirk, model, timing, prompt version |
 | `PersonaPrompts` | System prompt, one-shot example, and the stat/virtue verbalization ladder |
 | `PersonaParser` | Lenient tagged-line parser |
 | `PersonaService` | Generation orchestration on `LlmService.submitPersona`; attach/get helpers |
 | `PersonaSpawner` | **The** generate-before-spawn pipeline: `trySpawn(level, pos, configure)` rolls, generates, spawns on success, discards on failure. Server thread in, server thread out. |
-| `PersonaCommands` | `/vldev persona show <entity>` (permission 2) |
+| `PersonaCommands` | `/kkdev persona show <entity>` (permission 2) |
 
 Village arrival mechanics (campfire map) call the same `PersonaSpawner.trySpawn`, setting
 village membership in the `configure` hook. One pipeline, two callers; do not fork it.

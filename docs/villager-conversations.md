@@ -82,7 +82,7 @@ by villager talk for free.
 
 ## Verifying headlessly
 
-`/vldev llm talk <first> <second>` forces a conversation between two
+`/kkdev llm talk <first> <second>` forces a conversation between two
 villagers standing near each other (same driver, no walk, no cooldown).
 Follow the `[villager chat]` start/end lines and the per-turn `[chat]`
 lines; gives log as `[chat give]`, summaries as `[chat summary]`.

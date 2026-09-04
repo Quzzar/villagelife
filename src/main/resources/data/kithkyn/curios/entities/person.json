@@ -1,0 +1,15 @@
+{
+  "entities": [
+    "kithkyn:person"
+  ],
+  "slots": [
+    "head",
+    "necklace",
+    "back",
+    "hands",
+    "ring",
+    "belt",
+    "charm",
+    "body"
+  ]
+}

@@ -1,0 +1,1 @@
+PASS elapsedTicks=11559 farmsRemaining=1 investment=36 logs, 48 cobblestone

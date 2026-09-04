@@ -1,7 +1,7 @@
 # Buildings: the catalog
 
 **Superseded in part: the catalogue was cut from 36 categories to 17** on
-[#57](https://github.com/Quzzar/villagelife/issues/57) and after (the `kiln` was cut; the
+[#57](https://github.com/Quzzar/kithkyn/issues/57) and after (the `kiln` was cut; the
 `tannery` became the livestock `butchery`, absorbing `pasture` and `workshop`; `inn` became
 the `tavern`; and `brewery` and `library` were cut); see the "The cut" section of
 [building-spec.md](building-spec.md) for the survivors and the casualties with reasons.
@@ -27,12 +27,12 @@ progression is called **level** here, never tier.
 | Axis | Field | Question it answers | Example |
 | --- | --- | --- | --- |
 | **Category** | `category` | What does this building *do*? | `house` |
-| **Variant** | (its own definition) | Which regional design is this? | `house_desert`, `house_tundra`, `igloo` |
+| **Village biome** | `variant` | Which environmental architecture catalog is this building authored for? | `house_birch_forest`, `house_snowy_taiga`, `igloo` |
 | **Level** | `upgrades_from` | How *developed* is it? | `house_desert_2` upgrades from `house_desert_1` |
 
 ### Variants are separate structures
 
-A desert home, a tundra home, and an igloo are **different buildings**, not the same
+A desert home, an alpine home, and an igloo are **different buildings**, not the same
 building rendered in different blocks. They differ in shape, footprint, roof pitch, window
 count, and therefore in cost. Each is its own `.nbt` and its own definition file sharing a
 `category`.
@@ -46,10 +46,10 @@ Category x variant x level is not a grid to be filled. Most cells never need to 
 
 | Category | Variants worth building | Why |
 | --- | --- | --- |
-| `house` | 5 or 6 | The most numerous and most looked-at building in any village. Regional identity lives here. |
-| `village_center`, `well`, `church` | 2 or 3 | Common, central, visible. Worth a regional face. |
-| `farm`, `fishery`, `hunting_lodge` | 1 or 2 | Already regional by *category*: a fishery is the coastal answer, so it does not also need a desert variant. |
-| `quarry`, `mine`, `charcoal_burner`, `pottery` | 1 | Industry reads the same everywhere. A mine entrance is a mine entrance. |
+| `house` | Every supported village biome, often at several scales | The most numerous and most looked-at building in any village. Village-biome architecture reads most clearly here. |
+| `village_center`, `well`, `church`, `market`, `tavern` | Each village biome where environment changes the layout or silhouette | These are common, central, and visible enough to establish the settlement language. |
+| `farm`, `fishery`, `hunting_lodge` | Only village biomes where the environment meaningfully changes the work site | A coast fishery and alpine enclosed farm earn unique layouts; superficial palette swaps do not. |
+| `quarry`, `mine`, `charcoal_burner`, `pottery` | Usually one shared or visually neutral variant | Industry does not need near-identical structures merely because many village biomes exist. |
 
 The food categories carry most of the biome adaptation on their own (below), which is what
 keeps the house variants from having to do all the work.
@@ -297,47 +297,112 @@ Two loops close on themselves and are the interesting ones: **FUEL** (mine or
 charcoal_burner, consumed by blacksmith, glassworks, butchery) and **beds** (pasture to
 weaver to housing cap to more people to more pasture).
 
-## Regional variants and biomes
+## Village-biome variants
 
-The starting variant families, applied to the categories worth varying:
+A **village biome** is a named architecture catalog, not necessarily one literal biome id and not
+a real-world culture. Every village resolves its founding site to one village biome and retains
+that catalog for life. Multiple vanilla or modded biomes may resolve to the same catalog, but two
+complete reference families do not share one catalog merely because their climates are similar.
+The catalog name is the building's variant token, so a Birch Forest village resolves
+`house_birch_forest_1`.
 
-| Family | Biomes | Reads as |
+Architecture and environment are related but not identical. **Biome traits** such as Cold, Wet,
+Arid, Coastal, and Wooded drive survival, work, and placement rules. A Swedish-inspired Shield
+catalog and a Viking-inspired Snowy Taiga catalog can therefore share Cold and Wooded behavior
+without becoming the same architecture.
+
+### Towns and Towers establishes the minimum roster
+
+Every Overworld Towns and Towers settlement family reserves one distinct Kithkyn village
+biome. A small family still reserves its identity; it is completed with original Kithkyn
+structures or a compatible secondary reference rather than merged into another family. Source
+culture names remain gallery labels only. Runtime ids use environmental names.
+
+| Village biome | Towns and Towers reference family | Coverage |
 | --- | --- | --- |
-| `plains` | plains, forest, river, meadow | the default |
-| `taiga` | taiga, old growth, grove | steep roofs, spruce, stone footings |
-| `snowy` | snowy plains, ice spikes, snowy taiga | packed roofs, small windows, `igloo` as a distinct low-cost house variant |
-| `desert` | desert, badlands | flat roofs, sandstone, shaded courtyards |
-| `savanna` | savanna, jungle edge | wide eaves, acacia, raised floors |
+| `alpha_islands` | Classic | Complete family |
+| `subtropical_grassland` | Iberian | Complete family |
+| `hot_shrubland` | Mediterranean | Complete family |
+| `floodplain` | Nilotic | Small family; needs original role coverage |
+| `autumn_forest` | Rustic | Complete family |
+| `shield` | Swedish | Complete family |
+| `highlands` | Tudor | Complete family |
+| `desert_oasis` | Oriental wandering-trader camp | Special camp family |
+| `badlands` | Pueblo | Complete family |
+| `beach` | Lighthouse | Small landmark family |
+| `birch_forest` | Romanian | Complete family |
+| `flower_forest` | Japanese | Complete family; low priority except farm and stable |
+| `forest` | Forest ruins | Complete family |
+| `grove` | Villager outpost | Small landmark family |
+| `jungle` | Tribal | Complete family |
+| `meadow` | Swiss | Complete family |
+| `mushroom_fields` | Fantasy | Complete family |
+| `deep_ocean` | Village ships | Special water settlement family |
+| `old_growth_taiga` | Polish | Complete family |
+| `savanna_plateau` | Ramshackle | Small family; needs original role coverage |
+| `snowy_slopes` | Inn | Small landmark family |
+| `snowy_taiga` | Viking | Complete family |
+| `sparse_jungle` | Polynesian | Complete family |
+| `sunflower_plains` | Farm | Small agricultural family |
+| `swamp` | Boat village | Complete family |
+| `wooded_badlands` | Tipi | Small family; needs original role coverage |
 
-**Built, 2026-09-01: a village picks its family once, at founding, and keeps it.** The family
-is read from the biome the camp stands in through the conventional biome tags rather than
-vanilla ids (`village/buildings/VillageStyle.java`): `c:is_desert`, `c:is_badlands` and
-`c:is_sandy` found a desert camp, `c:is_snowy` and `c:is_icy` a snowy one, `c:is_savanna` and
-`c:is_jungle` a savanna one, `c:is_taiga`, coniferous woods and `c:is_mountain` a taiga one,
-and everything else plains. Modded biomes carry those tags, so a modded desert sorts itself
-without this mod knowing its name. The family is stored on the village, and every building it
-raises afterwards is that family's variant, falling back to plains where a category has no
-other; an upgrade follows the variant already standing. The planner therefore offers the brain
-one option per category, never five look-alike lodges to choose among. Recipes do not vary by
-family at all ([building-spec.md](building-spec.md)): the variant decides the look, nothing
-else. `/villagelife create-village <pos> [family]` founds in a named family instead of the
-biome's.
+That is a floor of **26 Overworld village biomes** from Towns and Towers alone. Its Piglin family
+reserves a twenty-seventh, `nether_wastes`, when non-Overworld villages enter scope.
+
+Large, coherent non-Towns-and-Towers families earn additional catalogs rather than being folded
+into the closest row above. The reviewed set already justifies `plains` for Kithkyn's current
+and CTOV plains work, `old_growth_birch_forest` for Dungeons and Taverns birch,
+`tropical_coast` for CTOV beach, `alpine_highlands` for CTOV alpine, `mangrove_swamp` for CTOV
+swamp, and `mesa` for CTOV mesa. Unreviewed CTOV desert, oasis, taiga, mountain, jungle,
+jungle-tree, snowy-igloo, savanna, mushroom, and underground families may add more after their
+visual boundaries are reviewed.
+
+Fortified, seasonal, and settlement-stage collections do not become village biomes. For example,
+CTOV fortified plains is a defense or development state of `plains`, while Christmas and
+Halloween are possible seasonal treatments. This keeps biome, progression, and event state from
+becoming one overloaded axis.
+
+Unknown world biomes fall back to `plains`. The eventual resolver should first honor an explicit
+datapack mapping, then use conventional biome tags and climate properties, and finally use the
+fallback. This lets modpacks classify unusual biomes precisely without hard-coding every registry
+id in Kithkyn.
+
+**Current implementation, built 2026-09-01:** `VillageStyle` supports only `plains`, `taiga`,
+`snowy`, `desert`, and `savanna`. It remains a useful bootstrap, not the target catalog. The
+refactor keeps the invariant that a village chooses once at founding and retains the result.
+Recipes remain identical across village biomes, and an upgrade follows the village biome of the
+building already standing.
+
+### Village identity is separate from village biome
+
+Every village will also establish a persistent **village identity**: an ordered primary and
+secondary Minecraft dye color plus a layered banner design using those colors. Village biome
+answers how the village builds; village identity answers which particular community built it.
+Two villages may therefore share the same architecture while using different banners and color
+accents.
+
+Buildings that support identity need intentionally authored banner sockets and semantic color
+anchors. The colors must not be implemented as a blind replacement of every block with a
+matching material. The exact point when a village establishes its identity, at founding or
+during early growth, remains to be decided before implementation.
 
 How a village survives where it is:
 
-| Biome | Food | Wood | Stone | Variant family | Verdict |
+| Environment | Food | Wood | Stone | Representative traits | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| Plains | farm, pasture | scarce | quarry | plains | thrives |
-| Forest | hunting_lodge, farm | lumberjack | quarry | plains | thrives |
-| Taiga / snowy | hunting_lodge | lumberjack | quarry | taiga, snowy | thrives, slow |
-| Desert | farm (irrigated), mushroom_cellar | trade only | quarry, glassworks | desert | hard, trades for wood |
-| Savanna | pasture, farm | lumberjack (sparse) | quarry | savanna | thrives |
-| Jungle | hunting_lodge, farm | lumberjack | quarry | savanna | thrives, cramped |
-| Swamp | fishery, mushroom_cellar | lumberjack | scarce | plains | poor, wet |
-| Ocean / beach | fishery | trade only | quarry, glassworks | plains | fish-rich, wood-poor |
-| Mountains | pasture, hunting_lodge | scarce | quarry, mine | taiga | ore-rich, food-poor |
-| Badlands | mushroom_cellar | none | quarry, pottery | desert | survives, barely |
-| Mushroom fields | mushroom_cellar | none | scarce | plains | isolated curiosity |
+| Plains | farm, pasture | scarce | quarry | Temperate, Open | thrives |
+| Forest | hunting_lodge, farm | lumberjack | quarry | Wooded | thrives |
+| Taiga | hunting_lodge | lumberjack | quarry | Cold, Wooded | thrives, slow |
+| Tundra | hunting_lodge, enclosed farm | scarce | quarry | Cold, Exposed | survives, slow |
+| Desert | farm (irrigated), mushroom_cellar | trade only | quarry, glassworks | Arid, Hot | hard, trades for wood |
+| Savanna | pasture, farm | lumberjack (sparse) | quarry | Warm, Open | thrives |
+| Jungle | hunting_lodge, farm | lumberjack | quarry | Hot, Wet, Wooded | thrives, cramped |
+| Swamp | fishery, mushroom_cellar | lumberjack | scarce | Wet, Wooded | poor, wet |
+| Ocean / beach | fishery | trade only | quarry, glassworks | Coastal | fish-rich, wood-poor |
+| Mountains | pasture, hunting_lodge, enclosed farm | scarce | quarry, mine | Cold, Steep | ore-rich, food-poor |
+| Badlands | mushroom_cellar | none | quarry, pottery | Arid, Rocky | survives, barely |
+| Mushroom fields | mushroom_cellar | none | scarce | Fungal, Isolated | isolated curiosity |
 
 The `market` category is the pressure valve: a wood-poor village with fish or ore to spare
 should be able to trade for logs rather than starve for planks. Whether that trade is with
@@ -348,8 +413,11 @@ the player, with a caravan, or abstract is an open question below.
 | | Count |
 | --- | --- |
 | Categories | 37 |
-| Variant families | 5 |
-| Structures to build (`.nbt`), sparse variants | ~130 |
+| Implemented village biomes | 5 |
+| Towns and Towers Overworld village-biome floor | 26 |
+| Additional village biomes already justified by reviewed families | 6 |
+| Existing structure-plan estimate, based on five village biomes | ~130 |
+| Revised sparse structure total | Recalculate during the category pass |
 | New `Occupation` values | ~19 |
 | Phase 1 categories (a village survives) | 12 |
 

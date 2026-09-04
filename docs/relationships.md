@@ -2,7 +2,7 @@
 
 **Implemented.** Villagers hold pairwise opinions of each other: a fondness value in
 -100..100 plus one LLM-written flavor sentence. Design history on the
-[persona pipeline map](https://github.com/Quzzar/villagelife/issues/1) (model decided
+[persona pipeline map](https://github.com/Quzzar/kithkyn/issues/1) (model decided
 on its relationship ticket); this is the operational summary.
 
 ## The model
@@ -40,7 +40,7 @@ feature.
   `opinionOf(uuid)`.
 - `relationships/RelationshipService`: the two-stage pass on `LlmService.submitPersona`
   with few-shot examples.
-- `relationships/RelationshipCommands`: `/vldev relationships show <entity>` (permission 2).
+- `relationships/RelationshipCommands`: `/kkdev relationships show <entity>` (permission 2).
 - Storage: `VillageBrain`'s codec (additive `relationships` field); accessors delegate
   through `Village` (`putRelationship`, `getRelationship`, `relationshipsOf`).
 
@@ -58,7 +58,7 @@ flag when it rebuilds the pair.
 
 ## What generation may and may not do
 
-Tightened after the audit on [#21](https://github.com/Quzzar/villagelife/issues/21), which
+Tightened after the audit on [#21](https://github.com/Quzzar/kithkyn/issues/21), which
 measured the first live webs and found the content wanting where the mechanism was sound.
 
 - **Flavour is about the pair, or it is nothing.** The prompt now forbids describing one

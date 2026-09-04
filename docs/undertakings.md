@@ -12,9 +12,9 @@ to "I am saving toward a bigger house."
 >
 > What works: the record, persistence, `UndertakingService.apply` (open/advance/
 > resolve, the open→advance coercion), the standing bump on a resolved negative,
-> and the dispatcher write path are all built and pass `/vldev undertaking
-> selftest` (10/10). Inspect live state with `/vldev undertaking show <target>`
-> and raw model behavior with `/vldev undertaking probe <target> <line>`.
+> and the dispatcher write path are all built and pass `/kkdev undertaking
+> selftest` (10/10). Inspect live state with `/kkdev undertaking show <target>`
+> and raw model behavior with `/kkdev undertaking probe <target> <line>`.
 >
 > What does NOT work, measured in-world (not just the isolated audit): a villager
 > almost never records its own matters. Two blockers, both structural:
@@ -193,7 +193,7 @@ turn is visibly about a commitment — so a prompt that always dangles
 harness counts false positives, not just hits, because over-emission is the
 failure that actually bites.
 
-The audit (Llama-3.2-3B, `/vldev undertaking audit`) drove three findings in
+The audit (Llama-3.2-3B, `/kkdev undertaking audit`) drove three findings in
 sequence, each fixing the last one's residue:
 
 1. **Over-emission, solved by gating.** UNGATED the model over-emitted
@@ -262,7 +262,7 @@ undertaking (a promise broken) lowering standing, waits on the self-abandon path
 ## Persistence
 
 An attachment on the person, exactly like `PERSONAL_LOG`, `SOCIAL`, and
-`CHAT_HISTORY`: `villagelife:undertakings`, a codec/NBT list capped like the
+`CHAT_HISTORY`: `kithkyn:undertakings`, a codec/NBT list capped like the
 others (16 open feels right; resolved ones trim oldest-first). `KIND_ISSUE` in
 `PersonalLogData` is **absorbed** by this and removed — an issue was always a
 degenerate undertaking with no lifecycle, and keeping both would be two systems

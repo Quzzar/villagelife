@@ -3,11 +3,11 @@
 **Decided; the valuation engine is built, trade is not.** Shipped: `economy/ItemValues`
 (the authored raw table plus recipe decomposition outward, memoised and cycle-guarded),
 `economy/Bank` (one spread multiplier both ways), `economy/VillagePricing` (supply and
-demand inside the band), the datapack loader, and `/vldev economy` for inspection.
+demand inside the band), the datapack loader, and `/kkdev economy` for inspection.
 Not built: the MERCHANT occupation, the market building, the physical emerald treasury,
 any trading interface, and any actual transfer of items or emeralds — the engine prices
 things, nothing trades yet. The design agreed on
-[The market, and what emeralds are for](https://github.com/Quzzar/villagelife/issues/51);
+[The market, and what emeralds are for](https://github.com/Quzzar/kithkyn/issues/51);
 implementation is a separate effort. Sibling docs:
 [building-spec.md](building-spec.md) for the market building itself,
 [worker-loops.md](worker-loops.md) for the merchant's work cycle.
@@ -107,12 +107,13 @@ already committed, less a floor it will not sell past — and it buys the one ma
 cannot otherwise afford. The rules find the moves, the brain picks among them and says why,
 and with no model the rules' own first choice stands.
 
-Construction commitments use the same effective quote as the builder and planner. A fresh
-building reserves its whole recipe; an upgrade reserves and buys only the materials the new
-tier adds over the standing structure. Chat, nighttime stashing, and autonomous trade read
-that same `ConstructionQuote`, so none of them can quietly fall back to the full recipe. While
-a project is gathering, its quote also counts materials already carried by assigned builders;
-after the recipe is committed, trade neither reserves nor buys that recipe a second time.
+Construction commitments use the same effective quote as the builder and planner. An upgrade
+reserves the positive recipe increase from its predecessor; a fresh higher-level building reserves
+the level-1 recipe plus every calculated upgrade increase through its target. Chat, nighttime
+stashing, and autonomous trade read that same `ConstructionQuote`, so none of them can quietly
+fall back to the full recipe. While a project is gathering, its quote also counts materials already
+carried by assigned builders; after the recipe is committed, trade neither reserves nor buys that
+recipe a second time.
 
 ## Standing
 
@@ -144,4 +145,4 @@ through whoever witnessed them and what reflection makes of it.
 Each rung keeps the ones above it, and **every rung is escapable**: what a villager feels
 about an outsider fades toward indifference on its own, so staying away and behaving is a
 way back. A grudge that cannot be worked off is a permanent tax rather than a punishment.
-`/vldev village standing` reports the number and what it currently costs you.
+`/kkdev village standing` reports the number and what it currently costs you.

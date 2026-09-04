@@ -2,7 +2,7 @@
 
 **This is the decided design for how villagers enter the village and get jobs.** The refactor
 brings the codebase to this model. It is a direct adoption of the population mechanic from
-the Stronghold games (Firefly Studios), adapted to villagelife.
+the Stronghold games (Firefly Studios), adapted to kithkyn.
 
 ## The core principle: demand-driven labor
 
@@ -67,7 +67,7 @@ Two independent caps, checked at arrival time:
 Beds are assigned on arrival, ahead of any employment. Houses and the
 village centre are the main sources of beds, and some workplaces carry a live-in bed as well
 (the lumberjack hut, the watchtower, the upper blacksmith, the church), superseding the
-older no-workplace-beds reading of [#61](https://github.com/Quzzar/villagelife/issues/61).
+older no-workplace-beds reading of [#61](https://github.com/Quzzar/kithkyn/issues/61).
 
 A workplace's live-in bed is **reserved for whoever staffs that workplace**, not thrown into
 general housing: a bed whose building carries a work station and is not the village centre is
@@ -110,7 +110,7 @@ attractiveness (below) and idles them until rehoused.
 Stronghold's "popularity" score, renamed **attractiveness** for us: a 0 to 100 score owned by
 the village that answers "would anyone want to move here?" **Implemented** as
 `VillageAttractiveness` (computed by `Village`, recomputed every 10 seconds and cached between, phase-staggered across
-villages), inspectable in-game via `/vldev village attractiveness [pos]`.
+villages), inspectable in-game via `/kkdev village attractiveness [pos]`.
 
 - **Above the grow threshold (50)**: new people periodically arrive. The further above, the
   more frequent the arrivals.
@@ -130,7 +130,7 @@ rule, and it means deaths can no longer strand a settlement below its floor with
 attractiveness out of the growing band). Above the floor, growth is attractiveness-gated as
 usual.
 
-The decided v1 formula — every number a config tunable in `villagelife-common.toml`,
+The decided v1 formula — every number a config tunable in `kithkyn-common.toml`,
 clamped to 0-100:
 
 | Component | Contribution |
@@ -154,7 +154,7 @@ Mechanism notes:
   steadily, not constantly), when paying for a building comes up short, and when a guard
   turns in for the night with no rations.
 - **Wrongdoing is witnessed, or it did not happen** (decided on
-  [#64](https://github.com/Quzzar/villagelife/issues/64)). Theft, assault and murder all
+  [#64](https://github.com/Quzzar/kithkyn/issues/64)). Theft, assault and murder all
   work the same way: a villager must actually see it — awake, within roughly sixteen
   blocks, with line of sight. Steal from a chest with nobody around, or kill someone alone
   in the woods, and the village genuinely does not know: it simply has someone missing.
@@ -238,7 +238,7 @@ in a chest of their own stays with the house, for whoever moves in next. Then th
 the road. The floor gates emigration here: a village at or below it loses nobody to mood,
 whatever the score reads, so a founding camp of four is never emptied by its own first hungry
 morning (the floor's other, growth-side half is above: below the floor the village force-grows
-back to it). `/vldev village emigrate` ignores the floor, so the road can still be watched from
+back to it). `/kkdev village emigrate` ignores the floor, so the road can still be watched from
 a small village.
 
 An emigrating adult takes their resident spouse and dependent children. The floor is tested
@@ -303,7 +303,7 @@ A workplace building finishing construction registers its work stations as open
 - An open job claims a **housed** idle person from the campfire pool automatically (the
   employment-requires-housing rule above; a bedless camper is not claimable). Aptitude is a
   weighted sum over the genetics stat block, with per-occupation weights as datapack JSON
-  (`data/villagelife/villagelife/aptitude/`); FIFO breaks ties, and unprofiled occupations
+  (`data/kithkyn/kithkyn/aptitude/`); FIFO breaks ties, and unprofiled occupations
   stay effectively FIFO.
 - **The rules gate to competence; the model picks within it.** When one camper is clearly
   best suited, they take the post on the spot, no model call spent. When two or more are
@@ -342,8 +342,8 @@ A workplace building finishing construction registers its work stations as open
   saying "building a farm"). A second builder, if there is one, may still move.
 - The person walks from the campfire to the workplace, takes on the `Occupation` of the
   station, and holds it until the job stops existing. Taking the job is the one moment a
-  bare starting kit appears from nothing: the mark of the trade, a stone axe, pickaxe or hoe or
-  a plain bow for the trades that work with a tool, or a token for the rest, a builder's crafting
+  bare starting kit appears from nothing: the mark of the trade, a stone axe, sword, pickaxe or
+  hoe, a plain bow, or a crossbow for the trades that work with a tool, or a token for the rest, a builder's crafting
   table, a quartermaster's ledger, a blacksmith's ingot (`RealPerson.issueStartingKit`, the tokens
   in `entities/SignatureGear`). Nothing is conjured after that; a worker may give a mark away like
   anything else, and by day draws it back into hand from pack or stores when it has strayed, and a
@@ -380,12 +380,12 @@ The campfire model is the current code. Key locations:
 - The road: `RoamGoal` (the daily walk), `ForageHuntStep` and `ForageChopStep` (living off
   the land), `CampStep` (the night's fire), `JobTool.makeFromPack` (the road's axe), `RealPerson.crossHorizon` (the crossing
   at the edge past the cap), and `WandererPool` in `VillageManagerSaveData` (everyone beyond
-  the horizon, one list for the server). `/vldev village emigrate` sends one person out of the
-  nearest village to watch it, and `/vldev village wanderers` lists who is beyond the horizon.
+  the horizon, one list for the server). `/kkdev village emigrate` sends one person out of the
+  nearest village to watch it, and `/kkdev village wanderers` lists who is beyond the horizon.
 - Attractiveness: `VillageAttractiveness`.
 - Idle pool: derived, never stored (`Village.idlePeople()`: work-eligible population minus employed
   minus mid-walk travelers). Toddler and Kid are not labor; an idle Teenager is. Idle behavior
-  anchors to the `villagelife:campfire` POI.
+  anchors to the `kithkyn:campfire` POI.
 - Job claiming and swaps: `JobClaiming.tick`, called every second from `Village.update`:
   aptitude-based claiming (`JobAptitudes` + `JobAptitudeLoader` datapack profiles), a
   visible commute, reconciliation passes that return orphaned workers to the pool and
@@ -423,7 +423,9 @@ Earlier entries here are now decided and described above: positive player standi
 in per-villager opinion shaped in conversation, never in attractiveness; emigrants become
 wanderers, take to the road, and come back in at whichever village grows next; stat-based
 job matching with threshold-gated swaps replaced pure FIFO (FIFO remains the tiebreaker). Villages are also named at founding:
-the LLM names the settlement from its biome on the low-priority queue. The name is
+the LLM names the settlement from its biome and natural terrain on the low-priority queue.
+Temporary founding structures such as the gathering-point campfire are not part of the naming
+context. The name is
 requested before the camp is placed and founding waits the moment it takes to land, so
 a village only ever has one name (a word-list name stands only if generation fails
 twice); the name is permanent, with no rename mechanism by decision.

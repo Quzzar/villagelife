@@ -90,6 +90,14 @@ and `Void` for a social talk that only ever ends, never resolves.
 Player-to-villager chat is not a caller: it runs its own reactive packet loop
 (`PersonChatDispatcher`) and shares only the single-turn `converse` core.
 
+A player handoff goes straight from the villager's slots into the player's
+inventory. Only the part that does not fit becomes a targeted item at the
+player's feet, so the giver cannot immediately collect the gift again. Physical
+pickups observed by a villager remain in `PersonalLogData`, but the chat prompt
+now interleaves those events with the timestamped session transcript. The model
+sees “I said I handed over dirt,” then “I picked up dirt,” in the order those
+events occurred instead of receiving pickups as a detached system-summary fact.
+
 ## The one-shot siblings, left alone
 
 Not every question the village asks the model is a conversation. A one-shot

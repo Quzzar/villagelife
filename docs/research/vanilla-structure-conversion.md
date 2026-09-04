@@ -1,7 +1,7 @@
 # Research: converting vanilla village structures
 
-Resolves [#53](https://github.com/Quzzar/villagelife/issues/53). Part of the wayfinder map in
-[#47](https://github.com/Quzzar/villagelife/issues/47).
+Resolves [#53](https://github.com/Quzzar/kithkyn/issues/53). Part of the wayfinder map in
+[#47](https://github.com/Quzzar/kithkyn/issues/47).
 
 Everything below was measured against the actual Minecraft 1.21.1 game files on this machine
 (`~/.gradle/caches/neoformruntime/artifacts/minecraft_1.21.1_client.jar` and the matching server
@@ -222,7 +222,7 @@ namespace.
 
 ```java
 // InstantBuildStructure.java:62, StructureInProgress.java:125
-ResourceLocation.fromNamespaceAndPath(Villagelife.MODID, building.getInfo().getPath())
+ResourceLocation.fromNamespaceAndPath(Kithkyn.MODID, building.getInfo().getPath())
 ```
 
 `BuildingInfo`'s `structure` field is a bare `String` and would have to become a full
@@ -355,9 +355,9 @@ Three legal routes, in preference order.
 1. **Reference vanilla in place** by `ResourceLocation`. Costs nothing, ships nothing, and is the
    only way vanilla content reaches our catalog. Constrained by the datapack-override risk in
    section 3.
-2. **Rebuild by hand in a structure block** and save under `villagelife:`. A building "inspired by"
+2. **Rebuild by hand in a structure block** and save under `kithkyn:`. A building "inspired by"
    the vanilla plains small house, actually built by a person, is ours. This is what the existing
-   twelve files under `data/villagelife/structure/` presumably are.
+   twelve files under `data/kithkyn/structure/` presumably are.
 3. **Third-party sets with written permission**, which `building-spec.md` already requires.
 
 What is not available: extracting, stripping, and shipping. That has to come out of the plan.
@@ -431,7 +431,7 @@ cleric, `composter` farmer, `barrel` fisherman, `fletching_table` fletcher, `cau
 - 14 have neither (animal pens, stables, `plains_accessory_1`)
 
 Vanilla separates sleeping from working completely. Our own definitions do not: every one of the
-nine files in `data/villagelife/villagelife/buildings/` pairs a bed with a work station in the same
+nine files in `data/kithkyn/kithkyn/buildings/` pairs a bed with a work station in the same
 structure, and `blacksmith.json` is the canonical example. A converted vanilla armorer's house
 would house nobody, and a converted vanilla small house would employ nobody.
 
