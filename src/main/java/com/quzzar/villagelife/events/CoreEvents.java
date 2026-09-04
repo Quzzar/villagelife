@@ -133,7 +133,7 @@ public class CoreEvents {
       // the calendar time and surfaces in conversation.
       if (event.getSource().getEntity() instanceof net.minecraft.world.entity.LivingEntity attacker
           && attacker != person) {
-        person.logIssue("I was attacked by " + attacker.getName().getString(),
+        person.logMemory("I was attacked by " + attacker.getName().getString(),
             java.util.Optional.of(attacker.getUUID()));
 
         // Pain needs no interpretation (docs/relationships.md): a blow from a
@@ -215,7 +215,7 @@ public class CoreEvents {
         && hunter.getTarget() instanceof RealPerson rescued
         && event.getSource().getEntity() instanceof RealPerson defender
         && !defender.getUUID().equals(rescued.getUUID())) {
-      rescued.logIssue(defender.getFullName() + " killed the "
+      rescued.logMemory(defender.getFullName() + " killed the "
           + event.getEntity().getName().getString() + " that was coming for me.",
           java.util.Optional.of(defender.getUUID()));
     }
@@ -261,7 +261,7 @@ public class CoreEvents {
           && !(event.getSource().getEntity() instanceof Player)) {
         String memory = deathMemory(person, event.getSource().getEntity());
         for (RealPerson witness : Witnesses.around(serverLevel, person.getEyePosition(), person)) {
-          witness.logIssue(memory, java.util.Optional.empty());
+          witness.logMemory(memory, java.util.Optional.empty());
         }
       }
 

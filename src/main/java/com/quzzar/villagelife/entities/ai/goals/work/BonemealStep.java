@@ -4,6 +4,7 @@ import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.WorkArea;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.BoneMealItem;
@@ -38,7 +39,9 @@ public final class BonemealStep implements BlockWorkStep {
    * How far around the station to look. The old goal searched two blocks and
    * never walked, which is a box barely larger than the villager - so the work
    * only happened by coincidence. Eight covers a plot the worker can now
-   * actually walk across.
+   * actually walk across. The assigned building's exact footprint clips the
+   * square, so the farmer does not feed nearby crops and the lumberjack does not
+   * feed a sapling outside the stand.
    */
   private static final int WORK_RADIUS = 8;
 
@@ -54,7 +57,12 @@ public final class BonemealStep implements BlockWorkStep {
     if (!person.hasItem(Items.BONE_MEAL)) {
       return null; // nothing to feed it with, so there is no work
     }
-    return findGrowable(person, origin(person));
+    BlockPos around = origin(person);
+    WorkArea area = this.useStation ? LocationManager.getJobWorkArea(person) : null;
+    if (around == null || (this.useStation && area == null)) {
+      return null;
+    }
+    return findGrowable(person, around, area);
   }
 
   @Override
@@ -83,12 +91,13 @@ public final class BonemealStep implements BlockWorkStep {
    * replaces read the job location in its constructor, so a worker assigned
    * their station afterwards carried a zeroed one for the rest of their life.
    */
+  @Nullable
   private BlockPos origin(RealPerson person) {
     if (!this.useStation) {
       return BlockPos.containing(person.getEyePosition());
     }
     BlockPos station = LocationManager.getJobLocation(person);
-    return station == BlockPos.ZERO ? BlockPos.containing(person.getEyePosition()) : station;
+    return station == BlockPos.ZERO ? null : station;
   }
 
   /**
@@ -98,6 +107,15 @@ public final class BonemealStep implements BlockWorkStep {
    */
   @Nullable
   static BlockPos findGrowable(RealPerson person, BlockPos around) {
+    WorkArea area = LocationManager.getJobWorkArea(person);
+    if (area == null) {
+      return null;
+    }
+    return findGrowable(person, around, area);
+  }
+
+  @Nullable
+  private static BlockPos findGrowable(RealPerson person, BlockPos around, @Nullable WorkArea area) {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     BlockPos found = null;
     int seen = 0;
@@ -105,6 +123,9 @@ public final class BonemealStep implements BlockWorkStep {
       for (int y = -2; y <= 2; ++y) {
         for (int z = -WORK_RADIUS; z <= WORK_RADIUS; ++z) {
           cursor.setWithOffset(around, x, y, z);
+          if (area != null && !area.contains(cursor.getX(), cursor.getY(), cursor.getZ())) {
+            continue;
+          }
           if (!growable(person, cursor)) {
             continue;
           }

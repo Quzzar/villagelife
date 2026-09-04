@@ -63,24 +63,30 @@ lumberjack, a lumberjack needs a bed) gets slept in by someone who is not the lu
 the post can never be filled. When a worker is assigned to a building with a free bed they
 move in (`Village.preferWorkplaceBed`), releasing whatever bed they held; a worker whose
 workplace has no live-in bed is housed from general housing at assignment, so an employed
-person always has a bed. Otherwise a villager keeps the first free bed they are given and does
-not move when their job changes, so commutes across a village are normal and expected.
+person always has a bed. A general bed follows its resident when their job changes, so commutes
+across a village are normal. A reserved workplace bed does not: leaving that workplace releases
+its bed for the next person who staffs it. The per-tick reconciliation repairs older saves where
+a former worker still occupies another trade's live-in bed.
 
 The claiming and swap gates read this correctly: a bedless camper is claimable for a post when
 the village can house them *for that post*, meaning a free general bed or a free bed in that
 post's own building, not a free bed reserved to some other workplace
 (`Village.hasFreeGeneralBed`/`hasFreeBedIn`, `JobClaiming`).
 
-**Employment requires housing** (decided 2026-08-31). A job can only be held by someone
-with a bed: claiming and the swap pass skip bedless candidates (unless a free bed exists
-somewhere, which reconciliation hands over within the second), and a worker whose bed is
-gone with no replacement stands down, their post reopening for someone housed
-(`JobClaiming.releaseUnhousedWorkers`). The bedless are exactly the campfire reservoir:
-they idle by the fire, take no work, and do not sleep until the village builds them a home,
-which is what makes housing a genuine construction need. The planner does not score this
-into a decision: it states the facts (how many idle, how many have nowhere to sleep) in the
-brain's briefing and lets the model weigh building homes against building workshops nobody
-housed could staff. Losing a bed
+**Employment requires nighttime accommodation** (expanded 2026-09-03). An Adult worker needs
+an assigned bed. A Teenager may work while dependently housed in a resident parent's home;
+Toddler and Kid cannot work. Claiming and the swap pass reject everyone outside those rules,
+and a worker whose accommodation is gone with no replacement stands down, their post reopening
+for someone housed (`JobClaiming.releaseUnhousedWorkers`). An unhoused Adult is part of the
+campfire reservoir: they idle by the fire, take no work, and do not sleep until the village
+builds them a home, which is what makes housing a genuine construction need. The planner does not score this
+into a decision: it states the facts in the brain's briefing and lets the model weigh them.
+Those facts include how many idle people have nowhere to sleep, which buildings already stand,
+which professions their open posts belong to, and that a workshop without beds does not house
+the people waiting at the fire. The model still chooses whether that makes a home the right next
+project. An employed Teenager without a distinct future adult bed also creates a persisted
+save-for goal for an ordinary house, so the village prepares for the moment dependent housing
+expires. Losing a bed
 (house destroyed) still does not despawn a person; it makes them homeless, which hurts
 attractiveness (below) and idles them until rehoused.
 
@@ -120,6 +126,7 @@ clamped to 0-100:
 | Homeless fraction | up to **-20** |
 | Each death (`DeathBookkeepingEvent`) | **-8 x** its decaying impact |
 | Each hurt-by-player (`HurtByPlayerBookkeepingEvent`) | **-3 x** impact |
+| Each witnessed theft (`TheftBookkeepingEvent`) | **-1 x** impact |
 | Each resource shortage (`NoResourceBookkeepingEvent`) | **-2 x** impact |
 
 Mechanism notes:
@@ -354,8 +361,9 @@ The campfire model is the current code. Key locations:
   the horizon, one list for the server). `/vldev village emigrate` sends one person out of the
   nearest village to watch it, and `/vldev village wanderers` lists who is beyond the horizon.
 - Attractiveness: `VillageAttractiveness`.
-- Idle pool: derived, never stored (`Village.idlePeople()`: population minus employed
-  minus mid-walk travelers). Idle behavior anchors to the `villagelife:campfire` POI.
+- Idle pool: derived, never stored (`Village.idlePeople()`: work-eligible population minus employed
+  minus mid-walk travelers). Toddler and Kid are not labor; an idle Teenager is. Idle behavior
+  anchors to the `villagelife:campfire` POI.
 - Job claiming and swaps: `JobClaiming.tick`, called every second from `Village.update`:
   aptitude-based claiming (`JobAptitudes` + `JobAptitudeLoader` datapack profiles), a
   visible commute, reconciliation passes that return orphaned workers to the pool and
@@ -380,6 +388,7 @@ All of these belong in config, not constants buried in `Village`:
 | Wanderer cap | Wanderers walking the loaded world at once | 8 |
 | Wanderer pool cap | People the world remembers on the road | 64 |
 | Base beds | Beds the village center itself provides | 4, from its building definition, not config |
+| Days per child stage | Time spent as Toddler, Kid, and Teenager | 8 days each |
 
 ## Open questions (not yet decided)
 

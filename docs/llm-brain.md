@@ -43,15 +43,12 @@ nearest thing to a site and what ruled it out, and the rule that villagers never
 hill. Whether to build smaller or wait is the model's call; see
 [site-selection.md](site-selection.md).
 
-And for trouble at work (2026-09-02). A worker who cannot work writes why into their personal
-log (`RealPerson.logIssue`: a flooded shaft, a wall of lava, a post they cannot reach), and until
-now that reached only conversation. The brain choosing the next building was never told the mine
-it had was dead: Wildflower Downs' miner stood down for five hours with the bucket in a chest at
-home while the brain, offered "a mine" as one option among many, picked a well over it three
-times. `UrbanPlanner.appendWorkplaceTrouble` now states each employed worker's newest issue,
-while it still stands, with how long the same complaint has stood ("your miner Colm Willis, for
-15 days: \"water keeps flooding my mine - a bucket would let me seal it\""), read from the people
-loaded at that moment and never by paging a chunk in. It is a fact, not a request: whether the
+And for trouble at work (2026-09-02, corrected 2026-09-03). A worker who cannot work writes why
+as a typed operational blocker (`RealPerson.logBlocker`: a flooded shaft, a wall of lava, a post
+they cannot reach). Repeated failures refresh the blocker and successful work clears it; completed
+events such as an attack or a job change are ordinary memories and can never masquerade as current
+trouble. `VillageContextSnapshot` states each loaded worker's active blocker, with how long it has
+stood, in both the resident and collective briefings. It is a fact, not a request: whether the
 answer is a second mine, a bucket, or nothing is the model's.
 
 A second consumer places labor. `JobClaiming` fills an open post from the campfire pool,
@@ -115,6 +112,9 @@ a cloud provider; internet on first boot for the model download.
   (loaded at server start with a warm-up generation, so a broken backend fails at load, not
   mid-game) or as a cloud call. Requests time out after 60s and count as "no answer".
 - `/vlbrain status | load` and the developer `ask` command exercise all of it in-game.
+- `/vldev village context [pos]` prints the exact resident briefing, collective briefing, and
+  vetted planning options for the nearest village, which makes a context failure inspectable
+  without spending a model call.
 
 ## Every call is on record
 

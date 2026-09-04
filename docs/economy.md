@@ -107,6 +107,13 @@ already committed, less a floor it will not sell past — and it buys the one ma
 cannot otherwise afford. The rules find the moves, the brain picks among them and says why,
 and with no model the rules' own first choice stands.
 
+Construction commitments use the same effective quote as the builder and planner. A fresh
+building reserves its whole recipe; an upgrade reserves and buys only the materials the new
+tier adds over the standing structure. Chat, nighttime stashing, and autonomous trade read
+that same `ConstructionQuote`, so none of them can quietly fall back to the full recipe. While
+a project is gathering, its quote also counts materials already carried by assigned builders;
+after the recipe is committed, trade neither reserves nor buys that recipe a second time.
+
 ## Standing
 
 Village standing is **derived from its residents' opinions**, never stored separately, so

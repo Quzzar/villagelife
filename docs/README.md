@@ -13,12 +13,14 @@ in it, and update it in the same change that moves what it describes.
   contract, the generate-before-spawn lifecycle, and the persona package code map.
 - [undertakings.md](undertakings.md): the tracked matters a villager sees through, good or
   bad, with progress and resolution. One generic model for making amends, needing rescue,
-  and self-set goals. Design only so far; grows out of PersonalLogData's flat issue log.
+  and self-set goals. Design only so far; grows out of PersonalLogData's event memories.
 - [relationships.md](relationships.md): pairwise villager opinions. The one-pair-one-object
   model that keeps opinions roughly shared, the newcomer integration pass, and the code map.
 - [marriage.md](marriage.md): two villagers who have grown close ask the brain to wed them,
   and it decides. The emergent proposal, the brain's blessing, the couple choosing their own
   married name in a group chat, and the couple's cottage the village saves for and moves them into.
+- [families.md](families.md): parentage and the four-stage growth lifecycle, dependent family
+  housing, teenager employment, advance housing goals, and the transition to an adult bed.
 - [companions.md](companions.md): the dog or cat some villagers keep. Who is granted one and
   when, the one-per-species cap bonded to the person not the post, the owner naming it and
   choosing its look, the custom follow goal a mob owner needs, the village-tether when the

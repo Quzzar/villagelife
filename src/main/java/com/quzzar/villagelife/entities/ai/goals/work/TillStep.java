@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.WorkArea;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundEvents;
@@ -28,7 +29,9 @@ import net.minecraft.world.level.block.Blocks;
  * around the station - but tilling REPLACES blocks, so widening it would have a
  * farmer turning paths and other people's ground into farmland. That is a
  * tuning decision for the job definitions to carry, not something to change
- * quietly inside a port.
+ * quietly inside a port. The square is clipped to the assigned building's
+ * rotated template footprint, so even a station authored at the field's edge
+ * cannot turn neighbouring ground into an extension of the farm.
  */
 public final class TillStep implements BlockWorkStep {
 
@@ -63,7 +66,15 @@ public final class TillStep implements BlockWorkStep {
     if (seedInHand(person) == null) {
       return null;
     }
-    return findUntilled(person, origin(person));
+    BlockPos around = origin(person);
+    if (around == null) {
+      return null;
+    }
+    WorkArea area = this.useStation ? LocationManager.getJobWorkArea(person) : null;
+    if (this.useStation && area == null) {
+      return null;
+    }
+    return findUntilled(person, around, area);
   }
 
   @Override
@@ -103,12 +114,13 @@ public final class TillStep implements BlockWorkStep {
   }
 
   /** Resolved per scan, not captured once before the job was even assigned. */
+  @Nullable
   private BlockPos origin(RealPerson person) {
     if (!this.useStation) {
       return BlockPos.containing(person.getEyePosition()).below();
     }
     BlockPos station = LocationManager.getJobLocation(person);
-    return station == BlockPos.ZERO ? BlockPos.containing(person.getEyePosition()).below() : station;
+    return station == BlockPos.ZERO ? null : station;
   }
 
   @Nullable
@@ -124,7 +136,13 @@ public final class TillStep implements BlockWorkStep {
   }
 
   @Nullable
-  private BlockPos findUntilled(RealPerson person, BlockPos around) {
+  private BlockPos findUntilled(RealPerson person, BlockPos around, @Nullable WorkArea area) {
+    if (area != null) {
+      WorkArea.Position found = area.firstInSquare(around.getX(), around.getY() - 1,
+          around.getZ(), SEARCH_RADIUS, position -> workable(person,
+              new BlockPos(position.x(), position.y(), position.z())));
+      return found == null ? null : new BlockPos(found.x(), found.y(), found.z());
+    }
     for (int x = -SEARCH_RADIUS; x <= SEARCH_RADIUS; ++x) {
       for (int z = -SEARCH_RADIUS; z <= SEARCH_RADIUS; ++z) {
         BlockPos candidate = around.offset(x, -1, z);

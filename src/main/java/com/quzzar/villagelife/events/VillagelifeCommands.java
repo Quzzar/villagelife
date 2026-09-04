@@ -13,6 +13,8 @@ import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
 import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureGallery;
+import com.quzzar.villagelife.village.buildings.UrbanPlanner;
+import com.quzzar.villagelife.village.buildings.VillageContextSnapshot;
 import com.quzzar.villagelife.village.buildings.VillageStyle;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -90,6 +92,12 @@ public class VillagelifeCommands {
                                         BlockPos.containing(ctx.getSource().getPosition())))
                                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                                         .executes(ctx -> reportAttractiveness(ctx.getSource(),
+                                                BlockPosArgument.getBlockPos(ctx, "pos")))))
+                        .then(Commands.literal("context")
+                                .executes(ctx -> reportContext(ctx.getSource(),
+                                        BlockPos.containing(ctx.getSource().getPosition())))
+                                .then(Commands.argument("pos", BlockPosArgument.blockPos())
+                                        .executes(ctx -> reportContext(ctx.getSource(),
                                                 BlockPosArgument.getBlockPos(ctx, "pos")))))
                         .then(Commands.literal("place")
                                 .then(Commands.argument("building", StringArgumentType.word())
@@ -532,5 +540,20 @@ public class VillagelifeCommands {
         VillageAttractiveness report = village.computeAttractiveness();
         source.sendSuccess(() -> Component.literal(report.describe(village.getName())), false);
         return (int) report.total();
+    }
+
+    /** The authoritative facts and vetted choices supplied to village AI prompts. */
+    private static int reportContext(CommandSourceStack source, BlockPos pos) {
+        Village village = VillageManager.get(source.getLevel()).getNearestVillage(pos);
+        if (village == null) {
+            source.sendFailure(Component.literal("No villages exist yet."));
+            return 0;
+        }
+        VillageContextSnapshot snapshot = VillageContextSnapshot.capture(village);
+        String report = "Resident briefing:\n" + snapshot.chatBriefing()
+                + "\nCollective briefing:\n" + snapshot.plannerBriefing()
+                + "\nPlanning options:\n" + UrbanPlanner.buildableCatalogue(village);
+        source.sendSuccess(() -> Component.literal(report), false);
+        return 1;
     }
 }

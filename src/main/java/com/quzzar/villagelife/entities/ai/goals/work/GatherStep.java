@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
-import com.quzzar.villagelife.village.buildings.BuildingUpgrade;
+import com.quzzar.villagelife.village.buildings.ConstructionQuote;
 import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 
@@ -102,6 +102,6 @@ public final class GatherStep implements BlockWorkStep {
 
   /** The recipe still owed to raise this project: delta for an upgrade, whole otherwise. */
   private List<ItemStack> recipe(RealPerson person, StructureInProgress project) {
-    return BuildingUpgrade.effectiveCost(person.getVillage(), project.getBuilding().getInfo());
+    return ConstructionQuote.requiredFor(person.getVillage(), project.getBuilding().getInfo());
   }
 }

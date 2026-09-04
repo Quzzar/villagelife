@@ -121,6 +121,7 @@ public final class ReflectionService {
     user.append("Your JSON answer:");
 
     long now = person.level().getDayTime();
+    long nowGameTime = person.level().getGameTime();
     LlmService.get().submitPersona(person.getFullName() + " reflects on the day", SYSTEM, user.toString(), 128, 0.4)
         .thenAccept(reply -> level.getServer().execute(() -> {
           if (!person.isAlive()) {
@@ -128,7 +129,8 @@ public final class ReflectionService {
           }
           reply.ifPresent(text -> applyJudgements(person, level, order, text));
           PersonalLogData current = person.getData(VillagelifeAttachments.PERSONAL_LOG.get());
-          person.setData(VillagelifeAttachments.PERSONAL_LOG.get(), current.reflectedAt(now));
+          person.setData(VillagelifeAttachments.PERSONAL_LOG.get(),
+              current.reflectedAt(now, nowGameTime));
         }));
   }
 
@@ -208,7 +210,7 @@ public final class ReflectionService {
 
   private static void markConsidered(RealPerson person, PersonalLogData log, ServerLevel level) {
     person.setData(VillagelifeAttachments.PERSONAL_LOG.get(),
-        log.reflectedAt(person.level().getDayTime()));
+        log.reflectedAt(person.level().getDayTime(), person.level().getGameTime()));
   }
 
 }

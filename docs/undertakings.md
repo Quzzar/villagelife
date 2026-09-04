@@ -49,7 +49,9 @@ locked against the code.
 
 A villager can already **log** that something happened. `PersonalLogData` holds
 `KIND_PICKUP` entries (an item the player threw them) and `KIND_ISSUE` entries
-(one plain sentence: "I was attacked by Edmund"). But a log entry is inert. It
+(legacy event memories, now written as `KIND_MEMORY`, such as "I was attacked by Edmund").
+Current operational impediments are separate `KIND_BLOCKER` entries and are not undertakings.
+But an event-memory log entry is inert. It
 records that a thing occurred and nothing more: no state, no progress, no way
 for the villager or the player to move it forward, no resolution.
 

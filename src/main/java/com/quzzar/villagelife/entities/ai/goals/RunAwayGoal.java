@@ -60,7 +60,7 @@ public class RunAwayGoal extends Goal {
                                 this.runToLocation = BlockPos.ZERO;
                             }
                         } else {
-                            this.runToLocation = LocationManager.getBedLocation(person);
+                            this.runToLocation = LocationManager.getNightRestLocation(person);
                         }
                         return;
                     }

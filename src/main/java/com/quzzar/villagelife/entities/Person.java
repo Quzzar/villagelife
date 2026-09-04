@@ -16,6 +16,7 @@ import com.google.common.collect.Maps;
 import com.quzzar.villagelife.Utils;
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.compat.AccessoryCompat;
+import com.quzzar.villagelife.configuration.VillagelifeConfig;
 import com.quzzar.villagelife.entities.genetics.AppearanceGenes;
 import com.quzzar.villagelife.entities.genetics.GeneticCondition;
 import com.quzzar.villagelife.entities.genetics.PigmentGene;
@@ -131,8 +132,8 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
       Person.class, EntityDataSerializers.INT);
   private static final EntityDataAccessor<String> GENETIC_CONDITION = SynchedEntityData.defineId(Person.class,
       EntityDataSerializers.STRING);
-  private static final EntityDataAccessor<Boolean> CHILD = SynchedEntityData.defineId(Person.class,
-      EntityDataSerializers.BOOLEAN);
+  private static final EntityDataAccessor<Integer> AGE_STAGE = SynchedEntityData.defineId(Person.class,
+      EntityDataSerializers.INT);
   private static final EntityDataAccessor<Boolean> RUNNING_TO_EAT = SynchedEntityData.defineId(Person.class,
       EntityDataSerializers.BOOLEAN);
   private static final EntityDataAccessor<Boolean> INTERRUPTED = SynchedEntityData.defineId(Person.class,
@@ -181,6 +182,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
    * resulting (synced) attribute values.
    */
   private StatBlock statBlock;
+  private long ageStageStartedAt;
 
   public Person(EntityType<? extends Person> type, Level world) {
     super(type, world);
@@ -305,7 +307,13 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     } else {
       this.setAppearanceGenes(AppearanceGenes.fromLegacySeed(this.getAppearanceSeed()));
     }
-    this.setBaby(compound.getBoolean("IsBaby"));
+    AgeStage savedStage = compound.contains("AgeStage")
+        ? AgeStage.byName(compound.getString("AgeStage"))
+        : compound.getBoolean("IsBaby") ? AgeStage.KID : AgeStage.ADULT;
+    this.setLifeStage(savedStage);
+    this.ageStageStartedAt = compound.contains("AgeStageStartedAt")
+        ? compound.getLong("AgeStageStartedAt")
+        : this.level().getGameTime();
     this.guiOpen = compound.getBoolean("GuiOpen");
     this.immobile = compound.getBoolean("Immobile");
     this.setEating(compound.getBoolean("Eating"));
@@ -366,6 +374,8 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     }
     compound.putInt("SkinVariant", this.getAppearanceSeed());
     compound.put("AppearanceGenes", this.getAppearanceGenes().save());
+    compound.putString("AgeStage", this.getLifeStage().name());
+    compound.putLong("AgeStageStartedAt", this.ageStageStartedAt);
     compound.putBoolean("IsBaby", this.isBaby());
     compound.putInt("ShieldCooldown", this.shieldCoolDown);
     compound.putBoolean("GuiOpen", this.guiOpen);
@@ -496,6 +506,9 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     }
     if (!this.level().isClientSide) {
       this.updatePersistentAnger((ServerLevel) this.level(), true);
+      if (this.tickCount % 200 == 19) {
+        this.advanceLifeStageIfDue();
+      }
     }
     this.updateSwingTime();
     super.aiStep();
@@ -505,6 +518,11 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
   protected EntityDimensions getDefaultDimensions(Pose poseIn) {
     return SIZE_BY_POSE.getOrDefault(poseIn, EntityDimensions.scalable(0.6F, 1.95F).withEyeHeight(1.62F))
         .scale(this.getAgeScale());
+  }
+
+  @Override
+  public float getAgeScale() {
+    return this.getLifeStage().dimensionsScale();
   }
 
   @Override
@@ -576,7 +594,7 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
     builder.define(EYE_PIGMENT_GENE, 0);
     builder.define(ALTERNATE_EYE_PIGMENT_GENE, 0);
     builder.define(GENETIC_CONDITION, GeneticCondition.NONE.name());
-    builder.define(CHILD, false);
+    builder.define(AGE_STAGE, AgeStage.ADULT.ordinal());
     builder.define(DATA_CHARGING_STATE, false);
     builder.define(EATING, false);
     builder.define(RUNNING_TO_EAT, false);
@@ -679,21 +697,59 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
 
   @Override
   public boolean isBaby() {
-    return this.entityData.get(CHILD);
+    return this.getLifeStage() != AgeStage.ADULT;
   }
 
   @Override
   public void setBaby(boolean baby) {
-    if (this.entityData.get(CHILD) != baby) {
-      this.entityData.set(CHILD, baby);
-      this.refreshDimensions();
+    this.setLifeStage(baby ? AgeStage.KID : AgeStage.ADULT);
+  }
+
+  public AgeStage getLifeStage() {
+    int ordinal = this.entityData.get(AGE_STAGE);
+    AgeStage[] stages = AgeStage.values();
+    return ordinal >= 0 && ordinal < stages.length ? stages[ordinal] : AgeStage.ADULT;
+  }
+
+  /** Sets a stage directly and begins its configured duration from now. */
+  public void setLifeStage(AgeStage stage) {
+    setLifeStage(stage, this.level().getGameTime());
+  }
+
+  private void setLifeStage(AgeStage stage, long startedAt) {
+    AgeStage previous = this.getLifeStage();
+    this.ageStageStartedAt = startedAt;
+    if (previous == stage) {
+      return;
     }
+    this.entityData.set(AGE_STAGE, stage.ordinal());
+    this.refreshDimensions();
+    this.onLifeStageChanged(previous, stage);
+  }
+
+  private void advanceLifeStageIfDue() {
+    AgeStage stage = this.getLifeStage();
+    if (stage == AgeStage.ADULT) {
+      return;
+    }
+    long duration = Math.max(1L, VillagelifeConfig.DaysPerChildStage) * 24_000L;
+    long now = this.level().getGameTime();
+    while (stage != AgeStage.ADULT && now - this.ageStageStartedAt >= duration) {
+      long nextStartedAt = this.ageStageStartedAt + duration;
+      AgeStage next = stage.next();
+      setLifeStage(next, nextStartedAt);
+      stage = next;
+    }
+  }
+
+  /** Entity-specific consequences of growing or a development-stage override. */
+  protected void onLifeStageChanged(AgeStage previous, AgeStage current) {
   }
 
   @Override
   public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
     super.onSyncedDataUpdated(key);
-    if (CHILD.equals(key)) {
+    if (AGE_STAGE.equals(key)) {
       this.refreshDimensions();
     }
   }
@@ -747,26 +803,43 @@ public class Person extends PathfinderMob implements CrossbowAttackMob, NeutralM
         BuiltInRegistries.ITEM.getKey(stack.getItem()).toString(),
         stack.getCount(),
         this.level().getDayTime(),
+        this.level().getGameTime(),
         thrower);
     setData(VillagelifeAttachments.PERSONAL_LOG.get(),
         getData(VillagelifeAttachments.PERSONAL_LOG.get()).withEntry(entry));
   }
 
   /**
-   * Logs a problem this person ran into — emitted only by game code at real
-   * moments (never LLM-invented), the foundation of emergent quests. An
-   * identical issue within the last day is dropped so a stuck goal cannot
-   * spam the log.
+   * Logs a completed or witnessed event from game code, never a model claim.
+   * An identical memory within the last day is dropped so repeated callbacks
+   * cannot spam the log. Current work problems use {@link #logBlocker} instead.
    */
-  public void logIssue(String text, Optional<UUID> who) {
+  public void logMemory(String text, Optional<UUID> who) {
     PersonalLogData log = getData(VillagelifeAttachments.PERSONAL_LOG.get());
-    long now = this.level().getDayTime();
-    if (log.hasRecentIssue(text, now)) {
+    long dayTime = this.level().getDayTime();
+    long gameTime = this.level().getGameTime();
+    if (log.hasRecentMemory(text, dayTime, gameTime)) {
       return;
     }
     setData(VillagelifeAttachments.PERSONAL_LOG.get(),
-        log.withEntry(PersonalLogData.issue(text, now, who)));
-    Villagelife.LOGGER.debug("[{}] logged issue: {}", this.getName().getString(), text);
+        log.withEntry(PersonalLogData.memory(text, dayTime, gameTime, who)));
+    Villagelife.LOGGER.debug("[{}] remembered: {}", this.getName().getString(), text);
+  }
+
+  /** Records or refreshes a current operational impediment. */
+  public void logBlocker(String text) {
+    PersonalLogData log = getData(VillagelifeAttachments.PERSONAL_LOG.get());
+    setData(VillagelifeAttachments.PERSONAL_LOG.get(),
+        log.withBlocker(text, this.level().getDayTime(), this.level().getGameTime()));
+  }
+
+  /** Marks an operational impediment as no longer standing. */
+  public void clearBlocker(String text) {
+    PersonalLogData log = getData(VillagelifeAttachments.PERSONAL_LOG.get());
+    PersonalLogData updated = log.withoutBlocker(text);
+    if (updated != log) {
+      setData(VillagelifeAttachments.PERSONAL_LOG.get(), updated);
+    }
   }
 
   @Override

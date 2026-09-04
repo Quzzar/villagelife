@@ -26,12 +26,12 @@ current Occupation + same seed -> clothing
                                   SkinRecipe -> client texture cache
 ```
 
-- `AppearanceGenes` is persisted and synced on the person. Its recombination API is ready for
-  the child-creation path when that separate gameplay system exists.
+- `AppearanceGenes` is persisted and synced on the person. `ChildCreationService` recombines
+  those genes when it creates a child and records both parents on the new person.
 - Adult clothing is selected from the current occupation's compatible pool. Changing jobs changes
   only this field of the recipe.
-- Child clothing is selected from the child commonwear pool. Children never draw from an adult
-  occupation, even when their parents have jobs.
+- Toddler and Kid clothing is selected from the child commonwear pool. An idle Teenager keeps
+  commonwear; an employed Teenager changes into clothing for their own occupation.
 - A deterministic hash of `(person appearance seed, occupation, life stage)` chooses a garment.
   Switching away from a job and back restores that person's familiar version of the uniform
   without new save data. Regional style is not an input yet.

@@ -177,7 +177,7 @@ public final class ChopStep implements WorkStep<ChopStep.Cut> {
     BlockState state = level.getBlockState(post);
 
     if (state.is(BlockTags.LOGS_THAT_BURN)) {
-      this.dry.foundWork();
+      this.dry.foundWork(person);
       BlockPos stand = standBeside(person, level, post);
       if (stand != null) {
         return new Cut(post, stand);

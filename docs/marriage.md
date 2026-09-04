@@ -40,8 +40,8 @@ is handed.
   tunable; the live web is what settles it.
 - Each villager proposes only to the **one** villager they are most fond of, so no
   one asks two people at once.
-- Any two eligible villagers may marry. There is no gender rule: children are a
-  separate system and out of scope here.
+- Any two eligible **Adults** may marry. There is no gender rule; Toddler, Kid,
+  and Teenager stages never propose or appear in a marriage decision.
 
 Proposals live in the brain's `strategy` tag beside the build requests and the
 goal (`MarriageProposals`), age out after 1800 village-seconds, and are cleared

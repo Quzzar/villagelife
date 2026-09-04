@@ -35,6 +35,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -59,6 +60,9 @@ import net.minecraft.world.phys.shapes.CollisionContext;
  * and shelves the spoil there when it piles up.
  * Nothing teleports. When the plan is spent the ground is read again, and
  * the job ends when a reading finds nothing left to do.
+ * A small deep opening is different work: the survey removes its cave floor
+ * from the smoothing surface, and the builder bridges one stable layer across
+ * its mouth from the rim inward instead of filling it from the bottom.
  *
  * Planning first and then executing matters: a plan is a single walkable
  * surface, so working it produces one, whereas re-reading the ground after
@@ -108,7 +112,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   private static final int SHUN_TICKS = 2400;
 
   private enum Kind {
-    CUT, FILL, FETCH_EARTH, SHELVE_SPOIL
+    COVER, CUT, FILL, FETCH_COVER_EARTH, FETCH_EARTH, SHELVE_SPOIL
   }
 
   /** One column of the plan: where its top stands now, and where the plan wants it. */
@@ -118,6 +122,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     private final int z;
     private final int target;
     private final boolean apron;
+    private final boolean cover;
     private int height;
 
     private Planned(GradingSurvey.Column column) {
@@ -126,6 +131,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       this.height = column.height();
       this.target = column.target();
       this.apron = column.apron();
+      this.cover = column.cover();
     }
 
     private boolean done() {
@@ -133,7 +139,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     }
 
     private boolean wantsCut() {
-      return target < height;
+      return !cover && target < height;
     }
 
     /** The block a cut takes: the column's top. */
@@ -143,7 +149,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
     /** The block a fill sets: the air over the column's top. */
     private BlockPos spot() {
-      return new BlockPos(x, height + 1, z);
+      return new BlockPos(x, cover ? target : height + 1, z);
     }
 
     private long distSqr(BlockPos from) {
@@ -164,6 +170,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     private Item fillWith;
     private int ticks;
     private int shownProgress = -1;
+    private boolean coverFetchFailed;
     private boolean fetchFailed;
     private boolean shelveFailed;
 
@@ -213,9 +220,11 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       return false;
     }
     boolean finished = switch (job.kind) {
+      case COVER -> cover(person, level, job);
       case CUT -> cut(person, level, job);
       case FILL -> fill(person, level, job);
-      case FETCH_EARTH -> fetchEarth(person, job);
+      case FETCH_COVER_EARTH -> fetchEarth(person, job, true);
+      case FETCH_EARTH -> fetchEarth(person, job, false);
       case SHELVE_SPOIL -> shelveSpoil(person, job);
     };
     if (!finished) {
@@ -288,17 +297,21 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       return false;
     }
     job.plan.clear();
+    int covers = 0;
     int cuts = 0;
     for (GradingSurvey.Column column : survey.uneven(person.blockPosition())) {
       job.plan.add(new Planned(column));
-      cuts += column.wantsCut() ? 1 : 0;
+      covers += column.cover() ? 1 : 0;
+      cuts += !column.cover() && column.wantsCut() ? 1 : 0;
     }
     boolean found = pick(person, level, village, job, true);
     // One line per plan, and one per stretch of wanting work it cannot do:
     // an idle builder re-reads the ground every few seconds, which is not news.
     if (found || (!job.plan.isEmpty() && !this.idleReported)) {
-      Villagelife.LOGGER.debug("[grading] {} ({}) read the ground of '{}': {} column(s) to cut, {} to fill; {}",
-          person.getName().getString(), person.getOccupation(), village.getName(), cuts, job.plan.size() - cuts,
+      Villagelife.LOGGER.debug(
+          "[grading] {} ({}) read the ground of '{}': {} opening block(s) to cover, {} column(s) to cut, {} to fill; {}",
+          person.getName().getString(), person.getOccupation(), village.getName(), covers, cuts,
+          job.plan.size() - covers - cuts,
           found ? "next is " + job.kind + " at " + job.pos.toShortString() : "nothing doable now, job over");
     }
     this.idleReported = !found;
@@ -307,23 +320,39 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
   /**
    * Aims at the nearest column of the plan the builder can move right now, or
-   * at a chest holding the earth the plan needs. The nearest uneven column is
-   * taken, cut or fill; only when nothing is left but filling and the pack
-   * holds nothing to fill with does the builder go to a chest for earth, so
-   * cutting sorts itself ahead of fetching, because cutting is what makes
-   * fill. False when nothing in the plan can be done now.
+   * at a chest holding the earth the plan needs. Cover work goes first so the
+   * cave floor cannot shape any ordinary grading that follows. Only when no
+   * carried earth can do the remaining work does the builder go to a chest.
+   * False when nothing in the plan can be done now.
    */
   private boolean pick(RealPerson person, ServerLevel level, Village village, Job job, boolean reportShortage) {
     GradedColumnStore graded = GradedColumnStore.get(level);
-    Item fillInHand = fillInHand(person);
+    Item coverFillInHand = fillInHand(person, true);
+    Item fillInHand = fillInHand(person, false);
     boolean packFull = person.isInventoryFull();
+    boolean coverFillWanted = false;
     boolean fillWanted = false;
     BlockPos from = person.blockPosition();
     job.plan.removeIf(Planned::done);
-    job.plan.sort(Comparator.comparingLong(column -> column.distSqr(from)));
+    job.plan.sort(Comparator.comparingInt((Planned column) -> column.cover ? 0 : 1)
+        .thenComparingLong(column -> column.distSqr(from)));
     for (Planned column : job.plan) {
       if (shunned(person, column)) {
         continue;
+      }
+      if (column.cover) {
+        BlockPos spot = column.spot();
+        if (job.passedOver.contains(spot.asLong()) || !mayCover(level, spot)) {
+          continue;
+        }
+        if (coverFillInHand == null) {
+          coverFillWanted = true;
+          continue;
+        }
+        job.set(Kind.COVER, spot, column);
+        job.fillWith = coverFillInHand;
+        this.dry.foundWork(person);
+        return true;
       }
       if (column.wantsCut()) {
         BlockPos top = column.top();
@@ -332,7 +361,7 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
           continue;
         }
         job.set(Kind.CUT, top, column);
-        this.dry.foundWork();
+        this.dry.foundWork(person);
         return true;
       }
       BlockPos spot = column.spot();
@@ -345,15 +374,28 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       }
       job.set(Kind.FILL, spot, column);
       job.fillWith = fillInHand;
-      this.dry.foundWork();
+      this.dry.foundWork(person);
       return true;
     }
 
+    if (coverFillWanted) {
+      BlockPos chest = job.coverFetchFailed ? null
+          : PackLogistics.chestHolding(person, village, earthWanted(true));
+      if (chest != null) {
+        job.set(Kind.FETCH_COVER_EARTH, chest, null);
+        this.dry.foundWork(person);
+        return true;
+      }
+      if (reportShortage) {
+        this.dry.wentDry(person, Items.DIRT, FILL_RESERVE,
+            "We have no stable earth to cover a hole in the village ground.");
+      }
+    }
     if (fillWanted) {
-      BlockPos chest = job.fetchFailed ? null : PackLogistics.chestHolding(person, village, earthWanted());
+      BlockPos chest = job.fetchFailed ? null : PackLogistics.chestHolding(person, village, earthWanted(false));
       if (chest != null) {
         job.set(Kind.FETCH_EARTH, chest, null);
-        this.dry.foundWork();
+        this.dry.foundWork(person);
         return true;
       }
       if (reportShortage) {
@@ -445,6 +487,33 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   }
 
   /**
+   * Whether the mouth of a planned hole may be capped here. Unlike ordinary
+   * fill, the block need not have ground directly beneath it. It must instead
+   * join a sturdy horizontal face, which makes the builder work from the rim
+   * inward and prevents an isolated floating block if the world changed since
+   * the survey.
+   */
+  private static boolean mayCover(ServerLevel level, BlockPos spot) {
+    PlacedBlockStore placed = PlacedBlockStore.get(level);
+    if (!looseCover(level, spot) || !level.getFluidState(spot).isEmpty()
+        || placed.isPlayerPlaced(spot) || placed.isVillagePlaced(spot)) {
+      return false;
+    }
+    boolean joinedToRim = false;
+    for (Direction side : Direction.Plane.HORIZONTAL) {
+      BlockPos beside = spot.relative(side);
+      if (level.isLoaded(beside)
+          && !level.getBlockState(beside).getCollisionShape(level, beside).isEmpty()) {
+        joinedToRim = true;
+        break;
+      }
+    }
+    return joinedToRim
+        && level.isUnobstructed(Blocks.DIRT.defaultBlockState(), spot, CollisionContext.empty())
+        && level.getEntitiesOfClass(LivingEntity.class, new AABB(spot)).isEmpty();
+  }
+
+  /**
    * Whether digging out the block under the builder's own feet would leave
    * them in a hole they cannot climb out of: every cardinal neighbour a wall
    * two high. A villager jumps one block, so one such neighbour open is enough.
@@ -528,17 +597,29 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     PlacedBlockStore.get(level).clearPlaced(pos);
   }
 
-  /**
-   * One block of fill set from the pack: the earth the builder dug, dirt
-   * first. Fill is deliberately not recorded as village-placed: earth is not
-   * a structure (docs/block-ownership.md), and a later cut may take it back.
-   */
+  /** One stable earth block laid across a cave mouth from its sturdy rim inward. */
+  private boolean cover(RealPerson person, ServerLevel level, Job job) {
+    return placeEarth(person, level, job, true);
+  }
+
+  /** One block of ordinary supported fill set on top of the current ground. */
   private boolean fill(RealPerson person, ServerLevel level, Job job) {
+    return placeEarth(person, level, job, false);
+  }
+
+  /**
+   * Sets one block from the pack. Ground fill rises from solid support; a hole
+   * cover bridges inward from a sturdy side. Neither is recorded as
+   * village-placed because earth is not a structure (docs/block-ownership.md),
+   * and a later grading pass may move it normally.
+   */
+  private boolean placeEarth(RealPerson person, ServerLevel level, Job job, boolean covering) {
     BlockPos spot = job.pos;
     // Never fill from below: a builder standing lower than the spot is raising
     // a wall beside their own head, which is how a gully became a tomb. They
     // fill from level ground or above, and climb out to reach the rest.
-    if (!mayFill(level, spot) || person.blockPosition().getY() < spot.getY()) {
+    if (!(covering ? mayCover(level, spot) : mayFill(level, spot))
+        || person.blockPosition().getY() < spot.getY()) {
       job.passedOver.add(spot.asLong());
       return true;
     }
@@ -549,13 +630,15 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
     if (earth.isEmpty()) {
       return true; // spent on the way; the next aim picks again or fetches
     }
-    GradedColumnStore.get(level).recordBeforeGrading(spot.getX(), spot.getZ(), spot.getY() - 1);
+    if (!covering) {
+      GradedColumnStore.get(level).recordBeforeGrading(spot.getX(), spot.getZ(), spot.getY() - 1);
+    }
     BlockState fill = Block.byItem(earth.getItem()).defaultBlockState();
     level.setBlock(spot, fill, 3);
     level.playSound((Player) null, spot, fill.getSoundType().getPlaceSound(), SoundSource.BLOCKS, 1.0F,
         person.getRandom().nextFloat() * 0.4F + 0.8F);
     if (job.column != null) {
-      job.column.height++;
+      job.column.height = covering ? job.column.target : job.column.height + 1;
     }
     return true;
   }
@@ -565,12 +648,12 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
    * first, then whatever other earth the chest holds, until the reserve is
    * met.
    */
-  private boolean fetchEarth(RealPerson person, Job job) {
+  private boolean fetchEarth(RealPerson person, Job job, boolean stableOnly) {
     Container chest = PackLogistics.containerAt(person, job.pos);
     int pulled = 0;
     if (chest != null) {
-      for (Item earth : earthItems()) {
-        int need = FILL_RESERVE - fillCarried(person);
+      for (Item earth : earthItems(stableOnly)) {
+        int need = FILL_RESERVE - fillCarried(person, stableOnly);
         if (need <= 0) {
           break;
         }
@@ -582,21 +665,25 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
       }
     }
     if (pulled > 0) {
-      Villagelife.LOGGER.debug("[resource-flow] {} ({}) fetched {} earth from a chest for grading",
-          person.getName().getString(), person.getOccupation(), pulled);
+      Villagelife.LOGGER.debug("[resource-flow] {} ({}) fetched {} {}earth from a chest for grading",
+          person.getName().getString(), person.getOccupation(), pulled, stableOnly ? "stable " : "");
     } else {
-      job.fetchFailed = true; // the chest emptied, or the pack is full: not again this job
+      if (stableOnly) {
+        job.coverFetchFailed = true;
+      } else {
+        job.fetchFailed = true;
+      }
     }
     return true;
   }
 
   /** How much earth the pack holds that could be set as fill. */
-  private static int fillCarried(RealPerson person) {
+  private static int fillCarried(RealPerson person, boolean stableOnly) {
     Container pack = person.personMainInv;
     int total = 0;
     for (int slot = 0; slot < pack.getContainerSize(); slot++) {
       ItemStack stack = pack.getItem(slot);
-      if (fillBlock(stack)) {
+      if (fillBlock(stack, stableOnly)) {
         total += stack.getCount();
       }
     }
@@ -604,9 +691,9 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
   }
 
   /** Every earth a chest might hold, as a reserve's worth each, for finding the chest to go to. */
-  private static List<ItemStack> earthWanted() {
+  private static List<ItemStack> earthWanted(boolean stableOnly) {
     List<ItemStack> wanted = new ArrayList<>();
-    for (Item earth : earthItems()) {
+    for (Item earth : earthItems(stableOnly)) {
       wanted.add(new ItemStack(earth, FILL_RESERVE));
     }
     return wanted;
@@ -616,13 +703,13 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
    * The earths that can be set as fill, dirt first and then the rest of the
    * {@code villagelife:gradeable} tag, so a pack author's ground joins in.
    */
-  private static List<Item> earthItems() {
+  private static List<Item> earthItems(boolean stableOnly) {
     List<Item> items = new ArrayList<>();
     items.add(Items.DIRT);
     BuiltInRegistries.BLOCK.getTag(GradingSurvey.GRADEABLE).ifPresent(blocks -> {
       for (Holder<Block> holder : blocks) {
         Item item = holder.value().asItem();
-        if (item != Items.AIR && item != Items.DIRT && fillBlock(new ItemStack(item))) {
+        if (item != Items.AIR && item != Items.DIRT && fillBlock(new ItemStack(item), stableOnly)) {
           items.add(item);
         }
       }
@@ -702,14 +789,14 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
 
   /** The earth in the pack to fill with, dirt before any other, or null when there is none. */
   @Nullable
-  private static Item fillInHand(RealPerson person) {
+  private static Item fillInHand(RealPerson person, boolean stableOnly) {
     if (PackLogistics.carried(person, Items.DIRT) > 0) {
       return Items.DIRT;
     }
     Container pack = person.personMainInv;
     for (int slot = 0; slot < pack.getContainerSize(); slot++) {
       ItemStack stack = pack.getItem(slot);
-      if (fillBlock(stack)) {
+      if (fillBlock(stack, stableOnly)) {
         return stack.getItem();
       }
     }
@@ -721,9 +808,15 @@ public final class GradeStep implements WorkStep<GradeStep.Job> {
    * grading digs up except a trodden path, which is not a whole block.
    */
   private static boolean fillBlock(ItemStack stack) {
+    return fillBlock(stack, false);
+  }
+
+  /** A full earth block, optionally excluding sand-like blocks that would fall through a cover. */
+  private static boolean fillBlock(ItemStack stack, boolean stableOnly) {
     return !stack.isEmpty() && stack.getItem() instanceof BlockItem block
         && block.getBlock().defaultBlockState().is(GradingSurvey.GRADEABLE)
-        && block.getBlock() != Blocks.DIRT_PATH;
+        && block.getBlock() != Blocks.DIRT_PATH
+        && (!stableOnly || !(block.getBlock() instanceof FallingBlock));
   }
 
   /** What grading digs up: the ground itself, and what gravel and clay break into. */

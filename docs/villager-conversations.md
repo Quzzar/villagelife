@@ -118,6 +118,15 @@ lines; gives log as `[chat give]`, summaries as `[chat summary]`.
   sentence from `Village.describeRoom` (site-selection.md), so "no flat land,
   the slope east of the fire came closest" is an answer a builder can give.
 - `llm/LlmService.java`: `submitBackgroundChat`, the background lane.
+- `village/buildings/VillageContextSnapshot.java`: the authoritative village
+  census, housing, buildings, open work, construction, and active-blocker facts
+  rendered into both resident and collective briefings. Its housing census keeps
+  adult homelessness separate from pre-adult family housing: a life stage alone
+  never claims that a child has a usable resident parent's home.
+- `chat/ConversationMemoryPrompt.java`: durable conversation memory sees the
+  counterpart's words, not the model's own earlier answers. It stores social
+  recollection rather than mutable village state, which is regenerated from the
+  snapshot on every turn.
 - `entities/ai/goals/PauseForConversationGoal.java`: faces players and
   villager partners alike.
 
@@ -163,4 +172,3 @@ a quarrel target, so monsters that hurt them are still answered with distance, a
 `PauseForConversationGoal` and `PanicToBedGoal` both yield while a quarrel runs, so the
 villager neither stands politely still for the chat nor flees the first blow of the fight it
 picked. The exchange logs `[fight]`, and the villager logs "picks a fight with".
-

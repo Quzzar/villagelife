@@ -14,6 +14,7 @@ import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.Building;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
+import com.quzzar.villagelife.village.buildings.ConstructionQuote;
 import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
@@ -210,23 +211,25 @@ public final class VillageTrading {
    */
   private static ItemStack blockingMaterial(Village village) {
     StructureInProgress project = village.getCurrentProject();
-    ItemStack missing = project == null || project.getBuilding() == null
+    ItemStack missing = project == null || !project.isGathering() || project.getBuilding() == null
         ? null
-        : shortfall(village, project.getBuilding().getInfo());
+        : shortfall(village, project.getBuilding().getInfo(), true);
     if (missing != null) {
       return missing;
     }
     String goal = VillageGoal.current(village);
-    return goal == null ? null : shortfall(village, Buildings.getByName(goal));
+    return goal == null ? null : shortfall(village, Buildings.getByName(goal), false);
   }
 
   /** The first cost item this building needs more of than the village holds. */
-  private static ItemStack shortfall(Village village, BuildingInfo info) {
+  private static ItemStack shortfall(Village village, BuildingInfo info, boolean activeProject) {
     if (info == null) {
       return null;
     }
-    List<ItemStack> missing = Materials.shortfall(village.stockTally(), info.getMaterialCost());
-    return missing.isEmpty() ? null : missing.get(0);
+    ConstructionQuote quote = activeProject
+        ? ConstructionQuote.captureProject(village, info, village.stockTally())
+        : ConstructionQuote.capture(village, info, village.stockTally());
+    return quote.missing().isEmpty() ? null : quote.missing().get(0);
   }
 
   /** Moves the goods and the money, in an order that cannot half-complete. */
@@ -269,27 +272,24 @@ public final class VillageTrading {
   private static int reserved(Village village, Item item) {
     int reserved = 0;
     StructureInProgress project = village.getCurrentProject();
-    if (project != null && project.getBuilding() != null) {
-      reserved += costOf(project.getBuilding().getInfo(), item);
+    if (project != null && project.isGathering() && project.getBuilding() != null) {
+      ConstructionQuote outstanding = ConstructionQuote.captureProject(
+          village, project.getBuilding().getInfo(), Map.of());
+      reserved += outstanding.missingFrom(item);
     }
     String goal = VillageGoal.current(village);
     if (goal != null) {
-      reserved += costOf(Buildings.getByName(goal), item);
+      reserved += costOf(village, Buildings.getByName(goal), item);
     }
     return reserved;
   }
 
-  private static int costOf(BuildingInfo info, Item item) {
+  private static int costOf(Village village, BuildingInfo info, Item item) {
     if (info == null) {
       return 0;
     }
-    int cost = 0;
-    for (ItemStack stack : info.getMaterialCost()) {
-      if (Materials.pays(item, stack.getItem())) {
-        cost += stack.getCount();
-      }
-    }
-    return cost;
+    return new ConstructionQuote(ConstructionQuote.requiredFor(village, info), List.of())
+        .requiredFrom(item);
   }
 
   /** How many emeralds the till could actually accept right now. */

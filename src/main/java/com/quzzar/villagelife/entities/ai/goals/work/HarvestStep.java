@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.ai.goals.ShortageWatch;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.WorkArea;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -39,10 +40,10 @@ public final class HarvestStep implements BlockWorkStep {
    * field reaching eight blocks from it, so a radius of two saw only about four
    * of a tier-one farm's twenty-six wheat and the farmer walked past the rest.
    * Eight covers the whole plot, matching {@link BonemealStep}'s WORK_RADIUS so
-   * the two farm scans read the same. Harvest may reach this wide because it
-   * only takes ripe crops and replants them in place; tilling keeps the small
-   * radius (see TillStep) because it converts ground and must not spill past the
-   * field.
+   * the two farm scans read the same. The scan is still clipped to the exact
+   * rotated farm footprint, so nearby player crops or another farm are not
+   * folded into this worker's field. Tilling keeps the smaller radius because
+   * it converts ground as well as tending what is already there.
    */
   private static final int WORK_RADIUS = 8;
 
@@ -56,9 +57,14 @@ public final class HarvestStep implements BlockWorkStep {
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
-    BlockPos ripe = findRipe(person, origin(person));
+    BlockPos around = origin(person);
+    WorkArea area = this.useStation ? LocationManager.getJobWorkArea(person) : null;
+    if (around == null || (this.useStation && area == null)) {
+      return null;
+    }
+    BlockPos ripe = findRipe(person, around, area);
     if (ripe != null) {
-      this.dry.foundWork();
+      this.dry.foundWork(person);
       return ripe;
     }
     // A field with nothing ripe is usually just crops still growing; only a
@@ -112,17 +118,18 @@ public final class HarvestStep implements BlockWorkStep {
   }
 
   /** Resolved per scan, not captured once before the job was even assigned. */
+  @Nullable
   private BlockPos origin(RealPerson person) {
     if (!this.useStation) {
       return BlockPos.containing(person.getEyePosition());
     }
     BlockPos station = LocationManager.getJobLocation(person);
-    return station == BlockPos.ZERO ? BlockPos.containing(person.getEyePosition()) : station;
+    return station == BlockPos.ZERO ? null : station;
   }
 
   /** Reservoir-samples one ripe crop, so a farmer does not always work the same corner. */
   @Nullable
-  private BlockPos findRipe(RealPerson person, BlockPos around) {
+  private BlockPos findRipe(RealPerson person, BlockPos around, @Nullable WorkArea area) {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     BlockPos found = null;
     int seen = 0;
@@ -130,6 +137,9 @@ public final class HarvestStep implements BlockWorkStep {
       for (int y = -2; y <= 2; ++y) {
         for (int z = -WORK_RADIUS; z <= WORK_RADIUS; ++z) {
           cursor.setWithOffset(around, x, y, z);
+          if (area != null && !area.contains(cursor.getX(), cursor.getY(), cursor.getZ())) {
+            continue;
+          }
           if (!ripe(person, cursor)) {
             continue;
           }

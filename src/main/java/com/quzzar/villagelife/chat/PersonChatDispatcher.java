@@ -513,35 +513,12 @@ public final class PersonChatDispatcher {
     }
     String earlier = person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerId);
 
-    // Framed as an UPDATE of the earlier memory, not a fresh summary beside it: given
-    // "what you remembered before" as plain context, the small model copies it back
-    // near-verbatim (a live finding: the same memory returned word for word across
-    // three talks, growing invented time depth), so memories persisted but never
-    // moved. Only what the transcript actually contains may enter the memory.
-    String system = "You are " + person.getFullName() + ". Write the memory you will keep of " + playerName
-        + ", in two or three first-person sentences: what you talked about, anything promised or asked, "
-        + "and how you feel about them now. "
-        + (earlier.isBlank()
-            ? ""
-            : "You already hold an earlier memory of them. Update it with this conversation: keep what still "
-              + "holds, replace what changed, and add what is new. Do not copy the earlier memory word for "
-              + "word, and do not stretch how long you have known them. ")
-        + "Mention only things said in the conversation below; invent nothing. Write only the memory, with no "
-        + "preamble.";
-    StringBuilder user = new StringBuilder();
-    if (!earlier.isBlank()) {
-      user.append("Your earlier memory of them: ").append(earlier).append("\n\n");
-    }
-    user.append("The conversation just now:\n");
-    for (ChatHistoryData.Exchange e : session) {
-      if (!e.playerLine().isBlank()) {
-        user.append(playerName).append(": \"").append(e.playerLine()).append("\"\n");
-      }
-      user.append("You: \"").append(e.reply()).append("\"\n");
-    }
+    ConversationMemoryPrompt.Prompt memoryPrompt = ConversationMemoryPrompt.build(
+        person.getFullName(), playerName, earlier,
+        session.stream().map(ChatHistoryData.Exchange::playerLine).filter(line -> !line.isBlank()).toList());
 
-    LlmService.get().submitPersona(person.getFullName() + " keeps a memory of " + playerName, system,
-        user.toString(), SUMMARY_MAX_TOKENS, SUMMARY_TEMPERATURE)
+    LlmService.get().submitPersona(person.getFullName() + " keeps a memory of " + playerName,
+        memoryPrompt.system(), memoryPrompt.user(), SUMMARY_MAX_TOKENS, SUMMARY_TEMPERATURE)
         .whenComplete((result, error) -> {
           if (error != null || result == null || result.isEmpty()) {
             return;
@@ -835,7 +812,7 @@ public final class PersonChatDispatcher {
         to.getData(VillagelifeAttachments.PERSONAL_LOG.get())
             .withEntry(com.quzzar.villagelife.entities.PersonalLogData.pickup(
                 BuiltInRegistries.ITEM.getKey(item).toString(), collected,
-                to.level().getDayTime(), Optional.of(from.getUUID()))));
+                to.level().getDayTime(), to.level().getGameTime(), Optional.of(from.getUUID()))));
 
     Villagelife.LOGGER.info("[chat give] {} handed {}x {} to {} (asked {}); giver now holds {}",
         from.getFullName(), collected, itemId, to.getFullName(), want, countHeld(from, item));

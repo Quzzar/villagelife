@@ -153,15 +153,16 @@ Unknown condition names in old save data degrade to none.
 2. **Projection**: scores project through the matrix into permanent attribute modifiers.
    Projection is idempotent: each modifier has a stable id (`villagelife:gene/<stat>`)
    and is recomputed and replaced, never stacked. It reruns on every load.
-3. **Inheritance** (future, with the family gameplay system): children roll each score near the
+3. **Mechanical inheritance** (future): children will roll each score near the
    parents' average with a small mutation spread; conditions become heritable with a
    boosted chance when a parent carries one. Virtues inherit the same way. Mechanical
-   modifiers are always recomputed. Appearance has a separate implemented `AppearanceGenes`
+   modifiers are always recomputed. Parentage and the growth lifecycle now exist, and appearance
+   has a separate implemented `AppearanceGenes`
    recombination seam. Skin pattern, hairstyle, eye structure, and alternate-eye structure are
    inherited independently from either parent. Skin, hair, eye, and alternate-eye color each
    carry two diploid loci (pigment depth plus warmth/hue); a child receives one allele per locus
-   from each parent and expresses the midpoint. The future child-creation path must call both
-   inheritance systems.
+   from each parent and expresses the midpoint. `ChildCreationService` already calls appearance
+   inheritance; mechanical stat and virtue inheritance must join that same seam when decided.
 
 ## Open questions (not yet decided)
 

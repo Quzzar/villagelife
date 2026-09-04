@@ -1,7 +1,5 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
-import java.util.Optional;
-
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
 
@@ -37,9 +35,14 @@ public final class ShortageWatch {
 
   private int dryScans;
   private boolean reported;
+  private String activeBlocker;
 
   /** The worker found something to do: the spell is over and the report rearms. */
-  public void foundWork() {
+  public void foundWork(RealPerson person) {
+    if (activeBlocker != null) {
+      person.clearBlocker(activeBlocker);
+      activeBlocker = null;
+    }
     this.dryScans = 0;
     this.reported = false;
   }
@@ -62,6 +65,7 @@ public final class ShortageWatch {
     if (person.getVillage() != null) {
       person.getVillage().logEvent(new NoResourceBookkeepingEvent(missing, count));
     }
-    person.logIssue(issue, Optional.empty());
+    this.activeBlocker = issue;
+    person.logBlocker(issue);
   }
 }

@@ -85,6 +85,8 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
     @Override
     protected void renderNameTag(Person entity, net.minecraft.network.chat.Component displayName,
             PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick) {
+        poseStack.pushPose();
+        poseStack.translate(0.0D, entity.getLifeStage().nameplateLift(), 0.0D);
         super.renderNameTag(entity, displayName, poseStack, bufferSource, packedLight, partialTick);
         String speech = VillagerSpeechBubbles.visibleText(entity.getId());
         if (speech != null) {
@@ -100,6 +102,7 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
                     poseStack, bufferSource, packedLight, partialTick);
             poseStack.popPose();
         }
+        poseStack.popPose();
     }
 
     /** World units per bubble text pixel: a touch smaller than the name tag's 0.025. */
@@ -320,8 +323,7 @@ public class PersonRenderer extends HumanoidMobRenderer<Person, HumanoidModel<Pe
 
     @Override
     protected void scale(Person entitylivingbaseIn, PoseStack matrixStackIn, float partialTickTime) {
-        float lifeStageScale = entitylivingbaseIn.isBaby() ? 0.5F : 1.0F;
-        float scale = 0.9375F * lifeStageScale;
+        float scale = 0.9375F * entitylivingbaseIn.getLifeStage().scale();
         matrixStackIn.scale(scale, scale, scale);
     }
 

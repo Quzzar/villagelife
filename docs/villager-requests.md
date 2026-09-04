@@ -47,9 +47,10 @@ are absent, and those could not be acted on anyway.
    tool is mutually exclusive with the undertaking tool: a small model
    over-reaches when shown two optional fields at once (see the undertaking
    audit), so a village-direction turn shows `request` and stands the
-   undertaking tool down. The gate (`proposesVillageChange`) is deliberately
-   narrow, looking for building and priority language, so ordinary talk does not
-   open it.
+   undertaking tool down. Questions about housing or construction receive the
+   village's current planning facts without opening the tool. A direct urging
+   (`VillageChangeIntent.proposes`) opens it, including plural language such as
+   "we need houses" or "we could use more housing". Ordinary talk does not.
 2. **Queue.** `PersonChatDispatcher.applyRequest` records it through
    `VillageRequests.add`, a persisted queue living in the brain `strategy` tag
    beside the goal (`VillageGoal`). The same villager cannot stack the same
@@ -91,7 +92,8 @@ a decision it records rather than the deterministic wall/gate system it is today
   queue, age-based pruning, and the per-requester duplicate guard.
 - `village/buildings/UrbanPlanner.java`: `appendRequests`, which lists the
   standing requests raw in the situation the brain reads.
-- `chat/PersonChatContext.java`: `RULES_REQUEST` and its few-shots, and the
-  `proposesVillageChange` gate that offers the request tool.
+- `chat/VillageChangeIntent.java`: separate topic and action gates for planning talk.
+- `chat/PersonChatContext.java`: `RULES_REQUEST`, its few-shots, and the current
+  per-village option catalogue shown during planning talk.
 - `chat/PersonChatDispatcher.java`: the `request` field on `Reply` and the
   `applyRequest` write path.

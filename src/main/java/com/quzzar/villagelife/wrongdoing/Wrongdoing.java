@@ -78,7 +78,7 @@ public final class Wrongdoing {
     }
 
     for (RealPerson witness : witnesses) {
-      witness.logIssue(fact, Optional.of(culprit));
+      witness.logMemory(fact, Optional.of(culprit));
     }
     Villagelife.LOGGER.info("{} was seen by {}: {}", offence.name().toLowerCase(),
         witnesses.size() == 1 ? "someone" : witnesses.size() + " people", fact);

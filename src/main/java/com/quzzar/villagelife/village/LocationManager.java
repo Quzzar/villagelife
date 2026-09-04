@@ -82,6 +82,24 @@ public class LocationManager {
 
     }
 
+    /**
+     * Where this person rests at night. Adults use their own bed; dependents
+     * return to the center of a resident parent's home without claiming or
+     * occupying either parent's bed.
+     */
+    public static BlockPos getNightRestLocation(RealPerson person) {
+        BlockPos bed = getBedLocation(person);
+        if (!bed.equals(BlockPos.ZERO)) {
+            return bed;
+        }
+        Village village = person.getVillage();
+        if (village == null) {
+            return BlockPos.ZERO;
+        }
+        Building home = village.dependentHome(person);
+        return home == null ? BlockPos.ZERO : BlockPos.of(home.getCenterLocation());
+    }
+
     public static BlockPos getVillageCenter(RealPerson person){
 
         Village village = person.getVillage();
@@ -100,6 +118,33 @@ public class LocationManager {
         if(job == null){ return null; }
         
         return village.getBuilding(job.getBuildingUUID());
+
+    }
+
+    /**
+     * The assigned workplace's exact rotated template footprint in world space.
+     * Null means there is no safe workplace area to mutate, including while the
+     * building is being rebuilt.
+     */
+    @Nullable
+    public static WorkArea getJobWorkArea(RealPerson person){
+
+        Village village = person.getVillage();
+        if(village == null){ return null; }
+
+        JobAssignment job = village.getJobAssignment(person.getUUID());
+        if(job == null || village.isBeingRebuilt(job.getBuildingUUID())){ return null; }
+
+        Building building = village.getBuilding(job.getBuildingUUID());
+        if(building == null){ return null; }
+
+        if(!(person.level() instanceof ServerLevel level)){ return null; }
+        BoundingBox local = BuildingUpgrade.footprintOf(level, building);
+        if(local == null){ return null; }
+        BlockPos origin = BlockPos.of(building.getOriginLocation());
+        return new WorkArea(
+            local.minX() + origin.getX(), local.minY() + origin.getY(), local.minZ() + origin.getZ(),
+            local.maxX() + origin.getX(), local.maxY() + origin.getY(), local.maxZ() + origin.getZ());
 
     }
 

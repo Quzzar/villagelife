@@ -100,7 +100,7 @@ public class StrollAroundVillage extends RandomStrollGoal {
     private Vec3 getPositionTowardsPoi() {
         BlockPos location;
         if (this.mob.level().isNight() || this.mob.level().isThundering()) {
-            location = LocationManager.getBedLocation(person);
+            location = LocationManager.getNightRestLocation(person);
         } else {
             location = LocationManager.getJobLocation(person);
         }

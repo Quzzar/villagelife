@@ -1,8 +1,6 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
 import java.util.List;
-import java.util.Optional;
-
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Utils;
@@ -183,10 +181,11 @@ public final class WallStep implements BlockWorkStep {
       // real when the village's chests have none left to fetch either.
       if (Materials.counted(village.stockTally(), tier.material()) == 0) {
         village.logEvent(new NoResourceBookkeepingEvent(tier.material(), items));
-        person.logIssue("we are short of materials to raise the village wall", Optional.empty());
+        person.logBlocker("we are short of materials to raise the village wall");
       }
       return false;
     }
+    person.clearBlocker("we are short of materials to raise the village wall");
     Materials.take(person.personMainInv, tier.material(), items);
     credit += items * WallTier.BLOCKS_PER_ITEM - count;
 

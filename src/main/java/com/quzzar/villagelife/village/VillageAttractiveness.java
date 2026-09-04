@@ -2,8 +2,6 @@ package com.quzzar.villagelife.village;
 
 import com.quzzar.villagelife.configuration.VillagelifeConfig;
 
-import net.minecraft.util.Mth;
-
 /**
  * One computation of a village's attractiveness: the 0-100 score answering
  * "would anyone want to move here?", kept with its full per-component
@@ -53,8 +51,9 @@ public record VillageAttractiveness(
     }
 
     public double total() {
-        return Mth.clamp(base + foodComponent + bedComponent + homelessComponent
-                + deathComponent + hurtComponent + shortageComponent, 0.0, 100.0);
+        return Math.max(0.0D, Math.min(100.0D,
+                base + foodComponent + bedComponent + homelessComponent
+                    + deathComponent + hurtComponent + shortageComponent + theftComponent));
     }
 
     public Status status() {

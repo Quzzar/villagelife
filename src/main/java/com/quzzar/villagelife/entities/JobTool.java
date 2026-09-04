@@ -121,12 +121,12 @@ public enum JobTool {
     }
     if (made.isEmpty()) {
       person.getVillage().logEvent(new NoResourceBookkeepingEvent(tool.basic, 1));
-      person.logIssue("I have no " + plain(tool.basic) + " to work with and nothing to make one from",
-          java.util.Optional.empty());
+      person.logBlocker("I have no " + plain(tool.basic) + " to work with and nothing to make one from");
       Villagelife.LOGGER.info("'{}' has no {} and the stores hold nothing to make one from",
           person.getFullName(), plain(tool.basic));
       return;
     }
+    person.clearBlocker("I have no " + plain(tool.basic) + " to work with and nothing to make one from");
     person.setItemSlot(EquipmentSlot.MAINHAND, made);
   }
 

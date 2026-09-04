@@ -20,6 +20,7 @@ import com.quzzar.villagelife.appearance.BodyModel;
 import com.quzzar.villagelife.appearance.LifeStage;
 import com.quzzar.villagelife.appearance.PigmentColor;
 import com.quzzar.villagelife.appearance.SkinRecipe;
+import com.quzzar.villagelife.entities.AgeStage;
 import com.quzzar.villagelife.entities.Gender;
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
@@ -91,8 +92,14 @@ public final class PersonAppearanceTextures implements ResourceManagerReloadList
         person.getAppearanceGenes(),
         gender,
         occupation,
-        person.isBaby() ? LifeStage.CHILD : LifeStage.ADULT,
+        wardrobeStage(person, occupation),
         person.getGeneticCondition());
+  }
+
+  private static LifeStage wardrobeStage(Person person, Occupation occupation) {
+    AgeStage stage = person.getLifeStage();
+    boolean childWardrobe = stage.usesChildWardrobe(!occupation.isIdle());
+    return childWardrobe ? LifeStage.CHILD : LifeStage.ADULT;
   }
 
   private AppearanceCatalog catalog() throws IOException {

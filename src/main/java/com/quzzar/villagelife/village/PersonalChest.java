@@ -23,16 +23,17 @@ import net.minecraft.world.item.ItemStack;
 /**
  * A home's own chest: the container a building definition lists under
  * {@code personal_containers} instead of {@code containers}. It belongs to
- * the people who sleep in that building, shared between them, and to nobody
+ * the people who live in that building, shared between them, and to nobody
  * else. It is never registered as village storage, so no worker fetches from
  * it, no deposit lands in it, the planner does not count it, and the
  * quartermaster's sweep never sees it. What a villager puts there is theirs;
  * a player taking from it is theft like any other village chest
  * (docs/building-spec.md, "Who may take from a chest").
  *
- * <p>Nothing here is stored. A person's chest is derived from their bed
- * assignment and the building definition every time it is asked for, so a
- * definition edit or a rebuild is picked up as it happens.
+ * <p>Nothing here is stored. An adult's chest is derived from their bed
+ * assignment; a dependent child's is derived from the resident parent's home.
+ * The building definition is read every time, so an edit or rebuild is picked
+ * up as it happens.
  */
 public final class PersonalChest {
 
@@ -65,8 +66,8 @@ public final class PersonalChest {
   }
 
   /**
-   * The building this person sleeps in, or null when they have no bed or
-   * their home is a building site until an upgrade finishes.
+   * The building this person lives in, or null when they have neither a bed nor
+   * a valid dependent place in a parent's home.
    */
   @Nullable
   public static Building home(RealPerson person) {
@@ -75,14 +76,17 @@ public final class PersonalChest {
       return null;
     }
     BedAssignment bed = village.getBedAssignment(person.getUUID());
-    if (bed == null || village.isBeingRebuilt(bed.getBuildingUUID())) {
+    if (bed == null) {
+      return village.dependentHome(person);
+    }
+    if (village.isBeingRebuilt(bed.getBuildingUUID())) {
       return null;
     }
     return village.getBuilding(bed.getBuildingUUID());
   }
 
   /**
-   * This person's own chest: the one in their home nearest their bed, or null
+   * This person's household chest: the one in their home nearest their bed, or null
    * when they have no home or their home has no chest of its own.
    */
   @Nullable
@@ -122,7 +126,7 @@ public final class PersonalChest {
     return level.getBlockEntity(chest) instanceof Container container ? container : null;
   }
 
-  /** The names of everyone else who sleeps in this person's home: who the chest is shared with. */
+  /** The names of everyone else who lives in this person's home: who the chest is shared with. */
   public static List<String> housemateNames(RealPerson person) {
     Village village = person.getVillage();
     Building home = home(person);
@@ -130,13 +134,13 @@ public final class PersonalChest {
       return List.of();
     }
     List<String> names = new ArrayList<>();
-    for (BedAssignment bed : village.getBedAssignmentsView().values()) {
-      UUID other = bed.getPersonUUID();
-      if (other == null || other.equals(person.getUUID()) || !home.getUUID().equals(bed.getBuildingUUID())) {
+    for (UUID otherId : village.getPopulation()) {
+      if (otherId.equals(person.getUUID())) {
         continue;
       }
-      RealPerson housemate = village.getPerson(level, other);
-      if (housemate != null) {
+      RealPerson housemate = village.getPerson(level, otherId);
+      Building housemateHome = housemate == null ? null : home(housemate);
+      if (housemateHome != null && home.getUUID().equals(housemateHome.getUUID())) {
         names.add(housemate.getFullName());
       }
     }

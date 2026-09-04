@@ -4,25 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import com.quzzar.villagelife.Villagelife;
-import com.quzzar.villagelife.entities.PersonalLogData;
-import com.quzzar.villagelife.entities.RealPerson;
-import com.quzzar.villagelife.entities.VillagelifeAttachments;
 import com.quzzar.villagelife.llm.LlmDecision;
 import com.quzzar.villagelife.llm.LlmService;
-import com.quzzar.villagelife.village.JobAssignment;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
-import com.quzzar.villagelife.village.VillageAttractiveness;
 import com.quzzar.villagelife.village.VillageRequests;
 
 import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -111,6 +104,14 @@ public class UrbanPlanner {
   /** A candidate building and the plain-language facts that describe it. */
   public record Candidate(BuildingInfo info, String description) {}
 
+  /** The same vetted option field the brain receives, exposed read-only to chat. */
+  public record PlanningOptions(List<Candidate> buildable, List<Candidate> saveable) {
+    public PlanningOptions {
+      buildable = List.copyOf(buildable);
+      saveable = List.copyOf(saveable);
+    }
+  }
+
   /**
    * What a village is short of to build the given thing right now, in the
    * model's own terms, or empty when it can already afford it. Public so the
@@ -167,8 +168,9 @@ public class UrbanPlanner {
     // and decides for itself. Each option carries what it would give the village
     // (see describe), and a goal carries what it still needs and what would
     // produce it (see shortfall), so the model can weigh the chain.
-    List<Candidate> buildable = affordableBuilds(village, stock);
-    List<Candidate> goals = outOfReach(village, stock);
+    PlanningOptions planningOptions = optionsFor(village, stock);
+    List<Candidate> buildable = planningOptions.buildable();
+    List<Candidate> goals = planningOptions.saveable();
 
     if (buildable.isEmpty() && goals.isEmpty()) {
       return CompletableFuture.completedFuture(null);
@@ -192,7 +194,7 @@ public class UrbanPlanner {
     // What the brain was actually asked. Without it a village that never saves
     // for anything is indistinguishable from one that was never offered the
     // chance, and the same ambiguity hid a broken site search for a day.
-    String situation = situationOf(village);
+    String situation = situationOf(village, stock);
     Villagelife.LOGGER.debug("Village '{}' is choosing among {} it can build now, {} to work toward, plus waiting. Situation: {}",
         village.getName(), buildable.size(), goals.size(), situation);
     return LlmService.get().decide("what " + village.getName() + " builds next", situation, options)
@@ -240,7 +242,7 @@ public class UrbanPlanner {
    * farm saves for stone brick it cannot make, expires, and names another.
    */
   private static boolean withinReach(Village village, Map<Item, Integer> stock, BuildingInfo info) {
-    for (ItemStack cost : BuildingUpgrade.effectiveCost(village, info)) {
+    for (ItemStack cost : ConstructionQuote.requiredFor(village, info)) {
       String capability = sourceOf(cost.getItem());
       if (capability == null || village.canDo(capability)) {
         continue;
@@ -293,6 +295,15 @@ public class UrbanPlanner {
     return unaffordable;
   }
 
+  /** Captures every legal start-now and save-for choice for this village. */
+  public static PlanningOptions optionsFor(Village village) {
+    return optionsFor(village, village.stockTally());
+  }
+
+  private static PlanningOptions optionsFor(Village village, Map<Item, Integer> stock) {
+    return new PlanningOptions(affordableBuilds(village, stock), outOfReach(village, stock));
+  }
+
   private static BuildingInfo pick(Village village, List<Candidate> buildable, List<Candidate> goals,
       Candidate fallback, Optional<LlmDecision> decision, Map<Item, Integer> stock) {
     if (decision.isEmpty()) {
@@ -332,59 +343,14 @@ public class UrbanPlanner {
   }
 
   /** What the village is short of right now, in the model's own terms, as facts. */
-  private static String situationOf(Village village) {
-    int population = village.getPopulation().size();
-    int beds = village.getTotalBeds();
-    int idle = village.idlePeople().size();
-    // Posts the village may fill now; a builder post it has not grown into is
-    // not a job nobody has taken.
-    int openJobs = village.claimableJobs().size();
-    VillageAttractiveness report = village.getAttractiveness();
-
-    StringBuilder situation = new StringBuilder();
-    situation.append("You are the collective judgement of ").append(village.getName())
-        .append(", a settlement of ").append(population).append(" people with ")
-        .append(beds).append(" beds");
-    if (idle > 0) {
-      situation.append(", ").append(idle).append(" of them with no work");
-    }
-    if (openJobs > 0) {
-      situation.append(" and ").append(openJobs).append(" jobs nobody has taken");
-    }
-    situation.append(". ");
-    if (report != null) {
-      situation.append(switch (report.status()) {
-        case GROWING -> "Newcomers keep arriving. ";
-        case HOLDING -> "The population is steady. ";
-        case DECLINING -> "People are talking of leaving. ";
-      });
-      situation.append(String.format("Food stores stand at %.1f items per person. ", report.foodPerCapita()));
-      if (report.deathImpact() > 0.5F) {
-        situation.append("There have been deaths recently. ");
-      }
-      // Free beds are a resource in their own right. Employment requires housing,
-      // so a village at zero free beds can neither take in a newcomer nor house
-      // anyone for an open post: an unstaffed workshop stays unstaffed until a bed
-      // frees up or a home is built. Stated as a fact so the model can see that
-      // building housing is what breaks that logjam, and choose it or not.
-      if (report.homelessCount() > 0) {
-        situation.append(report.homelessCount())
-            .append(report.homelessCount() == 1 ? " person has" : " people have")
-            .append(" nowhere to sleep. ");
-      } else if (report.freeBeds() == 0) {
-        situation.append("Every bed is taken, so no one new can move in. ");
-      } else {
-        situation.append(report.freeBeds())
-            .append(report.freeBeds() == 1 ? " bed stands free. " : " beds stand free. ");
-      }
-    }
+  private static String situationOf(Village village, Map<Item, Integer> stock) {
+    StringBuilder situation = new StringBuilder(
+        VillageContextSnapshot.capture(village, stock).plannerBriefing());
     if (!producesFood(village)) {
       situation.append("No building grows or gathers food yet. ");
     }
     appendWoodShortage(village, situation);
-    appendHousingShortage(village, situation);
     appendRequests(village, situation);
-    appendWorkplaceTrouble(village, situation);
     // A stalled goal is stated as a fact, so the brain knows why a building it
     // wanted is missing from its options rather than quietly choosing around a gap.
     String stalled = VillageGoal.stalled(village, village.getVillageTime());
@@ -429,79 +395,6 @@ public class UrbanPlanner {
     situation.append("You have no way to make logs of your own, and nearly everything you could "
         + "build needs logs. A lumberjack turns stone into logs, so raising one is the way out of "
         + "this shortage. ");
-  }
-
-  /**
-   * Housing is a resource the way logs are. A full village (no free bed) can
-   * neither take in a newcomer nor house anyone for a post, so its labour is
-   * fixed until a bed frees up or a home is raised. Two forms of the same fact,
-   * both stated with their answer so the model does not read the troubles apart:
-   * when a post already stands open, the empty farm is waiting on a house, not on
-   * another farm; and even before any post is open, another workshop raised while
-   * full only makes work no one is free to take. That second form is the one the
-   * model most often reasons past, choosing another workshop over the house that
-   * would let the village grow into the work it keeps taking on (Emberwood, a
-   * full four-person village, chose a lumberjack with every bed already spoken
-   * for). Silent while a bed stands free, and while anyone is outright homeless,
-   * which is its own line above.
-   */
-  private static void appendHousingShortage(Village village, StringBuilder situation) {
-    VillageAttractiveness report = village.getAttractiveness();
-    if (report == null || report.freeBeds() > 0 || report.homelessCount() > 0) {
-      return;
-    }
-    if (!village.claimableJobs().isEmpty()) {
-      situation.append("Work already stands open that no one can take, because every bed is full "
-          + "and a villager needs somewhere to sleep before they can hold a post. Build a house "
-          + "before another workshop: the beds are what let those posts be filled. ");
-      return;
-    }
-    // Full, but no post open yet: the trap the model walks into is raising more
-    // workshops it then has no one free to staff, since a full village cannot
-    // grow. A house is the move that turns the next workshop into filled work.
-    situation.append("With every bed full the village cannot grow, so another workshop would only "
-        + "make work no one is free to take. A house adds the beds that let new folk move in and "
-        + "hold the posts the village takes on. ");
-  }
-
-  /**
-   * Standing trouble at the village's workplaces, in the workers' own words. A
-   * worker who cannot work writes why into their personal log (a flooded shaft,
-   * a wall of lava, a post they cannot reach), and that reached only
-   * conversation: the brain choosing the next building was never told the mine
-   * it already had was dead, and, offered "a mine" as one option among many,
-   * picked a well over it three times while the miner stood down for five hours
-   * (Wildflower Downs, 2026-09-02). So each employed worker's newest issue, while
-   * it still stands, is stated as a fact with how long it has stood; what to do
-   * about it, if anything, is the model's call. Only people loaded right now are
-   * read: a chunk is never paged in to decide.
-   */
-  private static void appendWorkplaceTrouble(Village village, StringBuilder situation) {
-    ServerLevel level = village.getLevel();
-    if (level == null) {
-      return;
-    }
-    long now = level.getDayTime();
-    List<String> lines = new ArrayList<>();
-    for (Map.Entry<UUID, JobAssignment> entry : village.getJobAssignmentsView().entrySet()) {
-      RealPerson worker = village.getPerson(level, entry.getKey());
-      if (worker == null) {
-        continue;
-      }
-      Optional<PersonalLogData.StandingIssue> trouble =
-          worker.getData(VillagelifeAttachments.PERSONAL_LOG.get()).standingIssue(now);
-      if (trouble.isEmpty()) {
-        continue;
-      }
-      long days = (now - trouble.get().since()) / 24000L;
-      String standing = days == 0 ? "since today"
-          : "for " + (trouble.get().atLeast() ? "at least " : "") + days + (days == 1 ? " day" : " days");
-      lines.add("your " + entry.getValue().getOccupation().name().toLowerCase() + " "
-          + worker.getFullName() + ", " + standing + ": \"" + trouble.get().text() + "\"");
-    }
-    if (!lines.isEmpty()) {
-      situation.append("Trouble your workers report: ").append(String.join("; ", lines)).append(". ");
-    }
   }
 
   /**
@@ -591,6 +484,9 @@ public class UrbanPlanner {
     }
     info.getWorkLocations().values().stream().distinct().forEach(occupation ->
         gives.add("work for a " + occupation.name().toLowerCase()));
+    if (bedCount == 0 && !info.getWorkLocations().isEmpty()) {
+      gives.add("no beds");
+    }
     int containers = info.getContainerLocations().size();
     if (containers > 0) {
       gives.add(containers == 1 ? "a store" : containers + " stores");
@@ -626,32 +522,24 @@ public class UrbanPlanner {
   }
 
   /**
-   * A one-line catalogue of the building types a village can raise and what each
-   * brings, so a chat villager can speak to a build a player proposes -- "build a
-   * lumberjack" -- with the real thing (fells logs) instead of inventing one or
-   * mistaking the building for a spare worker. General, not per-village: the menu of
-   * what exists, one entry per category.
+   * A one-line catalogue of the projects this village can start or viably save
+   * toward, using the exact vetted option field offered to its brain.
    */
-  public static String buildableCatalogue() {
-    java.util.LinkedHashMap<String, String> byCategory = new java.util.LinkedHashMap<>();
-    for (BuildingInfo info : Buildings.allBuildings().values()) {
-      String category = info.getCategory();
-      if (category == null || category.equals("village_center") || category.equals("house")
-          || byCategory.containsKey(category)) {
-        continue;
-      }
-      List<String> effects = new ArrayList<>();
-      for (String grant : info.getGrants()) {
-        String effect = GRANT_EFFECT.get(grant);
-        if (effect != null) {
-          effects.add(effect);
-        }
-      }
-      String name = category.replace('_', ' ');
-      byCategory.put(category, effects.isEmpty() ? "a " + name
-          : "a " + name + " (" + String.join(", ", effects) + ")");
+  public static String buildableCatalogue(Village village) {
+    Map<Item, Integer> stock = village.stockTally();
+    PlanningOptions options = optionsFor(village, stock);
+    List<String> parts = new ArrayList<>();
+    if (!options.buildable().isEmpty()) {
+      parts.add("can start now: " + options.buildable().stream()
+          .map(Candidate::description).collect(java.util.stream.Collectors.joining(", ")));
     }
-    return String.join(", ", byCategory.values());
+    if (!options.saveable().isEmpty()) {
+      parts.add("could save toward: " + options.saveable().stream()
+          .map(candidate -> candidate.description() + shortfall(village, candidate.info(), stock))
+          .collect(java.util.stream.Collectors.joining(", ")));
+    }
+    return parts.isEmpty() ? "no legal project currently has a viable site and material path"
+        : String.join("; ", parts);
   }
 
   /**
@@ -664,7 +552,7 @@ public class UrbanPlanner {
   private static String shortfall(Village village, BuildingInfo info, Map<Item, Integer> stock) {
     List<String> parts = new ArrayList<>();
     String chain = "";
-    for (ItemStack missing : Materials.shortfall(stock, BuildingUpgrade.effectiveCost(village, info))) {
+    for (ItemStack missing : ConstructionQuote.capture(village, info, stock).missing()) {
       parts.add(missing.getCount() + " " + Materials.describe(missing.getItem()));
       if (chain.isEmpty()) {
         chain = producerHint(village, missing.getItem());
@@ -726,7 +614,7 @@ public class UrbanPlanner {
     // Effective cost: the delta for an upgrade, the whole recipe for a fresh
     // build, so an upgrade becomes affordable as soon as its ADDITIONS are in
     // store rather than a second building's worth.
-    return Materials.covers(stock, BuildingUpgrade.effectiveCost(village, build));
+    return ConstructionQuote.capture(village, build, stock).affordable();
   }
 
   /**
@@ -740,7 +628,7 @@ public class UrbanPlanner {
       if (isFoundingOnly(build) || build.getUpgradesFrom() != null) {
         continue;
       }
-      List<ItemStack> missing = Materials.shortfall(stock, build.getMaterialCost());
+      List<ItemStack> missing = ConstructionQuote.capture(village, build, stock).missing();
       if (!missing.isEmpty()) {
         return missing.get(0);
       }

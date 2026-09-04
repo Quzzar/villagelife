@@ -1,6 +1,7 @@
 package com.quzzar.villagelife.village;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -28,10 +29,10 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * surface each column is being graded toward (docs/worker-loops.md, "The
  * builder builds, and between builds it makes the village walkable").
  *
- * The rule the survey encodes is walkability: between two neighbouring
- * columns the ground should never step more than one block, which is the step
- * a villager climbs without jumping. Everything else follows from choosing
- * each column's target with care:
+ * The rule the survey encodes is walkability: small deep openings are covered,
+ * then between two neighbouring columns the ground should never step more than
+ * one block, which is the step a villager climbs without jumping. Everything
+ * else follows from choosing each column's target with care:
  *
  * <ul>
  * <li><b>Each column is read once.</b> A column of soft ground (the
@@ -111,7 +112,7 @@ public final class GradingSurvey {
   /** The four cardinal neighbours, for the path diffusion. */
   private static final int[][] NEIGHBOURS = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
 
-  private static final int NO_GROUND = Integer.MIN_VALUE;
+  private static final int NO_GROUND = HoleCoverPlanner.NO_SURFACE;
 
   /** An envelope value no source reaches. */
   private static final int FAR = Integer.MAX_VALUE / 2;
@@ -120,10 +121,10 @@ public final class GradingSurvey {
    * A column the survey would move: its ground height now (the Y of its top
    * block) and the height it should stand at.
    */
-  public record Column(int x, int z, int height, int target, boolean apron) {
+  public record Column(int x, int z, int height, int target, boolean apron, boolean cover) {
 
     public boolean wantsCut() {
-      return target < height;
+      return !cover && target < height;
     }
   }
 
@@ -139,6 +140,8 @@ public final class GradingSurvey {
   private final boolean[] apron;
   /** Columns whose top is a worn path, given a gentler grade than the rest. */
   private final boolean[] path;
+  /** Original cave-floor height for a column whose opening will be covered. */
+  private final int[] coverFrom;
   private final int[] target;
 
   private GradingSurvey(int minX, int minZ, int width, int depth) {
@@ -151,6 +154,8 @@ public final class GradingSurvey {
     this.claimed = new boolean[width * depth];
     this.apron = new boolean[width * depth];
     this.path = new boolean[width * depth];
+    this.coverFrom = new int[width * depth];
+    Arrays.fill(this.coverFrom, HoleCoverPlanner.NO_COVER);
     this.target = new int[width * depth];
   }
 
@@ -196,6 +201,7 @@ public final class GradingSurvey {
 
     GradingSurvey survey = new GradingSurvey(minX, minZ, maxX - minX + 1, maxZ - minZ + 1);
     survey.read(level, village, buildings);
+    survey.planHoleCovers();
     survey.markApron();
     survey.aim();
     return survey;
@@ -234,8 +240,10 @@ public final class GradingSurvey {
   public List<Column> uneven(BlockPos from) {
     List<Column> out = new ArrayList<>();
     for (int i = 0; i < height.length; i++) {
-      if (height[i] != NO_GROUND && !fixed[i] && target[i] != height[i]) {
-        out.add(new Column(minX + i % width, minZ + i / width, height[i], target[i], apron[i]));
+      if (coverFrom[i] != HoleCoverPlanner.NO_COVER) {
+        out.add(new Column(minX + i % width, minZ + i / width, coverFrom[i], height[i], false, true));
+      } else if (height[i] != NO_GROUND && !fixed[i] && target[i] != height[i]) {
+        out.add(new Column(minX + i % width, minZ + i / width, height[i], target[i], apron[i], false));
       }
     }
     out.sort(Comparator.comparingLong(column -> {
@@ -297,6 +305,30 @@ public final class GradingSurvey {
           height[i] = NO_GROUND; // a stilt root, a fence, a mushroom stem: not ground
         }
       }
+    }
+  }
+
+  /**
+   * Replaces a small deep opening with the surface that would cover its
+   * mouth before the grading envelopes are calculated. The real floor height is
+   * retained in {@link #coverFrom}, so the worker receives one cover operation
+   * at the mouth rather than a stack of fill operations from the cave floor up.
+   * The planned cap is fixed for this reading. Once physically covered, the
+   * next survey sees ordinary ground there and may grade it normally.
+   */
+  private void planHoleCovers() {
+    boolean[] coverable = new boolean[height.length];
+    for (int i = 0; i < height.length; i++) {
+      coverable[i] = height[i] != NO_GROUND && !claimed[i];
+    }
+    int[] covers = HoleCoverPlanner.plan(width, depth, height, coverable);
+    for (int i = 0; i < height.length; i++) {
+      if (covers[i] == HoleCoverPlanner.NO_COVER) {
+        continue;
+      }
+      coverFrom[i] = height[i];
+      height[i] = covers[i];
+      fixed[i] = true;
     }
   }
 

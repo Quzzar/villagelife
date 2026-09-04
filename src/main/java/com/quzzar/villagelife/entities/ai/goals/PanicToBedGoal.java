@@ -32,7 +32,7 @@ public class PanicToBedGoal extends PanicGoal {
         // villager handed a bed by reconcileBeds after its goals were built keeps a
         // stale ZERO otherwise and flees nowhere. Same trap SleepAtNightGoal hit
         // (1d4523f).
-        BlockPos bedLoc = LocationManager.getBedLocation(person);
+        BlockPos bedLoc = LocationManager.getNightRestLocation(person);
         if(!bedLoc.equals(BlockPos.ZERO)){
             this.posX = bedLoc.getX();
             this.posY = bedLoc.getY();

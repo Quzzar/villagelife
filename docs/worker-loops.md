@@ -349,6 +349,25 @@ ends. Ownership is the felling rule's neighbour ([block-ownership.md](block-owne
 village-placed block is never cut and nothing under one is; a player's placed dirt is graded
 like any other, and its record is dropped when it is dug.
 
+**Built, 2026-09-03: a small deep hole is covered, not graded from its floor.** A cave mouth
+open to the sky used to enter the heightmap as a column of ground at the cave floor. A gradual
+entrance could therefore bend the target surface around it, and an entrance in a building's
+apron could pull the apron all the way down because aprons deliberately cross cliffs. Before
+the ordinary grading envelopes are calculated, `HoleCoverPlanner` now finds deep enclosed
+depressions and narrow notches deeper than the three-block grading allowance. It follows the
+lowest spill route to distinguish a closed hole from a valley, while opposing nearby rims catch
+a little cave mouth that drains downhill. Anything that reaches the survey edge or unknown
+terrain is left alone. Only mouths at most 24 blocks in area and six blocks across are covered,
+so a ravine remains the shape of the land. The planned mouth is held at its rim height while the
+rest of the surface is aimed, keeping the cave floor out of both apron and path smoothing.
+
+Covering is one layer across the mouth, not a cave filled from the bottom. The builder spends
+one stable earth block per mouth column and works from a sturdy rim inward. Sand and gravel
+remain valid supported fill but are not used for a cover because they would fall through; when
+the pack has no stable earth, the builder fetches it from a village chest by hand or reports
+the ordinary shortage. Once the cap exists, the next survey sees it as normal ground and may
+grade it within the usual limits.
+
 **Built, 2026-09-03: a building is only built if you can get into it.** Two rules keep the
 gentle general grade from leaving a building stranded, since a butchery on a slope with a
 two-block lip on one side is a butchery nobody can enter. First, the **apron**: the soft
@@ -368,6 +387,13 @@ door on an even grade. The just-finished building is served first for free: the 
 at it when it completes, so its apron is the nearest uneven ground the grading picks up.
 
 ## The farmer's idle hands feed the composter
+
+All field work that tends or changes a farm's contents is clipped to the exact rotated template
+footprint of the farmer's assigned building. Tilling, harvesting, feeding crops and finding the
+farm's composter may scan around a station near the edge, but cannot borrow neighbouring ground,
+another farm's crops or a player's nearby composter. A missing footprint fails closed. The brush
+pass below is the deliberate exception: it is village groundskeeping around the farm rather than
+work on the field itself, so its twelve-block exterior reach remains part of the loop.
 
 The farmer gets the same treatment: a field that is all still growing used to mean pure
 wandering, and now the wait is a production chain, run as four separate steps so any link
@@ -651,15 +677,15 @@ replaced from that supply or made from three cobblestone, never conjured (`JobTo
 ## When there is nothing to work on
 
 Emit a `NoResourceBookkeepingEvent`, write an entry to the worker's `PersonalLogData` as
-`KIND_ISSUE`, and wander. Nothing else.
+`KIND_BLOCKER`, and wander. Nothing else.
 
 Both mechanisms already exist. The shortage feeds attractiveness, so a village that has exhausted
-its forest becomes less attractive and the brain is told why. The personal log entry is one plain
-sentence that surfaces in conversation, which is the foundation of emergent quests: an issue can
-be resolved by anyone or no one, and there is no quest state machine. For as long as the worker
-keeps logging it, it also stands in the brain's build briefing as a fact with its age
-(`UrbanPlanner.appendWorkplaceTrouble`, [llm-brain.md](llm-brain.md)), so a dead mine is
-something the brain knows about when it weighs a second one.
+its forest becomes less attractive and the brain is told why. The personal blocker is one plain
+sentence that surfaces in conversation and in `VillageContextSnapshot`. Repeated failures refresh
+the same blocker; successful work clears it. Completed events such as job changes and attacks are
+`KIND_MEMORY` instead, so they never masquerade as current workplace trouble. A dead mine is
+therefore something the brain knows about when it weighs a second one, while yesterday's transfer
+is only something its worker remembers.
 
 **The job is never freed.** Returning the worker to the campfire would thrash the whole labor pool
 every time a radius empties.

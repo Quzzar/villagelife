@@ -194,8 +194,9 @@ from their visible design; anything ambiguous stays shared. These tags describe 
 compatibility, not biological traits or the gender identity of the source character.
 
 Clothing also carries a life-stage category. Adult garments may name one or more compatible
-occupations. Child garments name no occupation and live in a separate commonwear pool, so an
-age change cannot accidentally dress a child as a blacksmith, guard, or merchant.
+occupations. Child garments name no occupation and live in a separate commonwear pool. Toddler
+and Kid always use that pool; an idle Teenager does too, while a Teenager with a real job uses
+that occupation's clothing.
 
 Face compatibility is a separate manifest concern. Skin, hair, and both eye parts must share
 one face profile, and each selected eye must avoid the chosen hairstyle's front-face occlusion
@@ -229,7 +230,7 @@ hood's opaque head texels suppress inherited hair beneath it.
 ## Sync
 
 `Person` syncs the appearance seed, four structural integer selectors, four packed pigment-gene
-integers, condition name, child flag, and its existing gender/occupation state. Each field is
+integers, condition name, four-way age stage, and its existing gender/occupation state. Each field is
 persisted. The client converts those facts to a recipe and texture locally; baked pixels never
 enter entity data or save data.
 
@@ -245,10 +246,11 @@ rendering classes, so it runs on an integrated or dedicated server.
 | `/vldev appearance audit <targets>` | Validate live villagers, including recipe contracts, NBT round-trip stability, and agreement between stored and synced conditions. |
 | `/vldev appearance show <target>` | Print the selected structures, garment, model, expression, raw pigment alleles, expressed percentages, and final two-shade RGB colors. |
 | `/vldev appearance reroll <target>` | Roll a new appearance seed and founder appearance genes without changing occupation or condition. |
-| `/vldev appearance inherit <child> <firstParent> <secondParent>` | Recombine the two parents' appearance genes onto the target and switch it to child geometry/commonwear. |
+| `/vldev appearance inherit <child> <firstParent> <secondParent>` | Recombine the two parents' appearance genes onto the target, record its parentage, and make it a Toddler. |
+| `/vldev appearance child <firstParent> <secondParent>` | Run `ChildCreationService` once to create a new Toddler near the parents with recombined appearance genes and persistent parentage. Same-village parents register the child as a resident. Repeating the command produces distinct siblings. |
 | `/vldev appearance pigment <target> <skin\|hair\|eyes\|alternate-eyes> <depth> <warmth>` | Set a homozygous 0–255 pigment pair for exact visual boundary testing. For eyes, the second value is hue. |
 | `/vldev appearance condition <target> <none\|gigantism\|dwarfism\|heterochromia>` | Replace and persist the condition, then reapply visual and mechanical projections. |
-| `/vldev appearance stage <target> <adult\|child>` | Switch body scale and the clothing life-stage pool. |
+| `/vldev appearance stage <target> <toddler\|kid\|teenager\|adult>` | Switch the physical/social stage immediately and restart that stage's growth clock. |
 | `/vldev appearance occupation <target> <occupation>` | Change the live occupation and therefore clothing. This visual test override deliberately does not rewrite the village job ledger. |
 
 For example, the nearest loaded person is
@@ -277,13 +279,13 @@ compositing:
 | Part assets and lab | Working. 65 catalog assets ship as 208 semantic PNG layers: 36 full packs plus 29 clothing-only wardrobes. Disabled source parts, including Stormy's clothing and all Trader Guy 3 non-clothing parts, do not ship. |
 | Compositing pipeline | Working. A validated data catalog drives deterministic recipes and a bounded client texture cache with nearest-neighbor output. |
 | Occupation clothing | Working. Every resident role meets the compatibility floor; a job change changes only clothing. Wandering merchant has exactly one shared, hood-aware Trader Guy 3 uniform. See [appearance-wardrobes.md](appearance-wardrobes.md). |
-| Children | Appearance-ready. `Person.setBaby` selects child commonwear and applies half-size render and collision dimensions. The family/birth/growth gameplay that creates and ages children remains separate work. |
+| Children | Working. Toddler, Kid, and Teenager use distinct stage multipliers over Minecraft's naturally smaller young-player model; those multipliers are relative values, not meter heights. Entity bounds and nameplates follow the resulting display height. Idle pre-adults use commonwear, while an employed Teenager uses occupation clothing. See [families.md](families.md). |
 | Heterochromia | Working. A 1% genetic condition selects distinct but geometry-compatible left/right eye sources and visibly distinct inherited iris pigments; it is also described in persona prompts. |
 | Regional dress | Not built. Future palette/part-set axis after occupational coverage. |
 
 The appearance v1 integration is complete. Automated tests exhaust representative seeds across
-every gender, occupation, life stage, and condition, then verify all shipped PNG dimensions and
-binary alpha. The remaining child work is gameplay lifecycle, not appearance assembly.
+every gender, occupation, wardrobe stage, and condition, then verify all shipped PNG dimensions and
+binary alpha.
 
 ## Deferred and open
 
@@ -291,8 +293,8 @@ binary alpha. The remaining child work is gameplay lifecycle, not appearance ass
   own UV; deferred in favor of wide/slim.
 - **Higher-resolution parts** (128x128 for finer faces/eyes) — possible since this is our
   own entity texture, not a player skin; v1 stays 64x64 to reuse the existing art scale.
-- **Family lifecycle** — call the existing `AppearanceGenes.inherit` seam when the separate
-  birth/parent system creates a child; decide growth timing and adulthood transition there.
+- **Autonomous births and mechanical inheritance** — the canonical child-creation seam exists;
+  marriage still needs a decided birth cadence, and stat/virtue inheritance still needs its model.
 - **Albinism** — add curated compatible assets or a deliberate palette transform before adding
   the condition; do not recolor the current full-color layers blindly.
 - **Face, facial hair, and skin marks** as swap/overlay dimensions — after v1.

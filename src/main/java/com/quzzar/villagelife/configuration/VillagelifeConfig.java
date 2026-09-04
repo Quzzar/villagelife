@@ -44,6 +44,7 @@ public class VillagelifeConfig {
 
     // --- general (simple) ---
     public static int DaysInYear;
+    public static int DaysPerChildStage;
     public static boolean GenerateVillages;
     public static boolean WanderingMerchant;
     public static VillageLoadingMode VillageLoading;
@@ -112,6 +113,7 @@ public class VillagelifeConfig {
     public static void bakeCommonConfig() {
         // general
         DaysInYear = COMMON.DaysInYear.get();
+        DaysPerChildStage = COMMON.DaysPerChildStage.get();
         GenerateVillages = COMMON.GenerateVillages.get();
         WanderingMerchant = COMMON.WanderingMerchant.get();
         VillageLoading = COMMON.VillageLoading.get();
@@ -196,6 +198,7 @@ public class VillagelifeConfig {
     public static class CommonConfig {
         // general
         public final ModConfigSpec.IntValue DaysInYear;
+        public final ModConfigSpec.IntValue DaysPerChildStage;
         public final ModConfigSpec.BooleanValue GenerateVillages;
         public final ModConfigSpec.BooleanValue WanderingMerchant;
         public final ModConfigSpec.EnumValue<VillageLoadingMode> VillageLoading;
@@ -213,6 +216,7 @@ public class VillagelifeConfig {
             builder.comment("Villages and the passage of time: the settings most worlds want to set once.").push("general");
 
             DaysInYear = builder.comment("Days in one Minecraft year (there are 8 days in one full lunar cycle). Villagers know the current year from the world's age, derived from this.").translation(Villagelife.MODID + ".config.DaysInYear").defineInRange("Days in Year", 96, 8, 79992);
+            DaysPerChildStage = builder.comment("Minecraft days spent in each of the three pre-adult stages: toddler, kid, and teenager. Eight days makes the full childhood last three lunar cycles; change this to tune family pacing without changing save data.").translation(Villagelife.MODID + ".config.DaysPerChildStage").defineInRange("Days per child stage", 8, 1, 79992);
             GenerateVillages = builder.comment("Generate villagelife villages during world generation, replacing vanilla villages. On (default): our living villages generate in the world in place of vanilla ones. Off: no villages generate in the world - you can still spawn one manually with /villagelife create-village. Only vanilla minecraft:village is affected; other mods' villages are untouched.").translation(Villagelife.MODID + ".config.GenerateVillages").define("Generate villages", true);
             WanderingMerchant = builder.comment("Replace Minecraft's wandering trader with a wandering merchant sent out from one of your villages. On (default): whenever the vanilla trader would appear, it is instead a merchant from a random village that has a staffed market, trading at that village's own prices and honouring your standing with it, with the usual trader llamas on a lead; if no village anywhere qualifies, none appears. Off: the ordinary vanilla wandering trader spawns as usual. Uses Minecraft's own trader spawning and wandering; only who shows up changes.").translation(Villagelife.MODID + ".config.WanderingMerchant").define("Wandering merchant", true);
             VillageLoading = builder.comment("Whether a village keeps running when no player is near. A village always does its cheap in-memory bookkeeping (mood, relationships, decisions); this only decides whether its chunks stay loaded and ticking, so it keeps building, mining, farming, and defending itself unattended, in full danger from night mobs. HYBRID (default): a village stays awake for six Minecraft days after a player last stood in it, then goes dormant until the next visit. This governs itself, since only villages you have recently visited stay loaded. ALL: every village in the world stays loaded, seen or not, including ones settled in regions you have never explored; the most faithful to living villages and the most costly, and it scales with a number you do not control. OFF: no village keeps chunks loaded, so a village freezes the moment you walk away (Minecraft's own behaviour). A loaded village keeps its own chunks plus a small perimeter and a bubble around each resident who roams; the more it builds, the more it holds loaded.").translation(Villagelife.MODID + ".config.VillageLoading").defineEnum("Village loading", VillageLoadingMode.HYBRID);

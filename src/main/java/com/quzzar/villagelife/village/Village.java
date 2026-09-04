@@ -16,6 +16,7 @@ import javax.annotation.Nullable;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.quzzar.villagelife.Villagelife;
+import com.quzzar.villagelife.entities.AgeStage;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.relationships.RelationshipPair;
 import com.quzzar.villagelife.relationships.RelationshipService;
@@ -1583,6 +1584,10 @@ public class Village {
     JobClaiming.tick(this, level);
     VillageProfile.end("jobs", tj);
 
+    // A working teenager may stay in the parents' household, but that exception
+    // ends at adulthood. Persist an ordinary save-for housing goal in advance.
+    com.quzzar.villagelife.relationships.FamilyHousingService.ensureTeenagerHomeGoal(this, level);
+
     // Supply-gated capabilities follow what the chests hold, so the derived set
     // is dropped periodically rather than only when buildings change.
     if ((time + Math.floorMod(id.hashCode(), 30)) % 30 == 0) {
@@ -1752,38 +1757,26 @@ public class Village {
     if (level == null || getTownCenter() == null) {
       return;
     }
-    int floor = com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation;
-    // The population floor is two-sided (Aaron, 2026-09-03). It is not only the
-    // line below which nobody leaves; a village pushed under it, a bad night of
-    // mob deaths, must climb back to it whatever its mood or means. So below the
-    // floor the village always draws a newcomer, the growth-side mirror of the
-    // no-emigration rule. Counting walkers keeps it from over-summoning while a
-    // refill is already on its way, and it runs before the cold-ledger hold
-    // below, so a decimated camp refills even before its storage is resident.
-    if (people.size() + pendingArrivals.size() < floor) {
-      tryArrival(true); // forced: mood and means do not gate the refill to the floor
-      return;
+    switch (getPopulationOutlook()) {
+      case FORCED_REFILL -> tryArrival(true);
+      case CAN_GROW -> tryArrival(false);
+      case DECLINING -> tryEmigration();
+      case WAITING_FOR_STORES, HOUSING_CAP, IDLE_CAP, HOLDING, HELD_AT_FLOOR -> { }
     }
-    // A village that has not managed to look inside its own chests yet holds
-    // still rather than acting on a cold ledger (#65). This lasts only until
-    // the first time any of its storage is resident.
-    if (!brain.hasReadStores()) {
-      return;
-    }
-    VillageAttractiveness report = getAttractiveness();
-    switch (report.status()) {
-      case GROWING -> tryArrival(false);
-      case DECLINING -> {
-        // A village never empties itself. Below the floor the unhappy stay
-        // put, however low the score reads: leaving is for a village with
-        // people to spare (Aaron, 2026-09-02, after Ember Hill lost all four
-        // of its founders in one morning).
-        if (people.size() > floor) {
-          tryEmigration();
-        }
-      }
-      case HOLDING -> { }
-    }
+  }
+
+  /** The real population action after mood, floor, caps, and ledger readiness. */
+  public PopulationOutlook getPopulationOutlook() {
+    VillageAttractiveness.Status status = getAttractiveness().status();
+    PopulationOutlook.Trend trend = switch (status) {
+      case GROWING -> PopulationOutlook.Trend.GROWING;
+      case HOLDING -> PopulationOutlook.Trend.HOLDING;
+      case DECLINING -> PopulationOutlook.Trend.DECLINING;
+    };
+    return PopulationOutlook.evaluate(
+        people.size(), pendingArrivals.size(),
+        com.quzzar.villagelife.configuration.VillagelifeConfig.MinimumVillagePopulation,
+        brain.hasReadStores(), trend, housingDemandCount(), getTotalBeds(), idleCount(), idleCap());
   }
 
   private int idleCap() {
@@ -1795,7 +1788,9 @@ public class Village {
   private int idleCount() {
     int count = 0;
     for (UUID person : people) {
-      if (!jobAssignments.containsKey(person)) {
+      RealPerson resident = level == null ? null : getPerson(level, person);
+      if (!jobAssignments.containsKey(person)
+          && (resident == null || resident.getLifeStage().canWork())) {
         count++;
       }
     }
@@ -1819,7 +1814,7 @@ public class Village {
       // Caps, both counting walkers. Population may exceed beds by up to the tier's
       // idle cap: the campfire reservoir is where bedless newcomers wait, so housing
       // alone must not gate arrivals (docs/population-and-labor.md).
-      int futurePopulation = people.size() + pendingArrivals.size();
+      int futurePopulation = housingDemandCount() + pendingArrivals.size();
       int totalBeds = bedAssignments.size() + unassignedBeds.size();
       if (futurePopulation >= totalBeds + idleCap()) {
         Villagelife.LOGGER.debug(
@@ -1962,7 +1957,7 @@ public class Village {
    * only joins where it can be housed together (docs/marriage.md, the double bed).
    */
   private boolean roomForArrivals(int count) {
-    int futurePopulation = people.size() + pendingArrivals.size();
+    int futurePopulation = housingDemandCount() + pendingArrivals.size();
     int totalBeds = bedAssignments.size() + unassignedBeds.size();
     return futurePopulation + count <= totalBeds + idleCap()
         && idleCount() + pendingArrivals.size() + count <= idleCap();
@@ -2029,6 +2024,9 @@ public class Village {
       if (isPending(id) || !(level.getEntity(id) instanceof RealPerson person)) {
         continue;
       }
+      if (person.getLifeStage() != AgeStage.ADULT || hasDependentChild(id)) {
+        continue; // children never emigrate alone, and a resident parent does not abandon them
+      }
       RealPerson spouse = residentSpouse(person);
       if (spouse != null && (isPending(spouse.getUUID()) || people.size() - 2 < floor)) {
         continue; // the couple cannot afford to leave together right now
@@ -2091,9 +2089,90 @@ public class Village {
         || pendingDepartures.stream().anyMatch(p -> p.personId().equals(person));
   }
 
+  /** Whether this resident is still housing at least one pre-adult child. */
+  private boolean hasDependentChild(UUID parentId) {
+    for (UUID residentId : people) {
+      RealPerson resident = getPerson(level, residentId);
+      if (resident != null && resident.getLifeStage().isDependentlyHoused()
+          && resident.getParentIds().contains(parentId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** Every bed the village knows of, taken or free. */
   public int getTotalBeds() {
     return bedAssignments.size() + unassignedBeds.size();
+  }
+
+  /** Beds not currently assigned, including live-in beds reserved to workplaces. */
+  public int getFreeBedCount() {
+    return unassignedBeds.size();
+  }
+
+  /** Adult residents currently needing an independent bed who have none. */
+  public int getUnhousedAdultResidentCount() {
+    int count = 0;
+    for (UUID personId : people) {
+      if (bedAssignments.containsKey(personId)) {
+        continue;
+      }
+      RealPerson person = level == null ? null : getPerson(level, personId);
+      if (person == null || !person.getLifeStage().isDependentlyHoused()) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** Residents in a pre-adult stage, whether or not a resident parent can house them. */
+  public int getPreAdultResidentCount() {
+    return Math.max(0, people.size() - housingDemandCount());
+  }
+
+  /** Pre-adults who currently inherit a usable home from a resident parent. */
+  public int getDependentlyHousedResidentCount() {
+    int count = 0;
+    for (UUID personId : people) {
+      RealPerson person = level == null ? null : getPerson(level, personId);
+      if (person != null && hasDependentHome(person)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** Pre-adults for whom neither recorded parent is a current village resident. */
+  public int getDependentWithoutResidentParentCount() {
+    int count = 0;
+    for (UUID personId : people) {
+      RealPerson person = level == null ? null : getPerson(level, personId);
+      if (person == null || !person.getLifeStage().isDependentlyHoused()) {
+        continue;
+      }
+      boolean hasResidentParent = person.getParentIds().stream().anyMatch(people::contains);
+      if (!hasResidentParent) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public int getPendingArrivalCount() {
+    return pendingArrivals.size();
+  }
+
+  public int getIdleCap() {
+    return idleCap();
+  }
+
+  public int getHousingDemandCount() {
+    return housingDemandCount();
+  }
+
+  public boolean hasReadStores() {
+    return brain.hasReadStores();
   }
 
   /** True if this person is on the roster (a resident, not a mid-walk traveler). */
@@ -2269,6 +2348,14 @@ public class Village {
   /** Unbooks a worker's job and returns it, ready to hand to someone else. */
   public JobAssignment releaseJob(UUID personId) {
     JobAssignment job = jobAssignments.remove(personId);
+    BedAssignment bed = bedAssignments.get(personId);
+    if (job != null && bed != null && isReservedWorkplaceBed(bed)) {
+      // A live-in bed belongs to the post, not to its former worker. General
+      // housing follows a person between jobs, but leaving a workplace releases
+      // its reserved bed for whoever staffs that building next.
+      bedAssignments.remove(personId);
+      unassignedBeds.add(bed.setPersonUUID(null));
+    }
     return job == null ? null : job.setPersonUUID(null);
   }
 
@@ -2333,10 +2420,26 @@ public class Village {
     List<UUID> idle = new ArrayList<>();
     for (UUID person : people) {
       if (!jobAssignments.containsKey(person) && !isPending(person)) {
+        RealPerson resident = level == null ? null : getPerson(level, person);
+        if (resident != null && !resident.getLifeStage().canWork()) {
+          continue;
+        }
         idle.add(person);
       }
     }
     return idle;
+  }
+
+  /** Residents who currently require an independent bed; dependents do not count against housing. */
+  private int housingDemandCount() {
+    int count = 0;
+    for (UUID personId : people) {
+      RealPerson person = level == null ? null : getPerson(level, personId);
+      if (person == null || !person.getLifeStage().isDependentlyHoused()) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /** Whether anyone in the village holds a post of this occupation. */
@@ -2404,10 +2507,14 @@ public class Village {
   public void assignJob(UUID personId, JobAssignment job) {
     unassignedJobs.remove(job);
     jobAssignments.put(personId, job.setPersonUUID(personId));
+    RealPerson person = level == null ? null : getPerson(level, personId);
+    if (person != null && hasDependentHome(person)) {
+      return; // a working teenager remains in the parents' home and consumes no bed
+    }
     preferWorkplaceBed(personId, job.getBuildingUUID());
     if (!bedAssignments.containsKey(personId)) {
-      // A worker is never bedless: a workplace with no live-in bed leaves them
-      // to general housing, taken here. Claiming only seats someone the village
+      // An adult worker is never bedless: a workplace with no live-in bed leaves them
+      // to general housing, taken here. Claiming only seats an adult the village
       // can house (JobClaiming.shortlistFor), so a general bed is free unless
       // this is the workplace's own live-in bed, which preferWorkplaceBed took.
       BedAssignment bed = takeGeneralBed();
@@ -2458,8 +2565,68 @@ public class Village {
    * general bed, which is exactly what makes housing a construction need.
    */
   private void reconcileBeds() {
+    // Children live in a parent's household without consuming one of its bed
+    // slots. Repair legacy/dev assignments that gave a dependent a bed.
+    for (var iterator = bedAssignments.entrySet().iterator(); iterator.hasNext();) {
+      Map.Entry<UUID, BedAssignment> entry = iterator.next();
+      RealPerson person = level == null ? null : getPerson(level, entry.getKey());
+      if (person == null || !person.getLifeStage().isDependentlyHoused()) {
+        continue;
+      }
+      iterator.remove();
+      unassignedBeds.add(entry.getValue().setPersonUUID(null));
+    }
+
+    // Repair old saves and any assignment transition that left a worker in a
+    // live-in bed belonging to a different workplace.
+    for (var iterator = bedAssignments.entrySet().iterator(); iterator.hasNext();) {
+      Map.Entry<UUID, BedAssignment> entry = iterator.next();
+      BedAssignment bed = entry.getValue();
+      JobAssignment job = jobAssignments.get(entry.getKey());
+      UUID jobBuilding = job == null ? null : job.getBuildingUUID();
+      if (HousingPolicy.bedCanHouseJob(
+          bed.getBuildingUUID(), isReservedWorkplaceBed(bed), jobBuilding)) {
+        continue;
+      }
+      iterator.remove();
+      unassignedBeds.add(bed.setPersonUUID(null));
+    }
+
+    // A worker already assigned in an older save gets the same live-in
+    // preference as someone assigned this tick.
+    for (Map.Entry<UUID, JobAssignment> entry : jobAssignments.entrySet()) {
+      RealPerson person = level == null ? null : getPerson(level, entry.getKey());
+      if (person != null && person.getLifeStage().isDependentlyHoused()) {
+        continue;
+      }
+      preferWorkplaceBed(entry.getKey(), entry.getValue().getBuildingUUID());
+    }
+
+    // A newly adult child gets first claim on general housing. That flag stays
+    // on the person until this succeeds, so a full village keeps the priority.
+    for (UUID personUUID : people) {
+      RealPerson person = level == null ? null : getPerson(level, personUUID);
+      if (person == null || !person.isAwaitingAdultHome()) {
+        continue;
+      }
+      if (bedAssignments.containsKey(personUUID)) {
+        person.markAdultHomeAssigned();
+        continue;
+      }
+      BedAssignment bed = takeGeneralBed();
+      if (bed == null) {
+        break;
+      }
+      bedAssignments.put(personUUID, bed.setPersonUUID(personUUID));
+      person.markAdultHomeAssigned();
+    }
+
     for (UUID personUUID : people) {
       if (bedAssignments.containsKey(personUUID)) {
+        continue;
+      }
+      RealPerson person = level == null ? null : getPerson(level, personUUID);
+      if (person != null && person.getLifeStage().isDependentlyHoused()) {
         continue;
       }
       BedAssignment bed = takeGeneralBed();
@@ -2467,6 +2634,9 @@ public class Village {
         break; // only reserved workplace beds remain; the rest wait for a house
       }
       bedAssignments.put(personUUID, bed.setPersonUUID(personUUID));
+      if (person != null) {
+        person.markAdultHomeAssigned();
+      }
     }
   }
 
@@ -2507,22 +2677,103 @@ public class Village {
 
   /** True when a general (non-workplace) bed is free to house anyone. */
   public boolean hasFreeGeneralBed() {
+    return getFreeGeneralBedCount() > 0;
+  }
+
+  /** How many free beds are general housing rather than reserved live-in beds. */
+  public int getFreeGeneralBedCount() {
+    int count = 0;
     for (BedAssignment bed : unassignedBeds) {
       if (!isReservedWorkplaceBed(bed)) {
-        return true;
+        count++;
       }
     }
-    return false;
+    return count;
   }
 
   /** True when the given building has a free bed (a workplace's own live-in bed, or a house's spare). */
   public boolean hasFreeBedIn(UUID buildingUUID) {
+    return getFreeBedCountIn(buildingUUID) > 0;
+  }
+
+  /** Free bed slots in one building, used when several teenagers approach adulthood together. */
+  public int getFreeBedCountIn(UUID buildingUUID) {
+    int count = 0;
     for (BedAssignment bed : unassignedBeds) {
       if (bed.getBuildingUUID().equals(buildingUUID)) {
-        return true;
+        count++;
       }
     }
-    return false;
+    return count;
+  }
+
+  /** Free live-in slots reserved specifically to workers in this building. */
+  public int getFreeReservedBedCountIn(UUID buildingUUID) {
+    int count = 0;
+    for (BedAssignment bed : unassignedBeds) {
+      if (bed.getBuildingUUID().equals(buildingUUID) && isReservedWorkplaceBed(bed)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Whether this person can stay housed while taking a post in the target
+   * building. A general bed follows them, but a live-in bed at the workplace
+   * they are leaving does not.
+   */
+  public boolean canHouseForJob(UUID personId, UUID targetBuildingUUID) {
+    BedAssignment current = bedAssignments.get(personId);
+    boolean reserved = current != null && isReservedWorkplaceBed(current);
+    boolean matchesTarget = current != null
+        && current.getBuildingUUID().equals(targetBuildingUUID);
+    return HousingPolicy.canHouseAtTarget(current != null, reserved, matchesTarget,
+        hasFreeGeneralBed(), hasFreeBedIn(targetBuildingUUID), false);
+  }
+
+  /** Housing gate that recognizes a teenager's valid place in a parent's home. */
+  public boolean canHouseForJob(RealPerson person, UUID targetBuildingUUID) {
+    if (person.getLifeStage().isDependentlyHoused()) {
+      return hasDependentHome(person);
+    }
+    return canHouseForJob(person.getUUID(), targetBuildingUUID);
+  }
+
+  /** Whether a dependent currently has a resident parent's usable home. */
+  public boolean hasDependentHome(RealPerson person) {
+    return dependentHome(person) != null;
+  }
+
+  /**
+   * A dependent's family home, inherited from either resident parent. The
+   * child never claims the parent's bed; this building is a household anchor.
+   */
+  @Nullable
+  public Building dependentHome(RealPerson person) {
+    if (!person.getLifeStage().isDependentlyHoused()) {
+      return null;
+    }
+    for (UUID parentId : person.getParentIds()) {
+      if (!people.contains(parentId)) {
+        continue;
+      }
+      BedAssignment bed = bedAssignments.get(parentId);
+      if (bed != null && !isBeingRebuilt(bed.getBuildingUUID())) {
+        Building home = getBuilding(bed.getBuildingUUID());
+        if (home != null) {
+          return home;
+        }
+      }
+    }
+    return null;
+  }
+
+  /** True when this person occupies this workplace's reserved live-in bed. */
+  public boolean sleepsInReservedBedAt(UUID personId, UUID buildingUUID) {
+    BedAssignment bed = bedAssignments.get(personId);
+    return bed != null && bed.getBuildingUUID().equals(buildingUUID)
+        && isReservedWorkplaceBed(bed);
   }
 
   /** The quartermaster raises this when the storehouse overflows; the planner reads it. */
@@ -2544,6 +2795,17 @@ public class Village {
 
   public ArrayList<UUID> getPopulation() {
     return people;
+  }
+
+  /** Adds a locally born child directly to its parents' village, without assigning a bed. */
+  public void addBornResident(RealPerson child) {
+    child.setVillage(id);
+    child.setVillageName(name);
+    child.setOccupation(Occupation.WANDERER);
+    child.setTravelTarget(null);
+    if (!people.contains(child.getUUID())) {
+      people.add(child.getUUID());
+    }
   }
 
   /** The game time a player was last inside this village's footprint, for the loading diagnostic. */
@@ -2573,8 +2835,8 @@ public class Village {
     // The delta for an upgrade, the whole recipe otherwise: an upgrade is not
     // "materially impossible" just because the village lacks a second building's
     // worth, only if it lacks what the upgrade still adds.
-    for (ItemStack cost : com.quzzar.villagelife.village.buildings.BuildingUpgrade
-        .effectiveCost(this, project.getBuilding().getInfo())) {
+    for (ItemStack cost : com.quzzar.villagelife.village.buildings.ConstructionQuote
+        .requiredFor(this, project.getBuilding().getInfo())) {
       int have = inChests.getOrDefault(cost.getItem(), 0);
       if (have >= cost.getCount()) {
         continue; // the chests alone cover this one; no pack scan needed
@@ -2603,6 +2865,30 @@ public class Village {
       for (int slot = 0; slot < person.personMainInv.getContainerSize(); slot++) {
         ItemStack stack = person.personMainInv.getItem(slot);
         if (stack != null && !stack.isEmpty()) {
+          tally.merge(stack.getItem(), stack.getCount(), Integer::sum);
+        }
+      }
+    }
+    return tally;
+  }
+
+  /** Materials already carried by assigned builders toward construction. */
+  public Map<Item, Integer> builderPackTally() {
+    Map<Item, Integer> tally = new HashMap<>();
+    if (level == null) {
+      return tally;
+    }
+    for (Map.Entry<UUID, JobAssignment> assignment : jobAssignments.entrySet()) {
+      if (assignment.getValue().getOccupation() != Occupation.BUILDER) {
+        continue;
+      }
+      RealPerson builder = getPerson(level, assignment.getKey());
+      if (builder == null) {
+        continue;
+      }
+      for (int slot = 0; slot < builder.personMainInv.getContainerSize(); slot++) {
+        ItemStack stack = builder.personMainInv.getItem(slot);
+        if (!stack.isEmpty()) {
           tally.merge(stack.getItem(), stack.getCount(), Integer::sum);
         }
       }
@@ -2793,7 +3079,7 @@ public class Village {
     int foodCount = level != null ? brain.countFood(level) : 0;
     int totalBeds = bedAssignments.size() + unassignedBeds.size();
     int freeBeds = unassignedBeds.size();
-    int homelessCount = Math.max(0, population - bedAssignments.size());
+    int homelessCount = getUnhousedAdultResidentCount();
     return VillageAttractiveness.compute(population, foodCount, totalBeds, freeBeds, homelessCount,
         brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.DeathBookkeepingEvent.class),
         brain.totalImpact(com.quzzar.villagelife.village.bookkeeping.HurtByPlayerBookkeepingEvent.class),

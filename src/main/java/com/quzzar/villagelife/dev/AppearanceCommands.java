@@ -25,12 +25,14 @@ import com.quzzar.villagelife.appearance.LifeStage;
 import com.quzzar.villagelife.appearance.PigmentColor;
 import com.quzzar.villagelife.appearance.PigmentPalette;
 import com.quzzar.villagelife.appearance.SkinRecipe;
+import com.quzzar.villagelife.entities.AgeStage;
 import com.quzzar.villagelife.entities.Gender;
 import com.quzzar.villagelife.entities.Person;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.entities.genetics.AppearanceGenes;
 import com.quzzar.villagelife.entities.genetics.GeneticCondition;
 import com.quzzar.villagelife.entities.genetics.PigmentGene;
+import com.quzzar.villagelife.relationships.ChildCreationService;
 import com.quzzar.villagelife.village.Occupation;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -39,6 +41,7 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 
 /** Live development controls and invariant audits for the layered appearance system. */
@@ -61,7 +64,10 @@ public final class AppearanceCommands {
   private static final SuggestionProvider<CommandSourceStack> PIGMENT_PARTS = (context, builder) ->
       SharedSuggestionProvider.suggest(List.of("skin", "hair", "eyes", "alternate-eyes"), builder);
   private static final SuggestionProvider<CommandSourceStack> LIFE_STAGES = (context, builder) ->
-      SharedSuggestionProvider.suggest(List.of("adult", "child"), builder);
+      SharedSuggestionProvider.suggest(
+          java.util.Arrays.stream(AgeStage.values())
+              .map(stage -> stage.name().toLowerCase(Locale.ROOT)),
+          builder);
 
   private static AppearanceCatalog builtInCatalog;
 
@@ -96,6 +102,13 @@ public final class AppearanceCommands {
                             EntityArgument.getEntity(context, "child"),
                             EntityArgument.getEntity(context, "firstParent"),
                             EntityArgument.getEntity(context, "secondParent")))))))
+        .then(Commands.literal("child")
+            .then(Commands.argument("firstParent", EntityArgument.entity())
+                .then(Commands.argument("secondParent", EntityArgument.entity())
+                    .executes(context -> spawnChild(
+                        context.getSource(),
+                        EntityArgument.getEntity(context, "firstParent"),
+                        EntityArgument.getEntity(context, "secondParent"))))))
         .then(Commands.literal("pigment")
             .then(Commands.argument("target", EntityArgument.entity())
                 .then(Commands.argument("part", StringArgumentType.word())
@@ -148,7 +161,8 @@ public final class AppearanceCommands {
       String output = person.getFullName()
           + " — appearance " + (failures.isEmpty() ? "PASS" : "FAIL")
           + "\n  state: " + inputs.gender().name().toLowerCase(Locale.ROOT)
-          + ", " + inputs.lifeStage().name().toLowerCase(Locale.ROOT)
+          + ", " + person.getLifeStage().name().toLowerCase(Locale.ROOT)
+          + " (" + inputs.lifeStage().name().toLowerCase(Locale.ROOT) + " wardrobe)"
           + ", " + inputs.occupation().name().toLowerCase(Locale.ROOT)
           + ", " + inputs.condition().name().toLowerCase(Locale.ROOT)
           + "\n  expression: " + recipe.expression().name().toLowerCase(Locale.ROOT)
@@ -354,16 +368,58 @@ public final class AppearanceCommands {
     if (child == null || firstParent == null || secondParent == null) {
       return 0;
     }
-    child.setAppearanceSeed(child.getRandom().nextInt(Person.APPEARANCE_SEED_BOUND));
-    child.setAppearanceGenes(AppearanceGenes.inherit(
-        firstParent.getAppearanceGenes(),
-        secondParent.getAppearanceGenes(),
-        child.getRandom()));
-    child.setBaby(true);
+    ChildCreationService.applyInheritance(child, firstParent, secondParent);
     source.sendSuccess(() -> Component.literal(
         "Applied inherited appearance from " + firstParent.getFullName() + " and "
             + secondParent.getFullName() + " to " + child.getFullName()
             + "; the target is now using child geometry and commonwear. Their rare condition stayed unchanged."), true);
+    return 1;
+  }
+
+  private static int spawnChild(
+      CommandSourceStack source,
+      Entity firstParentEntity,
+      Entity secondParentEntity) {
+    RealPerson firstParent = requirePerson(source, firstParentEntity);
+    RealPerson secondParent = requirePerson(source, secondParentEntity);
+    if (firstParent == null || secondParent == null) {
+      return 0;
+    }
+    if (firstParent == secondParent) {
+      source.sendFailure(Component.literal("A child needs two different parents."));
+      return 0;
+    }
+    if (firstParent.level() != secondParent.level()
+        || !(firstParent.level() instanceof ServerLevel level)) {
+      source.sendFailure(Component.literal("Both parents must be together in the same server dimension."));
+      return 0;
+    }
+
+    source.sendSuccess(() -> Component.literal(
+        "Generating a child of " + firstParent.getFullName() + " and " + secondParent.getFullName() + "..."),
+        false);
+    com.quzzar.villagelife.village.Village familyVillage =
+        ChildCreationService.sharedVillage(firstParent, secondParent);
+    ChildCreationService.create(level, firstParent, secondParent)
+        .whenComplete((attempt, error) -> {
+          if (error != null) {
+            Villagelife.LOGGER.error("Child generation failed for {} and {}",
+                firstParent.getFullName(), secondParent.getFullName(), error);
+            source.sendFailure(Component.literal("Child generation failed; see the server log."));
+            return;
+          }
+          if (attempt.spawned().isEmpty()) {
+            source.sendFailure(Component.literal(
+                "No child spawned because persona generation did not complete successfully."));
+            return;
+          }
+          RealPerson child = attempt.spawned().get();
+          String summary = "Spawned " + child.getFullName() + ", a child of "
+              + firstParent.getFullName() + " and " + secondParent.getFullName()
+              + (familyVillage == null ? "." : " in " + familyVillage.getName() + ".");
+          Villagelife.LOGGER.info("[appearance child] {}", summary);
+          source.sendSuccess(() -> Component.literal(summary), true);
+        });
     return 1;
   }
 
@@ -430,16 +486,16 @@ public final class AppearanceCommands {
     if (person == null) {
       return 0;
     }
-    LifeStage stage;
+    AgeStage stage;
     try {
-      stage = LifeStage.valueOf(stageName.toUpperCase(Locale.ROOT));
+      stage = AgeStage.valueOf(stageName.toUpperCase(Locale.ROOT));
     } catch (IllegalArgumentException exception) {
       source.sendFailure(Component.literal("Unknown life stage: " + stageName));
       return 0;
     }
-    person.setBaby(stage == LifeStage.CHILD);
+    person.setLifeStage(stage);
     source.sendSuccess(() -> Component.literal(
-        "Set " + person.getFullName() + " appearance stage to " + stage.name().toLowerCase(Locale.ROOT) + "."),
+        "Set " + person.getFullName() + " life stage to " + stage.name().toLowerCase(Locale.ROOT) + "."),
         true);
     return 1;
   }
@@ -475,8 +531,14 @@ public final class AppearanceCommands {
         person.getAppearanceGenes(),
         person.getGender(),
         occupation,
-        person.isBaby() ? LifeStage.CHILD : LifeStage.ADULT,
+        wardrobeStage(person, occupation),
         person.getGeneticCondition());
+  }
+
+  private static LifeStage wardrobeStage(RealPerson person, Occupation occupation) {
+    AgeStage stage = person.getLifeStage();
+    boolean childWardrobe = stage.usesChildWardrobe(!occupation.isIdle());
+    return childWardrobe ? LifeStage.CHILD : LifeStage.ADULT;
   }
 
   private static String validatePackagedLayer(AppearanceAsset asset, AppearancePart part) {

@@ -24,12 +24,9 @@ import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.Village;
-import com.quzzar.villagelife.village.VillageAttractiveness;
-import com.quzzar.villagelife.village.buildings.BuildingInfo;
-import com.quzzar.villagelife.village.buildings.Materials;
-import com.quzzar.villagelife.village.buildings.Buildings;
-import com.quzzar.villagelife.village.buildings.StructureInProgress;
-import com.quzzar.villagelife.village.buildings.VillageGoal;
+import com.quzzar.villagelife.village.buildings.Building;
+import com.quzzar.villagelife.village.buildings.UrbanPlanner;
+import com.quzzar.villagelife.village.buildings.VillageContextSnapshot;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -292,23 +289,14 @@ public final class PersonChatContext {
    * building and priority language, so an ordinary "you should rest" does not
    * open it.
    */
-  private static boolean proposesVillageChange(String playerLine) {
-    String line = playerLine.toLowerCase(java.util.Locale.ROOT);
-    for (String marker : VILLAGE_CHANGE_MARKERS) {
-      if (line.contains(marker)) {
-        return true;
-      }
-    }
-    return false;
+  static boolean proposesVillageChange(String playerLine) {
+    return VillageChangeIntent.proposes(playerLine);
   }
 
-  private static final String[] VILLAGE_CHANGE_MARKERS = {
-      "should build", "should make", "let's build", "let us build", "build a ", "build the ",
-      "build some ", "build more ", "build walls", "build a wall", "put up a ", "we need a ",
-      "we need more ", "we need walls", "start building", "save up for", "save for a ",
-      "prioriti", "focus on building", "instead of building", "the village should", "ought to build",
-      "you lot should", "you should build"
-  };
+  /** A harmlessly broad topic gate for showing planning options without offering an action. */
+  static boolean discussesVillagePlanning(String playerLine) {
+    return VillageChangeIntent.discusses(playerLine);
+  }
 
   private PersonChatContext() {
   }
@@ -339,83 +327,7 @@ public final class PersonChatContext {
     system.append('\n');
 
     if (village != null) {
-      system.append("Your village: ").append(villageName).append(", a ")
-          .append(tierName(village)).append(". ").append(situationLine(village)).append('\n');
-      // What the village is saving toward, in its own words, so the villager can
-      // speak to it. The planner names a goal and then declines to spend until it
-      // can afford it (VillageGoal); without this line the brain has no way to know
-      // its own village is holding out for something, and cannot mention it.
-      String goal = VillageGoal.current(village);
-      if (goal != null) {
-        BuildingInfo wanted = Buildings.getByName(goal);
-        String label = wanted != null ? wanted.displayLabel() : goal;
-        system.append("Your village is saving up to build a ").append(label);
-        String why = VillageGoal.reason(village);
-        if (why != null && !why.isEmpty()) {
-          system.append(" (").append(why).append(')');
-        }
-        system.append(".\n");
-        // The exact recipe and what is still short, so the villager speaks to the
-        // real cost instead of inventing one. With only the goal name and reason
-        // in the briefing, the small model filled the gap with plausible-but-wrong
-        // materials - a lumberjack asked for "wheat seeds" off the "we need food"
-        // reason, when the build actually costs cobblestone.
-        List<ItemStack> recipe = wanted != null ? wanted.getMaterialCost() : List.of();
-        if (!recipe.isEmpty()) {
-          system.append("To build it the village needs ").append(joinCosts(recipe)).append(". ");
-          String remaining = Materials.describeShortfall(village.stockTally(), recipe);
-          system.append(remaining.isEmpty()
-              ? "Everything needed is gathered; building can begin soon."
-              : "Still short " + remaining + ".");
-          system.append('\n');
-        }
-      }
-      // What the village is actively building right now, distinct from the goal
-      // it saves toward above. A villager (the builder especially) was told its
-      // job and the village's goal but never the work in hand, so it could not
-      // say what it was doing (a live-test finding).
-      StructureInProgress project = village.getCurrentProject();
-      if (project != null) {
-        BuildingInfo built = project.getBuilding().getInfo();
-        String label = built.displayLabel();
-        system.append(project.isGathering()
-            ? "Your village is gathering materials to build a " + label + "."
-            : "Your village is now building a " + label + ".").append('\n');
-      } else if (goal == null) {
-        // Stated even when there is nothing, for the same reason the pockets
-        // are: an unmentioned building programme is a gap the model fills. A
-        // quartermaster asked what the village was working on, with no project
-        // in the briefing, invented a hut for a travelling merchant and the
-        // planks it was short of (a live finding).
-        system.append("Your village is not saving up for or building anything at the moment.\n");
-      }
-      // What the village has finished lately, newest first, so a villager can
-      // speak to recent work and not only to what is rising now: a miner told a
-      // player the village "is going to build a fishery" the day after one had
-      // gone up, with only the current project and the saving goal in the
-      // briefing and nothing of what was already built. Facts, with the day each
-      // was raised; what to make of them is the villager's.
-      List<Village.CompletedBuild> recentBuilds = village.getRecentBuilds();
-      if (!recentBuilds.isEmpty()) {
-        system.append("Lately the village finished building ");
-        for (int i = 0; i < recentBuilds.size(); i++) {
-          Village.CompletedBuild raised = recentBuilds.get(i);
-          if (i > 0) {
-            system.append(i == recentBuilds.size() - 1 ? " and " : ", ");
-          }
-          system.append("a ").append(raised.label()).append(" (")
-              .append(PersonalLogData.formatDay(raised.dayTime())).append(')');
-        }
-        system.append(".\n");
-      }
-      // Where the village's room ran out, when it has. The builder especially
-      // gets asked why nothing is going up, and "no flat ground, the slope east
-      // of the fire came closest" is an answer a player can act on. Facts only;
-      // what to make of them is the villager's.
-      String room = village.describeRoom();
-      if (room != null) {
-        system.append(room).append('\n');
-      }
+      system.append(VillageContextSnapshot.capture(village).chatBriefing());
     }
 
     // The villager's own work in hand. Their job is a title; this is what a
@@ -450,6 +362,7 @@ public final class PersonChatContext {
     }
     String pockets = pocketsSummary(person);
     system.append("Your pockets: ").append(pockets.isEmpty() ? "empty" : pockets).append(".\n");
+    system.append(personalHousingLine(person)).append('\n');
     // Their own chest at home, stated on the same rule as the pockets: what it
     // holds when it is in sight, and that they have none when they have none,
     // so the model neither invents a hoard nor forgets it has one.
@@ -472,9 +385,13 @@ public final class PersonChatContext {
       system.append("You remember picking up: ").append(remembered).append(".\n");
     }
 
-    String worries = issueSummary(log, 3);
-    if (!worries.isEmpty()) {
-      system.append("Your worries: ").append(worries).append(".\n");
+    String memories = memorySummary(log, 3);
+    if (!memories.isEmpty()) {
+      system.append("Things you remember happening: ").append(memories).append(".\n");
+    }
+    Optional<PersonalLogData.ActiveBlocker> blocker = log.standingBlocker(person.level().getGameTime());
+    if (blocker.isPresent()) {
+      system.append("A problem currently blocking your work: ").append(blocker.get().text()).append(".\n");
     }
 
     String relations = relationSummary(person, village, 3);
@@ -493,9 +410,11 @@ public final class PersonChatContext {
     // compact summary a new-day chat picks up from, in place of the full
     // transcript (PersonChatDispatcher.consolidate). Empty until the first
     // consolidation, or when the model produced none.
-    String pastTalks = person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerUUID);
+    String pastTalks = ConversationMemoryPrompt.withoutVolatileWorldState(
+        person.getData(VillagelifeAttachments.CHAT_SUMMARY.get()).with(playerUUID));
     if (!pastTalks.isBlank()) {
-      system.append("What you remember of earlier talks with ").append(playerName).append(": ")
+      system.append("Your subjective memory of what ").append(playerName)
+          .append(" said in earlier talks; current village facts above override it: ")
           .append(pastTalks).append('\n');
     }
 
@@ -511,6 +430,7 @@ public final class PersonChatContext {
     // because the server knows one stands and coerces a stray open anyway. Only
     // when nothing stands and the line opens a new commitment is "open" offered.
     // Open matters are stated so an advance or resolve knows its target.
+    boolean discussesPlanning = village != null && discussesVillagePlanning(playerLine);
     boolean proposesChange = village != null && proposesVillageChange(playerLine);
     List<UndertakingData.Undertaking> openMatters =
         person.getData(VillagelifeAttachments.UNDERTAKINGS.get()).openWith(playerUUID);
@@ -518,13 +438,15 @@ public final class PersonChatContext {
         : !openMatters.isEmpty() ? UndertakingMode.OPEN_MATTER
         : opensACommitment(playerLine) ? UndertakingMode.NEW_MATTER
         : UndertakingMode.NONE;
-    if (proposesChange) {
+    if (discussesPlanning) {
       // Ground a build the player is urging: hand the villager the menu of what the
       // village can actually raise and what each brings, so "build a lumberjack" has a
       // real building to speak to (it fells logs) rather than being taken for a spare
       // worker (a live-chat finding).
-      system.append("Buildings the village could raise, and what each brings: ")
-          .append(com.quzzar.villagelife.village.buildings.UrbanPlanner.buildableCatalogue()).append('\n');
+      system.append("Village planning options right now: ")
+          .append(UrbanPlanner.buildableCatalogue(village)).append('\n');
+    }
+    if (proposesChange) {
       system.append(RULES_REQUEST);
     } else {
       if (mode == UndertakingMode.OPEN_MATTER) {
@@ -543,38 +465,23 @@ public final class PersonChatContext {
     StringBuilder user = new StringBuilder();
     List<Turn> transcript = withoutRepeats(history);
     if (!transcript.isEmpty()) {
-      user.append("Conversation so far:\n");
+      user.append("Conversation so far. Your earlier answers are dialogue, not authoritative world facts; "
+          + "the current briefing above overrides them:\n");
       for (Turn turn : transcript) {
         user.append(playerName).append(" said: \"").append(turn.playerLine()).append("\"\n");
-        user.append("You answered: \"").append(turn.villagerLine()).append("\"\n");
+        String groundedAnswer = ConversationMemoryPrompt.withoutVolatileWorldState(turn.villagerLine());
+        if (!groundedAnswer.isBlank()) {
+          user.append("You answered: \"").append(groundedAnswer).append("\"\n");
+        } else if (turn.villagerLine() != null && !turn.villagerLine().isBlank()) {
+          user.append("Your earlier answer discussed mutable village state; disregard it and use the current "
+              + "briefing.\n");
+        }
       }
     }
     user.append(playerName).append(" says: \"").append(playerLine).append("\"\nYour JSON answer:");
 
     return new AssembledChat(system.toString(), user.toString(),
         proposesChange ? withRequestExamples() : examplesFor(mode));
-  }
-
-  private static String tierName(Village village) {
-    String id = village.getTierId();
-    int colon = id.indexOf(':');
-    return (colon >= 0 ? id.substring(colon + 1) : id);
-  }
-
-  private static String situationLine(Village village) {
-    VillageAttractiveness attractiveness = village.getAttractiveness();
-    StringBuilder line = new StringBuilder();
-    if (attractiveness != null) {
-      switch (attractiveness.status()) {
-        case GROWING -> line.append("Times are decent and new folk keep arriving.");
-        case HOLDING -> line.append("Times are steady, neither good nor bad.");
-        case DECLINING -> line.append("Times are hard and people talk of leaving.");
-      }
-    }
-    // TODO: mention notable recent bookkeeper events (deaths, attacks) once
-    // VillageBrain exposes the bookkeeper — its file is claimed by the
-    // campfire-implementation lane right now.
-    return line.toString();
   }
 
   /** What's in their hands — held items live outside the pockets inventory. */
@@ -674,6 +581,31 @@ public final class PersonChatContext {
         .toString();
   }
 
+  /** Where this resident actually sleeps, including dependent and live-in housing. */
+  private static String personalHousingLine(RealPerson person) {
+    Village village = person.getVillage();
+    if (village == null) {
+      return "You have no village home or bed.";
+    }
+    Building dependentHome = village.dependentHome(person);
+    if (dependentHome != null && dependentHome.getInfo() != null) {
+      return "You live in your parents' " + dependentHome.getInfo().displayLabel()
+          + " as a dependent and do not claim a separate bed yet.";
+    }
+    var bed = village.getBedAssignment(person.getUUID());
+    if (bed == null) {
+      return "You have no bed and stay awake by the village fire at night.";
+    }
+    Building home = village.getBuilding(bed.getBuildingUUID());
+    String label = home != null && home.getInfo() != null ? home.getInfo().displayLabel() : "village home";
+    var job = village.getJobAssignment(person.getUUID());
+    if (job != null && village.sleepsInReservedBedAt(person.getUUID(), job.getBuildingUUID())) {
+      return "You sleep in the live-in bed at your " + label
+          + "; that bed is reserved for whoever holds your current post.";
+    }
+    return "Your assigned bed is in a " + label + ".";
+  }
+
   /**
    * Whether this villager is married and to whom (docs/marriage.md). Who is
    * married to whom is the pair edge's to hold, so the spouse is read from the
@@ -763,19 +695,6 @@ public final class PersonChatContext {
     return line.toString();
   }
 
-  /**
-   * The full recipe as "104 cobblestone, 8 iron ingot", for the goal briefing.
-   * Each line is spoken as what pays for it ({@link Materials#describe}): a
-   * log cost is "logs", since any wood the village has will do.
-   */
-  private static String joinCosts(List<ItemStack> costs) {
-    List<String> parts = new ArrayList<>();
-    for (ItemStack cost : costs) {
-      parts.add(cost.getCount() + " " + Materials.describe(cost.getItem()));
-    }
-    return String.join(", ", parts);
-  }
-
   private static String pickupSummary(RealPerson person, PersonalLogData log, int limit) {
     List<String> parts = new ArrayList<>();
     for (PersonalLogData.Entry entry : log.pickupsNewestFirst()) {
@@ -816,9 +735,9 @@ public final class PersonChatContext {
     return String.join(" ", parts);
   }
 
-  private static String issueSummary(PersonalLogData log, int limit) {
+  private static String memorySummary(PersonalLogData log, int limit) {
     List<String> parts = new ArrayList<>();
-    for (PersonalLogData.Entry entry : log.issuesNewestFirst()) {
+    for (PersonalLogData.Entry entry : log.memoriesNewestFirst()) {
       if (parts.size() >= limit) {
         break;
       }

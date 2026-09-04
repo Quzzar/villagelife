@@ -19,6 +19,7 @@ import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.buildings.BuildingInfo;
 import com.quzzar.villagelife.village.buildings.Buildings;
+import com.quzzar.villagelife.village.buildings.ConstructionQuote;
 import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.VillageGoal;
@@ -155,12 +156,14 @@ public final class StashOffer {
     StructureInProgress project = village.getCurrentProject();
     if (project != null && project.isGathering()) {
       BuildingInfo built = project.getBuilding().getInfo();
-      needs.add(need("building", built, Materials.describeShortfall(stock, built.getMaterialCost())));
+      needs.add(need("building", built,
+          ConstructionQuote.capture(village, built, stock).describeMissing()));
     }
     String goal = VillageGoal.current(village);
     BuildingInfo wanted = goal == null ? null : Buildings.getByName(goal);
     if (wanted != null) {
-      needs.add(need("saving to build", wanted, Materials.describeShortfall(stock, wanted.getMaterialCost())));
+      needs.add(need("saving to build", wanted,
+          ConstructionQuote.capture(village, wanted, stock).describeMissing()));
     }
     if (needs.isEmpty()) {
       return "The village is not short of anything for a build tonight.";

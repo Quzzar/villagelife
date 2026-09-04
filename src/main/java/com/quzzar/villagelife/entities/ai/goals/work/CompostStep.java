@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.LocationManager;
+import com.quzzar.villagelife.village.WorkArea;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -54,7 +55,11 @@ public final class CompostStep implements BlockWorkStep {
     if (station.equals(BlockPos.ZERO)) {
       return null;
     }
-    BlockPos composter = findComposter(person, station);
+    WorkArea area = LocationManager.getJobWorkArea(person);
+    if (area == null) {
+      return null;
+    }
+    BlockPos composter = findComposter(person, station, area);
     if (composter == null) {
       return null;
     }
@@ -138,12 +143,15 @@ public final class CompostStep implements BlockWorkStep {
 
   /** The farm's own composter, wherever the structure put it. */
   @Nullable
-  private BlockPos findComposter(RealPerson person, BlockPos around) {
+  private BlockPos findComposter(RealPerson person, BlockPos around, WorkArea area) {
     BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
     for (int x = -STATION_RADIUS; x <= STATION_RADIUS; ++x) {
       for (int y = -2; y <= 2; ++y) {
         for (int z = -STATION_RADIUS; z <= STATION_RADIUS; ++z) {
           cursor.setWithOffset(around, x, y, z);
+          if (!area.contains(cursor.getX(), cursor.getY(), cursor.getZ())) {
+            continue;
+          }
           if (person.level().getBlockState(cursor).is(Blocks.COMPOSTER)) {
             return cursor.immutable();
           }

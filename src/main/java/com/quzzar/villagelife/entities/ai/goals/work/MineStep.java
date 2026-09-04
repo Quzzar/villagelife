@@ -4,7 +4,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -810,7 +809,7 @@ public final class MineStep implements BlockWorkStep {
       return; // floored in the meantime (water sealed it, another pass laid it)
     }
     if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
-      person.logIssue("I ran out of cobblestone to floor the cave in my mine", Optional.empty());
+      person.logBlocker("I ran out of cobblestone to floor the cave in my mine");
       resetShaft();
       return;
     }
@@ -841,7 +840,7 @@ public final class MineStep implements BlockWorkStep {
       return; // sealed in the meantime
     }
     if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
-      person.logIssue("I ran out of cobblestone to wall off the cave in my mine", Optional.empty());
+      person.logBlocker("I ran out of cobblestone to wall off the cave in my mine");
       resetShaft();
       return;
     }
@@ -1187,7 +1186,7 @@ public final class MineStep implements BlockWorkStep {
           continue;
         }
         if (person.removeItem(Items.COBBLESTONE, 1).getCount() != 1) {
-          person.logIssue("I ran out of cobblestone to seal the water in my mine", Optional.empty());
+          person.logBlocker("I ran out of cobblestone to seal the water in my mine");
           Villagelife.LOGGER.info("[mine] {} ran out of cobblestone bailing the shaft at {} ({} cleared, {} sealed)",
               person.getName().getString(), face.toShortString(), cleared, sealed);
           resetShaft();
@@ -1421,9 +1420,9 @@ public final class MineStep implements BlockWorkStep {
 
   private void logObstacle(RealPerson person) {
     if (this.block == Blocks.LAVA) {
-      person.logIssue("lava is blocking my mine - I could seal it off if I had a bucket", Optional.empty());
+      person.logBlocker("lava is blocking my mine - I could seal it off if I had a bucket");
     } else if (this.block == Blocks.WATER) {
-      person.logIssue("water keeps flooding my mine - a bucket would let me seal it", Optional.empty());
+      person.logBlocker("water keeps flooding my mine - a bucket would let me seal it");
     }
   }
 

@@ -13,15 +13,17 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 
 /**
- * Walks a villager to their own bed at night and lies them in it.
+ * Walks a villager to their nighttime accommodation. Adults lie in their own
+ * bed; dependent children rest inside a parent's home without occupying it.
  *
- * <p>Bed-ONLY by decision (Aaron, 2026-08-31): a villager with no bed does not
- * sleep. The bedless used to doze in a loose ring around the campfire, but the
+ * <p>An unhoused villager does not sleep. The bedless used to doze in a loose
+ * ring around the campfire, but the
  * rest spot was the gathering point itself, so villagers lay down in and
  * against the lit fire and the lie-down glitched endlessly (a842efc fought one
  * such loop). Now they simply stay up by the fire until the village houses
- * them. Employment already depends on housing (the bed gate in JobClaiming),
- * so the night crowd standing at the fire is exactly the unhoused idle, and a
+ * them. A child with a valid dependent home is not bedless: it rests in that
+ * household without claiming a bed. Employment depends on accommodation (the
+ * housing gate in JobClaiming), so the night crowd standing at the fire is the unhoused idle, and a
  * villager sleeping badly is a villager whose village needs to build.
  */
 public class SleepAtNightGoal extends Goal {
@@ -42,13 +44,13 @@ public class SleepAtNightGoal extends Goal {
     // was ZERO for life and the villager stood at the campfire all night
     // without ever resting (1d4523f).
     return person.level().isNight()
-        && !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
+        && !LocationManager.getNightRestLocation(person).equals(BlockPos.ZERO);
   }
 
   @Override
   public boolean canContinueToUse() {
     return person.level().isNight()
-        && !LocationManager.getBedLocation(person).equals(BlockPos.ZERO);
+        && !LocationManager.getNightRestLocation(person).equals(BlockPos.ZERO);
   }
 
   @Override
@@ -64,13 +66,15 @@ public class SleepAtNightGoal extends Goal {
 
   @Override
   public void tick() {
-    BlockPos bed = LocationManager.getBedLocation(person);
-    if (bed.equals(BlockPos.ZERO)) {
-      return; // the bed vanished mid-night; canContinueToUse ends the goal
+    BlockPos rest = LocationManager.getNightRestLocation(person);
+    if (rest.equals(BlockPos.ZERO)) {
+      return; // their accommodation vanished mid-night; canContinueToUse ends the goal
     }
     // A bed points at its foot; sleep in the HEAD half or the villager lies
     // half off the block with its feet in the air.
-    BlockPos target = bedHead(bed);
+    BlockPos bed = LocationManager.getBedLocation(person);
+    boolean hasOwnBed = !bed.equals(BlockPos.ZERO);
+    BlockPos target = hasOwnBed ? bedHead(bed) : rest;
 
     if (!person.isSleeping()) {
       if (target.distSqr(person.blockPosition()) <= 4.0D) {
@@ -79,7 +83,9 @@ public class SleepAtNightGoal extends Goal {
         // the bed all night.
         person.getNavigation().stop();
         person.noteSlept();
-        person.startSleeping(target);
+        if (hasOwnBed) {
+          person.startSleeping(target);
+        }
       } else if (!person.getNavigation().isInProgress()) {
         person.getNavigation().moveTo(target.getX(), target.getY(), target.getZ(), 0.5D);
       }

@@ -1,7 +1,5 @@
 package com.quzzar.villagelife.entities.ai.goals;
 
-import java.util.Optional;
-
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 
@@ -65,6 +63,7 @@ public final class ApproachWatch {
 
   /** Call on arrival: getting there clears the record of failed attempts. */
   public void arrived() {
+    person.clearBlocker(blockerText());
     consecutiveGiveUps = 0;
     begin();
   }
@@ -85,7 +84,7 @@ public final class ApproachWatch {
       return false;
     }
 
-    person.logIssue("I cannot get to " + work + ".", Optional.empty());
+    person.logBlocker(blockerText());
     Villagelife.LOGGER.debug("{} cannot reach {} at {} and is standing down",
         person.getFullName(), work, target.toShortString());
     standDownUntil = person.tickCount + STAND_DOWN_TICKS;
@@ -102,6 +101,10 @@ public final class ApproachWatch {
       consecutiveGiveUps = 0;
     }
     return true;
+  }
+
+  private String blockerText() {
+    return "I cannot get to " + work + ".";
   }
 
 }

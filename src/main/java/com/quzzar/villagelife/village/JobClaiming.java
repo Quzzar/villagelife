@@ -38,14 +38,14 @@ import net.minecraft.server.level.ServerLevel;
  * decision is in flight per village, mirroring the project planner. The swap
  * pass stays purely rule-based. Runs from {@link Village#update}.
  *
- * <p>Employment requires housing (Aaron, 2026-08-31): a post can only be held
- * by someone with a bed. Claiming and the swap pass skip a bedless candidate
+ * <p>Employment requires nighttime accommodation: an adult needs a bed, while
+ * a teenager may work from a resident parent's household. Claiming and the swap pass skip a bedless candidate
  * unless the village can house them for THAT post, either from a free general
  * bed or by moving them into the post's own live-in bed
  * ({@code Village.hasFreeGeneralBed}/{@code hasFreeBedIn}); a free bed in some
  * other workplace is reserved for that building and does not count.
  * {@link #releaseUnhousedWorkers} stands down a worker the village can no longer
- * house. Workstations that carry live-in beds (the lumberjack hut, the
+ * accommodate. Workstations that carry live-in beds (the lumberjack hut, the
  * watchtower, the upper blacksmith, the church) reserve that bed for their own
  * worker: general housing never takes it ({@code Village.isReservedWorkplaceBed}),
  * so the post the bed exists to staff can always claim it, and
@@ -79,9 +79,38 @@ public final class JobClaiming {
       registerMissingBeds(village);
     }
     releaseOrphanedWorkers(village, level);
+    releaseAgeIneligibleWorkers(village, level);
     releaseUnhousedWorkers(village, level);
     claimOpenJobs(village, level);
     maybeRunSwapPass(village, level);
+  }
+
+  /**
+   * Toddlers and kids cannot retain a stale assignment. Teenagers are the
+   * first work-eligible stage and are deliberately left alone here.
+   */
+  private static void releaseAgeIneligibleWorkers(Village village, ServerLevel level) {
+    for (UUID workerId : village.getJobAssignmentsView().keySet()) {
+      RealPerson person = village.getPerson(level, workerId);
+      if (person != null && !person.getLifeStage().canWork()) {
+        standDownForAge(village, person);
+      }
+    }
+  }
+
+  /** Shared by natural growth repair and development-stage overrides. */
+  public static void standDownForAge(Village village, RealPerson person) {
+    JobAssignment released = village.releaseJob(person.getUUID());
+    if (released == null) {
+      return;
+    }
+    village.getUnassignedJobs().add(released);
+    person.setOccupation(Occupation.WANDERER);
+    person.setTravelTarget(null);
+    person.reloadState();
+    Villagelife.LOGGER.info("{} stood down from the {} job in '{}': {} cannot work",
+        person.getFullName(), released.getOccupation(), village.getName(),
+        person.getLifeStage().name().toLowerCase(Locale.ROOT));
   }
 
   /**
@@ -243,26 +272,25 @@ public final class JobClaiming {
    * when they next load.
    */
   private static void releaseUnhousedWorkers(Village village, ServerLevel level) {
-    Map<UUID, BedAssignment> beds = village.getBedAssignmentsView();
     for (Map.Entry<UUID, JobAssignment> entry : village.getJobAssignmentsView().entrySet()) {
       UUID workerId = entry.getKey();
-      if (beds.containsKey(workerId)) {
-        continue;
-      }
-      if (village.hasFreeGeneralBed() || village.hasFreeBedIn(entry.getValue().getBuildingUUID())) {
+      if (village.canHouseForJob(workerId, entry.getValue().getBuildingUUID())) {
         continue; // housable this tick; reconcile or assignment will seat them
+      }
+      RealPerson person = village.getPerson(level, workerId);
+      if (person != null && village.hasDependentHome(person)) {
+        continue; // a working teenager's family home is valid housing
       }
       JobAssignment released = village.releaseJob(workerId);
       if (released == null) {
         continue;
       }
       village.getUnassignedJobs().add(released);
-      RealPerson person = village.getPerson(level, workerId);
       if (person != null) {
         person.setOccupation(Occupation.WANDERER);
         person.setTravelTarget(null);
         person.reloadState();
-        person.logIssue("I gave up the " + released.getOccupation().name().toLowerCase(Locale.ROOT)
+        person.logMemory("I gave up the " + released.getOccupation().name().toLowerCase(Locale.ROOT)
             + " work; there is no bed for me in this village.", Optional.empty());
       }
       Villagelife.LOGGER.info("{} stood down from the {} job in '{}': no bed for them",
@@ -345,16 +373,14 @@ public final class JobClaiming {
     // can house them, either from a free general bed or by moving them into this
     // workplace's own live-in bed (Village.assignJob seats them). A free bed in
     // some OTHER workplace does not count: it is reserved for that building.
-    boolean canHouseHere = village.hasFreeGeneralBed() || village.hasFreeBedIn(job.getBuildingUUID());
-    Map<UUID, BedAssignment> beds = village.getBedAssignmentsView();
     List<Applicant> applicants = new ArrayList<>();
     for (UUID idleId : village.idlePeople()) {
-      if (!canHouseHere && !beds.containsKey(idleId)) {
-        continue; // employment requires housing, and there is none for them
-      }
       RealPerson person = village.getPerson(level, idleId);
-      if (person == null) {
+      if (person == null || !person.getLifeStage().canWork()) {
         continue; // not loaded right now; the next pass will see them
+      }
+      if (!village.canHouseForJob(person, job.getBuildingUUID())) {
+        continue;
       }
       applicants.add(new Applicant(person, JobAptitudes.score(person.getStatBlock(), job.getOccupation())));
     }
@@ -453,11 +479,11 @@ public final class JobClaiming {
       Applicant applicant) {
     UUID id = applicant.person().getUUID();
     RealPerson person = village.getPerson(level, id);
-    if (person == null || village.getJobAssignment(id) != null || !person.getOccupation().isIdle()) {
+    if (person == null || village.getJobAssignment(id) != null || !person.getOccupation().isIdle()
+        || !person.getLifeStage().canWork()) {
       return null;
     }
-    boolean housed = village.getBedAssignmentsView().containsKey(id);
-    if (!housed && !village.hasFreeGeneralBed() && !village.hasFreeBedIn(job.getBuildingUUID())) {
+    if (!village.canHouseForJob(person, job.getBuildingUUID())) {
       return null; // housing for them went away while the brain deliberated; not seatable now
     }
     return person;
@@ -535,8 +561,6 @@ public final class JobClaiming {
     long now = level.getGameTime();
 
     Map<UUID, JobAssignment> assignments = village.getJobAssignmentsView();
-    Map<UUID, BedAssignment> beds = village.getBedAssignmentsView();
-
     // A) A markedly better-suited idle person takes over a worker's job.
     for (Map.Entry<UUID, JobAssignment> entry : assignments.entrySet()) {
       UUID workerId = entry.getKey();
@@ -549,10 +573,10 @@ public final class JobClaiming {
         continue;
       }
       double workerScore = JobAptitudes.score(worker.getStatBlock(), job.getOccupation());
-      // The housing gate, same as claiming: a bedless challenger can take over
-      // this post only if the village can house them (the displaced worker keeps
-      // their own bed), either from general housing or this workplace's own bed.
-      boolean canHouseChallenger = village.hasFreeGeneralBed() || village.hasFreeBedIn(job.getBuildingUUID());
+      // Releasing the current worker also releases this workplace's live-in bed.
+      // Count that imminent opening when deciding whether a challenger can be
+      // housed after the takeover.
+      boolean postBedWillOpen = village.sleepsInReservedBedAt(workerId, job.getBuildingUUID());
 
       RealPerson challenger = null;
       double challengerScore = workerScore;
@@ -560,11 +584,15 @@ public final class JobClaiming {
         if (isOnCooldown(village, idleId, now)) {
           continue;
         }
-        if (!canHouseChallenger && !beds.containsKey(idleId)) {
+        RealPerson candidate = village.getPerson(level, idleId);
+        if (candidate == null || !candidate.getLifeStage().canWork()) {
           continue;
         }
-        RealPerson candidate = village.getPerson(level, idleId);
-        if (candidate == null) {
+        if (candidate.getLifeStage().isDependentlyHoused()) {
+          if (!village.hasDependentHome(candidate)) {
+            continue; // a teenager works from family housing, never a workplace bed
+          }
+        } else if (!postBedWillOpen && !village.canHouseForJob(candidate, job.getBuildingUUID())) {
           continue;
         }
         double score = JobAptitudes.score(candidate.getStatBlock(), job.getOccupation());
@@ -586,7 +614,7 @@ public final class JobClaiming {
       worker.setOccupation(Occupation.WANDERER);
       worker.setTravelTarget(null);
       worker.reloadState();
-      worker.logIssue("Lost the " + released.getOccupation().name().toLowerCase() + " job to "
+      worker.logMemory("Lost the " + released.getOccupation().name().toLowerCase() + " job to "
           + challenger.getFullName() + "; the village decided they were better suited.",
           java.util.Optional.of(challenger.getUUID()));
       markCooldown(village, workerId, now);

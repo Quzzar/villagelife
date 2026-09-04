@@ -99,7 +99,7 @@ public final class LaborPlanner {
     if (vacancy == null) {
       return;
     }
-    List<RealPerson> crew = movableWorkers(village, level, vacancy.getOccupation());
+    List<RealPerson> crew = movableWorkers(village, level, vacancy);
     if (crew.isEmpty()) {
       return;
     }
@@ -132,12 +132,12 @@ public final class LaborPlanner {
    * (the same per-person cooldown the aptitude swap pass respects,
    * {@link JobClaiming#isOnCooldown}).
    */
-  private static List<RealPerson> movableWorkers(Village village, ServerLevel level, Occupation wanted) {
+  private static List<RealPerson> movableWorkers(Village village, ServerLevel level, JobAssignment vacancy) {
     long now = level.getGameTime();
     List<RealPerson> crew = new ArrayList<>();
     for (var entry : village.getJobAssignmentsView().entrySet()) {
       Occupation occupation = entry.getValue().getOccupation();
-      if (occupation == wanted) {
+      if (occupation == vacancy.getOccupation()) {
         continue;
       }
       if (ALWAYS_STAFFED.contains(occupation) && countOf(village, occupation) <= 1) {
@@ -145,6 +145,9 @@ public final class LaborPlanner {
       }
       if (JobClaiming.isOnCooldown(village, entry.getKey(), now)) {
         continue; // recently placed, swapped, or displaced: let them settle
+      }
+      if (!village.canHouseForJob(entry.getKey(), vacancy.getBuildingUUID())) {
+        continue; // their current workplace bed cannot follow them to this post
       }
       RealPerson worker = village.getPerson(level, entry.getKey());
       if (worker != null) {
@@ -234,7 +237,7 @@ public final class LaborPlanner {
       return;
     }
     JobAssignment post = openFoodPost(village);
-    if (post == null) {
+    if (post == null || !village.canHouseForJob(worker.getUUID(), post.getBuildingUUID())) {
       return;
     }
     Occupation from = worker.getOccupation();
@@ -245,7 +248,7 @@ public final class LaborPlanner {
     village.assignJob(worker.getUUID(), post);
     JobClaiming.startJob(village, worker, post);
     JobClaiming.markCooldown(village, worker.getUUID(), level.getGameTime());
-    worker.logIssue("Moved off " + from.name().toLowerCase() + " to work as the " + field
+    worker.logMemory("Moved off " + from.name().toLowerCase() + " to work as the " + field
         + "; the village needed the food more.", Optional.empty());
     Villagelife.LOGGER.info("'{}' moved '{}' from {} to {} to feed the village: {}",
         village.getName(), worker.getFullName(), from, post.getOccupation(), decision.reason());

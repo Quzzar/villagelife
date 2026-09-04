@@ -21,6 +21,7 @@ import com.quzzar.villagelife.networking.OpenPersonChatPacket;
 import com.quzzar.villagelife.village.LocationManager;
 import com.quzzar.villagelife.village.PersonalChest;
 import com.quzzar.villagelife.village.CompanionPets;
+import com.quzzar.villagelife.village.JobClaiming;
 import com.quzzar.villagelife.village.Occupation;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.VillageManager;
@@ -249,6 +250,13 @@ public class RealPerson extends Person {
    * when single. Set on both sides at {@link #marry}.
    */
   private String spouseUuid = "";
+
+  /** Parentage travels with the person, independent of any village's relationship graph. */
+  private String firstParentUuid = "";
+  private String secondParentUuid = "";
+
+  /** Adults crossing out of dependent housing receive first claim on the next general bed. */
+  private boolean awaitingAdultHome;
 
   /** Ticks a wandering merchant has left before it packs up and leaves, vanilla-trader style. */
   private int merchantDespawnCountdown = 0;
@@ -593,6 +601,9 @@ public class RealPerson extends Person {
     this.entityData.set(WANDERING_MERCHANT, compound.getBoolean("WanderingMerchant"));
     this.sourceVillageUuid = compound.getString("SourceVillageUUID");
     this.spouseUuid = compound.getString("SpouseUUID");
+    this.firstParentUuid = compound.getString("FirstParentUUID");
+    this.secondParentUuid = compound.getString("SecondParentUUID");
+    this.awaitingAdultHome = compound.getBoolean("AwaitingAdultHome");
     this.merchantDespawnCountdown = compound.getInt("MerchantDespawnCountdown");
     this.wanderingStock = compound.contains("WanderingStock")
         ? com.quzzar.villagelife.economy.EconomySnapshot.load(compound.getCompound("WanderingStock"))
@@ -647,6 +658,13 @@ public class RealPerson extends Person {
     if (!this.spouseUuid.isEmpty()) {
       compound.putString("SpouseUUID", this.spouseUuid);
     }
+    if (!this.firstParentUuid.isEmpty()) {
+      compound.putString("FirstParentUUID", this.firstParentUuid);
+    }
+    if (!this.secondParentUuid.isEmpty()) {
+      compound.putString("SecondParentUUID", this.secondParentUuid);
+    }
+    compound.putBoolean("AwaitingAdultHome", this.awaitingAdultHome);
     compound.putInt("MerchantDespawnCountdown", this.merchantDespawnCountdown);
     if (this.wanderingStock != null) {
       compound.put("WanderingStock", this.wanderingStock.save());
@@ -799,19 +817,23 @@ public class RealPerson extends Person {
     }
     BlockPos depositTo = LocationManager.getJobLocation(this);
     for (SignatureGear.Piece piece : SignatureGear.of(getOccupation())) {
+      String name = StashOffer.plain(piece.item());
+      String blocker = "I have no " + name + " to keep at hand";
       if (!getItemBySlot(piece.slot()).isEmpty()) {
+        clearBlocker(blocker);
         continue;
       }
       if (drawSignatureGearFromPack(piece)) {
+        clearBlocker(blocker);
         continue;
       }
       ItemStack got = gatherForWork(piece.fresh().get(), depositTo);
       if (!got.isEmpty()) {
         setItemSlot(piece.slot(), got);
+        clearBlocker(blocker);
         continue;
       }
-      String name = StashOffer.plain(piece.item());
-      logIssue("I have no " + name + " to keep at hand", Optional.empty());
+      logBlocker(blocker);
       Villagelife.LOGGER.info("'{}' has no {} to keep in hand and the stores hold none",
           getFullName(), name);
     }
@@ -959,6 +981,39 @@ public class RealPerson extends Person {
     return !this.spouseUuid.isEmpty();
   }
 
+  /** Records the two people whose household supports this child while growing. */
+  public void setParents(RealPerson firstParent, RealPerson secondParent) {
+    this.firstParentUuid = firstParent.getUUID().toString();
+    this.secondParentUuid = secondParent.getUUID().toString();
+  }
+
+  /** The readable parent UUIDs, with stale hand-edited values ignored. */
+  public List<UUID> getParentIds() {
+    List<UUID> parents = new ArrayList<>(2);
+    addUuidIfValid(parents, firstParentUuid);
+    addUuidIfValid(parents, secondParentUuid);
+    return List.copyOf(parents);
+  }
+
+  private static void addUuidIfValid(List<UUID> ids, String value) {
+    if (value == null || value.isBlank()) {
+      return;
+    }
+    try {
+      ids.add(UUID.fromString(value));
+    } catch (IllegalArgumentException ignored) {
+      // Stale or hand-edited parentage degrades to an unknown parent.
+    }
+  }
+
+  public boolean isAwaitingAdultHome() {
+    return awaitingAdultHome;
+  }
+
+  public void markAdultHomeAssigned() {
+    this.awaitingAdultHome = false;
+  }
+
   /**
    * Of a married pair on the road, the one who walks the day's heading; the other
    * follows them ({@code FollowSpouseGoal}). A single wanderer leads themselves.
@@ -1059,6 +1114,15 @@ public class RealPerson extends Person {
    * the occupation for everyone.
    */
   public String getRoleLabel() {
+    AgeStage lifeStage = getLifeStage();
+    if (lifeStage == AgeStage.TODDLER || lifeStage == AgeStage.KID) {
+      return lifeStage.ageLabel();
+    }
+    if (lifeStage == AgeStage.TEENAGER) {
+      return getOccupation().isIdle()
+          ? lifeStage.ageLabel()
+          : Utils.capitalize(getOccupation().name().toLowerCase());
+    }
     String title = getTitle();
     if (!title.isBlank()) {
       return title;
@@ -1067,6 +1131,23 @@ public class RealPerson extends Person {
       return "Wandering Merchant";
     }
     return Utils.capitalize(getOccupation().name().toLowerCase());
+  }
+
+  @Override
+  protected void onLifeStageChanged(AgeStage previous, AgeStage current) {
+    super.onLifeStageChanged(previous, current);
+    if (current.isDependentlyHoused()) {
+      this.awaitingAdultHome = false;
+    } else if (previous.isDependentlyHoused() && current == AgeStage.ADULT) {
+      this.awaitingAdultHome = true;
+    }
+    if (this.level().isClientSide) {
+      return;
+    }
+    Village village = getVillage();
+    if (!current.canWork() && village != null) {
+      JobClaiming.standDownForAge(village, this);
+    }
   }
 
   /**
@@ -1114,11 +1195,7 @@ public class RealPerson extends Person {
     }
     this.callToBedCoolDown = 100;
 
-    BlockPos headingToLoc = LocationManager.getBedLocation(this);
-    BlockPos depositToLoc = LocationManager.getJobLocation(this);
-    if (headingToLoc.equals(BlockPos.ZERO)) {
-      headingToLoc = depositToLoc;
-    }
+    BlockPos headingToLoc = LocationManager.getNightRestLocation(this);
 
     if (!headingToLoc.equals(BlockPos.ZERO)) {
       this.setInterrupted(true);
@@ -1765,10 +1842,11 @@ public class RealPerson extends Person {
     if (village == null) {
       return;
     }
-    BlockPos bed = LocationManager.getBedLocation(this);
-    boolean hasBed = !bed.equals(BlockPos.ZERO);
-    BlockPos target = hasBed ? bed.above() : village.getGatheringPoint();
-    String where = hasBed ? "their bed" : "the campfire";
+    BlockPos rest = LocationManager.getNightRestLocation(this);
+    boolean hasHome = !rest.equals(BlockPos.ZERO);
+    boolean hasBed = !LocationManager.getBedLocation(this).equals(BlockPos.ZERO);
+    BlockPos target = hasHome ? rest.above() : village.getGatheringPoint();
+    String where = hasBed ? "their bed" : hasHome ? "their family home" : "the campfire";
     if (target.equals(BlockPos.ZERO)) {
       return; // no town center either: nowhere to bring them
     }

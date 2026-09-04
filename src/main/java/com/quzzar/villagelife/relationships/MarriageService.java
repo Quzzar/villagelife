@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.MarriageStatus;
+import com.quzzar.villagelife.entities.AgeStage;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.llm.LlmService;
 import com.quzzar.villagelife.village.MarriageProposals;
@@ -87,7 +88,8 @@ public final class MarriageService {
     int time = village.getVillageTime();
     for (UUID id : village.getPopulation()) {
       RealPerson person = village.getPerson(level, id);
-      if (person == null || person.getMarriageStatus() != MarriageStatus.SINGLE) {
+      if (person == null || person.getLifeStage() != AgeStage.ADULT
+          || person.getMarriageStatus() != MarriageStatus.SINGLE) {
         continue;
       }
       UUID chosen = strongestEligiblePartner(village, level, id);
@@ -112,7 +114,8 @@ public final class MarriageService {
         continue;
       }
       RealPerson other = village.getPerson(level, otherId);
-      if (other == null || other.getMarriageStatus() != MarriageStatus.SINGLE) {
+      if (other == null || other.getLifeStage() != AgeStage.ADULT
+          || other.getMarriageStatus() != MarriageStatus.SINGLE) {
         continue;
       }
       if (pair.value() > bestValue) {
@@ -141,7 +144,9 @@ public final class MarriageService {
     }
     RealPerson a = village.getPerson(level, couple[0]);
     RealPerson b = village.getPerson(level, couple[1]);
-    if (a == null || b == null) {
+    if (a == null || b == null
+        || a.getLifeStage() != AgeStage.ADULT
+        || b.getLifeStage() != AgeStage.ADULT) {
       return;
     }
     String situation = decisionSituation(village, a, b, village.getRelationship(couple[0], couple[1]));
@@ -188,6 +193,8 @@ public final class MarriageService {
     RealPerson a = village.getPerson(level, idA);
     RealPerson b = village.getPerson(level, idB);
     if (a == null || b == null
+        || a.getLifeStage() != AgeStage.ADULT
+        || b.getLifeStage() != AgeStage.ADULT
         || a.getMarriageStatus() != MarriageStatus.SINGLE
         || b.getMarriageStatus() != MarriageStatus.SINGLE) {
       village.setMarriageDecisionPending(false);
@@ -220,6 +227,8 @@ public final class MarriageService {
       RealPerson pa = village.getPerson(level, a);
       RealPerson pb = village.getPerson(level, b);
       if (pa == null || pb == null
+          || pa.getLifeStage() != AgeStage.ADULT
+          || pb.getLifeStage() != AgeStage.ADULT
           || pa.getMarriageStatus() != MarriageStatus.SINGLE
           || pb.getMarriageStatus() != MarriageStatus.SINGLE) {
         continue;
@@ -262,6 +271,8 @@ public final class MarriageService {
     RealPerson a = village.getPerson(level, idA);
     RealPerson b = village.getPerson(level, idB);
     if (a == null || b == null
+        || a.getLifeStage() != AgeStage.ADULT
+        || b.getLifeStage() != AgeStage.ADULT
         || a.getMarriageStatus() != MarriageStatus.SINGLE
         || b.getMarriageStatus() != MarriageStatus.SINGLE) {
       return;
