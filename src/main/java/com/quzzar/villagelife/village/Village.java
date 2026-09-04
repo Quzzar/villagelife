@@ -34,6 +34,7 @@ import com.quzzar.villagelife.village.buildings.SitePreparation;
 import com.quzzar.villagelife.village.buildings.StructureInProgress;
 import com.quzzar.villagelife.village.buildings.WallProject;
 import com.quzzar.villagelife.village.buildings.WallRaiser;
+import com.quzzar.villagelife.village.buildings.WallRoute;
 import com.quzzar.villagelife.village.buildings.WallTier;
 import com.quzzar.villagelife.village.buildings.UrbanPlanner;
 import com.quzzar.villagelife.village.buildings.VillageStyle;
@@ -1104,8 +1105,8 @@ public class Village {
     }
     wallProject = new WallProject(new ArrayList<>(ring), new HashSet<>(gates),
         new ArrayList<>(ground), tier);
-    Villagelife.LOGGER.info("Village '{}' raises a {} wall around itself: {} segments",
-        name, tier.name().toLowerCase(), ring.size());
+    Villagelife.LOGGER.info("Village '{}' raises a {} wall around itself: {} sections, {} route blocks",
+        name, tier.name().toLowerCase(), wallProject.sectionCount(), ring.size());
     return true;
   }
 
@@ -1125,29 +1126,14 @@ public class Village {
     }
     List<Integer> ground =
         WallRaiser.groundProfile(level, ring);
-    for (int i = 0; i < ring.size(); i++) {
-      long column = ring.get(i);
-      int x = BlockPos.getX(column);
-      int z = BlockPos.getZ(column);
-      boolean gate = gates.contains(column);
-      int base = ground.get(i);
-      int floor = WallRaiser.seamFloor(ground, i);
-      int[] range = WallRaiser.segmentRange(level, x, z, tier, gate, base, floor);
-      if (range != null) {
-        List<Integer> missing = WallRaiser.missingHeights(level, x, z, range, tier, gate);
-        WallRaiser.place(level, x, z, missing, tier);
-        if (gate && getTownCenter() != null) {
-          WallRaiser.placeGateDoor(level, x, z, range[2],
-              WallRaiser.gateFacing(x, z,
-                  BlockPos.of(getTownCenter().getCenterLocation())));
-        }
-      }
-    }
+    WallProject preview = new WallProject(new ArrayList<>(ring), new HashSet<>(gates),
+        new ArrayList<>(ground), tier);
+    int placed = WallRaiser.placeAll(level, preview);
     wallProject = WallProject.completed(new ArrayList<>(ring), new HashSet<>(gates),
         new ArrayList<>(ground), tier);
-    Villagelife.LOGGER.info("Village '{}' ringed with a {} wall (dev): {} segments",
-        name, tier.name().toLowerCase(), ring.size());
-    return ring.size();
+    Villagelife.LOGGER.info("Village '{}' ringed with a {} wall (dev): {} sections, {} blocks placed",
+        name, tier.name().toLowerCase(), preview.sectionCount(), placed);
+    return preview.sectionCount();
   }
 
   /**
@@ -1182,20 +1168,7 @@ public class Village {
     int x1 = claimMaxX + padding;
     int z0 = claimMinZ - padding;
     int z1 = claimMaxZ + padding;
-    List<Long> ring = new ArrayList<>();
-    for (int x = x0; x <= x1; x++) {
-      ring.add(BlockPos.asLong(x, 0, z0)); // north edge, west to east
-    }
-    for (int z = z0 + 1; z <= z1; z++) {
-      ring.add(BlockPos.asLong(x1, 0, z)); // east edge, north to south
-    }
-    for (int x = x1 - 1; x >= x0; x--) {
-      ring.add(BlockPos.asLong(x, 0, z1)); // south edge, east to west
-    }
-    for (int z = z1 - 1; z > z0; z--) {
-      ring.add(BlockPos.asLong(x0, 0, z)); // west edge, south to north
-    }
-    return ring;
+    return WallRoute.aroundBox(x0, x1, z0, z1);
   }
 
   /** A gateway at the midpoint of each edge, so every side of the town has a way in. */

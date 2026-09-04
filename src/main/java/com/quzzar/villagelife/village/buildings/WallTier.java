@@ -13,8 +13,8 @@ import net.minecraft.world.level.block.Blocks;
  */
 public enum WallTier {
 
-  WOOD(Blocks.OAK_LOG, Items.OAK_LOG, 3, false),
-  STONE(Blocks.STONE_BRICKS, Items.STONE_BRICKS, 5, true);
+  WOOD(Blocks.OAK_LOG, Items.OAK_LOG, 3),
+  STONE(Blocks.STONE_BRICKS, Items.STONE_BRICKS, 5);
 
   /**
    * Wall blocks one item of the material raises. A wall is village-scale work,
@@ -28,13 +28,11 @@ public enum WallTier {
   private final Block block;
   private final Item material;
   private final int height;
-  private final boolean crenellated;
 
-  WallTier(Block block, Item material, int height, boolean crenellated) {
+  WallTier(Block block, Item material, int height) {
     this.block = block;
     this.material = material;
     this.height = height;
-    this.crenellated = crenellated;
   }
 
   /** The block a segment is built from. */
@@ -50,11 +48,6 @@ public enum WallTier {
   /** Solid courses raised above the ground at each column. */
   public int height() {
     return this.height;
-  }
-
-  /** Whether the top is crenellated (a merlon on alternate columns) rather than flat. */
-  public boolean crenellated() {
-    return this.crenellated;
   }
 
   /** The tier a wall of this one upgrades into, or null when it is already the top. */

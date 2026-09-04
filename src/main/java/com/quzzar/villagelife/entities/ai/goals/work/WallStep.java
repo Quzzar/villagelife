@@ -1,15 +1,16 @@
 package com.quzzar.villagelife.entities.ai.goals.work;
 
 import java.util.List;
+
 import javax.annotation.Nullable;
 
 import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
+import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.WallProject;
 import com.quzzar.villagelife.village.buildings.WallRaiser;
-import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.WallTier;
 
 import net.minecraft.core.BlockPos;
@@ -22,81 +23,55 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Path;
 
 /**
- * Raising the village wall (docs/walls.md): a PLACE step that walks a ring and
- * lays a segment at each column, on whatever surface it finds there, so the wall
- * steps with the terrain rather than flattening it.
+ * Builds the village wall one explicit construction cell at a time.
  *
- * The wall is not a {@code StructureInProgress}, so {@link BuildStep} never
- * touches it; this step owns it instead, engaging only while the village has a
- * wall to raise. It is the perimeter analogue of {@link PathStep}: where PathStep
- * wears a path between two buildings as the builder walks, this rings the whole
- * village. The shape of each segment lives in
- * {@link com.quzzar.villagelife.village.buildings.WallRaiser}, shared with the
- * dev command that rings a village at once.
- *
- * <b>Materials ride on the builder's back.</b> A load is fetched from a real
- * chest into the pack, and the ring is walked with it, column by column, until
- * the pack runs dry and the next load is fetched (docs/worker-loops.md,
- * "Nothing teleports"). A wall that outruns the village's timber simply waits
- * at the course it reached until more is cut, and never leaves a half-height
- * gap.
+ * A {@link WallProject} is divided into short, persistent sections. Each builder
+ * leases a different section, walks to its next cell, and places that cell with
+ * one swing. The result grows like a building instead of teleporting a complete
+ * wall column into existence on one right-click.
  */
 public final class WallStep implements BlockWorkStep {
 
-  /** Material carried per fetch trip: a stack, several columns' worth. */
   private static final int LOAD_PER_TRIP = 64;
-
-  /**
-   * Below this many carried, top up before walking the ring: no single column
-   * needs more, so a pack above the line never stalls mid-column.
-   */
   private static final int LOW_WATER = 8;
 
-  /**
-   * Wall blocks already paid for by an item drawn on an earlier column. One
-   * item raises {@link WallTier#BLOCKS_PER_ITEM} blocks and a column rarely
-   * needs a round number, so the remainder carries over. This builder's own
-   * and never saved: a builder swapped mid-ring forfeits at most an item.
-   */
+  /** Paid-for wall cells left from the current abstract material item. */
   private int credit;
-  /** The wall column selected for the loop's current foothold, or null for a chest. */
   @Nullable
-  private Long targetedWallColumn;
+  private WallRaiser.WallWork targetedWork;
 
   @Override
   @Nullable
   public BlockPos select(RealPerson person) {
     Village village = person.getVillage();
     if (village == null || (village.getCurrentProject() != null && person.isConstructionLead())) {
-      return null; // a building project owns the builder; the wall waits its turn
+      return null;
     }
     WallProject wall = village.getWallProject();
     if (wall == null || wall.isComplete()) {
       return null;
     }
-    // Top up below the low-water line so no column stalls mid-height, then walk
-    // the ring with what is carried. A part-load with nothing left in the
-    // chests is still walked out: it may finish a short column.
-    long column = wall.nextColumn();
-    int[] range = WallRaiser.currentSegmentRange(person.level(), wall);
-    int missing = range == null ? 0 : WallRaiser.missingHeights(person.level(),
-        BlockPos.getX(column), BlockPos.getZ(column), range, wall.getTier(), wall.isGate(column))
-        .size();
-    int itemsNeeded = Math.ceilDiv(Math.max(0, missing - this.credit), WallTier.BLOCKS_PER_ITEM);
+
+    WallRaiser.WallWork work = WallRaiser.nextWork(
+        person.level(), wall, person.getUUID(), person.blockPosition());
+    if (work == null) {
+      return null;
+    }
+    int itemsNeeded = this.credit > 0 ? 0 : 1;
     int carried = PackLogistics.carried(person, wall.getTier().material());
     if (itemsNeeded > 0 && carried < LOW_WATER) {
       BlockPos source = PackLogistics.chestHolding(person, village,
           List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)));
       if (source != null) {
-        this.targetedWallColumn = null;
+        this.targetedWork = null;
         return source;
       }
     }
     if (carried < itemsNeeded) {
       return null;
     }
-    this.targetedWallColumn = column;
-    return standFor(person, village, column);
+    this.targetedWork = work;
+    return standFor(person, village, work.block().pos());
   }
 
   @Override
@@ -113,38 +88,66 @@ public final class WallStep implements BlockWorkStep {
     if (chest != null) {
       PackLogistics.pullWanted(person, chest,
           List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)), "BUILDER");
-      return false; // re-select: the ring if loaded, another chest if not
+      return false;
     }
-    if (this.targetedWallColumn == null || wall.nextColumn() != this.targetedWallColumn) {
-      return false; // another builder moved the shared wall on while we travelled
+    WallRaiser.WallWork work = this.targetedWork;
+    if (work == null || !WallRaiser.isCurrent(wall, person.getUUID(), work)) {
+      return false;
     }
-    if (!raiseColumn(person, village, wall)) {
-      return false; // short of material: re-select fetches or waits
+    if (WallRaiser.isSatisfied(person.level(), work.block(), wall.getTier())) {
+      wall.advance(person.getUUID(), work.section());
+      return false;
     }
-    wall.advance();
-    return false; // on to the next column
+    if (!payForCell(person, village, wall.getTier())) {
+      return false;
+    }
+
+    WallRaiser.place(person.level(), work.block(), wall.getTier());
+    wall.advance(person.getUUID(), work.section());
+    BlockPos pos = work.block().pos();
+    person.level().playSound((Player) null, pos,
+        work.block().desiredState(wall.getTier()).getSoundType().getPlaceSound(),
+        SoundSource.BLOCKS, 1.0F, person.getRandom().nextFloat() * 0.3F + 0.85F);
+    return false;
   }
 
-  /** Postpones a wall segment that the shared travel loop could not reach. */
+  private boolean payForCell(RealPerson person, Village village, WallTier tier) {
+    if (this.credit > 0) {
+      this.credit--;
+      return true;
+    }
+    if (PackLogistics.carried(person, tier.material()) < 1) {
+      if (Materials.counted(village.stockTally(), tier.material()) == 0) {
+        village.logEvent(new NoResourceBookkeepingEvent(tier.material(), 1));
+        person.logBlocker("we are short of materials to raise the village wall");
+      }
+      return false;
+    }
+    person.clearBlocker("we are short of materials to raise the village wall");
+    Materials.take(person.personMainInv, tier.material(), 1);
+    this.credit = WallTier.BLOCKS_PER_ITEM - 1;
+    return true;
+  }
+
+  /** Postpones one inaccessible section while every other section remains available. */
   @Override
   public void unreachable(RealPerson person, BlockPos target) {
-    if (this.targetedWallColumn == null) {
-      return;
-    }
+    WallRaiser.WallWork work = this.targetedWork;
     Village village = person.getVillage();
     WallProject wall = village == null ? null : village.getWallProject();
-    if (wall == null || wall.isComplete() || wall.nextColumn() != this.targetedWallColumn) {
+    if (work == null || wall == null || !WallRaiser.isCurrent(wall, person.getUUID(), work)) {
       return;
     }
-    long column = wall.nextColumn();
-    wall.defer();
-    Villagelife.LOGGER.debug("[wall] {} deferred unreachable segment at {}, {}",
-        person.getFullName(), BlockPos.getX(column), BlockPos.getZ(column));
+    wall.defer(person.getUUID(), work.section(), person.level().getGameTime());
+    BlockPos pos = work.block().pos();
+    Villagelife.LOGGER.debug("[wall] {} deferred unreachable {} section at {}, {}",
+        person.getFullName(), wall.section(work.section()).kind().name().toLowerCase(),
+        pos.getX(), pos.getZ());
   }
 
   @Override
   public void released(RealPerson person, BlockPos target) {
-    this.targetedWallColumn = null;
+    this.targetedWork = null;
   }
 
   @Override
@@ -167,21 +170,17 @@ public final class WallStep implements BlockWorkStep {
     return 0.45D;
   }
 
-  /** Close enough to lay the next segment beside where the builder stands. */
   @Override
   public double reachSqr(RealPerson person) {
     return 6.0D;
   }
 
-  /**
-   * A foothold one step inside the ring, so the builder lays the wall beside
-   * itself rather than in its own square and never seals itself in.
-   */
+  /** Chooses a reachable foothold on the village side of a planned cell. */
   @Nullable
-  private BlockPos standFor(RealPerson person, Village village, long column) {
+  private BlockPos standFor(RealPerson person, Village village, BlockPos wallCell) {
     Level level = person.level();
-    int x = BlockPos.getX(column);
-    int z = BlockPos.getZ(column);
+    int x = wallCell.getX();
+    int z = wallCell.getZ();
     BlockPos centre = village.getTownCenter() == null
         ? new BlockPos(x, 0, z)
         : BlockPos.of(village.getTownCenter().getCenterLocation());
@@ -197,10 +196,6 @@ public final class WallStep implements BlockWorkStep {
     if (reachable != null) {
       return standingSpot(level, x + reachable.x(), z + reachable.z());
     }
-
-    // A path can fail because the builder, rather than the segment, is trapped.
-    // Give the shared approach watch one honest target so it can recover them;
-    // if the trip still fails, unreachable() defers this segment.
     WallWorkPlanner.Offset standable = WallWorkPlanner.choose(inwardX, inwardZ,
         offset -> standingSpot(level, x + offset.x(), z + offset.z()) != null);
     if (standable != null) {
@@ -210,7 +205,6 @@ public final class WallStep implements BlockWorkStep {
         z + inwardZ);
   }
 
-  /** Empty body space over sturdy ground, at the real terrain rather than a tree top. */
   @Nullable
   private static BlockPos standingSpot(Level level, int x, int z) {
     BlockPos feet = new BlockPos(x, WallRaiser.surfaceY(level, x, z), z);
@@ -224,54 +218,11 @@ public final class WallStep implements BlockWorkStep {
     return feet;
   }
 
-  /** Whether the navigator can actually finish a route to this foothold. */
   private static boolean reachable(RealPerson person, BlockPos spot) {
     if (person.blockPosition().distSqr(spot) <= 1.0D) {
       return true;
     }
     Path path = person.getNavigation().createPath(spot, 1);
     return path != null && path.canReach();
-  }
-
-  /** Raises one column's segment from the pack, or reports it could not. */
-  private boolean raiseColumn(RealPerson person, Village village, WallProject wall) {
-    Level level = person.level();
-    long column = wall.nextColumn();
-    int x = BlockPos.getX(column);
-    int z = BlockPos.getZ(column);
-    WallTier tier = wall.getTier();
-    boolean gate = wall.isGate(column);
-    int[] range = WallRaiser.currentSegmentRange(level, wall);
-    if (range == null) {
-      return true; // nothing to place here; treat the column as done
-    }
-    List<Integer> missing = WallRaiser.missingHeights(level, x, z, range, tier, gate);
-    int count = missing.size();
-    int owed = Math.max(0, count - credit);
-    int items = Math.ceilDiv(owed, WallTier.BLOCKS_PER_ITEM);
-
-    if (PackLogistics.carried(person, tier.material()) < items) {
-      // What is carried stays carried for the next column; the shortage is only
-      // real when the village's chests have none left to fetch either.
-      if (Materials.counted(village.stockTally(), tier.material()) == 0) {
-        village.logEvent(new NoResourceBookkeepingEvent(tier.material(), items));
-        person.logBlocker("we are short of materials to raise the village wall");
-      }
-      return false;
-    }
-    person.clearBlocker("we are short of materials to raise the village wall");
-    Materials.take(person.personMainInv, tier.material(), items);
-    credit += items * WallTier.BLOCKS_PER_ITEM - count;
-
-    WallRaiser.place(level, x, z, missing, tier);
-    if (gate) {
-      BlockPos centre = village.getTownCenter() == null ? new BlockPos(x, 0, z)
-          : BlockPos.of(village.getTownCenter().getCenterLocation());
-      WallRaiser.placeGateDoor(level, x, z, range[2], WallRaiser.gateFacing(x, z, centre));
-    }
-    level.playSound((Player) null, x, range[2], z,
-        tier.block().defaultBlockState().getSoundType().getPlaceSound(),
-        SoundSource.BLOCKS, 1.0F, person.getRandom().nextFloat() * 0.3F + 0.85F);
-    return true;
   }
 }

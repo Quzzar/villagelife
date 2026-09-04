@@ -1,163 +1,157 @@
 # Walls
 
-A wall is the first building that is not a building. Every structure the village raises today
-is a fixed box: one NBT template of known size, dropped on a prepared pad at a chosen site. A
-wall is a perimeter. Its length and shape are read from the village at the moment it is built,
-it follows the ground instead of flattening it, and it is priced by how far it runs rather than
-by a footprint. That is why it was parked in `building-spec.md` (the `wall` and `gatehouse`
-ladders, Phase 4) as "linear rather than a footprint, probably not a `Building` at all, blocked
-on the site-selection pass." This document is that pass, for walls.
+A wall is a route compiled into buildings-sized pieces. It is not one enormous
+`Building`, because it has no fixed footprint, and it is no longer a stream of
+single columns either. The village chooses and saves a perimeter once, compiles
+that route into short sections, and lets builders claim those sections as
+independent construction work.
 
-## What we are building
+This is the foundation for authored straight runs, diagonal runs, corners,
+towers, and gatehouses. The initial catalog is generated in code so the system
+is playable before the art pass. A future NBT catalog plugs in at the
+`WallSegmentCatalog` boundary and emits the same persistent `WallSection` and
+`WallBlockPlan` values, without changing builder AI or saves.
 
-Two tiers, defensive, built late:
+## What the village builds
 
-- **Wood palisade** (tier 1): pointed log posts and rails, tall enough to stop a mob, no walkway.
-- **Stone brick wall** (tier 2): taller, crenellated, with a real gatehouse.
+There are two tiers on one permanent route:
 
-The stone wall is not a second building. It is an in-place upgrade of the palisade on the same
-ring, the way `village_center_*_2` replaces `_1`: same identity, only the material delta is
-charged (`BuildingUpgrade.effectiveCost`). A third `fortified wall` with a walkway is the
-natural next rung, and is out of scope for now.
+- **Wood palisade:** a narrow three-course barrier with closing doors.
+- **Stone wall:** a three-block-wide body with a walkable top course, parapets,
+  stair transitions, corner towers, and gatehouse sections.
 
-The wall is **triggered by safety**, not by a shortage. `UrbanPlanner` already grows a safety
-need that spikes after deaths and threats; the wall is the large safety project it offers once
-the village is established enough to be worth enclosing. It **rings the current extent once**,
-with padding, and never moves again. Because our growth has no size cap and biases new buildings
-outward, the town will eventually spill past the wall. That is intended: the wall marks where
-the town stood when it decided it needed defending, an old-town core with newer growth beyond
-it, which is how real walled towns aged. Building it late, on a mature extent, is what keeps the
-outgrowing slow enough to read as history rather than as a bug.
+Stone is an in-place upgrade of wood. It reuses the saved ring and natural
+ground profile. Village-owned palisade blocks may be replaced, while unrelated
+solid construction is preserved.
 
-## The route: a ring from `claimGrid`
+## The route
 
-The village has no perimeter concept, but it holds the exact material for one. `claimGrid`
-(`Village.java`) is the 2D union of every building's footprint, a set of packed ground columns.
-The wall's route is the **outline of that set, pushed outward by a padding margin**, closed into
-a loop.
+The route wraps the saved claim bounds with eight blocks of breathing room.
+Four cardinal runs are joined by broad 45-degree corners. The clipped corners
+keep a wall from reading as one giant rectangle and provide real diagonal and
+corner sockets for the segment catalog.
 
-The ring is computed **once**, when the wall project begins, and stored on the village as new
-save state (the ring path plus the current tier). It is never recomputed. The stone upgrade
-re-walks the stored ring; nothing re-derives it from a since-grown `claimGrid`.
+The ring is computed once when the first wall begins. It does not join
+`claimGrid`, and it is not recomputed as the village grows. Newer neighborhoods
+can therefore spill beyond an older defensive core.
 
-Padding is sized so the town does not immediately outgrow the wall: enough that a few more
-buildings still land inside, not so much that the wall rings empty fields. Proposed starting
-point is to pad the claim bounds by roughly one building-search radius (`LocationValidator`
-grows its radius as `20 * (1 + buildings/4)`), and tune from there.
+Four gates sit at the cardinal midpoints. They stay on the straight runs when
+corners are clipped, so roads can meet a gatehouse squarely.
 
-The wall does **not** join `claimGrid`. Buildings must keep placing outside it (that is the
-whole "ring once, let it outgrow" decision), so the ring is written into the world but stays
-invisible to siting.
+## Terrain: terraces, not terrain noise
 
-## Building it: a builder step, not a template
+The Great Wall is the visual reference for terrain behavior. The deck follows
+the broad slope of the land, but it does not copy every grass-block bump.
 
-A wall cannot reuse `Building` / `StructureInProgress`: siting, cost, claim, planner selection,
-and upgrade-fit are all keyed to an NBT bounding box, and a variable-length ring has none. The
-right vehicle already exists in another corner of the codebase.
+At project creation, `WallTerraces` groups the captured natural ground into
+four-block runs. Each run clears its highest ground. Adjacent runs may differ by
+at most one block; a steep hill raises the approach runs before it instead of
+creating a cliff in the walkway. This produces long level terraces joined by
+deliberate stair blocks. The rule is circular, so the saved ring has no bad seam
+where its last block meets its first.
 
-`PathStep` (`entities/ai/goals/work/PathStep.java`) is a builder work-step that lays blocks
-procedurally along a route as the villager walks, from no template, at variable length, and it
-follows terrain the honest way: it places at the walker's feet, so the path rises and falls with
-the land. The wall is that same shape of tool.
+The wall fills from the lowest neighboring ground sample to its deck. This
+keeps the defensive shell closed at terrain steps. Trees, brush, player blocks,
+and earlier village construction are not sampled as terrain.
 
-**`WallStep`** (new, modeled on `PathStep`): the builder walks the stored ring and, column by
-column, places a wall segment at the **surface height of that column**. It steps up and down
-with the terrain and never cuts into it, which satisfies the standing rule from
-`site-selection.md`, "a village changes the surface of the land, never its shape." Where
-`PathStep` swaps one ground block to a path, `WallStep` raises a short stack.
+## Segment projects
 
-The straight runs are **procedural**. For each column along the ring, place a post or panel by
-rule, then cap it with the tier's crown: a rail for wood, crenellations for stone. Tiers are a
-palette swap on the same rule, so wood and stone cost nothing extra to express. Corners and
-terrain steps fall out of the per-column placement on their own, because every column stands on
-its own surface.
+`WallSegmentCatalog` compiles the ring into sections of at most seven route
+blocks and classifies them as:
 
-The **gatehouse is the one authored piece**: a small hand-built NBT dropped where a gate
-belongs, because it earns the detail and does not need to flex in length. Gates go where the
-ring crosses the village's real traffic. There is no road graph to read (paths are `DIRT_PATH`
-blocks in the world with no registry), so a gate is placed where the ring intersects the lines
-from building centers to the campfire, the routes villagers actually walk, with a fallback of
-scanning for existing `DIRT_PATH` where the ring passes.
+- straight,
+- diagonal,
+- terrace,
+- corner tower,
+- gatehouse.
 
-## Making it actually stop mobs
+Each section owns an ordered list of construction cells and a saved cursor.
+`WallProject` leases different incomplete sections to different builders. A
+lease is runtime-only and expires if its builder disappears, while the cursor
+is persistent. An unreachable section waits briefly and releases its builder;
+all other sections remain available.
 
-"Real defense" is a constraint on the procedural rule, not a separate feature:
+This makes a wall behave like a continued structure. One swing places one
+construction cell. A builder stays with a short section, several builders can
+raise visibly different parts of the perimeter, and a restart resumes each
+piece at its exact next cell.
 
-- **Height**: the run must be tall enough that a ground mob cannot jump it and has nothing
-  adjacent to climb. Proposed: 3 solid blocks above the surface for wood, 4 to 5 for stone.
-  Spiders are the known exception; a lipped overhang on stone is a possible answer, noted for
-  later.
-- **No gaps**: because each column sits at its own surface height, the run must fill the
-  vertical seam wherever the ground steps, or a mob walks through the gap. `WallStep` closes
-  each step down to the height of its lower neighbor.
-- **Gates that seal**: an open arch is a mob highway, so the gate has to close at night or under
-  threat. Settled: a wooden door hangs in each gateway. Our villagers already open and close
-  doors as they path (`Person` sets `canOpenDoors`, `RealPerson` runs an `OpenDoorGoal`), so the
-  gate shuts behind them and stands closed at night, while a mob — bar a hard-difficulty zombie,
-  which can break a wooden door — cannot work it. A lowered portcullis or a guard-operated
-  closure was the alternative; the door reuses behaviour the village already has and needs no
-  new AI. The door is hung a single column wide below the lintel, so it fills the doorway with
-  no gap for a mob to slip past.
+## Occupancy and materials
 
-## Where it plugs into planning
+Construction cells have semantic roles:
 
-Because a wall is not a `BuildingInfo`, the planner cannot choose, cost, or track it as-is. The
-hooks it needs:
+- **Barrier:** any collidable block satisfies the cell. Air, fluid, vegetation,
+  and other passable states are filled.
+- **Exact:** the catalog prefers its stair, parapet, or door state. An unrelated
+  collidable block is still preserved, because closing the defensive shell is
+  more important than forcing a palette over player or terrain construction.
 
-- **Selection**: `UrbanPlanner` gains a wall option, offered when the safety need is high and
-  the village is established (a building-count or population floor). It sits alongside the
-  ranked NBT candidates, not inside the `Buildings` registry.
-- **Cost**: priced per ring length (segments times a per-segment recipe), not per footprint.
-  This is the "priced per segment" the spec always called for. **Priced at a tenth
-  (2026-09-02):** one log raises ten blocks of wall (`WallTier.BLOCKS_PER_ITEM`), both in the
-  bill the village checks before starting and in the builder's draw as it lays each column,
-  the remainder of an item carrying over to the next column. At a block per log no village
-  ever afforded a wall: Wildflower Downs, sprawling to a 740-segment ring, wanted 3700 logs
-  and logged the shortage forever. Aaron's call: the wall may well be worth that many logs,
-  and the village pays a tenth anyway.
-- **Project**: the village runs it as its one `currentProject`, the same slot an NBT build uses,
-  but backed by the ring and `WallStep` rather than a template and `StructureInProgress`.
-- **Completion and upgrade**: on finish, the village records the wall's tier. The stone upgrade
-  is offered later as a safety project too, re-runs `WallStep` on the stored ring with the stone
-  palette, and charges only the delta.
+The deliberate stone upgrade is the exception. A village-owned oak wall block
+does not satisfy a stone plan and can be replaced.
 
-## Status
+Walls remain priced at one material item per ten placed construction cells.
+The affordability check uses the same compiled plan and occupancy policy as the
+builder, so existing solid cells cost nothing and the estimate matches the work.
+Credit left from an item carries across cells in that builder's pack.
 
-Implemented: the ring from `claimGrid`, the save state, the terrain-following `WallStep`, the
-wood-to-stone in-place upgrade, and the safety trigger (commits `e961b3c`, `5090616`), and
-closing gates — a wooden door in each gateway that villagers work as they path and mobs cannot.
-A dev command, `/vldev village wall <wood|stone>`, rings a village at once for inspection.
+## Gatehouses and defense
 
-Concrete choices the code now makes, all one line to tune:
+The starter catalog reserves five route blocks for each gatehouse. The center
+has a three-high passage through the stone wall, closed by a wooden door that
+villagers already know how to operate. Compact towers flank the passage. Corner
+sections also receive raised 3x3 towers.
 
-- ring padding: 8 blocks beyond the claim bounds,
-- heights: 3 courses for wood, 5 for stone (a merlon on alternate stone columns),
-- gateways: one at the midpoint of each edge, a wooden door below a lintel that faces the town
-  so it opens inward, which villagers open and close as they path,
-- material: one palette per tier (oak log, stone brick), not varied by biome; the wood tier is
-  paid for by any log ([building-spec.md](building-spec.md), `Materials`) and placed as oak;
-  planned cells that already contain a collidable block count as closed, remain untouched, and
-  cost nothing. Air, fluids, vegetation and other passable cells are the holes a builder fills.
-  The deliberate stone upgrade is the sole material-sensitive case: it replaces village-owned
-  palisade logs while still preserving unrelated solid construction.
-- terrain and access: the surface sampler looks through trees, brush and recorded placed blocks
-  to the sturdy terrain beneath, and the builder asks the navigator for another interior foothold
-  when the nearest one is blocked. A genuinely unreachable segment is deferred and revisited after
-  the rest of the ring, so it cannot freeze every buildable segment behind it.
+The normal barrier invariant remains simple: after a wall cell is decided,
+that cell must be solid and collidable. Gate passage cells are the intentional
+exception and are closed by the door.
 
-Deferred, and the honest gaps against "real defence":
+Ground mobs are stopped by the continuous shell and closing gates. Spiders can
+still climb a flush wall. A lipped authored parapet is the intended answer for
+the art pass.
 
-- **The authored gatehouse.** A gateway is a plain door below a lintel; the hand-built gatehouse
-  NBT the design calls for — a proper arch with the `gatehouse` GUARD station — still needs
-  authoring in-world and capturing. The door already seals the opening, so this is a richer
-  build over a working gate, not a defence gap.
-- **Spiders.** A closed gate and an unbroken run stop a walking mob, but a spider still climbs a
-  flush wall; the lipped overhang noted above is the answer, not yet built.
+## Authoring contract
 
-## Relationship to the rest of the docs
+The code-generated catalog is an adapter, not the permanent source of wall art.
+Authored pieces should be captured as small NBT structures and compiled through
+`WallSegmentCatalog` into the same semantic cells. Every authored template will
+need:
 
-This unblocks the `wall` and `gatehouse` sections of `building-spec.md` (Phase 4), which were
-explicitly waiting on the site-selection pass, and it is the perimeter case that
-`site-selection.md` set aside as "linear, not footprint." `village-tiers.md` already treats a
-wall as a village's growth boundary; here that boundary is drawn once and then outgrown by
-design.
+- an entry and exit socket on the route centerline,
+- a declared section kind and supported tier,
+- a deck socket elevation,
+- barrier cells that may accept any existing collision,
+- exact detail cells for stairs, rails, doors, and decoration,
+- foundation cells that can extend down to the captured terrain,
+- clearance cells for the walkable deck and gate passage.
+
+Straight and diagonal pieces should share a seven-block maximum length. Corner,
+tower, and gatehouse pieces may be shorter. Terrain adaptation belongs at the
+sockets: the planner selects a level or one-block-rise variant, while the
+authored interior stays coherent.
+
+The existing structure capture loop in [structure-authoring.md](structure-authoring.md)
+is used to create the NBT files. The NBT catalog loader and a wall-segment
+gallery are the next art-pipeline slice; they do not require another builder or
+save-system rewrite.
+
+## Planning and developer preview
+
+Walls are safety projects. An established village starts wood after sufficient
+growth or danger, then later upgrades that same route to stone. While incomplete,
+the wall holds normal village project selection just as a building project does.
+
+`/vldev village wall <wood|stone>` compiles the same project and places all of
+its cells immediately. It is the fast geometry check for the route, terraces,
+walkway, towers, and gatehouses. Ordinary builders use that identical plan one
+cell at a time.
+
+## Current limits
+
+- The starter catalog is procedural. NBT-backed segment art and its gallery are
+  the next layer at the catalog boundary.
+- The stone walkway is structurally continuous but has no internal stairway
+  from the village ground up to each tower yet.
+- Spiders still need an overhanging authored parapet.
+- Existing worlds with an in-progress legacy column wall should be reset. A
+  completed legacy wall remains complete, but partially completed legacy
+  cursor positions cannot map exactly onto the new multi-cell sections.
