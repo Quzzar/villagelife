@@ -133,6 +133,7 @@ public class WorkLoopGoal<T> extends Goal {
       // the navigator only calls a path stalled if it found one, and a path it
       // never found cannot stall.
       if (this.approach.giveUp(where)) {
+        this.step.unreachable(this.person, this.target);
         release();
         return;
       }

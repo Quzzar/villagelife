@@ -136,6 +136,10 @@ Concrete choices the code now makes, all one line to tune:
   so it opens inward, which villagers open and close as they path,
 - material: one palette per tier (oak log, stone brick), not varied by biome; the wood tier is
   paid for by any log ([building-spec.md](building-spec.md), `Materials`) and placed as oak.
+- terrain and access: the surface sampler looks through trees, brush and recorded placed blocks
+  to the sturdy terrain beneath, and the builder asks the navigator for another interior foothold
+  when the nearest one is blocked. A genuinely unreachable segment is deferred and revisited after
+  the rest of the ring, so it cannot freeze every buildable segment behind it.
 
 Deferred, and the honest gaps against "real defence":
 

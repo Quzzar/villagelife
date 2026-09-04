@@ -31,9 +31,24 @@ public final class WallRaiser {
   /** How far a column reaches down to seat its foot over a void below the seam floor. */
   private static final int MAX_STEP_FILL = 4;
 
-  /** The y a block sits at to rest on the ground of this column. */
+  /**
+   * The y a block sits at to rest on the real ground of this column. Trees,
+   * brush and placed structures are obstacles over the terrain, not terrain:
+   * reading the top of a trunk as ground made a wall target the top of a tree.
+   */
   public static int surfaceY(Level level, int x, int z) {
-    return level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+    int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+    BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+    PlacedBlockStore placed = level instanceof ServerLevel serverLevel
+        ? PlacedBlockStore.get(serverLevel)
+        : null;
+    return WallTerrain.surfaceY(top, level.getMinBuildHeight(), y -> {
+      cursor.set(x, y, z);
+      BlockState state = level.getBlockState(cursor);
+      return !state.is(SitePreparation.CLEARABLE)
+          && (placed == null || (!placed.isPlayerPlaced(cursor) && !placed.isVillagePlaced(cursor)))
+          && state.isFaceSturdy(level, cursor, Direction.UP);
+    });
   }
 
   /**

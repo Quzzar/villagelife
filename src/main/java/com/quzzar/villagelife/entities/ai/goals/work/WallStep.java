@@ -3,7 +3,7 @@ package com.quzzar.villagelife.entities.ai.goals.work;
 import java.util.List;
 import javax.annotation.Nullable;
 
-import com.quzzar.villagelife.Utils;
+import com.quzzar.villagelife.Villagelife;
 import com.quzzar.villagelife.entities.RealPerson;
 import com.quzzar.villagelife.village.Village;
 import com.quzzar.villagelife.village.bookkeeping.NoResourceBookkeepingEvent;
@@ -13,11 +13,13 @@ import com.quzzar.villagelife.village.buildings.Materials;
 import com.quzzar.villagelife.village.buildings.WallTier;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.Path;
 
 /**
  * Raising the village wall (docs/walls.md): a PLACE step that walks a ring and
@@ -57,6 +59,9 @@ public final class WallStep implements BlockWorkStep {
    * and never saved: a builder swapped mid-ring forfeits at most an item.
    */
   private int credit;
+  /** The wall column selected for the loop's current foothold, or null for a chest. */
+  @Nullable
+  private Long targetedWallColumn;
 
   @Override
   @Nullable
@@ -77,10 +82,16 @@ public final class WallStep implements BlockWorkStep {
       BlockPos source = PackLogistics.chestHolding(person, village,
           List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)));
       if (source != null) {
+        this.targetedWallColumn = null;
         return source;
       }
     }
-    return carried > 0 ? standFor(person, village, wall.nextColumn()) : null;
+    if (carried <= 0) {
+      return null;
+    }
+    long column = wall.nextColumn();
+    this.targetedWallColumn = column;
+    return standFor(person, village, column);
   }
 
   @Override
@@ -99,11 +110,36 @@ public final class WallStep implements BlockWorkStep {
           List.of(new ItemStack(wall.getTier().material(), LOAD_PER_TRIP)), "BUILDER");
       return false; // re-select: the ring if loaded, another chest if not
     }
+    if (this.targetedWallColumn == null || wall.nextColumn() != this.targetedWallColumn) {
+      return false; // another builder moved the shared wall on while we travelled
+    }
     if (!raiseColumn(person, village, wall)) {
       return false; // short of material: re-select fetches or waits
     }
     wall.advance();
     return false; // on to the next column
+  }
+
+  /** Postpones a wall segment that the shared travel loop could not reach. */
+  @Override
+  public void unreachable(RealPerson person, BlockPos target) {
+    if (this.targetedWallColumn == null) {
+      return;
+    }
+    Village village = person.getVillage();
+    WallProject wall = village == null ? null : village.getWallProject();
+    if (wall == null || wall.isComplete() || wall.nextColumn() != this.targetedWallColumn) {
+      return;
+    }
+    long column = wall.nextColumn();
+    wall.defer();
+    Villagelife.LOGGER.debug("[wall] {} deferred unreachable segment at {}, {}",
+        person.getFullName(), BlockPos.getX(column), BlockPos.getZ(column));
+  }
+
+  @Override
+  public void released(RealPerson person, BlockPos target) {
+    this.targetedWallColumn = null;
   }
 
   @Override
@@ -136,6 +172,7 @@ public final class WallStep implements BlockWorkStep {
    * A foothold one step inside the ring, so the builder lays the wall beside
    * itself rather than in its own square and never seals itself in.
    */
+  @Nullable
   private BlockPos standFor(RealPerson person, Village village, long column) {
     Level level = person.level();
     int x = BlockPos.getX(column);
@@ -145,9 +182,50 @@ public final class WallStep implements BlockWorkStep {
         : BlockPos.of(village.getTownCenter().getCenterLocation());
     int dx = Integer.signum(centre.getX() - x);
     int dz = Integer.signum(centre.getZ() - z);
-    int sx = x + (dx == 0 ? 1 : dx);
-    int sz = z + (dz == 0 ? 1 : dz);
-    return new BlockPos(sx, WallRaiser.surfaceY(level, sx, sz), sz);
+    int inwardX = dx == 0 ? 1 : dx;
+    int inwardZ = dz == 0 ? 1 : dz;
+
+    WallWorkPlanner.Offset reachable = WallWorkPlanner.choose(inwardX, inwardZ, offset -> {
+      BlockPos spot = standingSpot(level, x + offset.x(), z + offset.z());
+      return spot != null && reachable(person, spot);
+    });
+    if (reachable != null) {
+      return standingSpot(level, x + reachable.x(), z + reachable.z());
+    }
+
+    // A path can fail because the builder, rather than the segment, is trapped.
+    // Give the shared approach watch one honest target so it can recover them;
+    // if the trip still fails, unreachable() defers this segment.
+    WallWorkPlanner.Offset standable = WallWorkPlanner.choose(inwardX, inwardZ,
+        offset -> standingSpot(level, x + offset.x(), z + offset.z()) != null);
+    if (standable != null) {
+      return standingSpot(level, x + standable.x(), z + standable.z());
+    }
+    return new BlockPos(x + inwardX, WallRaiser.surfaceY(level, x + inwardX, z + inwardZ),
+        z + inwardZ);
+  }
+
+  /** Empty body space over sturdy ground, at the real terrain rather than a tree top. */
+  @Nullable
+  private static BlockPos standingSpot(Level level, int x, int z) {
+    BlockPos feet = new BlockPos(x, WallRaiser.surfaceY(level, x, z), z);
+    BlockPos ground = feet.below();
+    if (!level.hasChunkAt(feet)
+        || !level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+        || !level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty()
+        || !level.getBlockState(ground).isFaceSturdy(level, ground, Direction.UP)) {
+      return null;
+    }
+    return feet;
+  }
+
+  /** Whether the navigator can actually finish a route to this foothold. */
+  private static boolean reachable(RealPerson person, BlockPos spot) {
+    if (person.blockPosition().distSqr(spot) <= 1.0D) {
+      return true;
+    }
+    Path path = person.getNavigation().createPath(spot, 1);
+    return path != null && path.canReach();
   }
 
   /** Raises one column's segment from the pack, or reports it could not. */
@@ -161,9 +239,11 @@ public final class WallStep implements BlockWorkStep {
     int base;
     int floor;
     if (wall.hasGround()) {
-      int i = wall.getCursor();
+      int liveGround = WallRaiser.surfaceY(level, x, z);
+      wall.lowerCurrentGround(liveGround);
+      int i = wall.currentIndex();
       base = wall.groundAt(i);
-      floor = wall.seamFloor(i);
+      floor = Math.min(base, wall.seamFloor(i));
     } else {
       base = WallRaiser.surfaceY(level, x, z); // a wall saved before the ground profile existed
       floor = base;

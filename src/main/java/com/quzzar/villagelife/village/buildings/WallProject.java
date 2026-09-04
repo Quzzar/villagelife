@@ -28,53 +28,75 @@ public final class WallProject {
       Codec.LONG.listOf().fieldOf("gates").forGetter(w -> List.copyOf(w.gates)),
       Codec.INT.listOf().optionalFieldOf("ground", List.of()).forGetter(w -> w.ground),
       Codec.STRING.fieldOf("tier").forGetter(w -> w.tier.name()),
-      Codec.INT.fieldOf("cursor").forGetter(w -> w.cursor)
+      Codec.INT.fieldOf("cursor").forGetter(w -> w.progress.cursor()),
+      Codec.INT.listOf().optionalFieldOf("deferred", List.of()).forGetter(w -> w.progress.deferred())
   ).apply(inst, WallProject::fromCodec));
 
   private final List<Long> ring;
   private final Set<Long> gates;
   private final List<Integer> ground;
   private final WallTier tier;
-  private int cursor;
+  private WallProgress.State progress;
 
   public WallProject(List<Long> ring, Set<Long> gates, List<Integer> ground, WallTier tier) {
-    this(ring, gates, ground, tier, 0);
+    this(ring, gates, ground, tier, 0, new ArrayList<>());
   }
 
   /** A wall recorded as already fully built, for the dev command that rings a village at once. */
   public static WallProject completed(List<Long> ring, Set<Long> gates, List<Integer> ground,
       WallTier tier) {
-    return new WallProject(ring, gates, ground, tier, ring.size());
+    return new WallProject(ring, gates, ground, tier, ring.size(), new ArrayList<>());
   }
 
   private WallProject(List<Long> ring, Set<Long> gates, List<Integer> ground, WallTier tier,
-      int cursor) {
+      int cursor, List<Integer> deferred) {
     this.ring = ring;
     this.gates = gates;
-    this.ground = ground;
+    this.ground = new ArrayList<>(ground);
     this.tier = tier;
-    this.cursor = cursor;
+    this.progress = new WallProgress.State(cursor, deferred);
   }
 
   private static WallProject fromCodec(List<Long> ring, List<Long> gates, List<Integer> ground,
-      String tier, int cursor) {
+      String tier, int cursor, List<Integer> deferred) {
     return new WallProject(new ArrayList<>(ring), new HashSet<>(gates), new ArrayList<>(ground),
-        WallTier.valueOf(tier), cursor);
+        WallTier.valueOf(tier), cursor, new ArrayList<>(deferred));
   }
 
   /** True once every column on the ring has been raised. */
   public boolean isComplete() {
-    return this.cursor >= this.ring.size();
+    return WallProgress.isComplete(this.progress, this.ring.size());
   }
 
   /** The next ring column to raise, packed as a y=0 BlockPos long. */
   public long nextColumn() {
-    return this.ring.get(this.cursor);
+    return this.ring.get(currentIndex());
   }
 
   /** Step the cursor on to the next column. */
   public void advance() {
-    this.cursor++;
+    this.progress = WallProgress.advance(this.progress, this.ring.size());
+  }
+
+  /**
+   * Postpones the current column and continues around the ring. Deferred
+   * columns are retried after every ordinary column has had its turn.
+   */
+  public void defer() {
+    this.progress = WallProgress.defer(this.progress, this.ring.size());
+  }
+
+  /** The ring index currently being worked, including a deferred retry. */
+  public int currentIndex() {
+    return WallProgress.currentIndex(this.progress, this.ring.size());
+  }
+
+  /** Corrects a saved vegetation-height reading without ever raising terrain. */
+  public void lowerCurrentGround(int height) {
+    if (hasGround()) {
+      int index = currentIndex();
+      this.ground.set(index, Math.min(this.ground.get(index), height));
+    }
   }
 
   /** Whether this column is a gateway, its two ground courses given over to a door. */
@@ -114,7 +136,7 @@ public final class WallProject {
   }
 
   public int getCursor() {
-    return this.cursor;
+    return this.progress.cursor();
   }
 
   public int size() {

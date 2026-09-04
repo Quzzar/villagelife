@@ -80,6 +80,14 @@ public interface WorkStep<T> {
   }
 
   /**
+   * Called immediately before an unreachable target is released. Most work
+   * simply retries after the shared stand-down; ordered work may postpone the
+   * blocked item so one bad position does not pin everything behind it.
+   */
+  default void unreachable(RealPerson person, T target) {
+  }
+
+  /**
    * How close counts as arrived. Three blocks by default, which is arm's length
    * plus slack. Takes the worker because some reaches are not fixed: a builder
    * counts as being at a building site once inside its radius, and that radius
