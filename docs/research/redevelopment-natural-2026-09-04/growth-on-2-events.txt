@@ -1,0 +1,18 @@
+[19:38:22] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=1 generated=0 refused={protected center or mine=1} budgetExhausted=true ms=101.418917
+[19:38:31] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for lumberjack_plains_1: We need to address the log shortage to build essential structures.
+[19:38:31] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for lumberjack_plains_1: We need to address the log shortage to build essential structures.
+[19:38:50] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for lumberjack_plains_1 (waited too long)
+[19:38:50] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' gave up on lumberjack_plains_1 for now: nothing came in for it the whole time
+[19:38:50] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={no buildings need removal=20, protected center or mine=76} budgetExhausted=true ms=19.0435
+[19:38:57] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={no buildings need removal=20, protected center or mine=76} budgetExhausted=true ms=27.810958
+[19:39:18] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=1 generated=0 refused={protected center or mine=1} budgetExhausted=true ms=77.090041
+[19:39:26] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build lumberjack_plains_1: We need to address the log shortage to build more structures and improve our living conditions.
+[19:41:01] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={no buildings need removal=20, protected center or mine=76} budgetExhausted=true ms=47.261166
+[19:41:08] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for well_plains_1: We need to build essential structures to sustain our residents, such as a well and a farm, to address the food shortage and ensure a steady supply of clean water.
+[19:41:08] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for well_plains_1: We need to build essential structures to sustain our residents, such as a well and a farm, to address the food shortage and ensure a steady supply of clean water.
+[19:43:31] [ForkJoinPool.commonPool-worker-6/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:46:47] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for well_plains_1 (waited too long)
+[19:46:47] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' gave up on well_plains_1 for now: nothing came in for it the whole time
+[19:46:47] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={no buildings need removal=20, protected center or mine=76} budgetExhausted=true ms=12.109542
+[19:46:54] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build lumberjack_plains_1: We need to build essential structures to sustain our population, and a lumberjack is crucial for building other structures.
+[19:48:38] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=true elapsed=288000 builds=2

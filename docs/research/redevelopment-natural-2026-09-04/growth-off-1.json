@@ -1,0 +1,470 @@
+[
+  {
+    "elapsedTicks": 0,
+    "builds": 0,
+    "population": 0,
+    "buildings": 3,
+    "project": "none",
+    "stock": "none",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 0 residents; 0 hold jobs; 0 work-eligible residents have no post. 4 independent beds total; 4 general beds free; 0 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. 4 general beds stand free. Already standing: mine x1, storehouse x1, village center x1. Open work: builder x1, guard x1, miner x1, quartermaster x1. The village is below its population floor and will call in newcomers. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 24000,
+    "builds": 0,
+    "population": 4,
+    "buildings": 3,
+    "project": "none",
+    "stock": "none",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 4 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. A newcomer could only wait unhoused at the campfire if population limits allow; a workshop without beds would not add housing, while a house would. Already standing: mine x1, storehouse x1, village center x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 48000,
+    "builds": 0,
+    "population": 4,
+    "buildings": 3,
+    "project": "none",
+    "stock": "332 cobblestone, 34 raw copper, 8 coal",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 4 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. A newcomer could only wait unhoused at the campfire if population limits allow; a workshop without beds would not add housing, while a house would. Already standing: mine x1, storehouse x1, village center x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. Trouble your workers currently report: your builder Lyra Chandler, since today: \"I cannot get to the way between our buildings.\". ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 72000,
+    "builds": 0,
+    "population": 4,
+    "buildings": 3,
+    "project": "lumberjack_plains_1:IN_PROGRESS_WORKING",
+    "stock": "1 raw iron, 96 dirt, 65 andesite, 1 flint, 489 cobblestone, 34 raw copper, 16 coal, 5 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 4 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. A newcomer could only wait unhoused at the campfire if population limits allow; a workshop without beds would not add housing, while a house would. Already standing: mine x1, storehouse x1, village center x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. Trouble your workers currently report: your builder Lyra Chandler, for 1 day: \"I cannot get to the way between our buildings.\". ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 96000,
+    "builds": 1,
+    "population": 4,
+    "buildings": 4,
+    "project": "none",
+    "stock": "1 raw iron, 96 dirt, 65 andesite, 1 flint, 489 cobblestone, 34 raw copper, 14 coal, 5 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 5 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x1, mine x1, storehouse x1, village center x1. Open work: lumberjack x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. Trouble your workers currently report: your miner Moxie Price, since today: \"I cannot get to the mine.\". ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 120000,
+    "builds": 1,
+    "population": 4,
+    "buildings": 4,
+    "project": "none",
+    "stock": "13 gravel, 1 raw iron, 3 pointed dripstone, 109 dirt, 65 andesite, 2 flint, 810 cobblestone, 35 lapis lazuli, 139 raw copper, 21 diorite, 19 coal, 7 wheat seeds, 19 dripstone block",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 5 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x1, mine x1, storehouse x1, village center x1. Open work: lumberjack x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 144000,
+    "builds": 1,
+    "population": 4,
+    "buildings": 4,
+    "project": "none",
+    "stock": "13 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 19 dripstone block, 63 gravel, 117 dirt, 87 andesite, 6 flint, 979 cobblestone, 45 diorite, 18 coal, 7 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 5 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x1, mine x1, storehouse x1, village center x1. Open work: lumberjack x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 168000,
+    "builds": 1,
+    "population": 4,
+    "buildings": 4,
+    "project": "lumberjack_plains_1:PREPARING",
+    "stock": "17 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 19 dripstone block, 63 gravel, 200 andesite, 128 dirt, 6 flint, 1000 cobblestone, 45 diorite, 3 torch, 16 coal, 8 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 5 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x1, mine x1, storehouse x1, village center x1. Open work: lumberjack x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. Trouble your workers currently report: your builder Lyra Chandler, since today: \"I cannot get to the way between our buildings.\". ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 192000,
+    "builds": 1,
+    "population": 4,
+    "buildings": 4,
+    "project": "lumberjack_plains_1:IN_PROGRESS_WORKING",
+    "stock": "17 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 19 dripstone block, 63 gravel, 200 andesite, 318 dirt, 6 flint, 1000 cobblestone, 45 diorite, 3 torch, 16 coal, 18 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 5 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x1, mine x1, storehouse x1, village center x1. Open work: lumberjack x1. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. Trouble your workers currently report: your builder Lyra Chandler, for 1 day: \"I cannot get to the way between our buildings.\". ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 216000,
+    "builds": 2,
+    "population": 4,
+    "buildings": 5,
+    "project": "none",
+    "stock": "17 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 19 dripstone block, 63 gravel, 318 dirt, 200 andesite, 22 granite, 6 flint, 1000 cobblestone, 205 cobblestone, 45 diorite, 1 torch, 16 coal, 18 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 2 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x2, mine x1, storehouse x1, village center x1. Open work: lumberjack x2. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "7f302fbf-4927-4c24-8b96-8ae96a2fe32a",
+        "name": "lumberjack_plains_1",
+        "origin": 42880953946191
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 240000,
+    "builds": 2,
+    "population": 4,
+    "buildings": 5,
+    "project": "none",
+    "stock": "17 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 22 dripstone block, 63 gravel, 3 tuff, 254 dirt, 200 andesite, 22 granite, 6 flint, 1000 cobblestone, 378 cobblestone, 45 diorite, 16 coal, 18 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 2 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x2, mine x1, storehouse x1, village center x1. Open work: lumberjack x2. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "7f302fbf-4927-4c24-8b96-8ae96a2fe32a",
+        "name": "lumberjack_plains_1",
+        "origin": 42880953946191
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 264000,
+    "builds": 2,
+    "population": 4,
+    "buildings": 5,
+    "project": "none",
+    "stock": "17 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 22 dripstone block, 63 gravel, 3 tuff, 22 granite, 268 dirt, 200 andesite, 6 flint, 1000 cobblestone, 378 cobblestone, 45 diorite, 16 coal, 19 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 4 residents; 4 hold jobs; 0 work-eligible residents have no post. 6 independent beds total; 0 general beds free; 2 free live-in beds are reserved to their workplaces; no adult residents need independent housing. There are no pre-adults awaiting family housing. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x2, mine x1, storehouse x1, village center x1. Open work: lumberjack x2. Conditions are poor, but the population floor prevents anyone leaving. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "7f302fbf-4927-4c24-8b96-8ae96a2fe32a",
+        "name": "lumberjack_plains_1",
+        "origin": 42880953946191
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 288000,
+    "builds": 2,
+    "population": 6,
+    "buildings": 5,
+    "project": "none",
+    "stock": "17 raw iron, 3 pointed dripstone, 35 lapis lazuli, 151 raw copper, 22 dripstone block, 63 gravel, 3 tuff, 22 granite, 252 dirt, 200 andesite, 6 flint, 1000 cobblestone, 378 cobblestone, 45 diorite, 16 coal, 19 wheat seeds",
+    "metrics": "",
+    "briefing": "You are the collective judgement of New growth, a camp. 6 residents; 4 hold jobs; 0 work-eligible residents have no post. 2 are pre-adults; working teenagers also appear in the job counts. 6 independent beds total; 0 general beds free; 2 free live-in beds are reserved to their workplaces; no adult residents need independent housing. All 2 pre-adults are housed with resident parents. No general bed is free. Open work can only be taken by someone already housed or at a workplace with its own free live-in bed; another workshop without beds would not create housing, while a house would. Already standing: lumberjack x2, mine x1, storehouse x1, village center x1. Open work: builder x1, lumberjack x2. Conditions are poor enough that a resident may leave. Food stores stand at 0.0 items per person. ",
+    "standing": [
+      {
+        "id": "58097653-8f90-4590-9ae9-c95f135f19c8",
+        "name": "village_center_plains_1",
+        "origin": 36283884257356
+      },
+      {
+        "id": "7f302fbf-4927-4c24-8b96-8ae96a2fe32a",
+        "name": "lumberjack_plains_1",
+        "origin": 42880953946191
+      },
+      {
+        "id": "9064ec97-40dd-4077-aa66-2c15602f0986",
+        "name": "mine_plains_1",
+        "origin": 36558762164300
+      },
+      {
+        "id": "d5c5a578-279d-4b0a-89e9-591ec2ecc09b",
+        "name": "lumberjack_plains_1",
+        "origin": 39857297117263
+      },
+      {
+        "id": "e98b420e-cd62-4663-98d9-66497f59d366",
+        "name": "storehouse_plains_1",
+        "origin": 31610959835212
+      }
+    ],
+    "unhousedAdults": 0,
+    "staffedFoodPosts": 0,
+    "foodPerPerson": 0.0,
+    "siteBlocker": ""
+  }
+]

@@ -1,0 +1,28 @@
+[19:09:47] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=1 generated=0 refused={protected center or mine=1} budgetExhausted=true ms=66.530917
+[19:09:52] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for lumberjack_plains_1: We need to address the log shortage to build essential structures.
+[19:09:52] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for lumberjack_plains_1: We need to address the log shortage to build essential structures.
+[19:10:09] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for lumberjack_plains_1 (waited too long)
+[19:10:09] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' gave up on lumberjack_plains_1 for now: nothing came in for it the whole time
+[19:10:09] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={protected center or mine=76, no buildings need removal=20} budgetExhausted=true ms=25.52625
+[19:10:18] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={protected center or mine=76, no buildings need removal=20} budgetExhausted=true ms=12.967583
+[19:10:25] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build lumberjack_plains_1: We need to address the log shortage to build more structures and improve our situation.
+[19:20:40] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for couple_cottage_plains_1: the newlyweds Casey Huffman-Tanner and Kendra Huffman-Tanner need a home of their own
+[19:22:17] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for couple_cottage_plains_1 (waited too long)
+[19:22:17] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={protected center or mine=76, no buildings need removal=20} budgetExhausted=true ms=28.971958
+[19:22:17] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for couple_cottage_plains_1: the newlyweds Casey Huffman-Tanner and Kendra Huffman-Tanner need a home of their own
+[19:22:24] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build well_plains_1: We need to provide our residents with food and water, so we should build something that will help us with those needs.
+[19:23:48] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:24:35] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:25:25] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:26:15] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:27:02] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:27:52] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:28:45] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:29:32] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:30:22] [ForkJoinPool.commonPool-worker-4/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:34:45] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for couple_cottage_plains_1 (waited too long)
+[19:34:45] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' gave up on couple_cottage_plains_1 for now: nothing came in for it the whole time
+[19:34:45] [Server thread/DEBUG] [co.qu.ki.Kithkyn/]: [redevelopment-search] village=New growth examined=96 generated=0 refused={protected center or mine=76, no buildings need removal=20} budgetExhausted=true ms=10.525417
+[19:34:56] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build well_plains_1: We need a reliable source of food and water to sustain our residents.
+[19:35:14] [ForkJoinPool.commonPool-worker-6/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:37:22] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=true elapsed=288000 builds=1

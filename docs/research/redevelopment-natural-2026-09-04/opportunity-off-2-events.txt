@@ -1,0 +1,10 @@
+[19:54:02] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_1: We need to address the immediate needs of our residents, especially the quartermaster and builder, who lack essential tools.
+[19:55:07] [ForkJoinPool.commonPool-worker-1/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:55:27] [ForkJoinPool.commonPool-worker-1/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:55:42] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_1: We need to address the lack of food and water, and the farmers are already struggling to harvest, so we need to build something that will help with food production.
+[19:55:54] [ForkJoinPool.commonPool-worker-1/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:56:44] [ForkJoinPool.commonPool-worker-7/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:56:57] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_1: We need to address the lack of food and the issue with our farmers not being able to harvest, so we need to build something that will help with food production.
+[19:58:53] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_1: We need to address the food shortage, as our residents are reporting no ripe crops to harvest.
+[20:02:24] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_1: We need to address the food shortage and the lack of work for our residents, so we should build something that will provide food and jobs.
+[20:04:09] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=false elapsed=288000 builds=3

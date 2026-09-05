@@ -1,0 +1,16 @@
+[18:58:34] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build lumberjack_plains_1: We need to address the log shortage to build more structures and improve our living conditions.
+[18:59:33] [ForkJoinPool.commonPool-worker-1/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[18:59:35] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for well_plains_1: We need to address the immediate issue of no clean water, so a well is the most pressing need.
+[18:59:35] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for well_plains_1: We need to address the immediate issue of no clean water, so a well is the most pressing need.
+[19:02:05] [ForkJoinPool.commonPool-worker-1/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:04:08] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for well_plains_1 (waited too long)
+[19:04:08] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' gave up on well_plains_1 for now: nothing came in for it the whole time
+[19:04:25] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build lumberjack_plains_1: We need to build essential structures to ensure our survival, and a lumberjack is crucial for building other structures.
+[19:05:18] [ForkJoinPool.commonPool-worker-1/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:07:10] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for well_plains_1: We need a way to get clean water and food, so we should build something that provides these necessities.
+[19:07:10] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for well_plains_1: We need a way to get clean water and food, so we should build something that provides these necessities.
+[19:08:05] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for well_plains_1 (waited too long)
+[19:08:05] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' gave up on well_plains_1 for now: nothing came in for it the whole time
+[19:08:13] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for farm_plains_1: We need to build something that provides essential resources for our survival, like food and water, before we can focus on comfort or defense.
+[19:08:13] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for farm_plains_1: We need to build something that provides essential resources for our survival, like food and water, before we can focus on comfort or defense.
+[19:08:24] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=false elapsed=288000 builds=2

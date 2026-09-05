@@ -205,3 +205,12 @@ The [measured validation report](research/redevelopment-validation-2026-09-04.md
 disabled/enabled pairs. The model trials exposed wasteful choices and led to the deterministic
 current-need gate. The timelapses offered no redevelopment proposals because relocation
 housing was unavailable; natural adoption and repeated teardown behavior remain unproven.
+
+
+The [autonomous follow-up](research/redevelopment-natural-adoption-2026-09-04.md) completed
+eight twelve-day runs with the default 3B model. Two prepared enabled villages received twelve
+proposal offers across eight planning calls: ten declined proposals, one saving choice that
+expired, and one invalid offer reply. Neither enabled normal-founding run generated an offer.
+No redevelopment started or completed, and no building was demolished. Opportunity recognition
+is demonstrated; completed natural adoption and teardown frequency remain unproven. The report
+records the paired outcomes, a terrain-fixture amendment, model failures and full decision traces.

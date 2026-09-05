@@ -1,0 +1,57 @@
+{
+  "baselineCommit": "8812c536fdeaa1fdffc0b3ec3f7424189a3d2b8f",
+  "horizonTicks": 288000,
+  "harnessSha256": "140ae3d75be6c5c333b21e5b6252b11289c34ea3e8b0c87f72898506ff220260",
+  "transportOverride": "LocalRuntimeProvider.PORT reads kithkyn.benchmark.modelPort; all other provider code is from baseline commit",
+  "model": "Llama-3.2-3B-Instruct Q4_K_M",
+  "llamaCpp": "b10653",
+  "totalContext": 8192,
+  "slots": 2,
+  "growthGamePort": 25690,
+  "growthModelPort": 8128,
+  "opportunityGamePort": 25691,
+  "opportunityModelPort": 8129,
+  "seedLevelDataSha256": {
+    "growth": "64744b526318186c3d6dafc4e300ba7542cc0f1b4bf34d3953b345710469f724",
+    "opportunity": "f1bdab09767d8d868481177805cf1f28e8a6da7a5310a6af48eda8d0bea57f32",
+    "opportunity-stone": "4fd3928b84f1cc26557f61ce949c1738a074c717c89246b527d561ebb92631ba"
+  },
+  "memoryBytes": 34359738368,
+  "cpu": "Apple M5",
+  "terrainAmendment": "After opportunity-on-1 completed and exhausted finite stone, the second opportunity pair was changed to a new stone-bearing flat fixture. Pair 1 remains shallow-flat; pair 2 is an exploratory terrain variant, not an identical replicate.",
+  "runSeeds": {
+    "growth-on-1": "growth",
+    "growth-on-2": "growth",
+    "growth-off-1": "growth",
+    "growth-off-2": "growth",
+    "opportunity-on-1": "opportunity",
+    "opportunity-on-2": "opportunity-stone",
+    "opportunity-off-1": "opportunity",
+    "opportunity-off-2": "opportunity-stone"
+  },
+  "seedStoneLayers": [
+    {
+      "block": "minecraft:bedrock",
+      "height": 1
+    },
+    {
+      "block": "minecraft:stone",
+      "height": 64
+    },
+    {
+      "block": "minecraft:dirt",
+      "height": 3
+    },
+    {
+      "block": "minecraft:grass_block",
+      "height": 1
+    }
+  ],
+  "portExceptions": {
+    "opportunity-on-2": {
+      "game": 25690,
+      "model": 8128,
+      "reason": "Uses the freed growth slot after growth comparisons finish, with at most two scored servers running."
+    }
+  }
+}

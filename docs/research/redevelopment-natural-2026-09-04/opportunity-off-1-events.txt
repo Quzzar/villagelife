@@ -1,0 +1,15 @@
+[19:32:51] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build blacksmith_plains_1: We need to address the lack of crafting tables and book and quill for our workers, so we should build something that provides these necessities.
+[19:33:37] [ForkJoinPool.commonPool-worker-7/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:34:49] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build blacksmith_plains_1: We need to address the lack of basic supplies and housing for our residents, and the blacksmith and lumberjack are crucial for building other structures.
+[19:35:06] [ForkJoinPool.commonPool-worker-8/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:35:53] [ForkJoinPool.commonPool-worker-8/WARN] [co.qu.ki.Kithkyn/]: Local request failed: java.net.http.HttpTimeoutException: request timed out
+[19:38:11] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is saving for couple_cottage_plains_1: the newlyweds Tam Gray-Hill and Katniss Gray-Hill need a home of their own
+[19:38:16] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is no longer saving for couple_cottage_plains_1 (affordable at last)
+[19:38:16] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is saving for couple_cottage_plains_1: the newlyweds Tam Gray-Hill and Katniss Gray-Hill need a home of their own
+[19:42:26] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is no longer saving for couple_cottage_plains_1 (waited too long)
+[19:42:26] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is saving for couple_cottage_plains_1: the newlyweds Tam Gray-Hill and Katniss Gray-Hill need a home of their own
+[19:42:41] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_1: We need to address the lack of food and housing, and the quartermaster and builder need essential tools.
+[19:49:05] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is no longer saving for couple_cottage_plains_1 (waited too long)
+[19:49:05] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' is saving for couple_cottage_plains_1: the newlyweds Tam Gray-Hill and Katniss Gray-Hill need a home of their own
+[19:49:12] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'Willowfield opportunity' decided to build farm_plains_2: We need to address the food stores and the lack of crafting tables, as well as the fact that our farmers are not harvesting yet.
+[19:52:52] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=false elapsed=288000 builds=5

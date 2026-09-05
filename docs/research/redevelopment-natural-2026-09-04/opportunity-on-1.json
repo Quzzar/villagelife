@@ -1,0 +1,890 @@
+[
+  {
+    "elapsedTicks": 0,
+    "builds": 0,
+    "population": 8,
+    "buildings": 9,
+    "project": "none",
+    "stock": "384 dirt, 16 potato, 384 cobblestone, 32 wheat seeds, 16 cooked beef, 16 carrot, 384 logs",
+    "metrics": "",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a camp. 8 residents; 6 hold jobs; 2 work-eligible residents have no post. 9 independent beds total; 3 general beds free; 0 free live-in beds are reserved to their workplaces; 2 adult residents need independent housing. There are no pre-adults awaiting family housing. 2 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x1, mine x1, storehouse x1, village center x1, well x2. Open work: builder x1, guard x12. Attractiveness is high, but the campfire\u0027s idle-labour capacity is full. Food stores stand at 6.0 items per person. ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_2",
+        "origin": 43430709927876
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 2,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 6.0,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 24000,
+    "builds": 1,
+    "population": 11,
+    "buildings": 9,
+    "project": "none",
+    "stock": "355 dirt, 1 stone pickaxe, 2 wheat, 48 planks, 329 cobblestone, 22 baked potato, 44 wheat seeds, 19 carrot, 350 logs",
+    "metrics": "redevelopment_declined\u003d1;redevelopment_offered\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 11 residents; 9 hold jobs; 2 work-eligible residents have no post. 9 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 2 adult residents need independent housing. There are no pre-adults awaiting family housing. 2 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x1, mine x1, storehouse x1, village center x1, well x2. Open work: builder x1, farmer x1, guard x9. Conditions and capacity allow newcomers, though each arrival is still a chance. Food stores stand at 3.7 items per person. Trouble your workers currently report: your lumberjack Narius Hicks, since today: \"The tree at my stand is felled; I have no wood to cut until it grows back.\"; your builder Cole Nelson, since today: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, since today: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 2,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 3.727272727272727,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 48000,
+    "builds": 1,
+    "population": 13,
+    "buildings": 9,
+    "project": "none",
+    "stock": "323 dirt, 1 stone pickaxe, 4 wheat, 329 cobblestone, 48 planks, 30 baked potato, 38 wheat seeds, 1 stone hoe, 16 carrot, 350 logs",
+    "metrics": "redevelopment_declined\u003d1;redevelopment_offered\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 13 residents; 9 hold jobs; 4 work-eligible residents have no post. 9 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x1, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9. The population is holding steady. Food stores stand at 3.5 items per person. Trouble your workers currently report: your miner Demi Ellis, since today: \"I cannot get to the mine.\"; your lumberjack Narius Hicks, for 1 day: \"The tree at my stand is felled; I have no wood to cut until it grows back.\"; your builder Cole Nelson, since today: \"I cannot get to the way between our buildings.\"; your quartermaster Bliss Moran, for 1 day: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 4,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 3.5384615384615383,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 72000,
+    "builds": 1,
+    "population": 15,
+    "buildings": 9,
+    "project": "lumberjack_plains_1:IN_PROGRESS_WORKING",
+    "stock": "8 pumpkin seeds, 307 dirt, 1 stone pickaxe, 18 wheat, 185 cobblestone, 48 planks, 30 baked potato, 38 wheat seeds, 1 stone hoe, 16 carrot, 56 melon seeds, 350 logs",
+    "metrics": "redevelopment_declined\u003d1;redevelopment_offered\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 15 residents; 9 hold jobs; 6 work-eligible residents have no post. 9 independent beds total; 0 general beds free; 0 free live-in beds are reserved to their workplaces; 6 adult residents need independent housing. There are no pre-adults awaiting family housing. 6 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x1, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9. The population is holding steady. Food stores stand at 3.1 items per person. Trouble your workers currently report: your builder Cole Nelson, for 2 days: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, for 2 days: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 6,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 3.066666666666667,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 96000,
+    "builds": 2,
+    "population": 15,
+    "buildings": 10,
+    "project": "none",
+    "stock": "6 beetroot seeds, 14 beetroot, 8 pumpkin seeds, 227 dirt, 1 stone pickaxe, 34 wheat, 185 cobblestone, 48 planks, 41 wheat seeds, 1 stone hoe, 350 logs, 48 baked potato, 16 carrot, 56 melon seeds",
+    "metrics": "redevelopment_declined\u003d1;redevelopment_offered\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 15 residents; 9 hold jobs; 6 work-eligible residents have no post. 10 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 6 adult residents need independent housing. There are no pre-adults awaiting family housing. 6 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9, lumberjack x1. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 5.2 items per person. Trouble your workers currently report: your builder Cole Nelson, for 3 days: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, for 3 days: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 6,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 5.2,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 120000,
+    "builds": 2,
+    "population": 15,
+    "buildings": 10,
+    "project": "none",
+    "stock": "6 beetroot seeds, 20 beetroot, 163 dirt, 1 stone pickaxe, 45 wheat, 185 cobblestone, 48 planks, 41 wheat seeds, 1 stone hoe, 350 logs, 52 baked potato, 16 carrot, 72 melon seeds",
+    "metrics": "redevelopment_declined\u003d1;redevelopment_offered\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 15 residents; 9 hold jobs; 6 work-eligible residents have no post. 10 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 6 adult residents need independent housing. There are no pre-adults awaiting family housing. 6 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9, lumberjack x1. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 6.2 items per person. Trouble your workers currently report: your lumberjack Narius Hicks, since today: \"My stand is bare and I have no sapling to plant on it; there is no wood to cut until I find one.\"; your builder Cole Nelson, for 4 days: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, for 4 days: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 6,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 6.2,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 144000,
+    "builds": 2,
+    "population": 15,
+    "buildings": 10,
+    "project": "blacksmith_plains_1:IN_PROGRESS_WORKING",
+    "stock": "6 beetroot seeds, 28 beetroot, 131 dirt, 1 stone pickaxe, 53 wheat, 145 cobblestone, 48 planks, 18 melon slice, 41 wheat seeds, 1 stone hoe, 322 logs, 52 baked potato, 1 poisonous potato, 16 carrot, 72 melon seeds",
+    "metrics": "redevelopment_declined\u003d2;redevelopment_offered\u003d2",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 15 residents; 9 hold jobs; 6 work-eligible residents have no post. 10 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 6 adult residents need independent housing. There are no pre-adults awaiting family housing. 6 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: farm x2, house x1, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9, lumberjack x1. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 7.7 items per person. Trouble your workers currently report: your lumberjack Narius Hicks, for 1 day: \"My stand is bare and I have no sapling to plant on it; there is no wood to cut until I find one.\"; your builder Cole Nelson, for 5 days: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, for 5 days: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 6,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 7.666666666666667,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 168000,
+    "builds": 3,
+    "population": 15,
+    "buildings": 11,
+    "project": "none",
+    "stock": "6 beetroot seeds, 33 beetroot, 99 dirt, 1 stone pickaxe, 66 wheat, 145 cobblestone, 48 planks, 11 melon slice, 41 wheat seeds, 1 stone hoe, 5 logs, 325 logs, 52 baked potato, 1 poisonous potato, 16 carrot, 88 melon seeds",
+    "metrics": "redevelopment_declined\u003d2;redevelopment_offered\u003d2",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 15 residents; 10 hold jobs; 5 work-eligible residents have no post. 11 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 5 adult residents need independent housing. There are no pre-adults awaiting family housing. 5 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: blacksmith x1, farm x2, house x1, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9, lumberjack x1. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 7.5 items per person. Trouble your workers currently report: your builder Cole Nelson, for 6 days: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, for 6 days: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "9f36b08d-3e57-4767-8d4e-2a2e9ff82fb9",
+        "name": "blacksmith_plains_1",
+        "origin": 26938035421123
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 5,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 7.533333333333333,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 192000,
+    "builds": 3,
+    "population": 15,
+    "buildings": 11,
+    "project": "none",
+    "stock": "6 beetroot seeds, 33 beetroot, 83 dirt, 1 stone pickaxe, 66 wheat, 145 cobblestone, 336 planks, 41 wheat seeds, 1 stone hoe, 325 logs, 52 baked potato, 1 poisonous potato, 16 carrot, 80 melon seeds",
+    "metrics": "redevelopment_declined\u003d2;redevelopment_offered\u003d2",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 15 residents; 10 hold jobs; 5 work-eligible residents have no post. 11 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 5 adult residents need independent housing. There are no pre-adults awaiting family housing. 5 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: blacksmith x1, farm x2, house x1, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x9, lumberjack x1. Attractiveness is high, but housing capacity currently blocks another newcomer. Food stores stand at 7.5 items per person. Trouble your workers currently report: your builder Cole Nelson, for 7 days: \"I have no crafting table to keep at hand\"; your quartermaster Bliss Moran, for 7 days: \"I have no book and quill to keep at hand\". ",
+    "standing": [
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "9f36b08d-3e57-4767-8d4e-2a2e9ff82fb9",
+        "name": "blacksmith_plains_1",
+        "origin": 26938035421123
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 5,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 7.533333333333333,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 216000,
+    "builds": 4,
+    "population": 16,
+    "buildings": 12,
+    "project": "none",
+    "stock": "8 beetroot seeds, 45 beetroot, 51 dirt, 1 stone pickaxe, 85 wheat, 7 cobblestone, 448 planks, 15 melon slice, 41 wheat seeds, 1 stone hoe, 245 logs, 28 baked potato, 1 poisonous potato, 16 carrot, 104 melon seeds",
+    "metrics": "redevelopment_declined\u003d3;redevelopment_offered\u003d3",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 16 residents; 14 hold jobs; 2 work-eligible residents have no post. 15 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 2 adult residents need independent housing. There are no pre-adults awaiting family housing. 2 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: blacksmith x1, farm x2, house x2, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x5, lumberjack x1. Conditions and capacity allow newcomers, though each arrival is still a chance. Food stores stand at 6.6 items per person. Trouble your workers currently report: your miner Demi Ellis, since today: \"I cannot get to the mine.\"; your quartermaster Bliss Moran, for 8 days: \"I have no book and quill to keep at hand\"; your builder Cole Nelson, for 8 days: \"I have no crafting table to keep at hand\". ",
+    "standing": [
+      {
+        "id": "229c93c5-b92b-4b44-b4fb-932799a3c871",
+        "name": "house_plains_3",
+        "origin": 33535105236931
+      },
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "9f36b08d-3e57-4767-8d4e-2a2e9ff82fb9",
+        "name": "blacksmith_plains_1",
+        "origin": 26938035421123
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 2,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 6.5625,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 240000,
+    "builds": 4,
+    "population": 17,
+    "buildings": 12,
+    "project": "none",
+    "stock": "8 beetroot seeds, 46 beetroot, 19 dirt, 1 stone pickaxe, 92 wheat, 7 cobblestone, 528 planks, 21 melon slice, 41 wheat seeds, 1 stone hoe, 245 logs, 28 baked potato, 1 poisonous potato, 16 carrot, 120 melon seeds",
+    "metrics": "redevelopment_declined\u003d3;redevelopment_offered\u003d3",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 17 residents; 14 hold jobs; 3 work-eligible residents have no post. 15 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 3 adult residents need independent housing. There are no pre-adults awaiting family housing. 3 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: blacksmith x1, farm x2, house x2, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x5, lumberjack x1. Conditions and capacity allow newcomers, though each arrival is still a chance. Food stores stand at 6.6 items per person. Trouble your workers currently report: your miner Demi Ellis, since today: \"I cannot get to the mine.\"; your quartermaster Bliss Moran, for 9 days: \"I have no book and quill to keep at hand\"; your builder Cole Nelson, for 9 days: \"I have no crafting table to keep at hand\". ",
+    "standing": [
+      {
+        "id": "229c93c5-b92b-4b44-b4fb-932799a3c871",
+        "name": "house_plains_3",
+        "origin": 33535105236931
+      },
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "9f36b08d-3e57-4767-8d4e-2a2e9ff82fb9",
+        "name": "blacksmith_plains_1",
+        "origin": 26938035421123
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 3,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 6.588235294117647,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 264000,
+    "builds": 4,
+    "population": 18,
+    "buildings": 12,
+    "project": "none",
+    "stock": "8 beetroot seeds, 46 beetroot, 1 stone pickaxe, 92 wheat, 592 planks, 28 baked potato, 41 wheat seeds, 1 stone hoe, 1 poisonous potato, 15 carrot, 136 melon seeds, 245 logs",
+    "metrics": "redevelopment_declined\u003d3;redevelopment_offered\u003d4;redevelopment_saving\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 18 residents; 14 hold jobs; 4 work-eligible residents have no post. 15 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: blacksmith x1, farm x2, house x2, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x5, lumberjack x1. Attractiveness is high, but the campfire\u0027s idle-labour capacity is full. Food stores stand at 5.3 items per person. Trouble your workers currently report: your miner Demi Ellis, since today: \"I cannot get to the mine.\"; your quartermaster Bliss Moran, for 10 days: \"I have no book and quill to keep at hand\"; your builder Cole Nelson, for 10 days: \"I have no crafting table to keep at hand\". ",
+    "standing": [
+      {
+        "id": "229c93c5-b92b-4b44-b4fb-932799a3c871",
+        "name": "house_plains_3",
+        "origin": 33535105236931
+      },
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "9f36b08d-3e57-4767-8d4e-2a2e9ff82fb9",
+        "name": "blacksmith_plains_1",
+        "origin": 26938035421123
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 4,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 5.277777777777778,
+    "siteBlocker": ""
+  },
+  {
+    "elapsedTicks": 288000,
+    "builds": 4,
+    "population": 18,
+    "buildings": 12,
+    "project": "none",
+    "stock": "9 beetroot seeds, 51 beetroot, 3 potato, 1 stone pickaxe, 115 wheat, 672 planks, 4 melon slice, 42 wheat seeds, 1 stone hoe, 245 logs, 28 baked potato, 1 poisonous potato, 16 carrot, 168 melon seeds",
+    "metrics": "redevelopment_declined\u003d3;redevelopment_no_answer\u003d1;redevelopment_offered\u003d5;redevelopment_saving\u003d1",
+    "briefing": "You are the collective judgement of Willowfield opportunity, a hamlet. 18 residents; 14 hold jobs; 4 work-eligible residents have no post. 15 independent beds total; 0 general beds free; 1 free live-in bed is reserved to their workplaces; 4 adult residents need independent housing. There are no pre-adults awaiting family housing. 4 adult residents are already unhoused. They cannot take open work unless that workplace has a free live-in bed; another workshop without beds would not house them, while a house would add general beds. Already standing: blacksmith x1, farm x2, house x2, lumberjack x2, mine x1, storehouse x1, village center x1, well x2. Open work: builder x2, farmer x1, guard x5, lumberjack x1. Attractiveness is high, but the campfire\u0027s idle-labour capacity is full. Food stores stand at 5.7 items per person. Trouble your workers currently report: your quartermaster Bliss Moran, for 11 days: \"I have no book and quill to keep at hand\"; your builder Cole Nelson, for 11 days: \"I have no crafting table to keep at hand\". ",
+    "standing": [
+      {
+        "id": "229c93c5-b92b-4b44-b4fb-932799a3c871",
+        "name": "house_plains_3",
+        "origin": 33535105236931
+      },
+      {
+        "id": "2eefdd92-c7db-43c2-b0ea-01def3ee0b8d",
+        "name": "well_plains_1",
+        "origin": 42056320290756
+      },
+      {
+        "id": "6fa535dc-4895-4f91-8301-56cf32538118",
+        "name": "farm_plains_1",
+        "origin": 43430709825476
+      },
+      {
+        "id": "79066cee-70a5-4b91-b447-d9566af917e5",
+        "name": "farm_plains_3",
+        "origin": 43430709911492
+      },
+      {
+        "id": "958173fd-3e06-4ba4-8173-348d577c70a9",
+        "name": "mine_plains_1",
+        "origin": 36833640075203
+      },
+      {
+        "id": "9f36b08d-3e57-4767-8d4e-2a2e9ff82fb9",
+        "name": "blacksmith_plains_1",
+        "origin": 26938035421123
+      },
+      {
+        "id": "a0397aa9-1ee8-4e0b-a04f-442f14f6420e",
+        "name": "storehouse_plains_1",
+        "origin": 31885837746115
+      },
+      {
+        "id": "ae8a7a74-2c10-4dd5-9ccf-a58bb3975b1c",
+        "name": "well_plains_1",
+        "origin": 45629733081028
+      },
+      {
+        "id": "bd2a73e2-9ba3-4d26-ad2c-209f1b376a6d",
+        "name": "village_center_plains_1",
+        "origin": 34084860972995
+      },
+      {
+        "id": "d13e10da-1051-4358-ac7a-ac32a7e7cf16",
+        "name": "house_plains_3",
+        "origin": 26938035511236
+      },
+      {
+        "id": "ef01f5b0-f552-4e51-9651-be1cc34a8851",
+        "name": "lumberjack_plains_1",
+        "origin": 32710471430083
+      },
+      {
+        "id": "f06c047a-56ed-4719-a36e-c30afce8a18c",
+        "name": "lumberjack_plains_1",
+        "origin": 26938035306436
+      }
+    ],
+    "unhousedAdults": 4,
+    "staffedFoodPosts": 2,
+    "foodPerPerson": 5.722222222222222,
+    "siteBlocker": ""
+  }
+]

@@ -1,0 +1,12 @@
+[19:50:26] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for lumberjack_plains_1: We need to address the log shortage to build essential structures.
+[19:50:26] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for lumberjack_plains_1: We need to address the log shortage to build essential structures.
+[19:50:28] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for lumberjack_plains_1 (affordable at last)
+[19:51:49] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build well_plains_1: We need clean water to survive, and the well is currently empty.
+[19:52:31] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to save up for farm_plains_1: We need to address the food shortage and provide a way to gather resources, so building a farm or a fishery is crucial.
+[19:52:31] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is saving for farm_plains_1: We need to address the food shortage and provide a way to gather resources, so building a farm or a fishery is crucial.
+[19:52:48] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' is no longer saving for farm_plains_1 (waited too long)
+[19:52:57] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build farm_plains_1: We need to address the immediate needs of our residents, including food and shelter, before we can focus on other buildings.
+[19:57:52] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build nothing for now: We need to address the lack of clean water and food, so we should focus on rebuilding the well and a farm.
+[19:58:04] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build nothing for now: We need to address the lack of clean water and food, so we should focus on rebuilding the well and creating a farm to provide food.
+[19:58:17] [Server thread/INFO] [co.qu.ki.Kithkyn/]: Village 'New growth' decided to build lumberjack_plains_1: We need to address the lack of food and water, and the blocked path is a major obstacle, so we should focus on essential buildings.
+[19:58:22] [Server thread/INFO] [co.qu.ki.Kithkyn/]: [redevelopment-benchmark] COMPLETE enabled=false elapsed=288000 builds=3
